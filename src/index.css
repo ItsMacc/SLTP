@@ -1,0 +1,141 @@
+:root {
+  /* Colors - Light Mode (Default) */
+  --bg: #f7f3ee; /* warm beige canvas */
+  --surface: #ffffff;
+  --text: #423f45; /* dark gray for body text */
+  --muted: #6b6375;
+  --accent: #7b6bff; /* purple accent */
+  --line: rgba(66, 63, 69, 0.14);
+  --control: rgba(255, 255, 255, 0.52);
+
+  /* Spacing scale (rem) */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2.5rem;
+
+  /* Border radius */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.75rem;
+
+  /* Typography */
+  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+  --font-heading: Georgia, 'Times New Roman', serif;
+
+  /* base font-size */
+  font-size: 100%;
+  font-family: instrument, sans-serif;
+}
+
+/* Explicit Light Theme attribute override */
+:root[data-theme='light'] {
+  --bg: #f7f3ee;
+  --surface: #ffffff;
+  --text: #423f45;
+  --muted: #6b6375;
+  --accent: #7b6bff;
+  --line: rgba(66, 63, 69, 0.14);
+  --control: rgba(255, 255, 255, 0.85);
+}
+
+/* Explicit Dark Theme attribute override (tied to SettingsPage) - Upgraded */
+:root[data-theme='dark'] {
+  --bg: #090d16;      
+  --surface: #131c2e;     
+  --text: #f1f5f9;        
+  --muted: #94a3b8;       
+  --accent: #9d7bff;      
+  --line: #223049;       
+  --control: rgba(19, 28, 46, 0.75);
+}
+
+/* Responsive text sizing for smaller viewports */
+@media (max-width: 480px) {
+  :root { font-size: 93.75%; /* ~15px */ }
+}
+
+/* System-level Dark mode preference fallback - Upgraded */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #090d16;
+    --surface: #131c2e;
+    --text: #f1f5f9;
+    --muted: #94a3b8;
+    --accent: #9d7bff;
+    --line: #223049;
+    --control: rgba(19, 28, 46, 0.75);
+  }
+}
+
+/* Page layout */
+html, body, #root {
+  height: 100%;
+}
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.45;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Root app container */
+.st-app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Main area helper */
+.st-app__main {
+  width: 100%;
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: calc(var(--space-lg)) calc(var(--space-md));
+  box-sizing: border-box;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Utility helpers */
+.container {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: var(--space-md);
+  padding-right: var(--space-md);
+}
+
+/* Headings */
+h1, h2, h3 {
+  margin: 0 0 0.5rem 0;
+  color: var(--text);
+}
+
+h1 {
+  font-family: var(--font-heading);
+  font-size: 2rem;
+  line-height: 1.05;
+}
+
+p { 
+  margin: 0 0 1rem 0; 
+  color: var(--muted); 
+}
+
+/* Responsive helpers */
+@media (max-width: 768px) {
+  .st-app__main { padding: calc(var(--space-md)) calc(var(--space-sm)); }
+  h1 { font-size: 1.6rem; }
+}
+
+/* Small print */
+.small { 
+  font-size: 0.875rem; 
+  color: var(--muted); 
+}
