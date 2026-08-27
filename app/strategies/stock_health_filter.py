@@ -19,7 +19,7 @@ class StockHealthFilterStrategy(Strategy):
 
         self.MIN_BARS_REQUIRED = self.LONG_BARS + 2  # Add buffer
 
-    def generate_signals(self) -> dict[str, StrategyDecision]:
+    def generate_signal(self) -> dict[str, StrategyDecision]:
         decisions = {}
 
         for ticker, history in self.history.items():
