@@ -1,5 +1,6 @@
 import numpy as np
 from app.strategies.base import Strategy, StrategyDecision
+from app.utils.StockData import StockData
 
 
 class StockHealthFilterStrategy(Strategy):
@@ -19,59 +20,58 @@ class StockHealthFilterStrategy(Strategy):
 
         self.MIN_BARS_REQUIRED = self.LONG_BARS + 2  # Add buffer
 
-    def generate_signal(self) -> dict[str, StrategyDecision]:
-        decisions = {}
+    def generate_signal(self, ticker: str, history: StockData) -> StrategyDecision:
+        # Check if stock has enough bars for processing
+        close_arr = history.close_price
+        if len(close_arr) < self.MIN_BARS_REQUIRED:
+            raise ValueError(f"{ticker} does not contain enough bars | required: {self.MIN_BARS_REQUIRED}")
 
-        for ticker, history in self.history.items():
-            close_arr = history.close_price
-            if len(close_arr) < self.MIN_BARS_REQUIRED:
-                continue
+        # Compute metrics
+        ratios, deltas, h_short_list, h_long_list = self._compute_ratio_pair(close_arr)
+        yesterday_ratio, current_ratio = ratios[0], ratios[1]
+        delta_1d = deltas[1]
+        today_date = str(history.dates[-1])
 
-            ratios, deltas, h_short_list, h_long_list = self._compute_ratio_pair(close_arr)
-            yesterday_ratio, current_ratio = ratios[0], ratios[1]
-            delta_1d = deltas[1]
-            today_date = str(history.dates[-1])
+        # Detect instantaneous spike
+        is_spike = (current_ratio >= self.SPIKE_PEAK_THRESHOLD) and (delta_1d >= self.MIN_1D_VELOCITY)
+        confidence = self._confidence_from_spike(current_ratio, delta_1d)
 
-            # Detect instantaneous spike
-            is_spike = (current_ratio >= self.SPIKE_PEAK_THRESHOLD) and (delta_1d >= self.MIN_1D_VELOCITY)
-            confidence = self._confidence_from_spike(current_ratio, delta_1d)
+        metrics = {
+            "health_ratio": current_ratio,
+            "prev_health_ratio": yesterday_ratio,
+            "delta_1d_velocity": round(delta_1d, 4),
+            "health_short": round(h_short_list[1], 4),
+            "health_long": round(h_long_list[1], 4),
+            "close_price": float(close_arr[-1]),
+        }
 
-            metrics = {
-                "health_ratio": current_ratio,
-                "prev_health_ratio": yesterday_ratio,
-                "delta_1d_velocity": round(delta_1d, 4),
-                "health_short": round(h_short_list[1], 4),
-                "health_long": round(h_long_list[1], 4),
-                "close_price": float(close_arr[-1]),
+        meta_data = {
+            "ticker": ticker,
+            "signal_date": today_date,
+            "strategy_parameters": {
+                "short_bars": self.SHORT_BARS,
+                "long_bars": self.LONG_BARS,
+                "spike_peak_threshold": self.SPIKE_PEAK_THRESHOLD,
+                "min_1d_velocity": self.MIN_1D_VELOCITY,
             }
+        }
 
-            meta_data = {
-                "ticker": ticker,
-                "signal_date": today_date,
-                "strategy_parameters": {
-                    "short_bars": self.SHORT_BARS,
-                    "long_bars": self.LONG_BARS,
-                    "spike_peak_threshold": self.SPIKE_PEAK_THRESHOLD,
-                    "min_1d_velocity": self.MIN_1D_VELOCITY,
-                }
-            }
+        if is_spike:
+            decision = StrategyDecision(
+                signal='BUY',
+                confidence=confidence,
+                metrics=metrics,
+                meta_data=meta_data,
+            )
+        else:
+            decision = StrategyDecision(
+                signal='HOLD',
+                confidence=1.0,
+                metrics=metrics,
+                meta_data=meta_data,
+            )
 
-            if is_spike:
-                decisions[ticker] = StrategyDecision(
-                    signal='BUY',
-                    confidence=confidence,
-                    metrics=metrics,
-                    meta_data=meta_data,
-                )
-            else:
-                decisions[ticker] = StrategyDecision(
-                    signal='HOLD',
-                    confidence=1.0,
-                    metrics=metrics,
-                    meta_data=meta_data,
-                )
-
-        return decisions
+        return decision
 
     # ======== HELPER METHODS ========
     def _confidence_from_spike(self, ratio: float, delta_1d: float) -> float:
@@ -110,7 +110,8 @@ class StockHealthFilterStrategy(Strategy):
 
         return ratios, deltas, h_short_list, h_long_list
 
-    def _calc_window_health(self, sub_close: np.ndarray) -> float:
+    @staticmethod
+    def _calc_window_health(sub_close: np.ndarray) -> float:
         n = len(sub_close)
         log_close = np.log(sub_close)
 

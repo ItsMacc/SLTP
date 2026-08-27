@@ -1,3 +1,4 @@
+from app.portfolio.portfolio_manager import PortfolioRiskManager
 from app.utils.StrategyDecision import StrategyDecision
 from app.database.fetch import *
 import talib as ta
@@ -7,20 +8,17 @@ class Strategy:
     def __init__(self):
         self.name: str = "Base Strategy"
         self.description: str = "Base Strategy Interface"
-        self.tickers: list[str] = []
-        self.history: dict[str, StockData] = {}
+        self.manager: PortfolioRiskManager = None
 
         self.MIN_BARS_REQUIRED: int = 0
 
-    def add_ticker(self, ticker: str, start_date: str | None=None, end_date: str | None=None) -> None:
-        self.history[ticker] = get_stock_history(ticker, start_date, end_date)
-        self.tickers.append(ticker)
+    def add_ticker(self, ticker: str, start_date: str | None = None, end_date: str | None = None) -> None:
+        self.manager.add_ticker(ticker, start_date, end_date)
 
-    def add_tickers(self, tickers: list[str], start_date: str | None=None, end_date: str | None=None) -> None:
-        self.history.update(get_stock_histories(tickers, start_date, end_date))
-        self.tickers.extend(tickers)
+    def add_tickers(self, tickers: list[str], start_date: str | None = None, end_date: str | None = None) -> None:
+        self.manager.add_tickers(tickers, start_date, end_date)
 
-    def generate_signal(self) -> dict[str, StrategyDecision]:
+    def generate_signal(self, ticker: str, history: StockData) -> StrategyDecision:
         raise NotImplementedError("Strategy subclasses must implement generate_signal()")
 
     # ======== Indicator support ========
