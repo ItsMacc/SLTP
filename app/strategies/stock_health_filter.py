@@ -73,34 +73,6 @@ class StockHealthFilterStrategy(Strategy):
 
         return decisions
 
-    def generate_exit(self, decisions: dict[str, StrategyDecision]) -> dict[str, StrategyDecision]:
-        exit_decisions = {}
-
-        for ticker, decision in decisions.items():
-            if decision.signal == "BUY":
-                current_price = decision.metrics["close_price"]
-                scale_factor = (decision.confidence - 0.5) / 0.5
-
-                sl_pct = 0.03 + (0.03 * scale_factor)
-                tp_pct = 0.05 + (0.05 * scale_factor)
-
-                stop_loss = round(current_price * (1.0 - sl_pct), 2)
-                take_profit = round(current_price * (1.0 + tp_pct), 2)
-
-                # Attach targets to decision object & metadata
-                decision.meta_data["exits"] = {
-                    "stop_loss": stop_loss,
-                    "take_profit": take_profit,
-                    "sl_pct": round(sl_pct * 100, 1),
-                    "tp_pct": round(tp_pct * 100, 1),
-                }
-
-                exit_decisions[ticker] = decision
-            else:
-                exit_decisions[ticker] = decision
-
-        return exit_decisions
-
     # ======== HELPER METHODS ========
     def _confidence_from_spike(self, ratio: float, delta_1d: float) -> float:
         """Scales confidence smoothly from 0 to 1 using an asymptotic function"""

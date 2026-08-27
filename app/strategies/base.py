@@ -23,9 +23,6 @@ class Strategy:
     def generate_signal(self) -> dict[str, StrategyDecision]:
         raise NotImplementedError("Strategy subclasses must implement generate_signal()")
 
-    def generate_exit(self, decision: dict[str, StrategyDecision]) -> dict[str, StrategyDecision]:
-        raise NotImplementedError("Strategy subclasses must implement generate_exit()")
-
     # ======== Indicator support ========
 
     def sma(self, values, window):
