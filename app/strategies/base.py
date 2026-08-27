@@ -1,5 +1,5 @@
 from app.utils.StrategyDecision import StrategyDecision
-from app.fetch import *
+from app.database.fetch import *
 import talib as ta
 
 
