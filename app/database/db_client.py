@@ -16,6 +16,9 @@ class TursoClient:
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
         }
+        # Persistent Session shared across all queries to maintain Keep-Alive
+        self.session = requests.Session()
+        self.session.headers.update(self.headers)
 
     @staticmethod
     def _format_args(params: list | None):
@@ -43,7 +46,7 @@ class TursoClient:
                 {"type": "close"},
             ]
         }
-        resp = requests.post(self.endpoint, json=payload, headers=self.headers, timeout=10)
+        resp = self.session.post(self.endpoint, json=payload, timeout=10)
         resp.raise_for_status()
         data = resp.json()
 
@@ -73,9 +76,15 @@ class TursoClient:
         requests_payload.append({"type": "close"})
         payload = {"requests": requests_payload}
 
-        resp = requests.post(self.endpoint, json=payload, headers=self.headers, timeout=30)
+        resp = self.session.post(self.endpoint, json=payload, timeout=30)
         resp.raise_for_status()
 
 
-def get_db_client():
-    return TursoClient(TURSO_URL, TURSO_AUTH_TOKEN)
+# --- SINGLETON INSTANCE CACHE ---
+_global_client = None
+
+def get_db_client() -> TursoClient:
+    global _global_client
+    if _global_client is None:
+        _global_client = TursoClient(TURSO_URL, TURSO_AUTH_TOKEN)
+    return _global_client

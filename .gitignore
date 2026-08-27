@@ -25,3 +25,8 @@ dist-ssr
 
 # env
 .env
+
+# Pycache
+__pycache__/
+*.py[cod]
+*$py.class

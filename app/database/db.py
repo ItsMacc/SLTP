@@ -100,6 +100,11 @@ def init_db(client=None):
     """)
 
     client.execute("""
+            CREATE INDEX IF NOT EXISTS idx_symbols_name
+            ON symbols (name);
+        """)
+
+    client.execute("""
         CREATE INDEX IF NOT EXISTS idx_bars_symbol_date
         ON bars (symbol_id, date);
     """)
