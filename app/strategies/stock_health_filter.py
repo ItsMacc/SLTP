@@ -5,11 +5,18 @@ from app.portfolio.stock_health_filter_manager import StockHealthFilterManager
 
 
 class StockHealthFilterStrategy(Strategy):
-
+    """
+    Key Terms & Definitions:
+    - Health Score: A score from 0 to 100 measuring how smoothly and consistently
+      a stock's price is rising while avoiding frequent downward drops.
+      (Uses linear regression for trend score and ratio of positive-to-negative
+      return days for downward drops)
+    - Health Ratio: The relative multiple between short-term health and long-term health
+    """
     def __init__(self):
         super().__init__()
         self.name = "Fixed-Window Health Spike Strategy"
-        self.description = "Generates a BUY signal when a stock's short-term health score spikes dramatically relative to its yearly average."
+        self.description = "Identifies momentum breakouts by detecting rapid spikes in short-term health relative to long-term baseline trends, filtered through volatility-adjusted stop-loss and risk controls."
         self.manager = StockHealthFilterManager()
 
         # Strategy Parameters
