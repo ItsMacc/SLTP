@@ -14,7 +14,7 @@ app.add_middleware(
 )
 
 
-# --- Endpoints ---
+# -------- Endpoints --------
 
 @app.get("/api/stock/history")
 def read_stock_history(

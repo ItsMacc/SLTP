@@ -1,6 +1,7 @@
 import numpy as np
 from app.strategies.base import Strategy, StrategyDecision
 from app.utils.StockData import StockData
+from app.portfolio.stock_health_filter_manager import StockHealthFilterManager
 
 
 class StockHealthFilterStrategy(Strategy):
@@ -9,6 +10,7 @@ class StockHealthFilterStrategy(Strategy):
         super().__init__()
         self.name = "Fixed-Window Health Spike Strategy"
         self.description = "Generates a BUY signal when a stock's short-term health score spikes dramatically relative to its yearly average."
+        self.manager = StockHealthFilterManager()
 
         # Strategy Parameters
         self.SHORT_BARS = 21  # Short-term trading window length
@@ -56,6 +58,7 @@ class StockHealthFilterStrategy(Strategy):
             }
         }
 
+        # Return strategy decision based on whether a valid spike was detected
         if is_spike:
             decision = StrategyDecision(
                 signal='BUY',
@@ -75,12 +78,16 @@ class StockHealthFilterStrategy(Strategy):
 
     # ======== HELPER METHODS ========
     def _confidence_from_spike(self, ratio: float, delta_1d: float) -> float:
-        """Scales confidence smoothly from 0 to 1 using an asymptotic function"""
-        peak_excess = (ratio - self.SPIKE_PEAK_THRESHOLD) / self.SPIKE_PEAK_THRESHOLD
-        velocity_excess = (delta_1d - self.MIN_1D_VELOCITY) / self.MIN_1D_VELOCITY
-        combined = (peak_excess + velocity_excess) / 2.0
+        # Calculate raw fractional excess beyond thresholds
+        peak_excess = max(0.0, (ratio - self.SPIKE_PEAK_THRESHOLD) / self.SPIKE_PEAK_THRESHOLD)
+        velocity_excess = max(0.0, (delta_1d - self.MIN_1D_VELOCITY) / self.MIN_1D_VELOCITY)
 
-        return round(float(0.5 + 0.5 * np.tanh(combined)), 2)
+        # Combined average excess
+        excess = (peak_excess + velocity_excess) / 2.0
+
+        # Calculate bounded confidence score
+        confidence = excess / (1.0 + excess)
+        return round(float(confidence), 2)
 
     def _compute_ratio_pair(self, close_arr: np.ndarray):
         ratios, deltas, h_short_list, h_long_list = [], [], [], []

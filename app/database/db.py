@@ -1,4 +1,7 @@
-from datetime import datetime, timezone, timedelta
+# -------- Imports --------
+from datetime import datetime
+from datetime import timedelta
+from datetime import timezone
 import bs4 as bs
 import pandas as pd
 import requests
@@ -6,13 +9,14 @@ import yfinance as yf
 from app.database.db_client import get_db_client
 
 
-# --- Symbol Lists ---
-
+# -------- Symbol Lists --------
 def normalize_ticker(ticker):
+    # Normalize ticker string by removing trailing exchange suffixes
     return ticker.removesuffix(".TO")
 
 
 def load_sp500():
+    # Set headers to mimic a web browser request
     headers = {
         "User-Agent": (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,"
@@ -21,6 +25,7 @@ def load_sp500():
     }
     url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
 
+    # Attempt to fetch the S&P 500 wikipedia page
     try:
         response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
@@ -28,12 +33,14 @@ def load_sp500():
         print(f"Failed to fetch S&P 500 list: {e}")
         return []
 
+    # Parse the HTML response content using BeautifulSoup
     soup = bs.BeautifulSoup(response.text, "lxml")
     table = soup.find("table", {"id": "constituents"})
 
     if table is None:
         return []
 
+    # Extract ticker symbols from the table rows
     symbols = []
     for row in table.find_all("tr")[1:]:
         cells = row.find_all("td")
@@ -46,6 +53,7 @@ def load_sp500():
 
 
 def load_custom_stocks():
+    # Return predefined list of custom Canadian and international stocks
     return [
         "RY.TO", "TD.TO", "BNS.TO", "BMO.TO", "CM.TO", "NA.TO", "ENB.TO", "TRP.TO",
         "CNQ.TO", "SU.TO", "EMA.TO", "FTS.TO", "CP.TO", "CNR.TO", "BCE.TO", "T.TO",
@@ -56,6 +64,7 @@ def load_custom_stocks():
 
 
 def load_etfs():
+    # Return predefined list of common exchange-traded funds
     return [
         "XEQT.TO", "VEQT.TO", "VFV.TO", "VDY.TO", "XEI.TO", "XIU.TO", "XIC.TO",
         "VAB.TO", "XBB.TO", "CASH.TO", "PSA.TO", "SPY", "QQQ", "VTI", "VOO", "DIA",
@@ -64,19 +73,22 @@ def load_etfs():
 
 
 def load_gold():
+    # Return commodity fund symbols for gold tracking
     return ["GLD"]
 
 
 def load_symbols():
+    # Combine and deduplicate all loaded symbol groups into a single list
     return list(set(load_sp500() + load_custom_stocks() + load_etfs() + load_gold()))
 
 
-# --- Database Operations ---
-
-def init_db(client=None):
+# -------- Database Operations --------
+def init_db(client=None) -> None:
+    # Initialize the database client if not provided
     if client is None:
         client = get_db_client()
 
+    # Create symbols table if it does not already exist
     client.execute("""
         CREATE TABLE IF NOT EXISTS symbols (
             id INTEGER PRIMARY KEY,
@@ -85,6 +97,7 @@ def init_db(client=None):
         );
     """)
 
+    # Create bars table for historical price data with foreign key reference
     client.execute("""
         CREATE TABLE IF NOT EXISTS bars (
             symbol_id INTEGER NOT NULL,
@@ -99,27 +112,36 @@ def init_db(client=None):
         );
     """)
 
+    # Add index on symbols name for lookup performance
     client.execute("""
-            CREATE INDEX IF NOT EXISTS idx_symbols_name
-            ON symbols (name);
-        """)
+        CREATE INDEX IF NOT EXISTS idx_symbols_name
+        ON symbols (name);
+    """)
 
+    # Add compound index on bars symbol id and date
     client.execute("""
         CREATE INDEX IF NOT EXISTS idx_bars_symbol_date
         ON bars (symbol_id, date);
     """)
 
 
-def process_and_batch_bars(download_list, df, symbol_map, client=None):
+def process_and_batch_bars(download_list,
+                           df,
+                           symbol_map,
+                           client=None
+                           ) -> None:
+    # Return early if dataframe or download list is empty
     if df is None or df.empty or not download_list:
         return
 
+    # Use default database client if none is supplied
     if client is None:
         client = get_db_client()
 
     print(f"Preparing bar statements for {len(download_list)} tickers...")
     bar_statements = []
 
+    # Iterate through download list to extract and format historical bars
     for ticker in download_list:
         db_ticker = normalize_ticker(ticker)
         symbol_id = symbol_map.get(db_ticker)
@@ -146,10 +168,12 @@ def process_and_batch_bars(download_list, df, symbol_map, client=None):
         if stock_df is None or stock_df.empty:
             continue
 
+        # Capitalize column headers and ensure date column exists
         stock_df.columns = [str(c).capitalize() for c in stock_df.columns]
         if "Date" not in stock_df.columns:
             stock_df.rename(columns={stock_df.columns[0]: "Date"}, inplace=True)
 
+        # Standardize date format to string representation
         stock_df["Date"] = pd.to_datetime(stock_df["Date"]).dt.strftime("%Y-%m-%d")
 
         required_cols = ["Date", "Open", "High", "Low", "Close", "Volume"]
@@ -187,11 +211,13 @@ def process_and_batch_bars(download_list, df, symbol_map, client=None):
 
     print(f"Flushing {len(bar_statements)} bars to Turso in batches...")
     chunk_size = 500
+    # Execute database transactions in defined chunk sizes
     for i in range(0, len(bar_statements), chunk_size):
         client.batch(bar_statements[i:i + chunk_size])
 
 
-def insert_or_update_data(client=None):
+def insert_or_update_data(client=None) -> None:
+    # Initialize database client if not provided
     if client is None:
         client = get_db_client()
 
@@ -204,6 +230,7 @@ def insert_or_update_data(client=None):
     today = datetime.now().date()
     offset = 0
 
+    # Adjust date offset for weekend days
     if today.weekday() == 5:
         offset = 1
     elif today.weekday() == 6:
@@ -230,6 +257,7 @@ def insert_or_update_data(client=None):
             for row in res_dates.rows:
                 max_dates_map[row[0]] = row[1]
 
+    # Categorize tickers based on existing database coverage and last date updated
     for ticker in all_tickers:
         db_ticker = normalize_ticker(ticker)
         symbol_id = symbol_map.get(db_ticker)
@@ -299,6 +327,7 @@ def insert_or_update_data(client=None):
     print("Database sync completed successfully.")
 
 
+# -------- Entry Point --------
 if __name__ == "__main__":
     init_db()
     insert_or_update_data()

@@ -1,4 +1,4 @@
-from app.portfolio.portfolio_manager import PortfolioRiskManager
+from app.portfolio.portfolio_manager import PortfolioManager
 from app.utils.StrategyDecision import StrategyDecision
 from app.database.fetch import *
 import talib as ta
@@ -8,17 +8,20 @@ class Strategy:
     def __init__(self):
         self.name: str = "Base Strategy"
         self.description: str = "Base Strategy Interface"
-        self.manager: PortfolioRiskManager = None
+        self.manager: PortfolioManager = None
 
         self.MIN_BARS_REQUIRED: int = 0
 
     def add_ticker(self, ticker: str, start_date: str | None = None, end_date: str | None = None) -> None:
+        # Delegate single ticker addition to the underlying portfolio manager
         self.manager.add_ticker(ticker, start_date, end_date)
 
     def add_tickers(self, tickers: list[str], start_date: str | None = None, end_date: str | None = None) -> None:
+        # Delegate multiple ticker addition to the underlying portfolio manager
         self.manager.add_tickers(tickers, start_date, end_date)
 
     def generate_signal(self, ticker: str, history: StockData) -> StrategyDecision:
+        # Enforce implementation of signal generation in strategy subclasses
         raise NotImplementedError("Strategy subclasses must implement generate_signal()")
 
     # ======== Indicator support ========

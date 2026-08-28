@@ -1,17 +1,22 @@
-from datetime import datetime, timedelta
-from typing import Any, Dict, List
+# -------- Imports --------
+from datetime import datetime
+from datetime import timedelta
+from typing import Any
+from typing import Dict
+from typing import List
 import numpy as np
 from app.database.db_client import get_db_client
 from app.utils.StockData import StockData
 
 
-# --- Date Helpers ---
-
+# -------- Date Helpers --------
 def calculate_start_date(timeframe: str) -> str | None:
+    # Normalize timeframe string to lowercase
     tf = timeframe.lower()
     if tf == "all":
         return None
 
+    # Map timeframe strings to corresponding start dates relative to today
     today = datetime.now()
     mapping = {
         "1y": today - timedelta(days=365),
@@ -23,34 +28,39 @@ def calculate_start_date(timeframe: str) -> str | None:
     return start_dt.strftime("%Y-%m-%d")
 
 
-def validate_dates(start_date: str | None = None, end_date: str | None = None) -> bool:
+def validate_dates(start_date: str | None = None,
+                   end_date: str | None = None
+                   ) -> bool:
     fmt = "%Y-%m-%d"
     s_dt, e_dt = None, None
 
+    # Validate and parse start date string format if provided
     if start_date is not None:
         try:
             s_dt = datetime.strptime(start_date, fmt)
         except ValueError:
             raise ValueError(f"Invalid start_date format ({start_date}). Expected YYYY-MM-DD")
 
+    # Validate and parse end date string format if provided
     if end_date is not None:
         try:
             e_dt = datetime.strptime(end_date, fmt)
         except ValueError:
             raise ValueError(f"Invalid end_date format ({end_date}). Expected YYYY-MM-DD")
 
+    # Ensure start date precedes end date when both are specified
     if s_dt is not None and e_dt is not None and s_dt >= e_dt:
         raise ValueError(f"Invalid date range: start_date ({start_date}) must be before end_date ({end_date}).")
 
     return True
 
 
-# --- Database Queries ---
-
-def _build_stock_data(ticker: str, rows: list) -> StockData:
-    """Helper to convert SQL rows into a vectorized StockData instance."""
+# -------- Stock Data Queries --------
+def _build_stock_data(ticker: str,
+                      rows: list
+                      ) -> StockData:
+    # Convert database rows into a structured StockData object using NumPy
     matrix = np.array(rows, dtype=object)
-
     return StockData(
         ticker=ticker,
         dates=matrix[:, 0].astype(str),
@@ -62,12 +72,18 @@ def _build_stock_data(ticker: str, rows: list) -> StockData:
     )
 
 
-def get_stock_history(ticker: str, start: str | None = None, end: str | None = None, client=None) -> StockData:
+def get_stock_history(ticker: str,
+                      start: str | None = None,
+                      end: str | None = None,
+                      client=None
+                      ) -> StockData:
+    # Use default database client if none is provided
     if client is None:
         client = get_db_client()
 
     validate_dates(start, end)
 
+    # Construct SQL query to fetch OHLCV bars for the specified ticker
     query = """
         SELECT
             b.date,
@@ -82,10 +98,12 @@ def get_stock_history(ticker: str, start: str | None = None, end: str | None = N
     """
     params = [ticker]
 
+    # Append start date filter if specified
     if start is not None:
         query += " AND b.date >= ?"
         params.append(start)
 
+    # Append end date filter if specified
     if end is not None:
         query += " AND b.date <= ?"
         params.append(end)
@@ -95,6 +113,7 @@ def get_stock_history(ticker: str, start: str | None = None, end: str | None = N
     result = client.execute(query, params)
     rows = result.rows if result else []
 
+    # Raise error if no historical records are found
     if not rows:
         date_range = ""
         if start is not None:
@@ -106,13 +125,18 @@ def get_stock_history(ticker: str, start: str | None = None, end: str | None = N
     return _build_stock_data(ticker, rows)
 
 
-def get_stock_history_json(ticker: str, timeframe: str = "1y", client=None) -> Dict[str, Any]:
+def get_stock_history_json(ticker: str,
+                           timeframe: str = "1y",
+                           client=None
+                           ) -> Dict[str, Any]:
+    # Initialize client and compute start date based on timeframe
     if client is None:
         client = get_db_client()
 
     start_date = calculate_start_date(timeframe)
     stock_data = get_stock_history(ticker=ticker, start=start_date, client=client)
 
+    # Format stock history data points into a list of dictionaries
     bars: List[Dict[str, Any]] = [
         {
             "date": str(d),
@@ -140,15 +164,22 @@ def get_stock_history_json(ticker: str, timeframe: str = "1y", client=None) -> D
     }
 
 
-def get_stock_histories(tickers: list[str], start: str | None = None, end: str | None = None, client=None) -> dict[str, StockData]:
+def get_stock_histories(tickers: list[str],
+                        start: str | None = None,
+                        end: str | None = None,
+                        client=None
+                        ) -> dict[str, StockData]:
+    # Return empty dictionary if ticker list is empty
     if not tickers:
         return {}
 
+    # Initialize client and validate date boundaries
     if client is None:
         client = get_db_client()
 
     validate_dates(start, end)
 
+    # Construct parameterized query to retrieve history for multiple tickers
     placeholders = ", ".join(["?"] * len(tickers))
     query = f"""
         SELECT
@@ -178,12 +209,14 @@ def get_stock_histories(tickers: list[str], start: str | None = None, end: str |
     result = client.execute(query, params)
     rows = result.rows if result else []
 
+    # Group fetched rows by ticker name
     data_by_ticker = {t: [] for t in tickers}
     for r in rows:
         t_name = r[0]
         if t_name in data_by_ticker:
             data_by_ticker[t_name].append(r[1:])
 
+    # Build and return StockData objects for each ticker with available rows
     return {
         ticker: _build_stock_data(ticker, t_rows)
         for ticker, t_rows in data_by_ticker.items()
