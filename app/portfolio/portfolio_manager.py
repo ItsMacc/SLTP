@@ -84,6 +84,15 @@ class PortfolioManager:
         self.histories.update(get_stock_histories(tickers, start_date, end_date))
         self.tickers.extend(tickers)
 
+    # -------- Custom Methods (Implemented in Subclasses) --------
+    def on_signal(self,
+                  ticker: str,
+                  decision: StrategyDecision
+                  ) -> TradeRecord:
+        # Base method placeholder enforcing implementation in subclasses
+        raise ValueError("PortfolioManager subclasses must implement on_signal()")
+
+    # -------- Trade Execution & Risk Management --------
     def check_exits(self,
                     ticker: str,
                     current_date: str,
@@ -175,6 +184,38 @@ class PortfolioManager:
                 sell_trade_record.realized_return_pct = pct_return
                 self.trades[ticker].append(sell_trade_record)
 
+    def execute_trade(self,
+                      pending_record: TradeRecord,
+                      fill_price: float,
+                      date: str
+                      ) -> None:
+        ticker = pending_record.ticker
+
+        # If position is already open, return
+        if self.open_positions.get(ticker, False):
+            return
+
+        # If maximum position limit is reached, return
+        if self.max_positions is not None and self.active_positions >= self.max_positions:
+            return
+
+        # Apply slippage to the fill price
+        entry_price = round(self.apply_entry_slippage(fill_price), 2)
+
+        # Update pending record details into a confirmed BUY trade
+        pending_record.action = "BUY"
+        pending_record.entry_date = date
+        pending_record.entry_price = entry_price
+
+        # Initialize trade list if ticker is new
+        if ticker not in self.trades:
+            self.trades[ticker] = []
+
+        # Record trade and update active position tracking
+        self.trades[ticker].append(pending_record)
+        self.active_positions += 1
+        self.open_positions[ticker] = True
+
     def mark_to_market(self,
                        ticker: str,
                        current_close: float
@@ -239,13 +280,6 @@ class PortfolioManager:
             "last_close": pending_record.entry_price * (1.0 + self.FEE_RATE),
         }
 
-    def on_signal(self,
-                  ticker: str,
-                  decision: StrategyDecision
-                  ) -> TradeRecord:
-        # Base method placeholder enforcing implementation in subclasses
-        raise ValueError("PortfolioManager subclasses must implement on_signal()")
-
     def compute_allocation_size(self) -> float:
         # Retrieve risk settings based on current risk profile
         kelly_fraction, fallback = RISK_SETTINGS[self.risk_profile]
@@ -266,38 +300,6 @@ class PortfolioManager:
         edge = max(0.0, win_rate - (1 - win_rate) / payoff_ratio)
 
         return edge * kelly_fraction
-
-    def execute_trade(self,
-                      pending_record: TradeRecord,
-                      fill_price: float,
-                      date: str
-                      ) -> None:
-        ticker = pending_record.ticker
-
-        # If position is already open, return
-        if self.open_positions.get(ticker, False):
-            return
-
-        # If maximum position limit is reached, return
-        if self.max_positions is not None and self.active_positions >= self.max_positions:
-            return
-
-        # Apply slippage to the fill price
-        entry_price = round(self.apply_entry_slippage(fill_price), 2)
-
-        # Update pending record details into a confirmed BUY trade
-        pending_record.action = "BUY"
-        pending_record.entry_date = date
-        pending_record.entry_price = entry_price
-
-        # Initialize trade list if ticker is new
-        if ticker not in self.trades:
-            self.trades[ticker] = []
-
-        # Record trade and update active position tracking
-        self.trades[ticker].append(pending_record)
-        self.active_positions += 1
-        self.open_positions[ticker] = True
 
     def apply_entry_slippage(self, price: float) -> float:
         # Adjust entry price upwards for buy slippage
