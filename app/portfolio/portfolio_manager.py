@@ -66,6 +66,13 @@ class PortfolioManager:
         self.pending_entries: dict[str, TradeRecord] = {}
         self.open_trade_state: dict[str, dict] = {}
 
+        # Performance tracking
+        self.equity_curve: list[dict] = []
+        self.total_transactions_cost: float = 0.0
+
+        # Maintain a flat running list of realized returns for Kelly calculations
+        self._realized_returns: list[float] = []
+
     def add_ticker(self,
                    ticker: str,
                    start_date: str | None = None,
@@ -103,86 +110,92 @@ class PortfolioManager:
         if self.active_positions == 0:
             return
 
-        # If no positions are open for the ticker, return
-        if not self.open_positions.get(ticker, False):
+        # Cache dictionary lookup locally to prevent multiple hash lookups
+        is_open = self.open_positions.get(ticker, False)
+        if not is_open:
             return
 
         # If ticker does not have any BUY signals, return
         if ticker not in self.trades or not self.trades[ticker]:
             return
 
-        if self.open_positions.get(ticker):
-            # Fetch the last record, since it will always be a BUY record
-            last_trade_record = self.trades[ticker][-1]
+        # Fetch the last record, since it will always be a BUY record
+        last_trade_record = self.trades[ticker][-1]
 
-            sl = last_trade_record.stop_loss
-            tp = last_trade_record.take_profit
+        sl = last_trade_record.stop_loss
+        tp = last_trade_record.take_profit
 
-            exit_triggered = False
-            sell_trade_record = None
+        exit_triggered = False
+        sell_trade_record = None
 
-            # Check for exit
-            if current_high >= tp:
-                exit_price = round(self.apply_exit_slippage(tp), 2)
-                sell_trade_record = TradeRecord(
-                    ticker=ticker,
-                    action="TAKE_PROFIT",
-                    entry_date=last_trade_record.entry_date,
-                    allocation_size=last_trade_record.allocation_size,
-                    entry_price=last_trade_record.entry_price,
-                    stop_loss=sl,
-                    take_profit=tp,
-                    exit_price=exit_price,
-                    exit_date=current_date,
-                    transaction_cost=0.0
-                )
-                exit_triggered = True
-            elif current_low <= sl:
-                exit_price = round(self.apply_exit_slippage(sl), 2)
-                sell_trade_record = TradeRecord(
-                    ticker=ticker,
-                    action="STOP_LOSS",
-                    entry_date=last_trade_record.entry_date,
-                    allocation_size=last_trade_record.allocation_size,
-                    entry_price=last_trade_record.entry_price,
-                    stop_loss=sl,
-                    take_profit=tp,
-                    exit_price=exit_price,
-                    exit_date=current_date,
-                    transaction_cost=0.0
-                )
-                exit_triggered = True
+        # Check for exit
+        if current_high >= tp:
+            exit_price = round(self.apply_exit_slippage(tp), 2)
+            sell_trade_record = TradeRecord(
+                ticker=ticker,
+                action="TAKE_PROFIT",
+                entry_date=last_trade_record.entry_date,
+                allocation_size=last_trade_record.allocation_size,
+                entry_price=last_trade_record.entry_price,
+                stop_loss=sl,
+                take_profit=tp,
+                exit_price=exit_price,
+                exit_date=current_date,
+                transaction_cost=0.0
+            )
+            exit_triggered = True
+        elif current_low <= sl:
+            exit_price = round(self.apply_exit_slippage(sl), 2)
+            sell_trade_record = TradeRecord(
+                ticker=ticker,
+                action="STOP_LOSS",
+                entry_date=last_trade_record.entry_date,
+                allocation_size=last_trade_record.allocation_size,
+                entry_price=last_trade_record.entry_price,
+                stop_loss=sl,
+                take_profit=tp,
+                exit_price=exit_price,
+                exit_date=current_date,
+                transaction_cost=0.0
+            )
+            exit_triggered = True
 
-            # If exit conditions are met, close the position and manage portfolio
-            if exit_triggered:
-                self.active_positions = max(0, self.active_positions - 1)
-                self.open_positions[ticker] = False
+        # If exit conditions are met, close the position and manage portfolio
+        if exit_triggered:
+            self.active_positions = max(0, self.active_positions - 1)
+            self.open_positions[ticker] = False
 
-                # Transaction costs
-                entry_fee_cost = last_trade_record.entry_price * self.FEE_RATE
-                exit_fee_cost = sell_trade_record.exit_price * self.FEE_RATE
-                total_fee_pct = (entry_fee_cost + exit_fee_cost) / last_trade_record.entry_price
-                sell_trade_record.transaction_cost = round(total_fee_pct * 100, 4)
+            # Transaction costs
+            entry_fee_cost = last_trade_record.entry_price * self.FEE_RATE
+            exit_fee_cost = sell_trade_record.exit_price * self.FEE_RATE
+            total_fee_pct = (entry_fee_cost + exit_fee_cost) / last_trade_record.entry_price
+            sell_trade_record.transaction_cost = round(total_fee_pct * 100, 4)
 
-                # Returns
-                net_entry = last_trade_record.entry_price * (1.0 + self.FEE_RATE)
-                net_exit = sell_trade_record.exit_price * (1.0 - self.FEE_RATE)
-                pct_return = (net_exit - net_entry) / net_entry
+            # Returns
+            net_entry = last_trade_record.entry_price * (1.0 + self.FEE_RATE)
+            net_exit = sell_trade_record.exit_price * (1.0 - self.FEE_RATE)
+            pct_return = (net_exit - net_entry) / net_entry
 
-                # State management
-                state = self.open_trade_state.pop(ticker, None)
-                already_marked_pct_return = 0.0
-                if state is not None:
-                    last_close = state["last_close"]
-                    already_marked_pct_return = (last_close - net_entry) / net_entry
+            # State management
+            state = self.open_trade_state.pop(ticker, None)
+            already_marked_pct_return = 0.0
+            if state is not None:
+                last_close = state["last_close"]
+                already_marked_pct_return = (last_close - net_entry) / net_entry
 
-                # Portfolio management
-                incremental_pct_return = pct_return - already_marked_pct_return
-                gained_value = self.portfolio_index * last_trade_record.allocation_size * incremental_pct_return
-                self.portfolio_index += round(gained_value, 4)
+            # Portfolio management
+            incremental_pct_return = pct_return - already_marked_pct_return
+            gained_value = self.portfolio_index * last_trade_record.allocation_size * incremental_pct_return
+            self.portfolio_index += round(gained_value, 4)
 
-                sell_trade_record.realized_return_pct = pct_return
-                self.trades[ticker].append(sell_trade_record)
+            sell_trade_record.realized_return_pct = pct_return
+            self.trades[ticker].append(sell_trade_record)
+
+            # Append directly to flat return cache for Kelly criteria
+            self._realized_returns.append(pct_return)
+
+            # Update total transaction cost
+            self.total_transactions_cost += sell_trade_record.transaction_cost
 
     def execute_trade(self,
                       pending_record: TradeRecord,
@@ -220,7 +233,7 @@ class PortfolioManager:
                        ticker: str,
                        current_close: float
                        ) -> None:
-        # If no positions are open for the ticker, return
+        # Cache dictionary lookup locally
         if not self.open_positions.get(ticker, False):
             return
 
@@ -284,9 +297,8 @@ class PortfolioManager:
         # Retrieve risk settings based on current risk profile
         kelly_fraction, fallback = RISK_SETTINGS[self.risk_profile]
 
-        # Gather historical returns across all trades
-        returns = [r.realized_return_pct for trades in self.trades.values()
-                   for r in trades if r.realized_return_pct is not None]
+        # Use running returns cache instead of nested dictionary comprehensions
+        returns = self._realized_returns
         wins = [r for r in returns if r >= 0]
         losses = [-r for r in returns if r < 0]
 

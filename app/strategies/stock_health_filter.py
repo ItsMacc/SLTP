@@ -131,7 +131,8 @@ class StockHealthFilterStrategy(Strategy):
 
         # Slope & Trend Fit (R-Squared)
         x_reg = np.arange(n, dtype=np.float64)
-        x_diff = x_reg - ((n - 1) / 2.0)
+        x_mean = (n - 1) / 2.0
+        x_diff = x_reg - x_mean
         var_x = float(np.sum(x_diff ** 2))
 
         y_mean = np.mean(log_close)
@@ -146,10 +147,8 @@ class StockHealthFilterStrategy(Strategy):
 
         trend_score = 100.0 * r_squared if daily_growth_pct > 0 else 25.0 * r_squared
 
-        # Downside Frequency (Unpunished downside ratio)
         returns = np.diff(sub_close) / sub_close[:-1]
-        downside_freq = float(np.sum(returns < 0) / len(returns)) if len(returns) > 0 else 0.5
+        downside_freq = float(np.count_nonzero(returns < 0) / len(returns)) if len(returns) > 0 else 0.5
         downside_score = 100.0 * (1.0 - downside_freq)
 
-        # Geometric Combination
         return max(0.01, float(np.sqrt(trend_score * downside_score)))
