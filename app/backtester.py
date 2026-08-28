@@ -6,6 +6,9 @@ import numpy as np
 
 
 def backtest_strategy(strategy: Strategy, period: int = 1):
+    # Create sliced_history object once so we can reuse it
+    sliced_history = StockData("", [], [], [], [], [], [])
+
     # Find the start date string
     start_date = datetime.now() - relativedelta(years=period)
     start_date_str = start_date.strftime("%Y-%m-%d")
@@ -24,7 +27,7 @@ def backtest_strategy(strategy: Strategy, period: int = 1):
 
     manager.equity_curve = []
 
-    # Pre-cache index mappings for each ticker to avoid O(N) lookups inside the loop
+    # Pre-cache index mappings for each ticker
     ticker_data = {}
     for ticker, history in histories.items():
         # Use searchsorted for fast index finding since dates are sorted
@@ -72,15 +75,13 @@ def backtest_strategy(strategy: Strategy, period: int = 1):
                 manager.process_pending_entries(ticker, current_open, current_date)
 
             # Slice historical data up to the current day for signal evaluation
-            sliced_history = StockData(
-                ticker=ticker,
-                dates=data["dates"][:i + 1],
-                open_price=data["open"][:i + 1],
-                high=data["high"][:i + 1],
-                low=data["low"][:i + 1],
-                close_price=data["close"][:i + 1],
-                volume=data["volume"][:i + 1]
-            )
+            sliced_history.ticker=ticker
+            sliced_history.dates = data["dates"][:i + 1]
+            sliced_history.open_price = data["open"][:i + 1]
+            sliced_history.high = data["high"][:i + 1]
+            sliced_history.low = data["low"][:i + 1]
+            sliced_history.close_price = data["close"][:i + 1]
+            sliced_history.volume = data["volume"][:i + 1]
 
             # Generate strategy signals and register them if valid
             try:
