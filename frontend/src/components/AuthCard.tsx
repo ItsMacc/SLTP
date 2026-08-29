@@ -1,4 +1,3 @@
-// src/components/AuthCard.tsx
 import { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { loginSchema, signUpSchema } from '../../lib/authSchema';
@@ -22,20 +21,27 @@ export function AuthCard({ initialMode = 'login', onSuccess }: AuthCardProps) {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  // Flatten Zod issues into { fieldName: message } so errors can render under each input.
+  function toFieldErrors(result: {
+    error: { issues: Array<{ path: PropertyKey[]; message: string }> }
+  }) {
+    const fieldErrors: Record<string, string> = {};
+    result.error.issues.forEach((issue) => {
+      if (issue.path[0]) fieldErrors[issue.path[0].toString()] = issue.message;
+    });
+    return fieldErrors;
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
     setSuccessMsg(null);
 
-    // 1. Validate inputs locally using Zod schemas
+    // Run Zod validation for the active mode before touching the auth API.
     if (isLogin) {
       const result = loginSchema.safeParse({ email, password });
       if (!result.success) {
-        const formatted: Record<string, string> = {};
-        result.error.issues.forEach((issue) => {
-          if (issue.path[0]) formatted[issue.path[0].toString()] = issue.message;
-        });
-        setErrors(formatted);
+        setErrors(toFieldErrors(result));
         return;
       }
     } else {
@@ -46,11 +52,7 @@ export function AuthCard({ initialMode = 'login', onSuccess }: AuthCardProps) {
         confirmPassword,
       });
       if (!result.success) {
-        const formatted: Record<string, string> = {};
-        result.error.issues.forEach((issue) => {
-          if (issue.path[0]) formatted[issue.path[0].toString()] = issue.message;
-        });
-        setErrors(formatted);
+        setErrors(toFieldErrors(result));
         return;
       }
     }

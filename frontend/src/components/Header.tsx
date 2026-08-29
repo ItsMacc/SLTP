@@ -1,4 +1,3 @@
-// src/components/Header.tsx
 import { useState } from 'react';
 import Button from '../ui/Button';
 import UserMenu from './UserMenu';

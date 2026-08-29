@@ -1,7 +1,7 @@
-/* --- Font Imports (Google Fonts) --- */
+/* ---------- Fonts ---------- */
 @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
-/* --- Design Tokens & Variables --- */
+/* ---------- Design tokens ---------- */
 :root, :root[data-theme="light"] {
   --bg-canvas: oklch(96.727% 0.01097 89.715);
   --bg-surface: #fffff5;
@@ -21,7 +21,7 @@
   --success: #059669;
   --error: #dc2626;
 
-  /* --- Spacing Scale --- */
+  /* Spacing scale */
   --space-3xs: 0.125rem;
   --space-2xs: 0.25rem;
   --space-xs: 0.375rem;
@@ -31,7 +31,7 @@
   --space-xl: 2.5rem;
   --space-2xl: 4rem;
 
-  /* --- Typography --- */
+  /* Typography */
   --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   --font-heading: 'Instrument Serif', Georgia, serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
@@ -43,13 +43,13 @@
   --text-xl: clamp(1.25rem, 2vw, 1.5rem);
   --text-2xl: clamp(1.75rem, 3vw, 2.25rem);
 
-  /* --- Border Radius --- */
+  /* Corner radii */
   --radius-sm: 0.375rem;
   --radius-md: 0.75rem;
   --radius-lg: 1.25rem;
   --radius-full: 9999px;
 
-  /* --- Shadows --- */
+  /* Shadows */
   --shadow-sm: 0 1px 2px rgba(59, 55, 63, 0.04);
   --shadow-md: 0 4px 12px rgba(59, 55, 63, 0.08);
   --shadow-lg: 0 12px 24px -4px rgba(59, 55, 63, 0.12);
@@ -57,7 +57,7 @@
   --container-max: 95vw;
 }
 
-/* --- Quant Terminal Dark Theme (Manual override or OS preference) --- */
+/* Dark palette from OS preference, or the manual dark override below */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg-canvas: #0e0d0c;
@@ -106,7 +106,7 @@
   --shadow-lg: 0 12px 32px -4px rgba(0, 0, 0, 0.8);
 }
 
-/* --- Base Global Styles & Resets --- */
+/* ---------- Base / reset ---------- */
 *,
 *::before,
 *::after {
@@ -137,7 +137,7 @@ h1, h2, h3, h4, h5, h6 {
   letter-spacing: -0.01em;
 }
 
-/* Tabular numbers make financial columns and metrics align perfectly */
+/* Monospace + tabular numbers keep financial figures aligned */
 .font-mono, .ticker, .price {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;

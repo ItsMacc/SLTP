@@ -1,4 +1,3 @@
-// src/ui/Checkbox.tsx
 import React from 'react';
 import './Checkbox.css';
 

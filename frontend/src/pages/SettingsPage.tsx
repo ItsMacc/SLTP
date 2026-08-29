@@ -1,4 +1,3 @@
-// src/pages/SettingsPage.tsx
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import Button from '../ui/Button';
@@ -56,7 +55,7 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
     loadAndApplySettings();
   }, [userId, initialName]);
 
-  // Instantly preview theme changes on selection without saving to DB yet
+  // Apply the theme immediately on selection so it previews before being saved.
   const handleThemeChange = (newThemeVal: string) => {
     setTheme(newThemeVal);
     applyAndStoreUserSettings({ theme: newThemeVal });
@@ -131,7 +130,6 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
             </button>
           </div>
 
-          {/* Main Content Card */}
           <div className="st-settings-card">
             {message && (
               <div className={`st-settings-alert st-settings-alert--${message.type}`}>

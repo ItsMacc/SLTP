@@ -1,4 +1,3 @@
-// src/components/UserMenu.tsx
 import { useState, useRef, useEffect } from 'react';
 import './UserMenu.css';
 
@@ -20,7 +19,7 @@ export default function UserMenu({
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Fallback chain: uses name first, then email, then defaults safely
+  // Prefer the display name, then fall back to the email, then a generic label.
   const displayName = userName || userEmail || 'Account';
   const initial = displayName.charAt(0).toUpperCase();
 

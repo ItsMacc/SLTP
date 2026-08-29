@@ -1,4 +1,4 @@
-/* --- Input Atom Styles --- */
+/* ---------- Input ---------- */
 .input-wrapper {
   display: flex;
   flex-direction: column;
@@ -48,7 +48,7 @@
   box-shadow: 0 0 0 3px var(--accent-muted);
 }
 
-/* --- Modifiers --- */
+/* Icon / error modifiers */
 .input-field.has-icon {
   padding-left: 2.5rem;
 }

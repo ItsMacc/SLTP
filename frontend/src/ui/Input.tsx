@@ -1,4 +1,3 @@
-// src/ui/Input.tsx
 import React from 'react';
 import './Input.css';
 

@@ -1,4 +1,4 @@
-/* --- Checkbox Atom Styles --- */
+/* ---------- Checkbox ---------- */
 .checkbox-wrapper {
   display: flex;
   flex-direction: column;
@@ -46,7 +46,7 @@
   box-shadow: 0 0 0 3px var(--accent-muted);
 }
 
-/* When checked, border matches the accent but background stays clean */
+/* Keep the fill neutral and just accent the border */
 .checkbox-input:checked + .checkbox-custom {
   background-color: var(--bg-surface);
   border-color: var(--accent);

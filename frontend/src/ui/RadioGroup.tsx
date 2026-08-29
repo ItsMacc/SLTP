@@ -1,4 +1,3 @@
-// src/ui/RadioGroup.tsx
 import './RadioGroup.css';
 
 export interface RadioOption {

@@ -1,5 +1,4 @@
-// src/ui/Select.tsx
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import './Select.css';
 
 export interface SelectOption {
@@ -29,7 +28,6 @@ export default function Select({
 
   const selectedOption = options.find((opt) => opt.value === value);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
@@ -45,7 +43,6 @@ export default function Select({
       {label && <span className="select-label">{label}</span>}
       <div className={`select-container ${error ? 'has-error' : ''} ${isOpen ? 'is-open' : ''}`}>
         
-        {/* Trigger Button */}
         <button
           type="button"
           className="select-trigger"
@@ -62,7 +59,6 @@ export default function Select({
           </span>
         </button>
 
-        {/* Animated Options Dropdown Menu */}
         {isOpen && (
           <div className="select-dropdown-menu">
             {options.map((opt) => {

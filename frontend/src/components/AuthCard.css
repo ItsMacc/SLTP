@@ -1,4 +1,4 @@
-/* --- Authentication Card Container --- */
+/* ---------- Auth card ---------- */
 .st-auth {
   display: flex;
   align-items: center;
@@ -14,14 +14,14 @@
   padding: 2.5rem;
   box-sizing: border-box;
   
-  /* Restored Card Background & Border Styling */
+  /* Card surface and border */
   background: var(--bg-surface, #ffffff);
   border: 1px solid var(--border-strong, #e2e8f0);
   border-radius: var(--radius-lg, 1rem);
   box-shadow: var(--shadow-lg, 0 10px 25px -5px rgba(0, 0, 0, 0.05));
 }
 
-/* --- Segmented Mode Switcher Tabs --- */
+/* Mode switcher tabs */
 .st-auth__tabs {
   display: flex;
   padding: 0.25rem;
@@ -48,7 +48,7 @@
   box-shadow: var(--shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.1));
 }
 
-/* --- Header Copy --- */
+/* Title and subtitle */
 .st-auth__title {
   margin: 0 0 0.5rem 0;
   font-size: 1.85rem;
@@ -62,7 +62,7 @@
   color: var(--text-muted, #64748b);
 }
 
-/* --- Form Architecture --- */
+/* Form layout */
 .st-auth__form {
   display: flex;
   flex-direction: column;
@@ -83,7 +83,7 @@
   color: var(--text-muted, #64748b);
 }
 
-/* --- Input Wrapper & Password Toggle --- */
+/* Input wrapper with the password toggle */
 .st-auth__input-wrapper {
   position: relative;
   display: flex;

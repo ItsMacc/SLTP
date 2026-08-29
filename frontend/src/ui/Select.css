@@ -1,4 +1,4 @@
-/* --- Custom Animated Select Styles --- */
+/* ---------- Select ---------- */
 .select-wrapper {
   display: flex;
   flex-direction: column;
@@ -64,7 +64,7 @@
   color: var(--accent);
 }
 
-/* --- Animated Dropdown Menu Panel --- */
+/* Dropdown panel + slide-in animation */
 @keyframes dropdownSlide {
   from {
     opacity: 0;

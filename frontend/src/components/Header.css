@@ -1,4 +1,4 @@
-/* --- Header Organism Styles (Flush & Bordered) --- */
+/* ---------- Header ---------- */
 .header-container {
   position: relative;
   display: flex;
@@ -11,7 +11,7 @@
   border-bottom: 1px solid var(--border-subtle);
 }
 
-/* --- Brand Section --- */
+/* Brand */
 .header-brand {
   display: flex;
   align-items: center;
@@ -26,7 +26,7 @@
   letter-spacing: -0.02em;
 }
 
-/* --- Navigation Links (Desktop) --- */
+/* Desktop nav links */
 .header-nav {
   display: flex;
   align-items: center;
@@ -51,7 +51,7 @@
   color: var(--text-primary);
 }
 
-/* Accent Underline Animation */
+/* Animated underline that slides in on hover/active */
 .nav-link::after {
   content: '';
   position: absolute;
@@ -71,7 +71,7 @@
   transform-origin: left;
 }
 
-/* --- Auth Actions --- */
+/* Auth actions */
 .header-actions {
   display: flex;
   align-items: center;
@@ -84,7 +84,7 @@
   gap: var(--space-sm);
 }
 
-/* --- Hamburger Menu Toggle Button (Hidden on Desktop) --- */
+/* Hamburger button (hidden on desktop) */
 .hamburger-toggle {
   display: none;
   flex-direction: column;
@@ -106,7 +106,7 @@
   transition: transform 0.2s ease, opacity 0.2s ease;
 }
 
-/* Hamburger Morph Animation to 'X' when open */
+/* Morph the hamburger into an X when open */
 .hamburger-toggle.is-open .hamburger-line:nth-child(1) {
   transform: translateY(9px) rotate(45deg);
 }
@@ -117,12 +117,12 @@
   transform: translateY(-9px) rotate(-45deg);
 }
 
-/* --- Mobile Dropdown Drawer --- */
+/* Mobile menu drawer */
 .mobile-menu-drawer {
   display: none;
 }
 
-/* --- Responsive Layout Control --- */
+/* Responsive behavior */
 @media (max-width: 48rem) { /* Below 768px */
   .desktop-only {
     display: none !important;

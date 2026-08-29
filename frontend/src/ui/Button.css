@@ -1,4 +1,4 @@
-/* --- Button Atom Styles --- */
+/* ---------- Button ---------- */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -16,7 +16,7 @@
   transform: scale(0.98);
 }
 
-/* --- Sizes --- */
+/* Sizes */
 .btn-sm {
   font-size: var(--text-xs);
   padding: var(--space-2xs) var(--space-sm);
@@ -32,7 +32,7 @@
   padding: var(--space-md) var(--space-lg);
 }
 
-/* --- Variants --- */
+/* Variants */
 .btn-primary {
   background-color: var(--accent);
   color: var(--text-inverse);
