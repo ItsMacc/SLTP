@@ -71,22 +71,20 @@ export function AuthCard({ initialMode = 'login', onSuccess }: AuthCardProps) {
         let fetchedName = '';
 
         if (userId) {
-          const { data: settingsData, error: settingsError } = await supabase
-            .from('user_settings')
-            .select('full_name')
-            .eq('user_id', userId)
+          const { data: profileData, error: profileError } = await supabase
+            .from('users')
+            .select('name')
+            .eq('id', userId)
             .single();
 
-          if (!settingsError && settingsData?.full_name) {
-            fetchedName = settingsData.full_name;
+          if (!profileError && profileData?.name) {
+            fetchedName = profileData.name;
           }
         }
 
-        const finalName = fetchedName || userEmail.split('@')[0];
-
         onSuccess({
           email: userEmail,
-          name: finalName,
+          name: fetchedName || userEmail,
         });
       } else {
         const { error: authError } = await supabase.auth.signUp({

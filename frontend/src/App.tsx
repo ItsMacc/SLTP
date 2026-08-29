@@ -16,24 +16,34 @@ export default function App() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loadingSession, setLoadingSession] = useState(true);
 
+  // Helper to fetch profile straight from public.users table
+  const fetchUserProfile = async (userId: string, email: string): Promise<UserProfile> => {
+    const { data, error } = await supabase
+      .from('users')
+      .select('name')
+      .eq('id', userId)
+      .single();
+
+    return {
+      email,
+      name: !error && data?.name ? data.name : email,
+    };
+  };
+
   // Sync session with Supabase auth state on mount
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user) {
-        setUser({
-          email: session.user.email || '',
-          name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0],
-        });
+        const profile = await fetchUserProfile(session.user.id, session.user.email || '');
+        setUser(profile);
       }
       setLoadingSession(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
-        setUser({
-          email: session.user.email || '',
-          name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0],
-        });
+        const profile = await fetchUserProfile(session.user.id, session.user.email || '');
+        setUser(profile);
       } else {
         setUser(null);
       }
@@ -54,7 +64,7 @@ export default function App() {
   };
 
   if (loadingSession) {
-    return null; // Or a minimal loading spinner
+    return null;
   }
 
   return (
