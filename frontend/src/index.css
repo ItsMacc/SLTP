@@ -2,8 +2,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 /* --- Design Tokens & Variables --- */
-:root {
-  /* --- Color Palette (Light Theme - Warm Beige) --- */
+:root, :root[data-theme="light"] {
   --bg-canvas: oklch(96.727% 0.01097 89.715);
   --bg-surface: #fffff5;
   --bg-surface-hover: #f3efe9;
@@ -58,30 +57,53 @@
   --container-max: 95vw;
 }
 
-/* --- Quant Terminal Dark Theme --- */
+/* --- Quant Terminal Dark Theme (Manual override or OS preference) --- */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --bg-canvas: #0e0d0c;       /* Deep warm obsidian charcoal */
-    --bg-surface: #171514;      /* Elevated soft panel surface */
-    --bg-surface-hover: #211e1c;/* Subtle interactive hover */
+  :root:not([data-theme="light"]) {
+    --bg-canvas: #0e0d0c;
+    --bg-surface: #171514;
+    --bg-surface-hover: #211e1c;
 
-    --text-primary: #f4f0eb;    /* Soft parchment off-white */
-    --text-muted: #968f88;      /* Muted secondary labels */
+    --text-primary: #f4f0eb;
+    --text-muted: #968f88;
 
-    --border-subtle: #292421;   /* Clean, low-contrast warm borders */
-    --border-strong: #3d3632;   /* Active border states */
+    --border-subtle: #292421;
+    --border-strong: #3d3632;
 
-    --accent: #d97706;          /* Professional muted amber / bronze gold */
-    --accent-hover: #f59e0b;    /* Warm highlighted hover state */
-    --accent-muted: rgba(217, 119, 6, 0.12); /* Subtle amber highlight fill */
+    --accent: #d97706;
+    --accent-hover: #f59e0b;
+    --accent-muted: rgba(217, 119, 6, 0.12);
 
-    --success: #059669;         /* Controlled structural green */
-    --error: #dc2626;           /* Controlled risk red */
+    --success: #059669;
+    --error: #dc2626;
 
     --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
     --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.6);
     --shadow-lg: 0 12px 32px -4px rgba(0, 0, 0, 0.8);
   }
+}
+
+:root[data-theme="dark"] {
+  --bg-canvas: #0e0d0c;
+  --bg-surface: #171514;
+  --bg-surface-hover: #211e1c;
+
+  --text-primary: #f4f0eb;
+  --text-muted: #968f88;
+
+  --border-subtle: #292421;
+  --border-strong: #3d3632;
+
+  --accent: #d97706;
+  --accent-hover: #f59e0b;
+  --accent-muted: rgba(217, 119, 6, 0.12);
+
+  --success: #059669;
+  --error: #dc2626;
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 12px 32px -4px rgba(0, 0, 0, 0.8);
 }
 
 /* --- Base Global Styles & Resets --- */
