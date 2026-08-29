@@ -1,0 +1,92 @@
+/* --- Checkbox Atom Styles --- */
+.checkbox-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3xs);
+  width: 100%;
+}
+
+.checkbox-label-container {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  cursor: pointer;
+  user-select: none;
+}
+
+.checkbox-input {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
+}
+
+.checkbox-custom {
+  position: relative;
+  top: 0.125rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.125rem;
+  height: 1.125rem;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  flex-shrink: 0;
+}
+
+.checkbox-input:hover + .checkbox-custom {
+  border-color: var(--accent);
+}
+
+.checkbox-input:focus-visible + .checkbox-custom {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-muted);
+}
+
+/* When checked, border matches the accent but background stays clean */
+.checkbox-input:checked + .checkbox-custom {
+  background-color: var(--bg-surface);
+  border-color: var(--accent);
+}
+
+.checkbox-icon {
+  width: 0.75rem;
+  height: 0.75rem;
+  color: var(--accent);
+  opacity: 0;
+  transform: scale(0.8);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.checkbox-input:checked + .checkbox-custom .checkbox-icon {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.checkbox-text-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.checkbox-label-text {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.checkbox-description {
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.checkbox-error-text {
+  font-size: var(--text-xs);
+  color: var(--error);
+  margin-left: 1.875rem;
+}

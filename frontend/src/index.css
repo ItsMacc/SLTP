@@ -1,0 +1,144 @@
+/* --- Font Imports (Google Fonts) --- */
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* --- Design Tokens & Variables --- */
+:root {
+  /* --- Color Palette (Light Theme - Warm Beige) --- */
+  --bg-canvas: oklch(96.727% 0.01097 89.715);
+  --bg-surface: #fffff5;
+  --bg-surface-hover: #f3efe9;
+
+  --text-primary: #3b373f;
+  --text-muted: #736d7a;
+  --text-inverse: #ffffff;
+
+  --border-subtle: #e6dec9;
+  --border-strong: #d2c8b0;
+
+  --accent: #4f46e5;
+  --accent-hover: #4338ca;
+  --accent-muted: rgba(79, 70, 229, 0.12);
+
+  --success: #059669;
+  --error: #dc2626;
+
+  /* --- Spacing Scale --- */
+  --space-3xs: 0.125rem;
+  --space-2xs: 0.25rem;
+  --space-xs: 0.375rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2.5rem;
+  --space-2xl: 4rem;
+
+  /* --- Typography --- */
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-heading: 'Instrument Serif', Georgia, serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: clamp(1.25rem, 2vw, 1.5rem);
+  --text-2xl: clamp(1.75rem, 3vw, 2.25rem);
+
+  /* --- Border Radius --- */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1.25rem;
+  --radius-full: 9999px;
+
+  /* --- Shadows --- */
+  --shadow-sm: 0 1px 2px rgba(59, 55, 63, 0.04);
+  --shadow-md: 0 4px 12px rgba(59, 55, 63, 0.08);
+  --shadow-lg: 0 12px 24px -4px rgba(59, 55, 63, 0.12);
+
+  --container-max: 95vw;
+}
+
+/* --- Quant Terminal Dark Theme --- */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-canvas: #0e0d0c;       /* Deep warm obsidian charcoal */
+    --bg-surface: #171514;      /* Elevated soft panel surface */
+    --bg-surface-hover: #211e1c;/* Subtle interactive hover */
+
+    --text-primary: #f4f0eb;    /* Soft parchment off-white */
+    --text-muted: #968f88;      /* Muted secondary labels */
+
+    --border-subtle: #292421;   /* Clean, low-contrast warm borders */
+    --border-strong: #3d3632;   /* Active border states */
+
+    --accent: #d97706;          /* Professional muted amber / bronze gold */
+    --accent-hover: #f59e0b;    /* Warm highlighted hover state */
+    --accent-muted: rgba(217, 119, 6, 0.12); /* Subtle amber highlight fill */
+
+    --success: #059669;         /* Controlled structural green */
+    --error: #dc2626;           /* Controlled risk red */
+
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.6);
+    --shadow-lg: 0 12px 32px -4px rgba(0, 0, 0, 0.8);
+  }
+}
+
+/* --- Base Global Styles & Resets --- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: 1.5;
+  color: var(--text-primary);
+  background-color: var(--bg-canvas);
+  min-height: 100vh;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+/* Tabular numbers make financial columns and metrics align perfectly */
+.font-mono, .ticker, .price {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+#root {
+  width: 100%;
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding: 0 var(--space-sm) var(--space-sm) var(--space-sm);
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+@media (min-width: 48rem) {
+  #root {
+    padding: 0 var(--space-md) var(--space-md) var(--space-md);
+  }
+}
+
+@media (min-width: 64rem) {
+  #root {
+    padding: 0 var(--space-md) var(--space-md) var(--space-md);
+  }
+}
