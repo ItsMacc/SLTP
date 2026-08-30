@@ -13,6 +13,7 @@ interface SettingsPageProps {
   userEmail: string;
   initialName?: string | null;
   onProfileUpdated: (newName: string) => void;
+  onAccountDeleted: () => Promise<void> | void;
 }
 
 export function applyAndStoreUserSettings(settings: { theme?: string; [key: string]: any }, name?: string) {
@@ -26,7 +27,7 @@ export function applyAndStoreUserSettings(settings: { theme?: string; [key: stri
   }
 }
 
-export default function SettingsPage({ userId, userEmail, initialName, onProfileUpdated }: SettingsPageProps) {
+export default function SettingsPage({ userId, userEmail, initialName, onProfileUpdated, onAccountDeleted }: SettingsPageProps) {
   const [activeSubTab, setActiveSubTab] = useState<'profile' | 'preferences' | 'notifications'>('profile');
   
   // Profile State
@@ -46,6 +47,12 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
 
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Account Deletion State
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadAndApplySettings() {
@@ -87,16 +94,60 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
     loadAndApplySettings();
   }, [userId, initialName]);
 
+  // Close the delete-account modal with the Escape key (blocked while deleting).
+  useEffect(() => {
+    if (!deleteModalOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !deleting) {
+        setDeleteModalOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [deleteModalOpen, deleting]);
+
   const handleThemeChange = (newThemeVal: string) => {
     setTheme(newThemeVal);
     applyAndStoreUserSettings({ theme: newThemeVal });
   };
 
   const handleRequestDelete = () => {
-    // Placeholder function for account deletion workflow
-    const confirmed = window.confirm("Are you sure you want to request account deletion? This action cannot be undone.");
-    if (confirmed) {
-      alert("Account deletion request submitted. Support will contact you shortly.");
+    setDeleteError(null);
+    setDeleteConfirmText('');
+    setDeleteModalOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (deleteConfirmText.trim().toUpperCase() !== 'CONFIRM' || deleting) return;
+
+    setDeleting(true);
+    setDeleteError(null);
+
+    try {
+      // Delete the user's profile row. The RLS policy
+      // "Users can delete their own profile." authorizes this request.
+      // `.select('id')` verifies the row was actually removed so a success
+      // message is never shown when nothing was deleted.
+      const { data: deletedRows, error: rowError } = await supabase
+        .from('users')
+        .delete()
+        .eq('id', userId)
+        .select('id');
+
+      if (rowError) throw rowError;
+      if (!deletedRows || deletedRows.length === 0) {
+        throw new Error(
+          'Your profile could not be deleted. Check that the "Users can delete their own profile." RLS policy exists on the users table, then try again.',
+        );
+      }
+
+      setDeleteModalOpen(false);
+      setMessage({ type: 'success', text: 'Your account has been deleted. Redirecting...' });
+      await onAccountDeleted();
+    } catch (err: any) {
+      setDeleteError(err.message || 'Failed to delete account. Please try again.');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -245,7 +296,7 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
                     onClick={handleRequestDelete}
                     style={{ borderColor: 'var(--error, #dc2626)', color: 'var(--error, #dc2626)' }}
                   >
-                    Request to delete account
+                    Delete account
                   </Button>
                 </div>
               </div>
@@ -374,6 +425,67 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
           </div>
         </div>
       </div>
+
+      {deleteModalOpen && (
+        <div
+          className="st-settings-modal-overlay"
+          onClick={() => { if (!deleting) setDeleteModalOpen(false); }}
+        >
+          <div
+            className="st-settings-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-account-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="delete-account-title" className="st-settings-modal-title">
+              Delete your account?
+            </h3>
+            <p className="st-settings-modal-text">
+              This will permanently delete your Stocker profile and all associated
+              configuration data. This action <strong>cannot be undone</strong>.
+            </p>
+
+            <label className="st-settings-label" htmlFor="delete-confirm-input">
+              Type <span className="st-settings-modal-code">CONFIRM</span> to continue
+            </label>
+            <Input
+              id="delete-confirm-input"
+              type="text"
+              autoFocus
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              placeholder="CONFIRM"
+              disabled={deleting}
+              style={{ textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}
+            />
+
+            {deleteError && (
+              <div className="st-settings-alert st-settings-alert--error">{deleteError}</div>
+            )}
+
+            <div className="st-settings-modal-actions">
+              <Button
+                variant="secondary"
+                size="md"
+                onClick={() => setDeleteModalOpen(false)}
+                disabled={deleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="md"
+                className="st-settings-modal-danger"
+                disabled={deleteConfirmText.trim().toUpperCase() !== 'CONFIRM' || deleting}
+                onClick={handleConfirmDelete}
+              >
+                {deleting ? 'Deleting...' : 'Delete permanently'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

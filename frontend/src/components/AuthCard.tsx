@@ -7,7 +7,7 @@ import './AuthCard.css';
 
 interface AuthCardProps {
   initialMode?: 'login' | 'signup';
-  onSuccess: (userProfile: { email: string; name: string }) => void;
+  onSuccess: (userProfile: { id?: string; email: string; name: string }) => void;
 }
 
 export function AuthCard({ initialMode = 'login', onSuccess }: AuthCardProps) {
@@ -85,6 +85,7 @@ export function AuthCard({ initialMode = 'login', onSuccess }: AuthCardProps) {
         }
 
         onSuccess({
+          id: userId,
           email: userEmail,
           name: fetchedName || userEmail,
         });

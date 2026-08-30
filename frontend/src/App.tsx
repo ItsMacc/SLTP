@@ -68,13 +68,22 @@ export default function App() {
         {legalPage ? (
           <LegalPage page={legalPage} onBack={() => setLegalPage(null)} />
         ) : authMode ? (
-          <AuthCard key={authMode} initialMode={authMode} onSuccess={(u) => { setUser(u); setAuthMode(null); }} />
+          <AuthCard key={authMode} initialMode={authMode} onSuccess={(u) => {
+            setUser((prev) => ({
+              id: u.id ?? prev?.id,
+              email: u.email,
+              name: u.name,
+              settings: prev?.settings,
+            }));
+            setAuthMode(null);
+          }} />
         ) : activeTab === 'settings' && user?.id ? (
           <SettingsPage 
             userId={user.id}
             userEmail={user.email}
             initialName={user.name}
             onProfileUpdated={(newName) => setUser((prev) => prev ? { ...prev, name: newName } : null)}
+            onAccountDeleted={async () => { await supabase.auth.signOut(); setUser(null); }}
           />
         ) : (
           <div style={{ padding: '4rem 2rem', textAlign: 'center' }}>

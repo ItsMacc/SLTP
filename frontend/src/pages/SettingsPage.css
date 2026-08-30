@@ -160,3 +160,83 @@
   color: var(--error);
   border: 1px solid var(--error);
 }
+
+/* ---------- Delete Account modal ---------- */
+.st-settings-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
+}
+
+.st-settings-modal {
+  width: 100%;
+  max-width: 26rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 2rem;
+  animation: st-modal-in 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes st-modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.st-settings-modal-title {
+  font-family: var(--font-heading);
+  font-size: var(--text-xl);
+  font-weight: 400;
+  color: var(--error);
+  margin: 0 0 0.75rem 0;
+}
+
+.st-settings-modal-text {
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  color: var(--text-muted);
+  margin: 0 0 1.5rem 0;
+}
+
+.st-settings-modal-code {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.st-settings-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  margin-top: 1.5rem;
+}
+
+/* Destructive confirm button (overrides btn-primary accent) */
+.st-settings-modal-danger {
+  background-color: var(--error);
+  color: var(--text-inverse);
+}
+
+.st-settings-modal-danger:hover {
+  filter: brightness(1.12);
+}
+
+.st-settings-modal-danger:disabled {
+  background-color: var(--border-strong);
+  color: var(--text-muted);
+  cursor: not-allowed;
+  filter: none;
+}
