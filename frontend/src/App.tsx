@@ -5,6 +5,7 @@ import { AuthCard } from './components/AuthCard';
 import Footer from './components/Footer';
 import SettingsPage, { applyAndStoreUserSettings } from './pages/SettingsPage';
 import LegalPage, { type LegalPageKind } from './pages/LegalPage';
+import PerformancePage from './pages/PerformancePage';
 import { supabase } from '../lib/supabase';
 import './index.css';
 
@@ -85,6 +86,8 @@ export default function App() {
             onProfileUpdated={(newName) => setUser((prev) => prev ? { ...prev, name: newName } : null)}
             onAccountDeleted={async () => { await supabase.auth.signOut(); setUser(null); }}
           />
+        ) : activeTab === 'performance' ? (
+          <PerformancePage/>
         ) : (
           <div style={{ padding: '4rem 2rem', textAlign: 'center' }}>
             <h1 style={{ fontSize: '2rem', marginBottom: '1rem' }}>
