@@ -75,9 +75,9 @@ export default function UserMenu({
           <button 
             type="button" 
             className="st-dropdown__item"
-            onClick={() => { setIsOpen(false); onExtraOptionClick?.('preferences'); }}
+            onClick={() => { setIsOpen(false); onExtraOptionClick?.('strategies'); }}
           >
-            Preferences
+            My Strategies
           </button>
 
           <div className="st-dropdown__divider"></div>
