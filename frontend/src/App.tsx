@@ -1,3 +1,4 @@
+// src/App.tsx
 import { useState, useEffect } from 'react';
 import Header from './components/Header';
 import { AuthCard } from './components/AuthCard';
@@ -63,9 +64,9 @@ export default function App() {
       <main style={{ width: '100%', flex: 1, display: 'flex', flexDirection: 'column' }}>
         {authMode ? (
           <AuthCard key={authMode} initialMode={authMode} onSuccess={(u) => { setUser(u); setAuthMode(null); }} />
-        ) : activeTab === 'settings' && user ? (
+        ) : activeTab === 'settings' && user?.id ? (
           <SettingsPage 
-            userId={user.id || ''}
+            userId={user.id}
             userEmail={user.email}
             initialName={user.name}
             onProfileUpdated={(newName) => setUser((prev) => prev ? { ...prev, name: newName } : null)}
@@ -76,7 +77,9 @@ export default function App() {
               {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} View
             </h1>
             <p style={{ color: 'var(--text-muted)' }}>
-              Currently rendering the active layout module for <strong>{activeTab}</strong>.
+              {activeTab === 'settings' 
+                ? 'Please sign in to access your settings workspace.' 
+                : `Currently rendering the active layout module for ${activeTab}.`}
             </p>
           </div>
         )}
