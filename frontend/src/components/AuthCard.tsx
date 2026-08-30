@@ -154,7 +154,7 @@ export function AuthCard({ initialMode = 'login', onSuccess }: AuthCardProps) {
                 <Input
                   id="fullName"
                   type="text"
-                  placeholder="John Doe"
+                  placeholder="Your Name"
                   value={fullNameInput}
                   onChange={(e) => setFullNameInput(e.target.value)}
                 />
