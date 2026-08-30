@@ -2,7 +2,9 @@
 import { useState, useEffect } from 'react';
 import Header from './components/Header';
 import { AuthCard } from './components/AuthCard';
+import Footer from './components/Footer';
 import SettingsPage, { applyAndStoreUserSettings } from './pages/SettingsPage';
+import LegalPage, { type LegalPageKind } from './pages/LegalPage';
 import { supabase } from '../lib/supabase';
 import './index.css';
 
@@ -16,6 +18,7 @@ export interface UserProfile {
 export default function App() {
   const [activeTab, setActiveTab] = useState('home');
   const [authMode, setAuthMode] = useState<'login' | 'signup' | null>(null);
+  const [legalPage, setLegalPage] = useState<LegalPageKind | null>(null);
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -53,16 +56,18 @@ export default function App() {
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <Header 
         activeTab={activeTab}
-        onTabChange={(tab) => { setActiveTab(tab); setAuthMode(null); }}
-        onAuthClick={setAuthMode}
+        onTabChange={(tab) => { setActiveTab(tab); setAuthMode(null); setLegalPage(null); }}
+        onAuthClick={(mode) => { setAuthMode(mode); setLegalPage(null); }}
         sessionUserName={user?.name}
         sessionUserEmail={user?.email}
         onSignOut={async () => { await supabase.auth.signOut(); setUser(null); }}
-        onSettingsClick={() => { setActiveTab('settings'); setAuthMode(null); }}
+        onSettingsClick={() => { setActiveTab('settings'); setAuthMode(null); setLegalPage(null); }}
       />
 
       <main style={{ width: '100%', flex: 1, display: 'flex', flexDirection: 'column' }}>
-        {authMode ? (
+        {legalPage ? (
+          <LegalPage page={legalPage} onBack={() => setLegalPage(null)} />
+        ) : authMode ? (
           <AuthCard key={authMode} initialMode={authMode} onSuccess={(u) => { setUser(u); setAuthMode(null); }} />
         ) : activeTab === 'settings' && user?.id ? (
           <SettingsPage 
@@ -84,6 +89,12 @@ export default function App() {
           </div>
         )}
       </main>
+
+      <Footer
+        activeTab={activeTab}
+        onNavigate={(tab) => { setActiveTab(tab); setAuthMode(null); setLegalPage(null); }}
+        onLegalPage={(page) => { setLegalPage(page); setAuthMode(null); }}
+      />
     </div>
   );
 }

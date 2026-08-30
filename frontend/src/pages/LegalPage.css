@@ -1,0 +1,183 @@
+/* ---------- Legal pages (Privacy Policy / Terms of Service) ---------- */
+.st-legal-layout {
+  padding: 2rem 2rem 3rem;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  box-sizing: border-box;
+  background-color: var(--bg-canvas);
+}
+
+.st-legal-container {
+  max-width: 760px;
+  width: 100%;
+}
+
+.st-legal-back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  padding: var(--space-2xs) 0;
+  margin-bottom: var(--space-xl);
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.st-legal-back:hover {
+  color: var(--accent);
+}
+
+.st-legal-header {
+  margin-bottom: var(--space-xl);
+}
+
+.st-legal-eyebrow {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: var(--space-sm);
+}
+
+.st-legal-title {
+  font-family: var(--font-heading);
+  font-size: var(--text-2xl);
+  font-weight: 400;
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
+  margin: 0 0 var(--space-sm) 0;
+}
+
+.st-legal-meta {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin: 0 0 var(--space-lg) 0;
+}
+
+.st-legal-intro {
+  font-size: var(--text-lg);
+  line-height: 1.6;
+  color: var(--text-muted);
+  max-width: 40rem;
+  margin: 0;
+}
+
+.st-legal-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.st-legal-section {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 2rem 2.25rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.st-legal-section-heading {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-md);
+  margin-bottom: 1.25rem;
+}
+
+.st-legal-step {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.st-legal-section-heading h2 {
+  font-family: var(--font-heading);
+  font-size: var(--text-xl);
+  font-weight: 400;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.st-legal-section-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.st-legal-paragraph {
+  font-size: var(--text-base);
+  line-height: 1.7;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+/* Spacing when a block follows another block inside the same section */
+.st-legal-paragraph + .st-legal-paragraph,
+.st-legal-paragraph + .st-legal-list,
+.st-legal-list + .st-legal-paragraph {
+  margin-top: var(--space-md);
+}
+
+.st-legal-list {
+  list-style: none;
+  margin: var(--space-md) 0 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.st-legal-list-item {
+  position: relative;
+  display: flex;
+  gap: var(--space-sm);
+  padding-left: 1.25rem;
+  font-size: var(--text-base);
+  line-height: 1.7;
+  color: var(--text-primary);
+}
+
+/* Accent dot bullet, aligned with the first text line */
+.st-legal-list-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.72em;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.st-legal-list-lead {
+  font-weight: 600;
+}
+
+.st-legal-link {
+  color: var(--accent);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.st-legal-link:hover {
+  text-decoration: underline;
+}
+
+/* Responsive */
+@media (max-width: 48rem) {
+  .st-legal-layout {
+    padding: 1.5rem 1rem 2.5rem;
+  }
+
+  .st-legal-section {
+    padding: 1.5rem 1.25rem;
+  }
+}
