@@ -227,54 +227,59 @@ def get_stock_histories(tickers: list[str],
     # Identify which tickers are missing from the global cache
     missing_tickers = [t for t in tickers if t not in _GLOBAL_CACHE["histories"]]
 
-    # If there are missing tickers, fetch their full histories in bulk
+    # If there are missing tickers, fetch their histories in batches of 50
     if missing_tickers:
         if client is None:
             client = get_db_client()
 
         validate_dates(start, end)
+        batch_size = 50
 
-        # Construct parameterized query to retrieve history for multiple tickers
-        placeholders = ", ".join(["?"] * len(missing_tickers))
-        query = f"""
-            SELECT
-                s.name,
-                b.date,
-                b.open,
-                b.high,
-                b.low,
-                b.close,
-                b.volume
-            FROM bars b
-            JOIN symbols s ON b.symbol_id = s.id
-            WHERE s.name IN ({placeholders})
-        """
-        params = list(missing_tickers)
+        # Iterate through missing tickers in chunks to avoid payload limits
+        for i in range(0, len(missing_tickers), batch_size):
+            batch = missing_tickers[i:i + batch_size]
 
-        if start is not None:
-            query += " AND b.date >= ?"
-            params.append(start)
+            # Construct parameterized query to retrieve history for the current batch
+            placeholders = ", ".join(["?"] * len(batch))
+            query = f"""
+                SELECT
+                    s.name,
+                    b.date,
+                    b.open,
+                    b.high,
+                    b.low,
+                    b.close,
+                    b.volume
+                FROM bars b
+                JOIN symbols s ON b.symbol_id = s.id
+                WHERE s.name IN ({placeholders})
+            """
+            params = list(batch)
 
-        if end is not None:
-            query += " AND b.date <= ?"
-            params.append(end)
+            if start is not None:
+                query += " AND b.date >= ?"
+                params.append(start)
 
-        query += " ORDER BY s.name, b.date"
+            if end is not None:
+                query += " AND b.date <= ?"
+                params.append(end)
 
-        result = client.execute(query, params)
-        rows = result.rows if result else []
+            query += " ORDER BY s.name, b.date"
 
-        # Group fetched rows by ticker name
-        data_by_ticker = {t: [] for t in missing_tickers}
-        for r in rows:
-            t_name = r[0]
-            if t_name in data_by_ticker:
-                data_by_ticker[t_name].append(r[1:])
+            result = client.execute(query, params)
+            rows = result.rows if result else []
 
-        # Populate the global cache with histories for the newly fetched tickers
-        for ticker, t_rows in data_by_ticker.items():
-            if t_rows:
-                _GLOBAL_CACHE["histories"][ticker] = _build_stock_data(ticker, t_rows)
+            # Group fetched rows by ticker name for this batch
+            data_by_ticker = {t: [] for t in batch}
+            for r in rows:
+                t_name = r[0]
+                if t_name in data_by_ticker:
+                    data_by_ticker[t_name].append(r[1:])
+
+            # Populate the global cache with histories for the newly fetched batch tickers
+            for ticker, t_rows in data_by_ticker.items():
+                if t_rows:
+                    _GLOBAL_CACHE["histories"][ticker] = _build_stock_data(ticker, t_rows)
 
     # Return dictionary of requested tickers from cache
     return {
