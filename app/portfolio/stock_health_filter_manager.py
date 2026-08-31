@@ -1,9 +1,16 @@
 import numpy as np
-from app.portfolio.portfolio_manager import PortfolioManager, TradeRecord
+from app.portfolio.portfolio_manager import PortfolioManager, TradeRecord, RiskProfile
 from app.utils.StrategyDecision import StrategyDecision
 
 
 class StockHealthFilterManager(PortfolioManager):
+    def __init__(self):
+        super().__init__()
+
+        # Initial Configurations
+        self.max_positions = 20
+        self.risk_profile = RiskProfile.MODERATE
+
     def on_signal(self,
                   ticker: str,
                   decision: StrategyDecision

@@ -1,6 +1,7 @@
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from app.strategies.base import Strategy
+from app.strategies.stock_health_filter import StockHealthFilterStrategy
 from app.utils.StockData import StockData
 import numpy as np
 
@@ -12,6 +13,9 @@ def backtest_strategy(strategy: Strategy, period: int = 1):
     # Find the start date string
     start_date = datetime.now() - relativedelta(years=period)
     start_date_str = start_date.strftime("%Y-%m-%d")
+
+    # Inital Rebalance
+    strategy.rebalance(start_date)
 
     manager = strategy.manager
     histories = manager.histories
@@ -49,6 +53,8 @@ def backtest_strategy(strategy: Strategy, period: int = 1):
 
     # Outer loop: Iterate chronologically day by day across the portfolio
     for current_date in valid_dates:
+        # Check for rebalance everyday
+        strategy.rebalance(datetime.strptime(current_date, "%Y-%m-%d"))
 
         # Evaluate each ticker active on this specific date
         for ticker, data in ticker_data.items():
@@ -75,7 +81,7 @@ def backtest_strategy(strategy: Strategy, period: int = 1):
                 manager.process_pending_entries(ticker, current_open, current_date)
 
             # Slice historical data up to the current day for signal evaluation
-            sliced_history.ticker=ticker
+            sliced_history.ticker = ticker
             sliced_history.dates = data["dates"][:i + 1]
             sliced_history.open_price = data["open"][:i + 1]
             sliced_history.high = data["high"][:i + 1]
