@@ -8,6 +8,12 @@ import numpy as np
 from app.database.db_client import get_db_client
 from app.utils.StockData import StockData
 
+# -------- Global Cache --------
+_GLOBAL_CACHE = {
+    "date": None,
+    "histories": {}
+}
+
 
 # -------- Date Helpers --------
 def calculate_start_date(timeframe: str) -> str | None:
@@ -83,7 +89,39 @@ def get_stock_history(ticker: str,
 
     validate_dates(start, end)
 
-    # Construct SQL query to fetch OHLCV bars for the specified ticker
+    global _GLOBAL_CACHE
+
+    # Check if the particular ticker already exists in cache
+    if ticker in _GLOBAL_CACHE["histories"]:
+        cached_data = _GLOBAL_CACHE["histories"][ticker]
+        dates = cached_data.dates
+        mask = np.ones(len(dates), dtype=bool)
+
+        if start is not None:
+            mask &= (dates >= start)
+        if end is not None:
+            mask &= (dates <= end)
+
+        # Raise error if no records match the filter range within cached data
+        if not np.any(mask):
+            date_range = ""
+            if start is not None:
+                date_range += f" from {start}"
+            if end is not None:
+                date_range += f" to {end}"
+            raise ValueError(f"No data found for {ticker}{date_range} within specified range")
+
+        return StockData(
+            ticker=ticker,
+            dates=cached_data.dates[mask],
+            open_price=cached_data.open_price[mask],
+            high=cached_data.high[mask],
+            low=cached_data.low[mask],
+            close_price=cached_data.close_price[mask],
+            volume=cached_data.volume[mask],
+        )
+
+    # Otherwise, fall back to standard database query and cache it for future calls
     query = """
         SELECT
             b.date,
@@ -122,7 +160,12 @@ def get_stock_history(ticker: str,
             date_range += f" to {end}"
         raise ValueError(f"No data found for {ticker}{date_range}")
 
-    return _build_stock_data(ticker, rows)
+    stock_data = _build_stock_data(ticker, rows)
+
+    # Save to cache without wiping anything else
+    _GLOBAL_CACHE["histories"][ticker] = stock_data
+
+    return stock_data
 
 
 def get_stock_history_json(ticker: str,
@@ -173,52 +216,69 @@ def get_stock_histories(tickers: list[str],
     if not tickers:
         return {}
 
-    # Initialize client and validate date boundaries
-    if client is None:
-        client = get_db_client()
+    global _GLOBAL_CACHE
+    today_str = datetime.now().strftime("%Y-%m-%d")
 
-    validate_dates(start, end)
+    # Reset cache once per day only here
+    if _GLOBAL_CACHE["date"] != today_str:
+        _GLOBAL_CACHE["date"] = today_str
+        _GLOBAL_CACHE["histories"] = {}
 
-    # Construct parameterized query to retrieve history for multiple tickers
-    placeholders = ", ".join(["?"] * len(tickers))
-    query = f"""
-        SELECT
-            s.name,
-            b.date,
-            b.open,
-            b.high,
-            b.low,
-            b.close,
-            b.volume
-        FROM bars b
-        JOIN symbols s ON b.symbol_id = s.id
-        WHERE s.name IN ({placeholders})
-    """
-    params = list(tickers)
+    # Identify which tickers are missing from the global cache
+    missing_tickers = [t for t in tickers if t not in _GLOBAL_CACHE["histories"]]
 
-    if start is not None:
-        query += " AND b.date >= ?"
-        params.append(start)
+    # If there are missing tickers, fetch their full histories in bulk
+    if missing_tickers:
+        if client is None:
+            client = get_db_client()
 
-    if end is not None:
-        query += " AND b.date <= ?"
-        params.append(end)
+        validate_dates(start, end)
 
-    query += " ORDER BY s.name, b.date"
+        # Construct parameterized query to retrieve history for multiple tickers
+        placeholders = ", ".join(["?"] * len(missing_tickers))
+        query = f"""
+            SELECT
+                s.name,
+                b.date,
+                b.open,
+                b.high,
+                b.low,
+                b.close,
+                b.volume
+            FROM bars b
+            JOIN symbols s ON b.symbol_id = s.id
+            WHERE s.name IN ({placeholders})
+        """
+        params = list(missing_tickers)
 
-    result = client.execute(query, params)
-    rows = result.rows if result else []
+        if start is not None:
+            query += " AND b.date >= ?"
+            params.append(start)
 
-    # Group fetched rows by ticker name
-    data_by_ticker = {t: [] for t in tickers}
-    for r in rows:
-        t_name = r[0]
-        if t_name in data_by_ticker:
-            data_by_ticker[t_name].append(r[1:])
+        if end is not None:
+            query += " AND b.date <= ?"
+            params.append(end)
 
-    # Build and return StockData objects for each ticker with available rows
+        query += " ORDER BY s.name, b.date"
+
+        result = client.execute(query, params)
+        rows = result.rows if result else []
+
+        # Group fetched rows by ticker name
+        data_by_ticker = {t: [] for t in missing_tickers}
+        for r in rows:
+            t_name = r[0]
+            if t_name in data_by_ticker:
+                data_by_ticker[t_name].append(r[1:])
+
+        # Populate the global cache with histories for the newly fetched tickers
+        for ticker, t_rows in data_by_ticker.items():
+            if t_rows:
+                _GLOBAL_CACHE["histories"][ticker] = _build_stock_data(ticker, t_rows)
+
+    # Return dictionary of requested tickers from cache
     return {
-        ticker: _build_stock_data(ticker, t_rows)
-        for ticker, t_rows in data_by_ticker.items()
-        if t_rows
+        ticker: _GLOBAL_CACHE["histories"][ticker]
+        for ticker in tickers
+        if ticker in _GLOBAL_CACHE["histories"]
     }
