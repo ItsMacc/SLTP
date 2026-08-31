@@ -13,9 +13,6 @@ def backtest_strategy(strategy: Strategy, period: int = 1):
     start_date = datetime.now() - relativedelta(years=period)
     start_date_str = start_date.strftime("%Y-%m-%d")
 
-    # Inital Rebalance
-    strategy.rebalance(start_date)
-
     manager = strategy.manager
     histories = manager.histories
 
@@ -52,9 +49,6 @@ def backtest_strategy(strategy: Strategy, period: int = 1):
 
     # Outer loop: Iterate chronologically day by day across the portfolio
     for current_date in valid_dates:
-        # Check for rebalance everyday
-        strategy.rebalance(datetime.strptime(current_date, "%Y-%m-%d"))
-
         # Evaluate each ticker active on this specific date
         for ticker, data in ticker_data.items():
             date_map = data["date_to_idx"]

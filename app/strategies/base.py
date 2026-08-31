@@ -11,7 +11,6 @@ class Strategy:
         self.manager: PortfolioManager = None
 
         self.MIN_BARS_REQUIRED: int = 0
-        self.LAST_REBALANCE_MONTH: int = None
 
     def add_ticker(self, ticker: str, start_date: str | None = None, end_date: str | None = None) -> None:
         # Delegate single ticker addition to the underlying portfolio manager
@@ -20,10 +19,6 @@ class Strategy:
     def add_tickers(self, tickers: list[str], start_date: str | None = None, end_date: str | None = None) -> None:
         # Delegate multiple ticker addition to the underlying portfolio manager
         self.manager.add_tickers(tickers, start_date, end_date)
-
-    def rebalance(self, current_date_str: str) -> None:
-        # Enforce implementation of rebalance
-        raise NotImplementedError("Strategy subclasses must implement rebalance()")
 
     def generate_signal(self, ticker: str, history: StockData) -> StrategyDecision:
         # Enforce implementation of signal generation in strategy subclasses
