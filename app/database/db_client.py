@@ -2,6 +2,8 @@
 import os
 import requests
 from dotenv import load_dotenv
+from requests.adapters import HTTPAdapter
+from urllib3.util import Retry
 
 # -------- Environment Setup --------
 load_dotenv()
@@ -22,7 +24,17 @@ class TursoClient:
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
         }
+
+        # Setup session with automated retries for transient network drops or timeouts
         self.session = requests.Session()
+        retries = Retry(
+            total=3,  # Number of retries
+            backoff_factor=1,  # Wait 1s, 2s, 4s between retries
+            status_forcelist=[500, 502, 503, 504],
+            raise_on_status=False
+        )
+        adapter = HTTPAdapter(max_retries=retries)
+        self.session.mount("https://", adapter)
         self.session.headers.update(self.headers)
 
     @staticmethod
@@ -60,7 +72,7 @@ class TursoClient:
         }
 
         # Send POST request to Turso endpoint and check response status
-        resp = self.session.post(self.endpoint, json=payload, timeout=10)
+        resp = self.session.post(self.endpoint, json=payload, timeout=30)
         resp.raise_for_status()
         data = resp.json()
 
@@ -99,7 +111,7 @@ class TursoClient:
         payload = {"requests": requests_payload}
 
         # Send batch request payload to the database endpoint
-        resp = self.session.post(self.endpoint, json=payload, timeout=30)
+        resp = self.session.post(self.endpoint, json=payload, timeout=60)
         resp.raise_for_status()
 
 

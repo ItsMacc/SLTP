@@ -43,7 +43,7 @@ class StockHealthFilterStrategy(Strategy):
 
         if self.LAST_REBALANCE_MONTH is None:
             # Initial rebalance: populate the initial top quality stocks
-            self._replenish_top_tickers(start_date, end_date, 50)
+            self._replenish_top_tickers(start_date, end_date, 100)
 
         elif current_date >= self.LAST_REBALANCE_MONTH + relativedelta(months=3):
             # Remove eligible poor performers and capture how many were removed (n)

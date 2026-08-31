@@ -1,7 +1,6 @@
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from app.strategies.base import Strategy
-from app.strategies.stock_health_filter import StockHealthFilterStrategy
 from app.utils.StockData import StockData
 import numpy as np
 

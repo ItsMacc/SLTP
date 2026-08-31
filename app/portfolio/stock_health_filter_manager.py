@@ -8,7 +8,7 @@ class StockHealthFilterManager(PortfolioManager):
         super().__init__()
 
         # Initial Configurations
-        self.max_positions = 20
+        self.max_positions = 10
         self.risk_profile = RiskProfile.MODERATE
 
     def on_signal(self,
