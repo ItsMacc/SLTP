@@ -91,13 +91,13 @@ class PortfolioManager:
         self.histories.update(get_stock_histories(tickers, start_date, end_date))
         self.tickers.extend(tickers)
 
-    # -------- Custom Methods (Implemented in Subclasses) --------
+    # -------- Custom Methods --------
     def on_signal(self,
                   ticker: str,
                   decision: StrategyDecision
                   ) -> TradeRecord:
         # Base method placeholder enforcing implementation in subclasses
-        raise ValueError("PortfolioManager subclasses must implement on_signal()")
+        raise NotImplementedError("PortfolioManager subclasses must implement on_signal()")
 
     # -------- Trade Execution & Risk Management --------
     def check_exits(self,
