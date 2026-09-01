@@ -1,12 +1,13 @@
 # -------- Imports --------
+import numpy as np
 from datetime import datetime
 from datetime import timedelta
 from typing import Any
 from typing import Dict
 from typing import List
-import numpy as np
 from app.database.db_client import get_db_client
 from app.utils.StockData import StockData
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # -------- Global Cache --------
 _GLOBAL_CACHE = {
@@ -227,20 +228,18 @@ def get_stock_histories(tickers: list[str],
     # Identify which tickers are missing from the global cache
     missing_tickers = [t for t in tickers if t not in _GLOBAL_CACHE["histories"]]
 
-    # If there are missing tickers, fetch their histories in batches of 50
+    # If there are missing tickers, fetch their histories concurrently using 8 workers
     if missing_tickers:
         if client is None:
             client = get_db_client()
 
         validate_dates(start, end)
-        batch_size = 50
+        batch_size = 10
+        max_workers = 8
 
-        # Iterate through missing tickers in chunks to avoid payload limits
-        for i in range(0, len(missing_tickers), batch_size):
-            batch = missing_tickers[i:i + batch_size]
-
-            # Construct parameterized query to retrieve history for the current batch
-            placeholders = ", ".join(["?"] * len(batch))
+        # Define helper function to execute an individual batch query concurrently
+        def fetch_batch(batch_subset):
+            placeholders = ", ".join(["?"] * len(batch_subset))
             query = f"""
                 SELECT
                     s.name,
@@ -254,7 +253,7 @@ def get_stock_histories(tickers: list[str],
                 JOIN symbols s ON b.symbol_id = s.id
                 WHERE s.name IN ({placeholders})
             """
-            params = list(batch)
+            params = list(batch_subset)
 
             if start is not None:
                 query += " AND b.date >= ?"
@@ -269,17 +268,27 @@ def get_stock_histories(tickers: list[str],
             result = client.execute(query, params)
             rows = result.rows if result else []
 
-            # Group fetched rows by ticker name for this batch
-            data_by_ticker = {t: [] for t in batch}
+            data_by_ticker = {t: [] for t in batch_subset}
             for r in rows:
                 t_name = r[0]
                 if t_name in data_by_ticker:
                     data_by_ticker[t_name].append(r[1:])
+            return data_by_ticker
 
-            # Populate the global cache with histories for the newly fetched batch tickers
-            for ticker, t_rows in data_by_ticker.items():
-                if t_rows:
-                    _GLOBAL_CACHE["histories"][ticker] = _build_stock_data(ticker, t_rows)
+        # Split missing tickers into chunks of 15
+        batches = [missing_tickers[i:i + batch_size] for i in range(0, len(missing_tickers), batch_size)]
+
+        # Execute batch queries concurrently across 8 threads
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_batch = {executor.submit(fetch_batch, batch): batch for batch in batches}
+            for future in as_completed(future_to_batch):
+                try:
+                    data_by_ticker = future.result()
+                    for ticker, t_rows in data_by_ticker.items():
+                        if t_rows:
+                            _GLOBAL_CACHE["histories"][ticker] = _build_stock_data(ticker, t_rows)
+                except Exception as exc:
+                    print(f"Batch fetch generated an exception: {exc}")
 
     # Return dictionary of requested tickers from cache
     return {
