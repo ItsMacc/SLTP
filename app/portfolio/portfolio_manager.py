@@ -1,13 +1,15 @@
 # -------- Imports --------
 from dataclasses import dataclass
 from enum import Enum
+from app.database.db import load_symbols
+from dateutil.relativedelta import relativedelta
 from app.database.fetch import get_stock_histories
 from app.database.fetch import get_stock_history
 from app.utils.StockData import StockData
 from app.utils.StrategyDecision import StrategyDecision
 
 
-# -------- Records and Risk Enumerations --------
+# -------- Records, Risk and Rebalance Frequency Enumerations --------
 @dataclass
 class TradeRecord:
     ticker: str
@@ -30,11 +32,30 @@ class RiskProfile(Enum):
     HIGH = "high"
 
 
+class RebalanceFrequency(Enum):
+    DAILY = "daily"
+    WEEKLY = "weekly"
+    MONTHLY = "monthly"
+    QUARTERLY = "quarterly"
+    YEARLY = "yearly"
+    NEVER = "never"
+
+
+# -------- Constants --------
 RISK_SETTINGS: dict[RiskProfile, tuple[float, float]] = {
     RiskProfile.LOW: (0.10, 0.02),
     RiskProfile.MODERATE: (0.15, 0.03),
     RiskProfile.HIGH: (0.25, 0.04),
 }
+REBALANCE_SETTINGS: dict[RebalanceFrequency, relativedelta] = {
+    RebalanceFrequency.DAILY: relativedelta(days=1),
+    RebalanceFrequency.WEEKLY: relativedelta(weeks=1),
+    RebalanceFrequency.MONTHLY: relativedelta(months=1),
+    RebalanceFrequency.QUARTERLY: relativedelta(months=3),
+    RebalanceFrequency.YEARLY: relativedelta(years=1),
+    RebalanceFrequency.NEVER: relativedelta(years=999_999),
+}
+UNIVERSE = load_symbols()
 MIN_TRADES_FOR_KELLY = 20
 
 
@@ -45,12 +66,15 @@ class PortfolioManager:
                  max_positions: int | None = 10
                  ) -> None:
         # Constants
-        self.SLIPPAGE_PCT = 0.0005
-        self.FEE_RATE = 0.001
+        self.SLIPPAGE_PCT: float = 0.0005
+        self.FEE_RATE: float = 0.001
+        self.LAST_REBALANCE_DATE: str = None
+        self.REBALANCE_FREQUENCY: RebalanceFrequency = RebalanceFrequency.NEVER
+        self.WARM_UP_PERIOD: int = 0
 
         # Risk settings
-        self.risk_profile = risk
-        self.max_positions = max_positions
+        self.risk_profile: RiskProfile = risk
+        self.max_positions: int = max_positions
 
         # Universe
         self.tickers: list[str] = []
@@ -65,6 +89,7 @@ class PortfolioManager:
         # State management
         self.pending_entries: dict[str, TradeRecord] = {}
         self.open_trade_state: dict[str, dict] = {}
+        self.blacklisted_tickers: set(str) = set()
 
         # Performance tracking
         self.equity_curve: list[dict] = []
@@ -98,6 +123,14 @@ class PortfolioManager:
                   ) -> TradeRecord:
         # Base method placeholder enforcing implementation in subclasses
         raise NotImplementedError("PortfolioManager subclasses must implement on_signal()")
+
+    def on_rebalance(self, current_date: str) -> None:
+        # Base method allowing users to create custom rebalancing
+        pass
+
+    def initialize_universe(self) -> None:
+        # Base method to initialize universe
+        pass
 
     # -------- Trade Execution & Risk Management --------
     def check_exits(self,

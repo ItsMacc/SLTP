@@ -91,82 +91,63 @@ def get_stock_history(ticker: str,
     validate_dates(start, end)
 
     global _GLOBAL_CACHE
+    today_str = datetime.now().strftime("%Y-%m-%d")
 
-    # Check if the particular ticker already exists in cache
-    if ticker in _GLOBAL_CACHE["histories"]:
-        cached_data = _GLOBAL_CACHE["histories"][ticker]
-        dates = cached_data.dates
-        mask = np.ones(len(dates), dtype=bool)
+    # Reset cache once per day if needed
+    if _GLOBAL_CACHE["date"] != today_str:
+        _GLOBAL_CACHE["date"] = today_str
+        _GLOBAL_CACHE["histories"] = {}
 
-        if start is not None:
-            mask &= (dates >= start)
-        if end is not None:
-            mask &= (dates <= end)
+    # Fetch and cache full history for the ticker if not already cached
+    if ticker not in _GLOBAL_CACHE["histories"]:
+        query = """
+            SELECT
+                b.date,
+                b.open,
+                b.high,
+                b.low,
+                b.close,
+                b.volume
+            FROM bars b
+            JOIN symbols s ON b.symbol_id = s.id
+            WHERE s.name = ?
+            ORDER BY b.date
+        """
+        result = client.execute(query, [ticker])
+        rows = result.rows if result else []
 
-        # Raise error if no records match the filter range within cached data
-        if not np.any(mask):
-            date_range = ""
-            if start is not None:
-                date_range += f" from {start}"
-            if end is not None:
-                date_range += f" to {end}"
-            raise ValueError(f"No data found for {ticker}{date_range} within specified range")
+        if not rows:
+            raise ValueError(f"No data found for {ticker}")
 
-        return StockData(
-            ticker=ticker,
-            dates=cached_data.dates[mask],
-            open_price=cached_data.open_price[mask],
-            high=cached_data.high[mask],
-            low=cached_data.low[mask],
-            close_price=cached_data.close_price[mask],
-            volume=cached_data.volume[mask],
-        )
+        _GLOBAL_CACHE["histories"][ticker] = _build_stock_data(ticker, rows)
 
-    # Otherwise, fall back to standard database query and cache it for future calls
-    query = """
-        SELECT
-            b.date,
-            b.open,
-            b.high,
-            b.low,
-            b.close,
-            b.volume
-        FROM bars b
-        JOIN symbols s ON b.symbol_id = s.id
-        WHERE s.name = ?
-    """
-    params = [ticker]
+    cached_data = _GLOBAL_CACHE["histories"][ticker]
+    dates = cached_data.dates
+    mask = np.ones(len(dates), dtype=bool)
 
-    # Append start date filter if specified
     if start is not None:
-        query += " AND b.date >= ?"
-        params.append(start)
-
-    # Append end date filter if specified
+        mask &= (dates >= start)
     if end is not None:
-        query += " AND b.date <= ?"
-        params.append(end)
+        mask &= (dates <= end)
 
-    query += " ORDER BY b.date"
-
-    result = client.execute(query, params)
-    rows = result.rows if result else []
-
-    # Raise error if no historical records are found
-    if not rows:
+    # Raise error if no records match the filter range within cached data
+    if not np.any(mask):
         date_range = ""
         if start is not None:
             date_range += f" from {start}"
         if end is not None:
             date_range += f" to {end}"
-        raise ValueError(f"No data found for {ticker}{date_range}")
+        raise ValueError(f"No data found for {ticker}{date_range} within specified range")
 
-    stock_data = _build_stock_data(ticker, rows)
-
-    # Save to cache without wiping anything else
-    _GLOBAL_CACHE["histories"][ticker] = stock_data
-
-    return stock_data
+    return StockData(
+        ticker=ticker,
+        dates=cached_data.dates[mask],
+        open_price=cached_data.open_price[mask],
+        high=cached_data.high[mask],
+        low=cached_data.low[mask],
+        close_price=cached_data.close_price[mask],
+        volume=cached_data.volume[mask],
+    )
 
 
 def get_stock_history_json(ticker: str,
@@ -225,19 +206,20 @@ def get_stock_histories(tickers: list[str],
         _GLOBAL_CACHE["date"] = today_str
         _GLOBAL_CACHE["histories"] = {}
 
+    validate_dates(start, end)
+
     # Identify which tickers are missing from the global cache
     missing_tickers = [t for t in tickers if t not in _GLOBAL_CACHE["histories"]]
 
-    # If there are missing tickers, fetch their histories concurrently using 8 workers
+    # If there are missing tickers, fetch their full histories concurrently using 8 workers
     if missing_tickers:
         if client is None:
             client = get_db_client()
 
-        validate_dates(start, end)
         batch_size = 10
         max_workers = 8
 
-        # Define helper function to execute an individual batch query concurrently
+        # Define helper function to execute an individual batch query for full history
         def fetch_batch(batch_subset):
             placeholders = ", ".join(["?"] * len(batch_subset))
             query = f"""
@@ -252,18 +234,9 @@ def get_stock_histories(tickers: list[str],
                 FROM bars b
                 JOIN symbols s ON b.symbol_id = s.id
                 WHERE s.name IN ({placeholders})
+                ORDER BY s.name, b.date
             """
             params = list(batch_subset)
-
-            if start is not None:
-                query += " AND b.date >= ?"
-                params.append(start)
-
-            if end is not None:
-                query += " AND b.date <= ?"
-                params.append(end)
-
-            query += " ORDER BY s.name, b.date"
 
             result = client.execute(query, params)
             rows = result.rows if result else []
@@ -275,7 +248,7 @@ def get_stock_histories(tickers: list[str],
                     data_by_ticker[t_name].append(r[1:])
             return data_by_ticker
 
-        # Split missing tickers into chunks of 15
+        # Split missing tickers into chunks
         batches = [missing_tickers[i:i + batch_size] for i in range(0, len(missing_tickers), batch_size)]
 
         # Execute batch queries concurrently across 8 threads
@@ -290,9 +263,28 @@ def get_stock_histories(tickers: list[str],
                 except Exception as exc:
                     print(f"Batch fetch generated an exception: {exc}")
 
-    # Return dictionary of requested tickers from cache
-    return {
-        ticker: _GLOBAL_CACHE["histories"][ticker]
-        for ticker in tickers
-        if ticker in _GLOBAL_CACHE["histories"]
-    }
+    # Return filtered dictionary of requested tickers from cache using NumPy slicing
+    result_dict = {}
+    for ticker in tickers:
+        if ticker in _GLOBAL_CACHE["histories"]:
+            cached_data = _GLOBAL_CACHE["histories"][ticker]
+            dates = cached_data.dates
+            mask = np.ones(len(dates), dtype=bool)
+
+            if start is not None:
+                mask &= (dates >= start)
+            if end is not None:
+                mask &= (dates <= end)
+
+            if np.any(mask):
+                result_dict[ticker] = StockData(
+                    ticker=ticker,
+                    dates=cached_data.dates[mask],
+                    open_price=cached_data.open_price[mask],
+                    high=cached_data.high[mask],
+                    low=cached_data.low[mask],
+                    close_price=cached_data.close_price[mask],
+                    volume=cached_data.volume[mask],
+                )
+
+    return result_dict
