@@ -1,21 +1,14 @@
 # -------- Imports --------
-from datetime import datetime
-from datetime import timedelta
-from datetime import timezone
 import bs4 as bs
 import pandas as pd
 import requests
 import yfinance as yf
 from app.database.db_client import get_db_client
+from datetime import datetime, timedelta, timezone
 
 
 # -------- Symbol Lists --------
-def normalize_ticker(ticker):
-    # Normalize ticker string by removing trailing exchange suffixes
-    return ticker.removesuffix(".TO")
-
-
-def load_sp500():
+def load_sp500() -> list:
     # Set headers to mimic a web browser request
     headers = {
         "User-Agent": (
@@ -52,7 +45,7 @@ def load_sp500():
     return symbols
 
 
-def load_custom_stocks():
+def load_custom_stocks() -> list:
     # Return predefined list of custom Canadian and international stocks
     return [
         "RY.TO", "TD.TO", "BNS.TO", "BMO.TO", "CM.TO", "NA.TO", "ENB.TO", "TRP.TO",
@@ -63,7 +56,7 @@ def load_custom_stocks():
     ]
 
 
-def load_etfs():
+def load_etfs() -> list:
     # Return predefined list of common exchange-traded funds
     return [
         "XEQT.TO", "VEQT.TO", "VFV.TO", "VDY.TO", "XEI.TO", "XIU.TO", "XIC.TO",
@@ -72,12 +65,12 @@ def load_etfs():
     ]
 
 
-def load_gold():
+def load_gold() -> list:
     # Return commodity fund symbols for gold tracking
     return ["GLD"]
 
 
-def load_symbols():
+def load_symbols() -> list:
     # Combine and deduplicate all loaded symbol groups into a single list
     return list(set(load_sp500() + load_custom_stocks() + load_etfs() + load_gold()))
 
@@ -125,11 +118,10 @@ def init_db(client=None) -> None:
     """)
 
 
-def process_and_batch_bars(download_list,
-                           df,
-                           symbol_map,
-                           client=None
-                           ) -> None:
+def process_and_batch_bars(download_list: list,
+                           df: pd.DataFrame,
+                           symbol_map: dict,
+                           client=None) -> None:
     # Return early if dataframe or download list is empty
     if df is None or df.empty or not download_list:
         return
@@ -143,7 +135,7 @@ def process_and_batch_bars(download_list,
 
     # Iterate through download list to extract and format historical bars
     for ticker in download_list:
-        db_ticker = normalize_ticker(ticker)
+        db_ticker = _normalize_ticker(ticker)
         symbol_id = symbol_map.get(db_ticker)
 
         if symbol_id is None:
@@ -259,7 +251,7 @@ def insert_or_update_data(client=None) -> None:
 
     # Categorize tickers based on existing database coverage and last date updated
     for ticker in all_tickers:
-        db_ticker = normalize_ticker(ticker)
+        db_ticker = _normalize_ticker(ticker)
         symbol_id = symbol_map.get(db_ticker)
 
         if not symbol_id:
@@ -285,7 +277,7 @@ def insert_or_update_data(client=None) -> None:
                 ON CONFLICT(name)
                 DO UPDATE SET updated_at = excluded.updated_at;
                 """,
-                (normalize_ticker(t), updated_at),
+                (_normalize_ticker(t), updated_at),
             )
             for t in target_tickers
         ]
@@ -325,6 +317,12 @@ def insert_or_update_data(client=None) -> None:
             print(f"Batch 5d download error: {e}")
 
     print("Database sync completed successfully.")
+
+
+# -------- Helper Methods --------
+def _normalize_ticker(ticker: str) -> str:
+    # Normalize ticker string by removing trailing exchange suffixes
+    return ticker.removesuffix(".TO")
 
 
 # -------- Entry Point --------

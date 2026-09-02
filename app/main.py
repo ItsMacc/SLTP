@@ -1,3 +1,4 @@
+# -------- Imports --------
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from app.database.db_client import get_db_client
@@ -15,12 +16,10 @@ app.add_middleware(
 
 
 # -------- Endpoints --------
-
 @app.get("/api/stock/history")
-def read_stock_history(
-    ticker: str = Query(..., description="Stock symbol, e.g. AAPL"),
-    timeframe: str = Query("1y", description="Timeframe options: 1y, 2y, 5y, all"),
-):
+def read_stock_history(ticker: str = Query(..., description="Stock symbol, e.g. AAPL"),
+                       timeframe: str = Query("1y", description="Timeframe options: 1y, 2y, 5y, all")):
+    # Fetch historical price data for a specific stock ticker and timeframe
     try:
         return get_stock_history_json(ticker=ticker, timeframe=timeframe)
     except ValueError as e:
@@ -29,6 +28,7 @@ def read_stock_history(
 
 @app.get("/api/stock/all-tickers")
 def get_all_tickers():
+    # Retrieve a sorted list of all available stock symbols from the database
     try:
         client = get_db_client()
         result = client.execute("SELECT name FROM symbols ORDER BY name ASC")
