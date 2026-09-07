@@ -41,7 +41,10 @@ class Backtester:
         # Iterate day by day
         for current_date in active_dates:
             # Rebalance portfolio
-            self.manager.rebalance(current_date)
+            self.manager.on_rebalance(current_date)
+
+            # Pick up any tickers on_rebalance just added so they're actually simulated
+            self._sync_ticker_data(ticker_data, current_date)
 
             # Execute pending buys
             self._execute_pending_buys(current_date, ticker_data)
@@ -58,7 +61,7 @@ class Backtester:
                 if i < data["start_idx"]:
                     continue
 
-                current_open = float(data["open_price"][i])
+                current_open = float(data["open"][i])
                 current_high = float(data["high"][i])
                 current_low = float(data["low"][i])
                 current_close = float(data["close"][i])
@@ -126,22 +129,37 @@ class Backtester:
         # Pre-caches arrays and index maps for each ticker to maximize performance during loops
         ticker_data = {}
         for ticker, history in self.manager.histories.items():
-            dates = history.dates
-            start_idx = np.searchsorted(dates, active_start_date)
-            if start_idx >= len(dates):
+            entry = self._build_cache_entry(history, active_start_date)
+            if entry is not None:
+                ticker_data[ticker] = entry
+        return ticker_data
+
+    def _sync_ticker_data(self, ticker_data: dict, current_date: str) -> None:
+        for ticker, history in self.manager.histories.items():
+            if ticker in ticker_data:
                 continue
 
-            ticker_data[ticker] = {
-                "dates": dates,
-                "open": history.open_price,
-                "high": history.high,
-                "low": history.low,
-                "close": history.close_price,
-                "volume": history.volume,
-                "start_idx": start_idx,
-                "date_to_idx": {d: idx for idx, d in enumerate(dates)}
-            }
-        return ticker_data
+            entry = self._build_cache_entry(history, current_date)
+            if entry is not None:
+                ticker_data[ticker] = entry
+
+    @staticmethod
+    def _build_cache_entry(history: StockData, anchor_date: str) -> dict | None:
+        dates = history.dates
+        start_idx = np.searchsorted(dates, anchor_date)
+        if start_idx >= len(dates):
+            return None
+
+        return {
+            "dates": dates,
+            "open": history.open_price,
+            "high": history.high,
+            "low": history.low,
+            "close": history.close_price,
+            "volume": history.volume,
+            "start_idx": start_idx,
+            "date_to_idx": {d: idx for idx, d in enumerate(dates)}
+        }
 
     def _execute_pending_buys(self, current_date: str, ticker_data: dict) -> None:
         # Executes queued pending buy orders at today's open price and clears the queue

@@ -16,7 +16,7 @@ class StockHealthFilterManager(PortfolioManager):
 
         # Initial Configurations
         self.max_positions = 10
-        self.risk_profile = RiskProfile.MODERATE
+        self.risk_profile = RiskProfile.LOW
         self.REBALANCE_FREQUENCY = RebalanceFrequency.QUARTERLY
         self.WARM_UP_PERIOD = 60
 
@@ -194,17 +194,11 @@ class StockHealthFilterManager(PortfolioManager):
             if exclude_current and ticker in exclude_set:
                 continue
 
-            if history is None or current_date not in history.dates:
+            if history is None:
                 continue
 
-            # Find the exact index of current_date to enforce strict point-in-time slicing
-            day_idx = list(history.dates).index(current_date)
-            if day_idx < self.WARM_UP_PERIOD:
-                continue
-
-            # Slice strictly up to current_date's index to prevent look-ahead bias
-            recent_close = history.close_price[day_idx - self.WARM_UP_PERIOD + 1: day_idx + 1]
-            recent_volume = history.volume[day_idx - self.WARM_UP_PERIOD + 1: day_idx + 1]
+            recent_close = history.close_price[-self.WARM_UP_PERIOD + 1:]
+            recent_volume = history.volume[-self.WARM_UP_PERIOD + 1:]
 
             # Check growth rate constraint point-in-time
             growth_rate = (recent_close[-1] - recent_close[0]) / recent_close[0]

@@ -1,14 +1,16 @@
 # -------- Imports --------
 import numpy as np
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timedelta
+import os
+import pandas as pd
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
 from typing import Any, Dict, List
-from app.database.db_client import get_db_client
+from app.database.db_client import get_parquet_dir
 from app.utils.StockData import StockData
 
 # -------- Global Cache --------
 _GLOBAL_CACHE = {
-    "date": None,
+    "loaded": False,
     "histories": {}
 }
 
@@ -23,9 +25,9 @@ def calculate_start_date(timeframe: str) -> str | None:
     # Map timeframe strings to corresponding start dates relative to today
     today = datetime.now()
     mapping = {
-        "1y": today - timedelta(days=365),
-        "2y": today - timedelta(days=365 * 2),
-        "5y": today - timedelta(days=365 * 5),
+        "1y": today - relativedelta(years=1),
+        "2y": today - relativedelta(years=2),
+        "5y": today - relativedelta(years=5),
     }
 
     start_dt = mapping.get(tf, mapping["1y"])
@@ -58,43 +60,51 @@ def validate_dates(start_date: str | None = None,
     return True
 
 
+# -------- Master Cache Loader Helper --------
+def __load_cache() -> None:
+    global _GLOBAL_CACHE
+    if _GLOBAL_CACHE["loaded"]:
+        return
+
+    parquet_dir = get_parquet_dir()
+    master_file_path = os.path.join(parquet_dir, "market_data.parquet")
+
+    if not os.path.exists(master_file_path):
+        _GLOBAL_CACHE["loaded"] = True
+        return
+
+    try:
+        df = pd.read_parquet(master_file_path)
+        if not df.empty and "Symbol" in df.columns:
+            for symbol, group in df.groupby("Symbol"):
+                rows = group[["Date", "Open", "High", "Low", "Close", "Volume"]].values.tolist()
+                _GLOBAL_CACHE["histories"][symbol] = _build_stock_data(symbol, rows)
+    except Exception as e:
+        print(f"Error loading master parquet cache: {e}")
+
+    _GLOBAL_CACHE["loaded"] = True
+
+
 # -------- Stock Data Queries --------
+def get_all_tickers() -> List[str]:
+    # Returns a list of all unique ticker symbols currently available in the master Parquet database
+    __load_cache()
+    global _GLOBAL_CACHE
+    return list(_GLOBAL_CACHE["histories"].keys())
+
 def get_stock_history(ticker: str,
                       start: str | None = None,
                       end: str | None = None,
-                      client=None) -> StockData:
+                      ) -> StockData:
     validate_dates(start, end)
+    __load_cache()
 
     global _GLOBAL_CACHE
 
-    # Read-only check: if stock is already cached, return sliced copy without modifying cache
-    if ticker in _GLOBAL_CACHE["histories"]:
-        stock_data = _GLOBAL_CACHE["histories"][ticker]
-    else:
-        # Fetch directly from database for fast single-stock query without writing to cache
-        if client is None:
-            client = get_db_client()
+    if ticker not in _GLOBAL_CACHE["histories"]:
+        raise ValueError(f"No local Parquet data found for {ticker} in master database")
 
-        query = """
-            SELECT
-                b.date,
-                b.open,
-                b.high,
-                b.low,
-                b.close,
-                b.volume
-            FROM bars b
-            JOIN symbols s ON b.symbol_id = s.id
-            WHERE s.name = ?
-            ORDER BY b.date
-        """
-        result = client.execute(query, [ticker])
-        rows = result.rows if result else []
-
-        if not rows:
-            raise ValueError(f"No data found for {ticker}")
-
-        stock_data = _build_stock_data(ticker, rows)
+    stock_data = _GLOBAL_CACHE["histories"][ticker]
 
     dates = stock_data.dates
     mask = np.ones(len(dates), dtype=bool)
@@ -125,12 +135,9 @@ def get_stock_history(ticker: str,
 
 def get_stock_history_json(ticker: str,
                            timeframe: str = "1y",
-                           client=None) -> Dict[str, Any]:
-    if client is None:
-        client = get_db_client()
-
+                           ) -> Dict[str, Any]:
     start_date = calculate_start_date(timeframe)
-    stock_data = get_stock_history(ticker=ticker, start=start_date, client=client)
+    stock_data = get_stock_history(ticker=ticker, start=start_date)
 
     bars: List[Dict[str, Any]] = [
         {
@@ -162,40 +169,15 @@ def get_stock_history_json(ticker: str,
 def get_stock_histories(tickers: list[str],
                         start: str | None = None,
                         end: str | None = None,
-                        client=None) -> dict[str, StockData]:
+                        ) -> dict[str, StockData]:
     if not tickers:
         return {}
 
     validate_dates(start, end)
+    __load_cache()
 
     global _GLOBAL_CACHE
 
-    # Identify missing tickers not yet loaded into cache
-    missing_tickers = [t for t in tickers if t not in _GLOBAL_CACHE["histories"]]
-
-    # Fetch missing full histories in parallel and write ONLY missing symbols to cache
-    if missing_tickers:
-        if client is None:
-            client = get_db_client()
-
-        batch_size = 10
-        max_workers = 8
-        batches = [missing_tickers[i:i + batch_size] for i in range(0, len(missing_tickers), batch_size)]
-
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            future_to_batch = {
-                executor.submit(_fetch_batch, batch, client): batch for batch in batches
-            }
-            for future in as_completed(future_to_batch):
-                try:
-                    data_by_ticker = future.result()
-                    for ticker, t_rows in data_by_ticker.items():
-                        if t_rows:
-                            _GLOBAL_CACHE["histories"][ticker] = _build_stock_data(ticker, t_rows)
-                except Exception as exc:
-                    print(f"Batch fetch generated an exception: {exc}")
-
-    # Return sliced StockData copies from cache without modifying cached instances
     result_dict = {}
     for ticker in tickers:
         if ticker in _GLOBAL_CACHE["histories"]:
@@ -235,33 +217,3 @@ def _build_stock_data(ticker: str,
         close_price=matrix[:, 4].astype(float),
         volume=matrix[:, 5].astype(float),
     )
-
-
-def _fetch_batch(batch_subset: list,
-                 client: Any) -> dict[str, list]:
-    placeholders = ", ".join(["?"] * len(batch_subset))
-    query = f"""
-        SELECT
-            s.name,
-            b.date,
-            b.open,
-            b.high,
-            b.low,
-            b.close,
-            b.volume
-        FROM bars b
-        JOIN symbols s ON b.symbol_id = s.id
-        WHERE s.name IN ({placeholders})
-        ORDER BY s.name, b.date
-    """
-    params = list(batch_subset)
-
-    result = client.execute(query, params)
-    rows = result.rows if result else []
-
-    data_by_ticker = {t: [] for t in batch_subset}
-    for r in rows:
-        t_name = r[0]
-        if t_name in data_by_ticker:
-            data_by_ticker[t_name].append(r[1:])
-    return data_by_ticker

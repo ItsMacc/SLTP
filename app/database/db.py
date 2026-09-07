@@ -1,14 +1,16 @@
 # -------- Imports --------
+import os
+import re
 import bs4 as bs
 import pandas as pd
 import requests
 import yfinance as yf
-from app.database.db_client import get_db_client
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
+from app.database.db_client import get_parquet_dir
 
 
-# -------- Symbol Lists --------
-def load_sp500() -> list:
+# -------- Helper Soup Function --------
+def _fetch_soup(url: str, timeout: int = 10) -> bs.BeautifulSoup | None:
     # Set headers to mimic a web browser request
     headers = {
         "User-Agent": (
@@ -16,20 +18,26 @@ def load_sp500() -> list:
             " like Gecko) Chrome/115.0.0.0 Safari/537.36"
         )
     }
-    url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
-
-    # Attempt to fetch the S&P 500 wikipedia page
+    # Attempt to fetch the target web page safely
     try:
-        response = requests.get(url, headers=headers, timeout=10)
+        response = requests.get(url, headers=headers, timeout=timeout)
         response.raise_for_status()
     except requests.RequestException as e:
-        print(f"Failed to fetch S&P 500 list: {e}")
+        print(f"Failed to fetch URL {url}: {e}")
+        return None
+
+    # Parse and return the HTML response content using BeautifulSoup
+    return bs.BeautifulSoup(response.text, "lxml")
+
+
+# -------- Symbol Lists --------
+def load_sp500() -> list:
+    url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
+    soup = _fetch_soup(url)
+    if soup is None:
         return []
 
-    # Parse the HTML response content using BeautifulSoup
-    soup = bs.BeautifulSoup(response.text, "lxml")
     table = soup.find("table", {"id": "constituents"})
-
     if table is None:
         return []
 
@@ -45,24 +53,55 @@ def load_sp500() -> list:
     return symbols
 
 
-def load_custom_stocks() -> list:
-    # Return predefined list of custom Canadian and international stocks
-    return [
-        "RY.TO", "TD.TO", "BNS.TO", "BMO.TO", "CM.TO", "NA.TO", "ENB.TO", "TRP.TO",
-        "CNQ.TO", "SU.TO", "EMA.TO", "FTS.TO", "CP.TO", "CNR.TO", "BCE.TO", "T.TO",
-        "WN.TO", "SHOP.TO", "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA",
-        "JNJ", "UNH", "PFE", "PG", "KO", "WMT", "COST", "BRK-B", "JPM", "V", "MA",
-        "DIS", "CAT", "XOM",
-    ]
+def load_tsx60() -> list:
+    url = "https://en.wikipedia.org/wiki/S%26P/TSX_60"
+    soup = _fetch_soup(url)
+    if soup is None:
+        return []
+
+    # Find the constituents table on the TSX 60 Wikipedia page
+    table = soup.find("table", {"id": "constituents"})
+    if table is None:
+        tables = soup.find_all("table", {"class": "wikitable"})
+        table = tables[0] if tables else None
+
+    if table is None:
+        return []
+
+    symbols = []
+    for row in table.find_all("tr")[1:]:
+        cells = row.find_all("td")
+        if not cells:
+            continue
+        ticker_text = cells[0].text.strip().replace(".", "-")
+        if not ticker_text.endswith(".TO") and len(ticker_text) <= 5:
+            ticker_text = f"{ticker_text}.TO"
+        symbols.append(ticker_text)
+
+    return symbols
 
 
 def load_etfs() -> list:
-    # Return predefined list of common exchange-traded funds
-    return [
+    # Fetch and parse American exchange-traded funds from Wikipedia dynamically
+    url = "https://en.wikipedia.org/wiki/List_of_American_exchange-traded_funds"
+    soup = _fetch_soup(url)
+
+    etfs = []
+    if soup is not None:
+        for li in soup.find_all("li"):
+            text = li.get_text()
+            matches = re.findall(
+                r"(?:NYSE\s*(?:Arca)?|NASDAQ|AMEX)[:\s]+([A-Z\-]+)", text
+            )
+            for ticker in matches:
+                etfs.append(ticker.strip().replace(".", "-"))
+
+    canadian_etfs = [
         "XEQT.TO", "VEQT.TO", "VFV.TO", "VDY.TO", "XEI.TO", "XIU.TO", "XIC.TO",
-        "VAB.TO", "XBB.TO", "CASH.TO", "PSA.TO", "SPY", "QQQ", "VTI", "VOO", "DIA",
-        "XLK", "XLF", "XLE", "VYM", "SCHD",
+        "VAB.TO", "XBB.TO", "CASH.TO", "PSA.TO"
     ]
+
+    return list(set(etfs + canadian_etfs))
 
 
 def load_gold() -> list:
@@ -71,75 +110,32 @@ def load_gold() -> list:
 
 
 def load_symbols() -> list:
-    # Combine and deduplicate all loaded symbol groups into a single list
-    return list(set(load_sp500() + load_custom_stocks() + load_etfs() + load_gold()))
+    # Combine and deduplicate all loaded US and Canadian symbol groups into a single list
+    return list(set(load_sp500() + load_tsx60() + load_etfs() + load_gold()))
 
 
-# -------- Database Operations --------
-def init_db(client=None) -> None:
-    # Initialize the database client if not provided
-    if client is None:
-        client = get_db_client()
-
-    # Create symbols table if it does not already exist
-    client.execute("""
-        CREATE TABLE IF NOT EXISTS symbols (
-            id INTEGER PRIMARY KEY,
-            name TEXT NOT NULL UNIQUE,
-            updated_at TEXT
-        );
-    """)
-
-    # Create bars table for historical price data with foreign key reference
-    client.execute("""
-        CREATE TABLE IF NOT EXISTS bars (
-            symbol_id INTEGER NOT NULL,
-            date TEXT NOT NULL,
-            open REAL,
-            high REAL,
-            low REAL,
-            close REAL,
-            volume REAL,
-            PRIMARY KEY (symbol_id, date),
-            FOREIGN KEY (symbol_id) REFERENCES symbols(id)
-        );
-    """)
-
-    # Add index on symbols name for lookup performance
-    client.execute("""
-        CREATE INDEX IF NOT EXISTS idx_symbols_name
-        ON symbols (name);
-    """)
-
-    # Add compound index on bars symbol id and date
-    client.execute("""
-        CREATE INDEX IF NOT EXISTS idx_bars_symbol_date
-        ON bars (symbol_id, date);
-    """)
+# -------- Parquet Database Operations --------
+def init_db() -> None:
+    # Ensure local parquet directory exists
+    parquet_dir = get_parquet_dir()
+    os.makedirs(parquet_dir, exist_ok=True)
+    print(f"Local Parquet storage initialized at: {parquet_dir}")
 
 
-def process_and_batch_bars(download_list: list,
-                           df: pd.DataFrame,
-                           symbol_map: dict,
-                           client=None) -> None:
+def process_and_save_bars(download_list: list,
+                          df: pd.DataFrame) -> None:
     # Return early if dataframe or download list is empty
     if df is None or df.empty or not download_list:
         return
 
-    # Use default database client if none is supplied
-    if client is None:
-        client = get_db_client()
+    parquet_dir = get_parquet_dir()
+    master_file_path = os.path.join(parquet_dir, "market_data.parquet")
+    print(f"Processing bar data for {len(download_list)} tickers...")
 
-    print(f"Preparing bar statements for {len(download_list)} tickers...")
-    bar_statements = []
+    new_rows_list = []
 
-    # Iterate through download list to extract and format historical bars
     for ticker in download_list:
-        db_ticker = _normalize_ticker(ticker)
-        symbol_id = symbol_map.get(db_ticker)
-
-        if symbol_id is None:
-            continue
+        safe_ticker = ticker.replace(".", "-")
 
         stock_df = None
         try:
@@ -148,10 +144,10 @@ def process_and_batch_bars(download_list: list,
                     stock_df = df.xs(ticker, level=1, axis=1).dropna(how="all").reset_index()
                 elif ticker in df.columns.get_level_values(0):
                     stock_df = df[ticker].dropna(how="all").reset_index()
-                elif db_ticker in df.columns.get_level_values(1):
-                    stock_df = df.xs(db_ticker, level=1, axis=1).dropna(how="all").reset_index()
-                elif db_ticker in df.columns.get_level_values(0):
-                    stock_df = df[db_ticker].dropna(how="all").reset_index()
+                elif safe_ticker in df.columns.get_level_values(1):
+                    stock_df = df.xs(safe_ticker, level=1, axis=1).dropna(how="all").reset_index()
+                elif safe_ticker in df.columns.get_level_values(0):
+                    stock_df = df[safe_ticker].dropna(how="all").reset_index()
             else:
                 stock_df = df.dropna(how="all").reset_index()
         except Exception:
@@ -173,47 +169,38 @@ def process_and_batch_bars(download_list: list,
             if col not in stock_df.columns:
                 stock_df[col] = None
 
-        valid_rows = stock_df.dropna(subset=["Date", "Close"])
-        for _, row in valid_rows.iterrows():
-            bar_statements.append((
-                """ INSERT INTO bars 
-                    (symbol_id, date, open, high, low, close, volume) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?) 
-                    ON CONFLICT(symbol_id, date) 
-                    DO UPDATE SET 
-                    open = excluded.open, 
-                    high = excluded.high, 
-                    low = excluded.low, 
-                    close = excluded.close, 
-                    volume = excluded.volume """,
-                (
-                    symbol_id,
-                    str(row["Date"]),
-                    float(row["Open"]) if pd.notnull(row["Open"]) else None,
-                    float(row["High"]) if pd.notnull(row["High"]) else None,
-                    float(row["Low"]) if pd.notnull(row["Low"]) else None,
-                    float(row["Close"]) if pd.notnull(row["Close"]) else None,
-                    float(row["Volume"]) if pd.notnull(row["Volume"]) else None,
-                ),
-            ))
+        # Clean and filter valid rows
+        valid_rows = stock_df.dropna(subset=["Date", "Close"])[required_cols].copy()
+        if valid_rows.empty:
+            continue
 
-    if not bar_statements:
-        print("No valid bars to insert.")
+        # Insert Symbol column to distinguish tickers inside the single master file
+        valid_rows.insert(0, "Symbol", ticker)
+        new_rows_list.append(valid_rows)
+
+    if not new_rows_list:
+        print("No valid new bars to save.")
         return
 
-    print(f"Flushing {len(bar_statements)} bars to Turso in batches...")
-    chunk_size = 500
-    # Execute database transactions in defined chunk sizes
-    for i in range(0, len(bar_statements), chunk_size):
-        client.batch(bar_statements[i:i + chunk_size])
+    incoming_df = pd.concat(new_rows_list, ignore_index=True)
+
+    # Merge incoming data with the master Parquet file to preserve historical records safely
+    if os.path.exists(master_file_path):
+        try:
+            existing_df = pd.read_parquet(master_file_path)
+            combined_df = pd.concat([existing_df, incoming_df]).drop_duplicates(subset=["Symbol", "Date"]).sort_values(["Symbol", "Date"])
+            combined_df.to_parquet(master_file_path, compression="snappy", index=False)
+            print(f"Successfully updated master Parquet file: {master_file_path}")
+        except Exception as e:
+            print(f"Error updating master parquet file, overwriting: {e}")
+            incoming_df.to_parquet(master_file_path, compression="snappy", index=False)
+    else:
+        incoming_df.to_parquet(master_file_path, compression="snappy", index=False)
+        print(f"Successfully created master Parquet file: {master_file_path}")
 
 
-def insert_or_update_data(client=None) -> None:
-    # Initialize database client if not provided
-    if client is None:
-        client = get_db_client()
-
-    updated_at = datetime.now(timezone.utc).isoformat()
+def insert_or_update_data() -> None:
+    init_db()
     all_tickers = load_symbols()
 
     download_all_data = []
@@ -229,62 +216,31 @@ def insert_or_update_data(client=None) -> None:
         offset = 2
 
     yesterday_str = (today - timedelta(days=offset)).strftime("%Y-%m-%d")
+    parquet_dir = get_parquet_dir()
+    master_file_path = os.path.join(parquet_dir, "market_data.parquet")
 
-    print("Analyzing database ticker states...")
+    print("Analyzing local master Parquet ticker states...")
 
-    symbol_map = {}
-    res_symbols = client.execute("SELECT id, name FROM symbols")
-    if res_symbols.rows:
-        for row in res_symbols.rows:
-            symbol_map[row[1]] = row[0]
+    existing_symbols_map = {}
+    if os.path.exists(master_file_path):
+        try:
+            existing_df = pd.read_parquet(master_file_path)
+            if not existing_df.empty and "Symbol" in existing_df.columns and "Date" in existing_df.columns:
+                # Map each successfully saved symbol to its latest available date
+                existing_symbols_map = existing_df.groupby("Symbol")["Date"].max().to_dict()
+        except Exception as e:
+            print(f"Error reading master parquet for state analysis: {e}")
 
-    max_dates_map = {}
-    if symbol_map:
-        res_dates = client.execute("""
-            SELECT symbol_id, MAX(date) 
-            FROM bars 
-            GROUP BY symbol_id
-        """)
-        if res_dates.rows:
-            for row in res_dates.rows:
-                max_dates_map[row[0]] = row[1]
-
-    # Categorize tickers based on existing database coverage and last date updated
+    # Categorize tickers based on presence in the master file and last update date
     for ticker in all_tickers:
-        db_ticker = _normalize_ticker(ticker)
-        symbol_id = symbol_map.get(db_ticker)
-
-        if not symbol_id:
+        last_date = existing_symbols_map.get(ticker)
+        if not last_date:
             download_all_data.append(ticker)
-        else:
-            last_date = max_dates_map.get(symbol_id)
-            if not last_date:
-                download_all_data.append(ticker)
-            elif last_date < yesterday_str:
-                download_previous_data.append(ticker)
+        elif last_date < yesterday_str:
+            download_previous_data.append(ticker)
 
     print(f"-> Full history download required for: {len(download_all_data)} tickers")
     print(f"-> Recent update (5-day) required for: {len(download_previous_data)} tickers")
-
-    target_tickers = list(set(download_all_data + download_previous_data))
-    if target_tickers:
-        print("Upserting symbols...")
-        sym_statements = [
-            (
-                """
-                INSERT INTO symbols (name, updated_at)
-                VALUES (?, ?)
-                ON CONFLICT(name)
-                DO UPDATE SET updated_at = excluded.updated_at;
-                """,
-                (_normalize_ticker(t), updated_at),
-            )
-            for t in target_tickers
-        ]
-        client.batch(sym_statements)
-
-        res_symbols = client.execute("SELECT name, id FROM symbols")
-        symbol_map = {row[0]: row[1] for row in res_symbols.rows}
 
     if download_all_data:
         print("Downloading MAX history data in bulk...")
@@ -297,7 +253,7 @@ def insert_or_update_data(client=None) -> None:
                 auto_adjust=True,
                 progress=False,
             )
-            process_and_batch_bars(download_all_data, df_max, symbol_map, client=client)
+            process_and_save_bars(download_all_data, df_max)
         except Exception as e:
             print(f"Batch max download error: {e}")
 
@@ -312,17 +268,11 @@ def insert_or_update_data(client=None) -> None:
                 auto_adjust=True,
                 progress=False,
             )
-            process_and_batch_bars(download_previous_data, df_5d, symbol_map, client=client)
+            process_and_save_bars(download_previous_data, df_5d)
         except Exception as e:
             print(f"Batch 5d download error: {e}")
 
-    print("Database sync completed successfully.")
-
-
-# -------- Helper Methods --------
-def _normalize_ticker(ticker: str) -> str:
-    # Normalize ticker string by removing trailing exchange suffixes
-    return ticker.removesuffix(".TO")
+    print("Local Parquet database sync completed successfully.")
 
 
 # -------- Entry Point --------

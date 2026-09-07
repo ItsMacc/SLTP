@@ -1,9 +1,8 @@
 # -------- Imports --------
 from dataclasses import dataclass, replace
 from enum import Enum
-from app.main import get_all_tickers
 from dateutil.relativedelta import relativedelta
-from app.database.fetch import get_stock_histories
+from app.database.fetch import get_stock_histories, get_all_tickers
 from app.database.fetch import get_stock_history
 from app.utils.StockData import StockData
 from app.utils.StrategyDecision import StrategyDecision
@@ -58,7 +57,6 @@ RISK_MULTIPLIERS: dict[RiskProfile, float] = {
 
 MIN_KELLY_TRADES: int = 10
 UNIVERSE = get_all_tickers()
-
 
 # -------- Portfolio Manager --------
 class PortfolioManager:
@@ -127,7 +125,7 @@ class PortfolioManager:
         # Base method placeholder enforcing implementation in subclasses
         raise NotImplementedError("PortfolioManager subclasses must implement on_signal()")
 
-    def rebalance(self, current_date: str) -> None:
+    def on_rebalance(self, current_date: str) -> None:
         # Base method allowing users to create custom rebalancing
         pass
 
@@ -189,6 +187,9 @@ class PortfolioManager:
 
             # Accumulate to global total transaction cost tracker (index points lost)
             self.total_transactions_cost += fee_index_impact
+
+            # Actually deduct the fee from tradable equity (previously only tracked, never applied)
+            self.portfolio_value -= fee_index_impact
 
             # Calculate returns based on execution prices
             entry_price = last_trade_record.entry_price
@@ -304,6 +305,9 @@ class PortfolioManager:
         entry_fee_index_impact = round(self.portfolio_value * confirmed_record.allocation_size * self.FEE_RATE, 4)
         self.total_transactions_cost += entry_fee_index_impact
 
+        # Actually deduct the fee from tradable equity (previously only tracked, never applied)
+        self.portfolio_value -= entry_fee_index_impact
+
         # Initialize mark-to-market open trade state
         self.open_trade_state[ticker] = {
             "entry_price": entry_price,
@@ -336,15 +340,13 @@ class PortfolioManager:
         if last_trade_record.action != "BUY":
             return
 
-        # Calculate net entry price including transaction fees
-        net_entry = last_trade_record.entry_price * (1.0 + self.FEE_RATE)
-
-        # Retrieve previous mark-to-market state or default to net entry
+        # Retrieve previous mark-to-market state or default to entry price.
         state = self.open_trade_state.get(ticker)
-        prev_marked_close = state["last_close"] if state is not None else net_entry
+        entry_price = last_trade_record.entry_price
+        prev_marked_close = state["last_close"] if state is not None else entry_price
 
         # Calculate incremental return and portfolio value adjustment
-        incremental_pct_return = (current_close - prev_marked_close) / net_entry
+        incremental_pct_return = (current_close - prev_marked_close) / entry_price
         gained_value = self.portfolio_value * last_trade_record.allocation_size * incremental_pct_return
         self.portfolio_value += round(gained_value, 4)
 
