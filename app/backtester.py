@@ -86,13 +86,13 @@ class Backtester:
                 # Update open position values using today's close price
                 self.manager.mark_to_market(ticker, current_close)
 
-            # Record a single clean portfolio-wide equity point per calendar day
-            self.manager.equity_curve.append(
-                {
-                    "date": current_date,
-                    "portfolio_value": round(self.manager.portfolio_value, 2)
-                }
-            )
+            # Record a clean, unified portfolio equity point once per day
+            self.manager.equity_curve.append({
+                "date": current_date,
+                "portfolio_value": round(self.manager.portfolio_value, 2),
+                "active_positions": self.manager.active_positions,
+                "total_transaction_cost": round(self.manager.total_transactions_cost, 4)
+            })
 
     # -------- Helper Methods --------
     def _initialize_universe(self) -> str:

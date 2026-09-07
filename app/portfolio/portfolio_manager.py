@@ -181,9 +181,13 @@ class PortfolioManager:
             self.active_positions = max(0, self.active_positions - 1)
             self.open_positions[ticker] = False
 
-            # Calculate exit transaction fee impact relative to entry price
+            # Account for any intermediate mark-to-market updates to prevent double-counting
+            state = self.open_trade_state.pop(ticker, None)
+            entry_portfolio_value = state.get("entry_portfolio_value", self.portfolio_value) if state is not None else self.portfolio_value
+
+            # Calculate exit transaction fee impact relative to entry price and entry portfolio value
             exit_fee_ratio = exit_price * self.FEE_RATE / last_trade_record.entry_price
-            fee_index_impact = round(self.portfolio_value * last_trade_record.allocation_size * exit_fee_ratio, 4)
+            fee_index_impact = round(entry_portfolio_value * last_trade_record.allocation_size * exit_fee_ratio, 4)
 
             # Accumulate to global total transaction cost tracker (index points lost)
             self.total_transactions_cost += fee_index_impact
@@ -195,16 +199,14 @@ class PortfolioManager:
             entry_price = last_trade_record.entry_price
             pct_return = (exit_price - entry_price) / entry_price
 
-            # Account for any intermediate mark-to-market updates to prevent double-counting
-            state = self.open_trade_state.pop(ticker, None)
             already_marked_pct_return = 0.0
             if state is not None:
                 last_close = state["last_close"]
                 already_marked_pct_return = (last_close - entry_price) / entry_price
 
-            # Update portfolio index based on incremental final return
+            # Update portfolio index based on incremental final return using entry portfolio value
             incremental_pct_return = pct_return - already_marked_pct_return
-            gained_value = self.portfolio_value * last_trade_record.allocation_size * incremental_pct_return
+            gained_value = entry_portfolio_value * last_trade_record.allocation_size * incremental_pct_return
             self.portfolio_value += round(gained_value, 4)
 
             # Build the final sell trade record
@@ -235,14 +237,6 @@ class PortfolioManager:
                 self.ticker_wins[ticker].append(pct_return)
             elif pct_return < 0:
                 self.ticker_losses[ticker].append(pct_return)
-
-            # Record performance update to the equity curve on exit
-            self.equity_curve.append({
-                "date": current_date,
-                "portfolio_value": self.portfolio_value,
-                "active_positions": self.active_positions,
-                "total_transaction_cost": self.total_transactions_cost
-            })
 
     def buy_order(self,
                    ticker: str,
@@ -308,20 +302,13 @@ class PortfolioManager:
         # Actually deduct the fee from tradable equity (previously only tracked, never applied)
         self.portfolio_value -= entry_fee_index_impact
 
-        # Initialize mark-to-market open trade state
+        # Initialize mark-to-market open trade state with anchored entry portfolio value
         self.open_trade_state[ticker] = {
             "entry_price": entry_price,
             "allocation_size": confirmed_record.allocation_size,
             "last_close": last_close,
+            "entry_portfolio_value": self.portfolio_value,
         }
-
-        # Record performance to the equity curve on entry
-        self.equity_curve.append({
-            "date": current_date,
-            "portfolio_value": self.portfolio_value,
-            "active_positions": self.active_positions,
-            "total_transaction_cost": self.total_transactions_cost
-        })
 
     def mark_to_market(self,
                        ticker: str,
@@ -344,10 +331,11 @@ class PortfolioManager:
         state = self.open_trade_state.get(ticker)
         entry_price = last_trade_record.entry_price
         prev_marked_close = state["last_close"] if state is not None else entry_price
+        entry_portfolio_value = state.get("entry_portfolio_value", self.portfolio_value) if state is not None else self.portfolio_value
 
-        # Calculate incremental return and portfolio value adjustment
+        # Calculate incremental return and portfolio value adjustment using fixed entry portfolio value
         incremental_pct_return = (current_close - prev_marked_close) / entry_price
-        gained_value = self.portfolio_value * last_trade_record.allocation_size * incremental_pct_return
+        gained_value = entry_portfolio_value * last_trade_record.allocation_size * incremental_pct_return
         self.portfolio_value += round(gained_value, 4)
 
         # Update the open trade state with the current close price
@@ -355,6 +343,7 @@ class PortfolioManager:
             "entry_price": last_trade_record.entry_price,
             "allocation_size": last_trade_record.allocation_size,
             "last_close": current_close,
+            "entry_portfolio_value": entry_portfolio_value,
         }
 
     def _base_allocation(self, ticker: str) -> float:
