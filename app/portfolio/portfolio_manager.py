@@ -1,7 +1,7 @@
 # -------- Imports --------
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import Enum
-from app.database.db import load_symbols
+from app.main import get_all_tickers
 from dateutil.relativedelta import relativedelta
 from app.database.fetch import get_stock_histories
 from app.database.fetch import get_stock_history
@@ -14,9 +14,9 @@ from app.utils.StrategyDecision import StrategyDecision
 class TradeRecord:
     ticker: str
     action: str
-    entry_date: str
+    entry_date: str | None
     allocation_size: float
-    entry_price: float
+    entry_price: float | None
     stop_loss: float
     take_profit: float
     exit_price: float | None = None
@@ -42,11 +42,6 @@ class RebalanceFrequency(Enum):
 
 
 # -------- Constants --------
-RISK_SETTINGS: dict[RiskProfile, tuple[float, float]] = {
-    RiskProfile.LOW: (0.10, 0.02),
-    RiskProfile.MODERATE: (0.15, 0.03),
-    RiskProfile.HIGH: (0.25, 0.04),
-}
 REBALANCE_SETTINGS: dict[RebalanceFrequency, relativedelta] = {
     RebalanceFrequency.DAILY: relativedelta(days=1),
     RebalanceFrequency.WEEKLY: relativedelta(weeks=1),
@@ -55,8 +50,14 @@ REBALANCE_SETTINGS: dict[RebalanceFrequency, relativedelta] = {
     RebalanceFrequency.YEARLY: relativedelta(years=1),
     RebalanceFrequency.NEVER: relativedelta(years=999_999),
 }
-UNIVERSE = load_symbols()
-MIN_TRADES_FOR_KELLY = 20
+RISK_MULTIPLIERS: dict[RiskProfile, float] = {
+    RiskProfile.LOW: 0.25,
+    RiskProfile.MODERATE: 0.50,
+    RiskProfile.HIGH: 0.75
+}
+
+MIN_KELLY_TRADES: int = 10
+UNIVERSE = get_all_tickers()
 
 
 # -------- Portfolio Manager --------
@@ -65,58 +66,60 @@ class PortfolioManager:
                  risk: RiskProfile = RiskProfile.MODERATE,
                  max_positions: int | None = 10
                  ) -> None:
-        # Constants
+        # Trading Costs & Configuration
         self.SLIPPAGE_PCT: float = 0.0005
         self.FEE_RATE: float = 0.001
-        self.LAST_REBALANCE_DATE: str = None
-        self.REBALANCE_FREQUENCY: RebalanceFrequency = RebalanceFrequency.NEVER
-        self.WARM_UP_PERIOD: int = 0
-
-        # Risk settings
         self.risk_profile: RiskProfile = risk
-        self.max_positions: int = max_positions
+        self.max_positions: int | None = max_positions
 
-        # Universe
+        # Universe & Market Data Storage
         self.tickers: list[str] = []
         self.histories: dict[str, StockData] = {}
 
-        # Portfolio tracking
+        # Portfolio Tracking & State
+        self.portfolio_value: float = 100.00
         self.active_positions: int = 0
         self.open_positions: dict[str, bool] = {}
         self.trades: dict[str, list[TradeRecord]] = {}
-        self.portfolio_index: float = 100.00
 
-        # State management
-        self.pending_entries: dict[str, TradeRecord] = {}
+        # Execution & Marking States
+        self.blacklisted_tickers: set[str] = set()
         self.open_trade_state: dict[str, dict] = {}
-        self.blacklisted_tickers: set(str) = set()
 
-        # Performance tracking
+        # Performance & Analytics Cache
         self.equity_curve: list[dict] = []
+        self.ticker_wins: dict[str, list[float]] = {}
+        self.ticker_losses: dict[str, list[float]] = {}
         self.total_transactions_cost: float = 0.0
 
-        # Maintain a flat running list of realized returns for Kelly calculations
-        self._realized_returns: list[float] = []
+        # Rebalancing Tracking
+        self.LAST_REBALANCE_DATE: str | None = None
+        self.REBALANCE_FREQUENCY: RebalanceFrequency = RebalanceFrequency.NEVER
+        self.WARM_UP_PERIOD: int = 0
 
+    # -------- Data Management --------
     def add_ticker(self,
                    ticker: str,
                    start_date: str | None = None,
                    end_date: str | None = None
                    ) -> None:
-        # Fetch and store stock history for the single ticker
+        # Fetch and cache individual stock history
         self.histories[ticker] = get_stock_history(ticker, start_date, end_date)
-        self.tickers.append(ticker)
+        if ticker not in self.tickers:
+            self.tickers.append(ticker)
 
     def add_tickers(self,
                     tickers: list[str],
                     start_date: str | None = None,
                     end_date: str | None = None
                     ) -> None:
-        # Fetch and store stock histories for multiple tickers
+        # Fetch and cache batch stock histories
         self.histories.update(get_stock_histories(tickers, start_date, end_date))
-        self.tickers.extend(tickers)
+        for ticker in tickers:
+            if ticker not in self.tickers:
+                self.tickers.append(ticker)
 
-    # -------- Custom Methods --------
+    # -------- Lifecycle Hooks --------
     def on_signal(self,
                   ticker: str,
                   decision: StrategyDecision
@@ -124,27 +127,28 @@ class PortfolioManager:
         # Base method placeholder enforcing implementation in subclasses
         raise NotImplementedError("PortfolioManager subclasses must implement on_signal()")
 
-    def on_rebalance(self, current_date: str) -> None:
+    def rebalance(self, current_date: str) -> None:
         # Base method allowing users to create custom rebalancing
         pass
 
-    def initialize_universe(self) -> None:
+    def initialize_universe(self, current_date: str) -> bool:
         # Base method to initialize universe
         pass
 
     # -------- Trade Execution & Risk Management --------
     def check_exits(self,
                     ticker: str,
-                    current_date: str,
+                    current_open: float,
                     current_high: float,
-                    current_low: float
+                    current_low: float,
+                    current_date: str
                     ) -> None:
         # If no positions are open, return
         if self.active_positions == 0:
             return
 
-        # Cache dictionary lookup locally to prevent multiple hash lookups
-        is_open = self.open_positions.get(ticker, False)
+        # If ticker has no open positions, return
+        is_open: bool = self.open_positions.get(ticker, False)
         if not is_open:
             return
 
@@ -153,90 +157,98 @@ class PortfolioManager:
             return
 
         # Fetch the last record, since it will always be a BUY record
-        last_trade_record = self.trades[ticker][-1]
+        last_trade_record: TradeRecord = self.trades[ticker][-1]
 
-        sl = last_trade_record.stop_loss
-        tp = last_trade_record.take_profit
+        sl: float = last_trade_record.stop_loss
+        tp: float = last_trade_record.take_profit
 
-        exit_triggered = False
-        sell_trade_record = None
+        exit_triggered: bool = False
 
-        # Check for exit
-        if current_high >= tp:
-            exit_price = round(self.apply_exit_slippage(tp), 2)
-            sell_trade_record = TradeRecord(
-                ticker=ticker,
-                action="TAKE_PROFIT",
-                entry_date=last_trade_record.entry_date,
-                allocation_size=last_trade_record.allocation_size,
-                entry_price=last_trade_record.entry_price,
-                stop_loss=sl,
-                take_profit=tp,
-                exit_price=exit_price,
-                exit_date=current_date,
-                transaction_cost=0.0
-            )
+        # Check for exit using pessimistic priority (Stop-Loss before Take-Profit)
+        if current_low <= sl:
+            # If the stock gapped open below our stop loss, we get filled at the open price instead
+            effective_sl_price = current_open if current_open < sl else sl
+            exit_price: float = round(self._apply_exit_slippage(effective_sl_price), 2)
+            exit_action: str = "STOP_LOSS"
             exit_triggered = True
-        elif current_low <= sl:
-            exit_price = round(self.apply_exit_slippage(sl), 2)
-            sell_trade_record = TradeRecord(
-                ticker=ticker,
-                action="STOP_LOSS",
-                entry_date=last_trade_record.entry_date,
-                allocation_size=last_trade_record.allocation_size,
-                entry_price=last_trade_record.entry_price,
-                stop_loss=sl,
-                take_profit=tp,
-                exit_price=exit_price,
-                exit_date=current_date,
-                transaction_cost=0.0
-            )
+        elif current_high >= tp:
+            # If the stock gapped up past our take profit, we capture the higher open price
+            effective_tp_price = max(current_open, tp)
+            exit_price: float = round(self._apply_exit_slippage(effective_tp_price), 2)
+            exit_action: str = "TAKE_PROFIT"
             exit_triggered = True
 
-        # If exit conditions are met, close the position and manage portfolio
         if exit_triggered:
+            # Close the position and manage portfolio state tracking
             self.active_positions = max(0, self.active_positions - 1)
             self.open_positions[ticker] = False
 
-            # Transaction costs
-            entry_fee_cost = last_trade_record.entry_price * self.FEE_RATE
-            exit_fee_cost = sell_trade_record.exit_price * self.FEE_RATE
-            total_fee_pct = (entry_fee_cost + exit_fee_cost) / last_trade_record.entry_price
-            sell_trade_record.transaction_cost = round(total_fee_pct * 100, 4)
+            # Calculate exit transaction fee impact relative to entry price
+            exit_fee_ratio = exit_price * self.FEE_RATE / last_trade_record.entry_price
+            fee_index_impact = round(self.portfolio_value * last_trade_record.allocation_size * exit_fee_ratio, 4)
 
-            # Returns
-            net_entry = last_trade_record.entry_price * (1.0 + self.FEE_RATE)
-            net_exit = sell_trade_record.exit_price * (1.0 - self.FEE_RATE)
-            pct_return = (net_exit - net_entry) / net_entry
+            # Accumulate to global total transaction cost tracker (index points lost)
+            self.total_transactions_cost += fee_index_impact
 
-            # State management
+            # Calculate returns based on execution prices
+            entry_price = last_trade_record.entry_price
+            pct_return = (exit_price - entry_price) / entry_price
+
+            # Account for any intermediate mark-to-market updates to prevent double-counting
             state = self.open_trade_state.pop(ticker, None)
             already_marked_pct_return = 0.0
             if state is not None:
                 last_close = state["last_close"]
-                already_marked_pct_return = (last_close - net_entry) / net_entry
+                already_marked_pct_return = (last_close - entry_price) / entry_price
 
-            # Portfolio management
+            # Update portfolio index based on incremental final return
             incremental_pct_return = pct_return - already_marked_pct_return
-            gained_value = self.portfolio_index * last_trade_record.allocation_size * incremental_pct_return
-            self.portfolio_index += round(gained_value, 4)
+            gained_value = self.portfolio_value * last_trade_record.allocation_size * incremental_pct_return
+            self.portfolio_value += round(gained_value, 4)
 
-            sell_trade_record.realized_return_pct = pct_return
+            # Build the final sell trade record
+            sell_trade_record = TradeRecord(
+                ticker=ticker,
+                action=exit_action,
+                entry_date=last_trade_record.entry_date,
+                allocation_size=last_trade_record.allocation_size,
+                entry_price=last_trade_record.entry_price,
+                stop_loss=sl,
+                take_profit=tp,
+                exit_price=exit_price,
+                exit_date=current_date,
+                transaction_cost=fee_index_impact,
+                realized_return_pct=pct_return
+            )
+
+            # Save trade history
             self.trades[ticker].append(sell_trade_record)
 
-            # Append directly to flat return cache for Kelly criteria
-            self._realized_returns.append(pct_return)
+            # Track realized return per ticker into wins/losses caches
+            if ticker not in self.ticker_wins:
+                self.ticker_wins[ticker] = []
+            if ticker not in self.ticker_losses:
+                self.ticker_losses[ticker] = []
 
-            # Update total transaction cost
-            self.total_transactions_cost += sell_trade_record.transaction_cost
+            if pct_return > 0:
+                self.ticker_wins[ticker].append(pct_return)
+            elif pct_return < 0:
+                self.ticker_losses[ticker].append(pct_return)
 
-    def execute_trade(self,
-                      pending_record: TradeRecord,
-                      fill_price: float,
-                      date: str
-                      ) -> None:
-        ticker = pending_record.ticker
+            # Record performance update to the equity curve on exit
+            self.equity_curve.append({
+                "date": current_date,
+                "portfolio_value": self.portfolio_value,
+                "active_positions": self.active_positions,
+                "total_transaction_cost": self.total_transactions_cost
+            })
 
+    def buy_order(self,
+                   ticker: str,
+                   fill_price: float,
+                   trade_record: TradeRecord,
+                   current_date: str
+                   ) -> None:
         # If position is already open, return
         if self.open_positions.get(ticker, False):
             return
@@ -245,22 +257,67 @@ class PortfolioManager:
         if self.max_positions is not None and self.active_positions >= self.max_positions:
             return
 
-        # Apply slippage to the fill price
-        entry_price = round(self.apply_entry_slippage(fill_price), 2)
+        # If ticker is blacklisted, return
+        if ticker in self.blacklisted_tickers:
+            return
 
-        # Update pending record details into a confirmed BUY trade
-        pending_record.action = "BUY"
-        pending_record.entry_date = date
-        pending_record.entry_price = entry_price
+        # Check total cumulative allocation across all open positions
+        current_total_allocation = sum(
+            t[-1].allocation_size
+            for t_ticker, t in self.trades.items()
+            if self.open_positions.get(t_ticker, False)
+        )
+
+        MAX_TOTAL_ALLOCATION = 1.0
+        remaining_allocation = MAX_TOTAL_ALLOCATION - current_total_allocation
+
+        # If no portfolio allocation room is left at all, return
+        if remaining_allocation <= 0:
+            return
+
+        # Dynamically fit the allocation to whatever percent is left
+        effective_allocation = min(trade_record.allocation_size, remaining_allocation)
+        if effective_allocation < trade_record.allocation_size:
+            trade_record = replace(trade_record, allocation_size=effective_allocation)
+
+        # Apply slippage to the fill price
+        entry_price: float = round(self._apply_entry_slippage(fill_price), 2)
+        last_close: float = entry_price
+
+        # Instantiate the confirmed BUY trade record using dataclasses.replace
+        confirmed_record = replace(
+            trade_record,
+            entry_date=current_date,
+            entry_price=entry_price
+        )
 
         # Initialize trade list if ticker is new
         if ticker not in self.trades:
             self.trades[ticker] = []
 
         # Record trade and update active position tracking
-        self.trades[ticker].append(pending_record)
+        self.trades[ticker].append(confirmed_record)
         self.active_positions += 1
         self.open_positions[ticker] = True
+
+        # Track entry transaction cost impact on index points
+        entry_fee_index_impact = round(self.portfolio_value * confirmed_record.allocation_size * self.FEE_RATE, 4)
+        self.total_transactions_cost += entry_fee_index_impact
+
+        # Initialize mark-to-market open trade state
+        self.open_trade_state[ticker] = {
+            "entry_price": entry_price,
+            "allocation_size": confirmed_record.allocation_size,
+            "last_close": last_close,
+        }
+
+        # Record performance to the equity curve on entry
+        self.equity_curve.append({
+            "date": current_date,
+            "portfolio_value": self.portfolio_value,
+            "active_positions": self.active_positions,
+            "total_transaction_cost": self.total_transactions_cost
+        })
 
     def mark_to_market(self,
                        ticker: str,
@@ -288,8 +345,8 @@ class PortfolioManager:
 
         # Calculate incremental return and portfolio value adjustment
         incremental_pct_return = (current_close - prev_marked_close) / net_entry
-        gained_value = self.portfolio_index * last_trade_record.allocation_size * incremental_pct_return
-        self.portfolio_index += round(gained_value, 4)
+        gained_value = self.portfolio_value * last_trade_record.allocation_size * incremental_pct_return
+        self.portfolio_value += round(gained_value, 4)
 
         # Update the open trade state with the current close price
         self.open_trade_state[ticker] = {
@@ -298,58 +355,44 @@ class PortfolioManager:
             "last_close": current_close,
         }
 
-    def process_pending_entries(self,
-                                ticker: str,
-                                fill_price: float,
-                                fill_date: str
-                                ) -> None:
-        # If no pending entry exists for the ticker, return
-        pending_record = self.pending_entries.pop(ticker, None)
-        if pending_record is None:
-            return
+    def _base_allocation(self, ticker: str) -> float:
+        """
+        Calculates position base allocation size for a specific ticker using the Kelly Criterion
+        based on its realized trade history, adjusted by the portfolio's risk profile.
+        """
+        default_allocation = (1.0 / self.max_positions) if (self.max_positions and self.max_positions > 0) else 0.1
 
-        # If a position is already open, return
-        if self.open_positions.get(ticker, False):
-            return
+        wins = self.ticker_wins.get(ticker, [])
+        losses = self.ticker_losses.get(ticker, [])
+        total_trades = len(wins) + len(losses)
 
-        # If maximum position limit is reached, return
-        if self.max_positions is not None and self.active_positions >= self.max_positions:
-            return
+        # Enforce minimum trade sample size or check for pure wins/losses
+        if total_trades < MIN_KELLY_TRADES or not wins or not losses:
+            return default_allocation
 
-        # Execute the pending trade
-        self.execute_trade(pending_record, fill_price, fill_date)
+        win_rate = len(wins) / total_trades
+        avg_win = sum(wins) / len(wins)
+        avg_loss = abs(sum(losses) / len(losses))
 
-        # Set up initial trade state for mark-to-market calculations
-        self.open_trade_state[ticker] = {
-            "entry_price": pending_record.entry_price,
-            "allocation_size": pending_record.allocation_size,
-            "last_close": pending_record.entry_price * (1.0 + self.FEE_RATE),
-        }
+        if avg_loss == 0:
+            return default_allocation
 
-    def compute_allocation_size(self) -> float:
-        # Retrieve risk settings based on current risk profile
-        kelly_fraction, fallback = RISK_SETTINGS[self.risk_profile]
+        win_loss_ratio = avg_win / avg_loss
 
-        # Use running returns cache instead of nested dictionary comprehensions
-        returns = self._realized_returns
-        wins = [r for r in returns if r >= 0]
-        losses = [-r for r in returns if r < 0]
+        # Kelly Criterion formula: f* = p - ((1 - p) / b)
+        kelly_fraction = win_rate - ((1.0 - win_rate) / win_loss_ratio)
 
-        # Fallback to default allocation if trade sample size is insufficient
-        if len(returns) < MIN_TRADES_FOR_KELLY or not losses:
-            return fallback
+        # Apply fractional Kelly multiplier based on risk profile
+        multiplier = RISK_MULTIPLIERS.get(self.risk_profile, 0.50)
+        adjusted_kelly = kelly_fraction * multiplier
 
-        # Calculate Kelly Criterion position size
-        win_rate = len(wins) / len(returns)
-        payoff_ratio = (sum(wins) / len(wins)) / (sum(losses) / len(losses))
-        edge = max(0.0, win_rate - (1 - win_rate) / payoff_ratio)
+        # Bound allocation between 0.0 and 1.0
+        return max(0.0, min(1.0, adjusted_kelly))
 
-        return edge * kelly_fraction
-
-    def apply_entry_slippage(self, price: float) -> float:
+    def _apply_entry_slippage(self, price: float) -> float:
         # Adjust entry price upwards for buy slippage
         return price * (1.0 + self.SLIPPAGE_PCT)
 
-    def apply_exit_slippage(self, price: float) -> float:
+    def _apply_exit_slippage(self, price: float) -> float:
         # Adjust exit price downwards for sell slippage
         return price * (1.0 - self.SLIPPAGE_PCT)

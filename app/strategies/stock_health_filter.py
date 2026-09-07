@@ -56,9 +56,6 @@ class StockHealthFilterStrategy(Strategy):
         signal_type = 'BUY' if is_spike else 'HOLD'
         final_confidence = confidence if is_spike else 1.0
 
-        if signal_type == 'BUY':
-            meta_data = self._attach_point_in_time_ohlc(meta_data, history)
-
         return StrategyDecision(signal=signal_type, confidence=final_confidence, metrics=metrics, meta_data=meta_data)
 
     # -------- Helper Methods --------
@@ -91,15 +88,6 @@ class StockHealthFilterStrategy(Strategy):
             }
         }
         return metrics, meta_data
-
-    def _attach_point_in_time_ohlc(self, meta_data: dict, history: StockData) -> dict:
-        # Attach the exact point-in-time slice used to generate this signal
-        meta_data["ohlc_snapshot"] = {
-            "high": history.high[-30:],
-            "low": history.low[-30:],
-            "close": history.close_price[-30:],
-        }
-        return meta_data
 
     def _confidence_from_spike(self, ratio: float, delta_1d: float) -> float:
         # Calculate how far above threshold the spike is to score signal confidence between 0 and 1
