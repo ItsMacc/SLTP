@@ -73,8 +73,10 @@ export default function StrategyChart() {
   const [backtestResult, setBacktestResult] = useState<BacktestApiResponse | null>(null)
 
   const containerRef = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(500)
   const [height] = useState(420)
+  const [chartScrollable, setChartScrollable] = useState(false)
 
   const [hover, setHover] = useState<{ index: number; x: number; y: number } | null>(null)
 
@@ -103,13 +105,18 @@ export default function StrategyChart() {
 
   useLayoutEffect(() => {
     const element = containerRef.current
+    const scrollEl = scrollRef.current
     if (!element) return
-    const observer = new ResizeObserver(([entry]) => {
-      if (!entry) return
-      setWidth(entry.contentRect.width)
-    })
+    const update = () => {
+      setWidth(element.clientWidth)
+      if (scrollEl) {
+        setChartScrollable(scrollEl.scrollWidth > scrollEl.clientWidth + 1)
+      }
+    }
+    const observer = new ResizeObserver(update)
     observer.observe(element)
-    setWidth(element.clientWidth)
+    if (scrollEl) observer.observe(scrollEl)
+    update()
     return () => observer.disconnect()
   }, [backtestResult])
 
@@ -379,13 +386,14 @@ export default function StrategyChart() {
               )}
             </div>
 
-            <div
-              ref={containerRef}
-              className="strategy-plot-area"
-              style={{ height }}
-              onPointerMove={handlePointerMove}
-              onPointerLeave={() => setHover(null)}
-            >
+            <div className="strategy-chart-scroll" ref={scrollRef}>
+              <div
+                ref={containerRef}
+                className="strategy-plot-area"
+                style={{ height }}
+                onPointerMove={handlePointerMove}
+                onPointerLeave={() => setHover(null)}
+              >
               <svg width={width} height={height}>
                 {gridTicks.map((val) => {
                   const y = getY(val)
@@ -455,7 +463,12 @@ export default function StrategyChart() {
                   <p className="tooltip-value">C: {formatNumber(hoveredCandle.close)}</p>
                 </div>
               )}
+              </div>
             </div>
+
+            {chartScrollable && (
+              <p className="strategy-scroll-hint">Swipe to scroll chart</p>
+            )}
           </div>
 
           <div className="strategy-metrics-sidebar">

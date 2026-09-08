@@ -1,5 +1,5 @@
 // src/ui/DatePicker.tsx
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect } from 'react'
 import './DatePicker.css'
 
 interface DatePickerProps {
@@ -18,6 +18,9 @@ const MONTH_NAMES = [
 
 const DAYS_OF_WEEK = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
 
+const DROPDOWN_WIDTH = 300
+const DROPDOWN_EST_HEIGHT = 320
+
 export default function DatePicker({
   id,
   label,
@@ -29,6 +32,8 @@ export default function DatePicker({
   const [isOpen, setIsOpen] = useState(false)
   const [inputValue, setInputValue] = useState(value || '')
   const containerRef = useRef<HTMLDivElement>(null)
+  const inputContainerRef = useRef<HTMLDivElement>(null)
+  const [dropdownPos, setDropdownPos] = useState<{ left: number; top: number } | null>(null)
 
   const initialDate = value ? new Date(value + 'T00:00:00') : new Date()
   const [currentMonth, setCurrentMonth] = useState(isNaN(initialDate.getTime()) ? new Date().getMonth() : initialDate.getMonth())
@@ -54,6 +59,40 @@ export default function DatePicker({
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
+
+  // Position the calendar with fixed positioning so it is never clipped by
+  // scroll containers (e.g. the horizontally scrollable strategy controls bar).
+  useLayoutEffect(() => {
+    if (!isOpen) {
+      setDropdownPos(null)
+      return
+    }
+    const el = inputContainerRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const left = Math.min(rect.left, Math.max(8, window.innerWidth - DROPDOWN_WIDTH - 8))
+    const spaceBelow = window.innerHeight - rect.bottom
+    const top =
+      spaceBelow >= DROPDOWN_EST_HEIGHT + 12
+        ? rect.bottom + 6
+        : Math.max(8, rect.top - DROPDOWN_EST_HEIGHT - 6)
+    setDropdownPos({ left, top })
+  }, [isOpen])
+
+  // Close the calendar if the page or any scroll container scrolls while open.
+  useEffect(() => {
+    if (!isOpen) return
+    const close = (e: Event) => {
+      if (e.target instanceof Node && containerRef.current?.contains(e.target)) return
+      setIsOpen(false)
+    }
+    window.addEventListener('scroll', close, true)
+    window.addEventListener('resize', close)
+    return () => {
+      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('resize', close)
+    }
+  }, [isOpen])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value
@@ -124,7 +163,7 @@ export default function DatePicker({
     <div className="custom-datepicker-wrapper" ref={containerRef}>
       {label && <label htmlFor={id} className="custom-datepicker-label">{label}</label>}
       
-      <div className={`custom-datepicker-input-container ${error ? 'has-error' : ''}`}>
+      <div ref={inputContainerRef} className={`custom-datepicker-input-container ${error ? 'has-error' : ''}`}>
         <input
           id={id}
           type="text"
@@ -150,8 +189,16 @@ export default function DatePicker({
 
       {error && <span className="custom-datepicker-error">{error}</span>}
 
-      {isOpen && (
-        <div className="custom-calendar-dropdown">
+      {isOpen && dropdownPos && (
+        <div
+          className="custom-calendar-dropdown"
+          style={{
+            position: 'fixed',
+            left: dropdownPos.left,
+            top: dropdownPos.top,
+            width: DROPDOWN_WIDTH,
+          }}
+        >
           <div className="calendar-header">
             <button type="button" className="cal-nav-btn" onClick={handlePrevMonth}>&lt;</button>
             <span className="cal-month-title">{MONTH_NAMES[currentMonth]} {currentYear}</span>
