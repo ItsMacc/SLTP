@@ -94,7 +94,7 @@ export default function StrategyChart() {
       })
       .catch(() => {
         if (!cancelled) {
-          setStrategies([{ id: 'health-filter', name: 'Stock Health Filter' }])
+          setStrategies([{ id: 'stock-health-filter', name: 'Stock Health Filter' }])
         }
       })
 

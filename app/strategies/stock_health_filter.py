@@ -18,7 +18,7 @@ class StockHealthFilterStrategy(Strategy):
 
     def __init__(self):
         super().__init__()
-        self.name = "Fixed-Window Health Spike Strategy (Balanced Multi-Sector Variant)"
+        self.name = "Stock Health Filter"
         self.description = "Identifies momentum breakouts filtered through a balanced multi-sector health and liquidity selection model."
         self.manager = StockHealthFilterManager()
 

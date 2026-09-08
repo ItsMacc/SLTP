@@ -22,7 +22,7 @@ app.add_middleware(
 
 # Registry for your hardcoded strategies
 STRATEGIES = {
-    "health-filter": StockHealthFilterStrategy,
+    "stock-health-filter": StockHealthFilterStrategy,
     # Add your 5-8 strategies here as you build them:
     # "momentum-breakout": MomentumBreakoutStrategy,
     # "mean-reversion": MeanReversionStrategy,
@@ -45,7 +45,7 @@ def get_available_strategies() -> List[Dict[str, str]]:
 
 @app.get("/api/backtest/run")
 def run_backtest(
-    strategy_id: str = Query("health-filter", description="ID of the strategy to run"),
+    strategy_id: str = Query("", description="ID of the strategy to run"),
     start_date: str = Query("2023-01-01", description="Start date in YYYY-MM-DD format"),
     end_date: str | None = Query(None, description="End date in YYYY-MM-DD format (optional)")
 ) -> Dict[str, Any]:
