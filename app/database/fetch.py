@@ -5,6 +5,7 @@ import pandas as pd
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from typing import Any, Dict, List
+from app.database.db import load_sp500, load_tsx60
 from app.database.db_client import get_parquet_dir
 from app.utils.StockData import StockData
 
@@ -91,6 +92,12 @@ def get_all_tickers() -> List[str]:
     __load_cache()
     global _GLOBAL_CACHE
     return list(_GLOBAL_CACHE["histories"].keys())
+
+def get_all_stocks() -> List[str]:
+    __load_cache()
+    global _GLOBAL_CACHE
+    stock_universe = set(load_sp500() + load_tsx60())
+    return [ticker for ticker in _GLOBAL_CACHE["histories"].keys() if ticker in stock_universe]
 
 def get_stock_history(ticker: str,
                       start: str | None = None,

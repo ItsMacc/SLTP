@@ -1,6 +1,7 @@
 // src/pages/PerformancePage.tsx
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Chart, { type Bar } from '../components/Chart'
+import StrategyChart from '../components/StrategyChart'
 import './PerformancePage.css'
 import type { PerformanceTimeframe } from '../../lib/settings'
 import { supabase } from '../../lib/supabase'
@@ -66,7 +67,7 @@ export default function PerformancePage({ userId }: PerformancePageProps) {
           }
         }
       } catch {
-        // Fallback silently if settings retrieval fails
+        // Fallback silently
       } finally {
         if (!cancelled) setSettingsLoaded(true)
       }
@@ -104,23 +105,23 @@ export default function PerformancePage({ userId }: PerformancePageProps) {
   }, [])
 
   const suggestions = useMemo(() => {
-      const q = query.trim().toUpperCase()
-      if (!q) return []
+    const q = query.trim().toUpperCase()
+    if (!q) return []
 
-      const startsWithMatches: string[] = []
-      const containsMatches: string[] = []
+    const startsWithMatches: string[] = []
+    const containsMatches: string[] = []
 
-      for (const symbol of allTickers) {
-        const upperSymbol = symbol.toUpperCase()
-        if (upperSymbol.startsWith(q)) {
-          startsWithMatches.push(symbol)
-        } else if (upperSymbol.includes(q)) {
-          containsMatches.push(symbol)
-        }
+    for (const symbol of allTickers) {
+      const upperSymbol = symbol.toUpperCase()
+      if (upperSymbol.startsWith(q)) {
+        startsWithMatches.push(symbol)
+      } else if (upperSymbol.includes(q)) {
+        containsMatches.push(symbol)
       }
+    }
 
-      return [...startsWithMatches, ...containsMatches].slice(0, 8)
-    }, [query, allTickers])
+    return [...startsWithMatches, ...containsMatches].slice(0, 8)
+  }, [query, allTickers])
 
   useEffect(() => {
     if (!settingsLoaded || !selectedTicker || mode !== 'stocks') return
@@ -255,15 +256,7 @@ export default function PerformancePage({ userId }: PerformancePageProps) {
         </>
       )}
 
-      {mode === 'strategies' && (
-        <div className="empty-state empty-state-strategies">
-          <p className="empty-state-title">Strategy results are coming here next</p>
-          <p className="empty-state-body">
-            This view will show the equity curve and trade log for each strategy in your backtester once it is
-            wired up to an endpoint. For now, switch back to Stocks to browse price history.
-          </p>
-        </div>
-      )}
+      {mode === 'strategies' && <StrategyChart />}
     </div>
   )
 }
@@ -386,13 +379,13 @@ function CandlestickGuide() {
                 <strong>Size shows conviction:</strong> A tall body means buyers or sellers were firmly in control all day. A tiny body means the day was a tug-of-war that ended close to where it started.
               </li>
               <li>
-                <strong>Volume backs up the move:</strong> A big price jump on tall volume bars is more convincing than the same jump on quiet, low volume, meaning more traders agreed with the move.
-              </li>
-              <li>
                 <strong>Zoom out before zooming in:</strong> Start on 5Y or ALL to get the big picture, then switch to 1Y once you know which period to inspect closely.
               </li>
               <li>
                 <strong>Past price isn't a promise:</strong> A chart shows what already happened, not what happens next. Treat it as context for research, not a guarantee of future performance.
+              </li>
+              <li>
+                <strong>.TO Symbols</strong> Some symbols end with .TO, which indicates they are listed on the Toronto Stock Exchange. For example, SHOP.TO is Shopify's Canadian listing. This helps diffrentiate which exchange a stock belongs to, as well as the currency it trades in (CAD vs USD).
               </li>
             </ul>
           </div>

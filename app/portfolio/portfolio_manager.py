@@ -25,11 +25,6 @@ class TradeRecord:
     signal_date: str | None = None
 
 
-class RiskProfile(Enum):
-    LOW = "low"
-    MODERATE = "moderate"
-    HIGH = "high"
-
 
 class RebalanceFrequency(Enum):
     DAILY = "daily"
@@ -49,25 +44,19 @@ REBALANCE_SETTINGS: dict[RebalanceFrequency, relativedelta] = {
     RebalanceFrequency.YEARLY: relativedelta(years=1),
     RebalanceFrequency.NEVER: relativedelta(years=999_999),
 }
-RISK_MULTIPLIERS: dict[RiskProfile, float] = {
-    RiskProfile.LOW: 0.25,
-    RiskProfile.MODERATE: 0.50,
-    RiskProfile.HIGH: 0.75
-}
 
 MIN_KELLY_TRADES: int = 10
 UNIVERSE = get_all_tickers()
 
+
 # -------- Portfolio Manager --------
 class PortfolioManager:
     def __init__(self,
-                 risk: RiskProfile = RiskProfile.MODERATE,
                  max_positions: int | None = 10
                  ) -> None:
         # Trading Costs & Configuration
         self.SLIPPAGE_PCT: float = 0.0005
         self.FEE_RATE: float = 0.001
-        self.risk_profile: RiskProfile = risk
         self.max_positions: int | None = max_positions
 
         # Universe & Market Data Storage
@@ -239,11 +228,11 @@ class PortfolioManager:
                 self.ticker_losses[ticker].append(pct_return)
 
     def buy_order(self,
-                   ticker: str,
-                   fill_price: float,
-                   trade_record: TradeRecord,
-                   current_date: str
-                   ) -> None:
+                  ticker: str,
+                  fill_price: float,
+                  trade_record: TradeRecord,
+                  current_date: str
+                  ) -> None:
         # If position is already open, return
         if self.open_positions.get(ticker, False):
             return
@@ -346,18 +335,26 @@ class PortfolioManager:
             "entry_portfolio_value": entry_portfolio_value,
         }
 
-    def _base_allocation(self, ticker: str) -> float:
+    def _base_allocation(self) -> float:
         """
-        Calculates position base allocation size for a specific ticker using the Kelly Criterion
-        based on its realized trade history, adjusted by the portfolio's risk profile.
+        Calculates position base allocation size using the Kelly Criterion across
+        all closed portfolio trades, adjusted by the portfolio's risk profile.
         """
         default_allocation = (1.0 / self.max_positions) if (self.max_positions and self.max_positions > 0) else 0.1
 
-        wins = self.ticker_wins.get(ticker, [])
-        losses = self.ticker_losses.get(ticker, [])
-        total_trades = len(wins) + len(losses)
+        # Aggregate all realized closed trade returns across all tickers in the portfolio
+        all_closed_returns = [
+            trade.realized_return_pct
+            for trade_list in self.trades.values()
+            for trade in trade_list
+            if trade.realized_return_pct is not None
+        ]
 
-        # Enforce minimum trade sample size or check for pure wins/losses
+        total_trades = len(all_closed_returns)
+        wins = [r for r in all_closed_returns if r > 0]
+        losses = [r for r in all_closed_returns if r < 0]
+
+        # Requires sufficient trades AND at least one win and one loss globally
         if total_trades < MIN_KELLY_TRADES or not wins or not losses:
             return default_allocation
 
@@ -365,20 +362,29 @@ class PortfolioManager:
         avg_win = sum(wins) / len(wins)
         avg_loss = abs(sum(losses) / len(losses))
 
-        if avg_loss == 0:
+        # Absolute mathematical check: avg_loss must be non-zero to avoid division by zero
+        if avg_loss == 0.0:
             return default_allocation
 
+        # Payoff ratio (b) = average win size / average loss size
         win_loss_ratio = avg_win / avg_loss
 
-        # Kelly Criterion formula: f* = p - ((1 - p) / b)
+        # Pure Kelly Criterion Formula: f* = p - ((1 - p) / b)
         kelly_fraction = win_rate - ((1.0 - win_rate) / win_loss_ratio)
 
-        # Apply fractional Kelly multiplier based on risk profile
-        multiplier = RISK_MULTIPLIERS.get(self.risk_profile, 0.50)
-        adjusted_kelly = kelly_fraction * multiplier
+        # If Kelly yields negative expectation, do not allocate capital (return default floor)
+        if kelly_fraction <= 0.0:
+            return default_allocation
 
-        # Bound allocation between 0.0 and 1.0
-        return max(0.0, min(1.0, adjusted_kelly))
+        # Apply fractional Kelly scaling based on low risk profile
+        adjusted_kelly = kelly_fraction * 0.25
+
+        # Bound allocation strictly between minimum and maximum allocation
+        min_allocation = 0.01
+        max_allocation = default_allocation * 2
+        final_allocation = max(min_allocation, min(max_allocation, round(adjusted_kelly, 4)))
+
+        return final_allocation
 
     def _apply_entry_slippage(self, price: float) -> float:
         # Adjust entry price upwards for buy slippage

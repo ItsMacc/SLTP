@@ -22,14 +22,14 @@ export default function Footer({ activeTab, onNavigate, onLegalPage }: FooterPro
         <div className="st-footer-grid">
           <div className="st-footer-brand">
             <span className="st-footer-brand-title" onClick={() => onNavigate('home')}>
-              Stocker
+              SLTP
             </span>
             <p className="st-footer-brand-tagline">
               A research-first platform for market analysis, strategy building, and informed
               investing.
             </p>
-            <a className="st-footer-contact" href="mailto:stocker.legal@gmail.com">
-              stocker.legal@gmail.com
+            <a className="st-footer-contact" href="mailto:legal.sltp@gmail.com">
+              legal.sltp@gmail.com
             </a>
           </div>
 
@@ -78,7 +78,7 @@ export default function Footer({ activeTab, onNavigate, onLegalPage }: FooterPro
         <div className="st-footer-disclaimer">
           <span className="st-footer-disclaimer-label">Disclaimer</span>
           <p className="st-footer-disclaimer-text">
-            Stocker provides research and educational content for informational purposes only.
+            SLTP provides research and educational content for informational purposes only.
             It is not intended to be a substitute for professional financial advice.
             Historical performance does not predict future performance, and all investing involves
             the risk of loss. Please do your due diligence before making any investment decisions.
@@ -103,8 +103,8 @@ export default function Footer({ activeTab, onNavigate, onLegalPage }: FooterPro
         </div>
 
         <div className="st-footer-bottom">
-          <span>© 2026 Stocker. All rights reserved.</span>
-          <span>Stocker is for educational use only — not financial advice.</span>
+          <span>© 2026 SLTP. All rights reserved.</span>
+          <span>SLTP is for educational use only — not financial advice.</span>
         </div>
       </div>
     </footer>

@@ -33,12 +33,12 @@ interface LegalDocument {
   sections: LegalSection[];
 }
 
-const legalEmail = 'stocker.legal@gmail.com';
+const legalEmail = 'legal.sltp@gmail.com';
 
 const privacyDocument: LegalDocument = {
   title: 'Privacy Policy',
   meta: 'Last Updated: August 17, 2026',
-  intro: 'This document outlines the data privacy practices of Stocker.',
+  intro: 'This document outlines the data privacy practices of SLTP.',
   sections: [
     {
       step: '01',
@@ -46,7 +46,7 @@ const privacyDocument: LegalDocument = {
       blocks: [
         {
           type: 'paragraph',
-          text: 'Stocker is operated independently. Respecting user privacy is a priority. This Privacy Policy explains what limited information is processed when accessing or using Stocker ("the Service").',
+          text: 'SLTP is operated independently. Respecting user privacy is a priority. This Privacy Policy explains what limited information is processed when accessing or using SLTP ("the Service").',
         },
       ],
     },
@@ -56,7 +56,7 @@ const privacyDocument: LegalDocument = {
       blocks: [
         {
           type: 'paragraph',
-          text: 'Stocker is designed to minimize data collection:',
+          text: 'SLTP is designed to minimize data collection:',
         },
         {
           type: 'list',
@@ -79,18 +79,18 @@ const privacyDocument: LegalDocument = {
       blocks: [
         {
           type: 'paragraph',
-          text: 'To provide full transparency, Stocker explicitly does not do any of the following:',
+          text: 'To provide full transparency, SLTP explicitly does not do any of the following:',
         },
         {
           type: 'list',
           items: [
             {
               lead: 'No Tracking Cookies:',
-              text: 'Stocker does not use tracking, advertising, or third-party cookies.',
+              text: 'SLTP does not use tracking, advertising, or third-party cookies.',
             },
             {
               lead: 'No Analytics or Behavioral Tracking:',
-              text: 'Stocker does not log individual page visits, track browsing activity, or build behavioral profiles.',
+              text: 'SLTP does not log individual page visits, track browsing activity, or build behavioral profiles.',
             },
             {
               lead: 'No Data Sales:',
@@ -138,7 +138,7 @@ const privacyDocument: LegalDocument = {
           type: 'paragraph',
           text: (
             <>
-              For questions or privacy inquiries regarding Stocker, send an email to{' '}
+              For questions or privacy inquiries regarding SLTP, send an email to{' '}
               <a className="st-legal-link" href={`mailto:${legalEmail}`}>
                 {legalEmail}
               </a>
@@ -154,7 +154,7 @@ const privacyDocument: LegalDocument = {
 const termsDocument: LegalDocument = {
   title: 'Terms of Service',
   meta: 'Last Updated: August 17, 2026',
-  intro: 'This document is a legal agreement between you and Stocker. Please read it carefully.',
+  intro: 'This document is a legal agreement between you and SLTP. Please read it carefully.',
   sections: [
     {
       step: '01',
@@ -162,7 +162,7 @@ const termsDocument: LegalDocument = {
       blocks: [
         {
           type: 'paragraph',
-          text: 'By accessing or using the Stocker website, platform, and associated services (collectively, the "Service"), you agree to be bound by these Terms of Service ("Terms"). If you do not agree to these Terms, do not access or use the Service.',
+          text: 'By accessing or using the SLTP website, platform, and associated services (collectively, the "Service"), you agree to be bound by these Terms of Service ("Terms"). If you do not agree to these Terms, do not access or use the Service.',
         },
       ],
     },
@@ -172,7 +172,7 @@ const termsDocument: LegalDocument = {
       blocks: [
         {
           type: 'paragraph',
-          text: 'Stocker is an educational and analytical research platform. Stocker is not a registered investment advisor, broker-dealer, financial planner, or tax professional.',
+          text: 'SLTP is an educational and analytical research platform. SLTP is not a registered investment advisor, broker-dealer, financial planner, or tax professional.',
         },
         {
           type: 'paragraph',
@@ -182,7 +182,7 @@ const termsDocument: LegalDocument = {
           type: 'list',
           items: [
             {
-              text: 'No content on Stocker should be construed as personalized financial, investment, legal, or tax advice.',
+              text: 'No content on SLTP should be construed as personalized financial, investment, legal, or tax advice.',
             },
             {
               text: 'You are solely responsible for conducting your own independent research and due diligence before making any investment or financial decisions.',
@@ -197,7 +197,7 @@ const termsDocument: LegalDocument = {
       blocks: [
         {
           type: 'paragraph',
-          text: 'Investing in financial markets, including stocks, options, cryptocurrencies, and other assets, carries inherent risk. Past performance, historical returns, or strategy backtests displayed on Stocker do not guarantee future performance or financial success. You acknowledge that you may lose some or all of your invested capital.',
+          text: 'Investing in financial markets, including stocks, options, cryptocurrencies, and other assets, carries inherent risk. Past performance, historical returns, or strategy backtests displayed on SLTP do not guarantee future performance or financial success. You acknowledge that you may lose some or all of your invested capital.',
         },
       ],
     },
@@ -207,7 +207,7 @@ const termsDocument: LegalDocument = {
       blocks: [
         {
           type: 'paragraph',
-          text: 'All content, branding, trademarks, graphics, code, algorithms, and data presented on Stocker are the property of Stocker and protected by applicable intellectual property laws. You agree not to copy, reproduce, scrape, modify, distribute, or reverse-engineer any portion of the Service without prior written authorization from Stocker.',
+          text: 'All content, branding, trademarks, graphics, code, algorithms, and data presented on SLTP are the property of SLTP and protected by applicable intellectual property laws. You agree not to copy, reproduce, scrape, modify, distribute, or reverse-engineer any portion of the Service without prior written authorization from SLTP.',
         },
       ],
     },
@@ -217,7 +217,7 @@ const termsDocument: LegalDocument = {
       blocks: [
         {
           type: 'paragraph',
-          text: 'If you create an account on Stocker, you are responsible for maintaining the confidentiality of your login credentials and for all activities under your account. You agree not to use the Service for unlawful purposes or attempt to interfere with platform operations or security.',
+          text: 'If you create an account on SLTP, you are responsible for maintaining the confidentiality of your login credentials and for all activities under your account. You agree not to use the Service for unlawful purposes or attempt to interfere with platform operations or security.',
         },
       ],
     },
@@ -227,7 +227,7 @@ const termsDocument: LegalDocument = {
       blocks: [
         {
           type: 'paragraph',
-          text: 'To the maximum extent permitted by applicable law, Stocker, its founders, employees, partners, and affiliates shall not be liable for any direct, indirect, incidental, consequential, or punitive damages resulting from your access to, or inability to access, the Service, or any action taken based on content provided on the Service.',
+          text: 'To the maximum extent permitted by applicable law, SLTP, its founders, employees, partners, and affiliates shall not be liable for any direct, indirect, incidental, consequential, or punitive damages resulting from your access to, or inability to access, the Service, or any action taken based on content provided on the Service.',
         },
       ],
     },
@@ -237,7 +237,7 @@ const termsDocument: LegalDocument = {
       blocks: [
         {
           type: 'paragraph',
-          text: 'Stocker reserves the right to update or modify these Terms at any time. Continued use of the Service following any changes constitutes acceptance of the new Terms.',
+          text: 'SLTP reserves the right to update or modify these Terms at any time. Continued use of the Service following any changes constitutes acceptance of the new Terms.',
         },
       ],
     },
@@ -247,7 +247,7 @@ const termsDocument: LegalDocument = {
       blocks: [
         {
           type: 'paragraph',
-          text: 'These Terms shall be governed by and construed in accordance with the laws of the jurisdiction where Stocker operates, without regard to conflicts of law principles. Any disputes arising out of or relating to these Terms shall be resolved in the appropriate courts of that jurisdiction.',
+          text: 'These Terms shall be governed by and construed in accordance with the laws of the jurisdiction where SLTP operates, without regard to conflicts of law principles. Any disputes arising out of or relating to these Terms shall be resolved in the appropriate courts of that jurisdiction.',
         },
       ],
     },
@@ -284,7 +284,7 @@ export default function LegalPage({ page, onBack }: LegalPageProps) {
     <div className="st-legal-layout">
       <div className="st-legal-container">
         <button type="button" className="st-legal-back" onClick={onBack}>
-          <span aria-hidden="true">←</span> Back to Stocker
+          <span aria-hidden="true">←</span> Back to SLTP
         </button>
 
         <header className="st-legal-header">

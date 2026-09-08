@@ -40,7 +40,7 @@ export default function Header({
   return (
     <header className="header-container">
       <div className="header-brand" onClick={() => handleTabClick('home')}>
-        <span className="brand-title">Stocker</span>
+        <span className="brand-title">SLTP</span>
       </div>
 
       <nav className="header-nav desktop-only">

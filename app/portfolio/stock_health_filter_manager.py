@@ -3,11 +3,11 @@ import talib as ta
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from app.portfolio.portfolio_manager import (
-    PortfolioManager, RiskProfile, REBALANCE_SETTINGS,
+    PortfolioManager, REBALANCE_SETTINGS,
     RebalanceFrequency, TradeRecord, UNIVERSE
 )
 from app.utils.StrategyDecision import StrategyDecision
-from app.database.fetch import get_stock_histories, get_stock_history
+from app.database.fetch import get_stock_histories, get_stock_history, get_all_stocks
 
 
 class StockHealthFilterManager(PortfolioManager):
@@ -16,7 +16,6 @@ class StockHealthFilterManager(PortfolioManager):
 
         # Initial Configurations
         self.max_positions = 10
-        self.risk_profile = RiskProfile.MODERATE
         self.REBALANCE_FREQUENCY = RebalanceFrequency.QUARTERLY
         self.WARM_UP_PERIOD = 60
 
@@ -69,7 +68,7 @@ class StockHealthFilterManager(PortfolioManager):
         if np.isnan(atr) or atr <= 0:
             return None
 
-        k_multiplier = 2.0
+        k_multiplier = 4.0
         rrr = 2.0
 
         # Calculate stop loss and take profit price levels based on ATR
@@ -78,10 +77,10 @@ class StockHealthFilterManager(PortfolioManager):
         take_profit = round(current_close + (sl_distance * rrr), 2)
 
         # Compute adjusted allocation size using base allocation and confidence score
-        base_allocation = self._base_allocation(ticker)
+        base_allocation = self._base_allocation()
         confidence = max(0.0, min(1.0, decision.confidence))
 
-        allocation_size = round(min(1.0, base_allocation * (1.0 + confidence)), 4)
+        allocation_size = round(min(1.0, base_allocation * confidence), 2)
 
         # Create a pending trade record using signal metadata
         signal_date = decision.meta_data.get("signal_date", "")
@@ -162,10 +161,11 @@ class StockHealthFilterManager(PortfolioManager):
 
 
     def initialize_universe(self, current_date: str) -> bool:
-        # Fetch top 50 qualifying candidates
-        top = self._get_top_candidates(current_date, n=50, exclude_current=False)
+        # Fetch top qualifying candidates
+        n = 25
+        top = self._get_top_candidates(current_date, n=n, exclude_current=False)
 
-        if len(top) < 50:
+        if len(top) < n:
             return False
 
         # Populate universe

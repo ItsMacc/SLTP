@@ -98,19 +98,13 @@ class Backtester:
             )
 
     def performance_metrics(self) -> dict:
-        """
-        Calculates and returns a comprehensive dictionary of performance analytics
-        ordered properly from starting values down to equity curve records.
-        """
         if not self.manager.equity_curve:
             return {}
 
         equity_curve = self.manager.equity_curve
         starting_value = float(equity_curve[0]["portfolio_value"])
         ending_value = float(equity_curve[-1]["portfolio_value"])
-        pnl = round(ending_value - starting_value, 4)
 
-        # Calculate Compound Annual Growth Rate (CAGR)
         start_dt = datetime.strptime(equity_curve[0]["date"], "%Y-%m-%d")
         end_dt = datetime.strptime(equity_curve[-1]["date"], "%Y-%m-%d")
         days = max(1, (end_dt - start_dt).days)
@@ -118,37 +112,41 @@ class Backtester:
         cagr = float(((ending_value / starting_value) ** (1.0 / years) - 1.0) * 100.0) if years > 0 and starting_value > 0 else 0.0
         cagr = round(cagr, 2)
 
-        # Extract daily portfolio values for return-based metrics
         values = [point["portfolio_value"] for point in equity_curve]
         daily_returns = np.diff(values) / values[:-1] if len(values) > 1 else np.array([0.0])
 
-        # Calculate Annualized Sharpe Ratio
         mean_return = float(np.mean(daily_returns))
         std_return = float(np.std(daily_returns, ddof=1)) if len(daily_returns) > 1 else 0.0
-        sharpe = round((mean_return / std_return) * np.sqrt(252), 4) if std_return > 0 else 0.0
+        daily_sharpe = mean_return / std_return if std_return > 0 else 0.0
+        sharpe = round(daily_sharpe * np.sqrt(252), 4)
 
-        # Calculate Probabilistic Sharpe Ratio (PSR)
-        psr = 0.5
-        try:
-            if len(daily_returns) > 2 and std_return > 0:
-                sk = float(skew(daily_returns))
-                kt = float(kurtosis(daily_returns))
-                pearson_kurt = kt + 3.0
-                n = len(daily_returns)
-                sr_benchmark = 0.0
-                denom = np.sqrt((1.0 - sk * sharpe + ((pearson_kurt - 1.0) / 4.0) * (sharpe ** 2)) / (n - 1))
-                if denom > 0:
-                    stat = (sharpe - sr_benchmark) / denom
-                    psr = round(float(norm.cdf(stat)), 4)
-        except ImportError:
-            psr = round(float(1.0 / (1.0 + np.exp(-1.7 * sharpe))), 4)
+        # Calculate Probabilistic Sharpe Ratio
+        n = len(daily_returns)
+        sr_benchmark_annual = 1.0
+        sr_benchmark_daily = sr_benchmark_annual / np.sqrt(252)
 
-        # Calculate Annualized Sortino Ratio
+        if n > 2 and std_return > 0:
+            sr_daily = mean_return / std_return
+            sk = float(skew(daily_returns))
+            kt = float(kurtosis(daily_returns, fisher=False))  # Pearson kurtosis (Normal = 3.0)
+
+            # Asymptotic variance under non-normal daily returns
+            daily_variance = (1.0 - (sk * sr_daily) + (((kt - 1.0) / 4.0) * (sr_daily ** 2))) / (n - 1)
+
+            if daily_variance > 0:
+                daily_std_error = np.sqrt(daily_variance)
+                # Compute Z-stat purely on daily scale to avoid algebraic cancellation/scaling mismatches
+                z_stat = (sr_daily - sr_benchmark_daily) / daily_std_error
+                psr = round(float(norm.cdf(z_stat)), 4)
+            else:
+                psr = 0.0
+        else:
+            psr = 0.0
+
         negative_returns = daily_returns[daily_returns < 0]
         downside_std = float(np.std(negative_returns, ddof=1)) if len(negative_returns) > 1 else 0.0
         sortino = round((mean_return / downside_std) * np.sqrt(252), 4) if downside_std > 0 else 0.0
 
-        # Calculate Max Drawdown and Drawdown Recovery Duration
         peak = values[0]
         max_dd = 0.0
         drawdown_durations = []
@@ -176,7 +174,6 @@ class Backtester:
         max_drawdown = round(max_dd * 100.0, 2)
         drawdown_recovery = max(drawdown_durations) if drawdown_durations else 0
 
-        # Collect closed trade returns for trade-based analytics
         all_closed_returns = []
         for ticker, trade_list in self.manager.trades.items():
             for trade in trade_list:
@@ -196,22 +193,31 @@ class Backtester:
         loss_prob = len(losing_trades) / total_trades if total_trades > 0 else 0.0
         expectancy = round((win_prob * (average_win / 100.0)) - (loss_prob * abs(average_loss / 100.0)), 4)
 
-        # Return metrics ordered properly as requested
+        # Retrieve current available cash balance
+        allocated_capital = sum(
+            state.get("entry_portfolio_value", self.manager.portfolio_value) * state.get("allocation_size", 0.0)
+            for ticker, state in self.manager.open_trade_state.items()
+            if self.manager.open_positions.get(ticker, False)
+        )
+
+        # Unallocated liquid cash balance
+        unrealized_cash = round(float(self.manager.portfolio_value - allocated_capital), 2)
+
         return {
             "starting value": starting_value,
             "ending value": ending_value,
-            "PNL": pnl,
             "CAGR": cagr,
             "sharpe": sharpe,
             "PSR": psr,
             "sortino": sortino,
-            "max drawdown": max_drawdown,
-            "drawdown recovery": drawdown_recovery,
+            "expectancy": expectancy,
             "win rate": win_rate,
             "loss rate": loss_rate,
             "average win": average_win,
             "average loss": average_loss,
-            "expectancy": expectancy,
+            "max drawdown": max_drawdown,
+            "drawdown recovery": drawdown_recovery,
+            "unrealized cash": unrealized_cash,
             "equity": equity_curve,
         }
 

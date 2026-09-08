@@ -321,7 +321,7 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
                       { label: 'Dark', value: 'Dark' },
                     ]}
                   />
-                  <span className="st-settings-hint">Choose the visual tone used across Stocker.</span>
+                  <span className="st-settings-hint">Choose the visual tone used across SLTP.</span>
                 </div>
 
                 <div className="st-settings-field">
@@ -442,7 +442,7 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
               Delete your account?
             </h3>
             <p className="st-settings-modal-text">
-              This will permanently delete your Stocker profile and all associated
+              This will permanently delete your SLTP profile and all associated
               configuration data. This action <strong>cannot be undone</strong>.
             </p>
 
