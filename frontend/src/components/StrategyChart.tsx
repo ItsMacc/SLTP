@@ -1,9 +1,9 @@
 // src/components/StrategyChart.tsx
 import React, { useState, useMemo, useRef, useLayoutEffect, useCallback, useEffect } from 'react'
 import './StrategyChart.css'
-import Input from '../ui/Input'
 import Select, { type SelectOption } from '../ui/Select'
 import TradeResults, { type TradeRecord } from './TradeResults'
+import DatePicker from '../ui/DatePicker'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 
@@ -329,24 +329,24 @@ export default function StrategyChart() {
             />
           )}
 
-          <Input
+          <DatePicker
             id="start-date"
-            type="date"
             label="Start Date *"
-            error={inputError || undefined}
             value={startDate}
-            onChange={(e) => {
-              setStartDate(e.target.value)
+            error={inputError || undefined}
+            onChange={(dateStr) => {
+              setStartDate(dateStr)
               if (inputError) setInputError(null)
             }}
+            placeholder="2020-01-01"
           />
 
-          <Input
+          <DatePicker
             id="end-date"
-            type="date"
             label="End Date (Optional)"
             value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
+            onChange={(dateStr) => setEndDate(dateStr)}
+            placeholder="Select end date"
           />
 
           <button type="submit" className="run-strategy-btn" disabled={loading}>

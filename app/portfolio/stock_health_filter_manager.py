@@ -95,20 +95,7 @@ class StockHealthFilterManager(PortfolioManager):
             signal_date=signal_date,
         )
 
-
     def on_rebalance(self, current_date: str) -> None:
-        # Parse current date & check frequency gate
-        curr_date = datetime.strptime(current_date, "%Y-%m-%d")
-
-        if self.LAST_REBALANCE_DATE is not None:
-            last_date = datetime.strptime(self.LAST_REBALANCE_DATE, "%Y-%m-%d")
-            next_rebalance_date = last_date + REBALANCE_SETTINGS[self.REBALANCE_FREQUENCY]
-
-            if curr_date < next_rebalance_date:
-                return
-
-        self.LAST_REBALANCE_DATE = current_date
-
         # Clean up blacklisted tickers whose positions have closed
         new_blacklist = set()
         for ticker in list(self.blacklisted_tickers):

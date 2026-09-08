@@ -1,7 +1,7 @@
 import numpy as np
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
-from app.portfolio.portfolio_manager import TradeRecord
+from app.portfolio.portfolio_manager import TradeRecord, RebalanceFrequency, REBALANCE_SETTINGS
 from app.strategies.base import Strategy
 from app.utils.StockData import StockData
 from scipy.stats import skew, kurtosis, norm
@@ -41,8 +41,10 @@ class Backtester:
 
         # Iterate day by day
         for current_date in active_dates:
-            # Rebalance portfolio
-            self.manager.on_rebalance(current_date)
+            # Automatically check rebalance schedule and execute if due
+            if self._should_rebalance(current_date):
+                self.manager.on_rebalance(current_date)
+                self.manager.LAST_REBALANCE_DATE = current_date
 
             # Pick up any tickers on_rebalance just added so they're actually simulated
             self._sync_ticker_data(ticker_data, current_date)
@@ -237,6 +239,27 @@ class Backtester:
             attempts += 1
 
         raise ValueError(f"Could not initialize universe starting from {self.start_date} within {max_attempts} days.")
+
+    def _should_rebalance(self, current_date: str) -> bool:
+        # Checks if rebalance is due for a strategy
+        if self.manager.REBALANCE_FREQUENCY == RebalanceFrequency.NEVER:
+            return False
+        if self.manager.REBALANCE_FREQUENCY == RebalanceFrequency.DAILY:
+            return True
+
+        curr_date = datetime.strptime(current_date, "%Y-%m-%d")
+
+        if self.manager.LAST_REBALANCE_DATE is None:
+            return True
+
+        last_date = datetime.strptime(self.manager.LAST_REBALANCE_DATE, "%Y-%m-%d")
+        delta = REBALANCE_SETTINGS.get(self.manager.REBALANCE_FREQUENCY)
+
+        if delta is None:
+            return False
+
+        next_rebalance_date = last_date + delta
+        return curr_date >= next_rebalance_date
 
     def _build_trading_calendar(self) -> list[str]:
         # Collects and sorts all unique trading dates across cached stock histories within bounds
