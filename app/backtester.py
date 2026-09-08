@@ -4,6 +4,7 @@ from dateutil.relativedelta import relativedelta
 from app.portfolio.portfolio_manager import TradeRecord
 from app.strategies.base import Strategy
 from app.utils.StockData import StockData
+from scipy.stats import skew, kurtosis, norm
 
 
 class Backtester:
@@ -87,12 +88,132 @@ class Backtester:
                 self.manager.mark_to_market(ticker, current_close)
 
             # Record a clean, unified portfolio equity point once per day
-            self.manager.equity_curve.append({
-                "date": current_date,
-                "portfolio_value": round(self.manager.portfolio_value, 2),
-                "active_positions": self.manager.active_positions,
-                "total_transaction_cost": round(self.manager.total_transactions_cost, 4)
-            })
+            self.manager.equity_curve.append(
+                {
+                    "date": current_date,
+                    "portfolio_value": round(self.manager.portfolio_value, 2),
+                    "active_positions": self.manager.active_positions,
+                    "total_transaction_cost": round(self.manager.total_transactions_cost, 4)
+                }
+            )
+
+    def performance_metrics(self) -> dict:
+        """
+        Calculates and returns a comprehensive dictionary of performance analytics
+        ordered properly from starting values down to equity curve records.
+        """
+        if not self.manager.equity_curve:
+            return {}
+
+        equity_curve = self.manager.equity_curve
+        starting_value = float(equity_curve[0]["portfolio_value"])
+        ending_value = float(equity_curve[-1]["portfolio_value"])
+        pnl = round(ending_value - starting_value, 4)
+
+        # Calculate Compound Annual Growth Rate (CAGR)
+        start_dt = datetime.strptime(equity_curve[0]["date"], "%Y-%m-%d")
+        end_dt = datetime.strptime(equity_curve[-1]["date"], "%Y-%m-%d")
+        days = max(1, (end_dt - start_dt).days)
+        years = days / 365.25
+        cagr = float(((ending_value / starting_value) ** (1.0 / years) - 1.0) * 100.0) if years > 0 and starting_value > 0 else 0.0
+        cagr = round(cagr, 2)
+
+        # Extract daily portfolio values for return-based metrics
+        values = [point["portfolio_value"] for point in equity_curve]
+        daily_returns = np.diff(values) / values[:-1] if len(values) > 1 else np.array([0.0])
+
+        # Calculate Annualized Sharpe Ratio
+        mean_return = float(np.mean(daily_returns))
+        std_return = float(np.std(daily_returns, ddof=1)) if len(daily_returns) > 1 else 0.0
+        sharpe = round((mean_return / std_return) * np.sqrt(252), 4) if std_return > 0 else 0.0
+
+        # Calculate Probabilistic Sharpe Ratio (PSR)
+        psr = 0.5
+        try:
+            if len(daily_returns) > 2 and std_return > 0:
+                sk = float(skew(daily_returns))
+                kt = float(kurtosis(daily_returns))
+                pearson_kurt = kt + 3.0
+                n = len(daily_returns)
+                sr_benchmark = 0.0
+                denom = np.sqrt((1.0 - sk * sharpe + ((pearson_kurt - 1.0) / 4.0) * (sharpe ** 2)) / (n - 1))
+                if denom > 0:
+                    stat = (sharpe - sr_benchmark) / denom
+                    psr = round(float(norm.cdf(stat)), 4)
+        except ImportError:
+            psr = round(float(1.0 / (1.0 + np.exp(-1.7 * sharpe))), 4)
+
+        # Calculate Annualized Sortino Ratio
+        negative_returns = daily_returns[daily_returns < 0]
+        downside_std = float(np.std(negative_returns, ddof=1)) if len(negative_returns) > 1 else 0.0
+        sortino = round((mean_return / downside_std) * np.sqrt(252), 4) if downside_std > 0 else 0.0
+
+        # Calculate Max Drawdown and Drawdown Recovery Duration
+        peak = values[0]
+        max_dd = 0.0
+        drawdown_durations = []
+        current_dd_duration = 0
+        in_drawdown = False
+
+        for val in values:
+            if val > peak:
+                peak = val
+                if in_drawdown:
+                    drawdown_durations.append(current_dd_duration)
+                    current_dd_duration = 0
+                    in_drawdown = False
+            else:
+                dd = (peak - val) / peak
+                if dd > max_dd:
+                    max_dd = dd
+                if dd > 0:
+                    in_drawdown = True
+                    current_dd_duration += 1
+
+        if in_drawdown:
+            drawdown_durations.append(current_dd_duration)
+
+        max_drawdown = round(max_dd * 100.0, 2)
+        drawdown_recovery = max(drawdown_durations) if drawdown_durations else 0
+
+        # Collect closed trade returns for trade-based analytics
+        all_closed_returns = []
+        for ticker, trade_list in self.manager.trades.items():
+            for trade in trade_list:
+                if trade.realized_return_pct is not None:
+                    all_closed_returns.append(trade.realized_return_pct)
+
+        total_trades = len(all_closed_returns)
+        winning_trades = [r for r in all_closed_returns if r > 0]
+        losing_trades = [r for r in all_closed_returns if r < 0]
+
+        win_rate = round((len(winning_trades) / total_trades) * 100.0, 2) if total_trades > 0 else 0.0
+        loss_rate = round((len(losing_trades) / total_trades) * 100.0, 2) if total_trades > 0 else 0.0
+        average_win = round((sum(winning_trades) / len(winning_trades)) * 100.0, 2) if winning_trades else 0.0
+        average_loss = round((sum(losing_trades) / len(losing_trades)) * 100.0, 2) if losing_trades else 0.0
+
+        win_prob = len(winning_trades) / total_trades if total_trades > 0 else 0.0
+        loss_prob = len(losing_trades) / total_trades if total_trades > 0 else 0.0
+        expectancy = round((win_prob * (average_win / 100.0)) - (loss_prob * abs(average_loss / 100.0)), 4)
+
+        # Return metrics ordered properly as requested
+        return {
+            "starting value": starting_value,
+            "ending value": ending_value,
+            "PNL": pnl,
+            "CAGR": cagr,
+            "sharpe": sharpe,
+            "PSR": psr,
+            "sortino": sortino,
+            "max drawdown": max_drawdown,
+            "drawdown recovery": drawdown_recovery,
+            "win rate": win_rate,
+            "loss rate": loss_rate,
+            "average win": average_win,
+            "average loss": average_loss,
+            "expectancy": expectancy,
+            "equity": equity_curve,
+        }
 
     # -------- Helper Methods --------
     def _initialize_universe(self) -> str:

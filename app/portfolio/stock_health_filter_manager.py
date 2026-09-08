@@ -16,7 +16,7 @@ class StockHealthFilterManager(PortfolioManager):
 
         # Initial Configurations
         self.max_positions = 10
-        self.risk_profile = RiskProfile.LOW
+        self.risk_profile = RiskProfile.MODERATE
         self.REBALANCE_FREQUENCY = RebalanceFrequency.QUARTERLY
         self.WARM_UP_PERIOD = 60
 
