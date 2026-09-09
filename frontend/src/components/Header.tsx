@@ -18,7 +18,7 @@ const navItems = [
   { id: 'invest', label: 'Invest' },
   { id: 'strategies', label: 'Strategies' },
   { id: 'performance', label: 'Performance' },
-  { id: 'about', label: 'About' },
+  { id: 'lab', label: 'Lab' },
 ];
 
 export default function Header({ 
