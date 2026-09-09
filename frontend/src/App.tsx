@@ -6,6 +6,7 @@ import Footer from './components/Footer';
 import SettingsPage, { applyAndStoreUserSettings } from './pages/SettingsPage';
 import LegalPage, { type LegalPageKind } from './pages/LegalPage';
 import PerformancePage from './pages/PerformancePage';
+import ErrorToast from './ui/ErrorToast';
 import { supabase } from '../lib/supabase';
 import './index.css';
 
@@ -16,12 +17,30 @@ export interface UserProfile {
   settings?: { theme?: string; [key: string]: any };
 }
 
+// Tabs that require the user to be signed in before they can be visited.
+const AUTH_REQUIRED_TABS = ['lab'];
+
 export default function App() {
   const [activeTab, setActiveTab] = useState('home');
   const [authMode, setAuthMode] = useState<'login' | 'signup' | null>(null);
   const [legalPage, setLegalPage] = useState<LegalPageKind | null>(null);
+  const [authNotice, setAuthNotice] = useState<string | null>(null);
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const handleTabChange = (tab: string) => {
+    if (AUTH_REQUIRED_TABS.includes(tab) && !user?.id) {
+      setAuthMode('signup');
+      setLegalPage(null);
+      setAuthNotice('You must be logged in to use these features');
+      return;
+    }
+
+    setActiveTab(tab);
+    setAuthMode(null);
+    setLegalPage(null);
+    setAuthNotice(null);
+  };
 
   useEffect(() => {
     async function syncUser(userId: string, email: string) {
@@ -57,7 +76,7 @@ export default function App() {
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <Header 
         activeTab={activeTab}
-        onTabChange={(tab) => { setActiveTab(tab); setAuthMode(null); setLegalPage(null); }}
+        onTabChange={handleTabChange}
         onAuthClick={(mode) => { setAuthMode(mode); setLegalPage(null); }}
         sessionUserName={user?.name}
         sessionUserEmail={user?.email}
@@ -102,9 +121,13 @@ export default function App() {
         )}
       </main>
 
+      {authNotice && (
+        <ErrorToast message={authNotice} onClose={() => setAuthNotice(null)} />
+      )}
+
       <Footer
         activeTab={activeTab}
-        onNavigate={(tab) => { setActiveTab(tab); setAuthMode(null); setLegalPage(null); }}
+        onNavigate={handleTabChange}
         onLegalPage={(page) => { setLegalPage(page); setAuthMode(null); }}
       />
     </div>
