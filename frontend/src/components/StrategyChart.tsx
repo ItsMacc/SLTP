@@ -4,6 +4,7 @@ import './StrategyChart.css'
 import Select, { type SelectOption } from '../ui/Select'
 import TradeResults, { type TradeRecord } from './TradeResults'
 import DatePicker from '../ui/DatePicker'
+import ErrorToast from '../ui/ErrorToast'
 import StrategyGuide from './StrategyGuide'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
@@ -121,10 +122,19 @@ export default function StrategyChart() {
     return () => observer.disconnect()
   }, [backtestResult])
 
+  const handleCloseErrors = useCallback(() => {
+    setInputError(null)
+    setError(null)
+  }, [])
+
   const handleRunCalculation = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!startDate) {
       setInputError('Please select a valid start date.')
+      return
+    }
+    if (!selectedStrategy) {
+      setInputError('Please select a strategy first.')
       return
     }
 
@@ -148,13 +158,16 @@ export default function StrategyChart() {
       const response = await fetch(url)
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}))
-        throw new Error(errData.detail || 'Backtest run failed. Please check inputs.')
+        const detail = errData.detail
+        throw new Error(
+          typeof detail === 'string' ? detail : 'Backtest run failed. Please check your inputs and dates.'
+        )
       }
 
       const data: BacktestApiResponse = await response.json()
       setBacktestResult(data)
     } catch (err: any) {
-      setError(err.message || 'Error executing backtest.')
+      setError(err?.message || 'Error executing backtest.')
     } finally {
       setLoading(false)
     }
@@ -326,6 +339,10 @@ export default function StrategyChart() {
 
   return (
     <div className="strategy-card">
+      {(inputError || error) && (
+        <ErrorToast message={inputError || error!} onClose={handleCloseErrors} />
+      )}
+
       <div className="strategy-controls-bar">
         <form className="strategy-date-form" onSubmit={handleRunCalculation}>
           {selectOptions.length > 0 && (
@@ -341,7 +358,6 @@ export default function StrategyChart() {
             id="start-date"
             label="Start Date *"
             value={startDate}
-            error={inputError || undefined}
             onChange={(dateStr) => {
               setStartDate(dateStr)
               if (inputError) setInputError(null)
@@ -364,7 +380,6 @@ export default function StrategyChart() {
       </div>
 
       {loading && <p className="status-text">Executing backtest engine...</p>}
-      {error && <p className="status-text is-error">{error}</p>}
 
       {!loading && !error && !backtestResult && (
         <div className="empty-state">
