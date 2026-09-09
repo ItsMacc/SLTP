@@ -1,0 +1,44 @@
+from app.portfolio.buy_and_hold_manager import BuyAndHoldManager
+from app.strategies.base import Strategy, StrategyDecision
+from app.utils.StockData import StockData
+
+
+# -------- Stock Health Filter Strategy Class --------
+class BuyAndHold(Strategy):
+    def __init__(self):
+        super().__init__()
+
+        self.name = "Buy & Hold"
+        self.description = "Standard Buy and Hold benchmark strategy"
+        self.manager = BuyAndHoldManager()
+
+        self.MIN_BARS_REQUIRED = 1
+
+    def generate_signal(self, ticker: str, history: StockData) -> StrategyDecision:
+        if len(history.close_price) < self.MIN_BARS_REQUIRED:
+            raise ValueError(f"{ticker} does not contain enough bars | required: {self.MIN_BARS_REQUIRED}")
+
+        today_date = str(history.dates[-1])
+        current_close = float(history.close_price[-1])
+
+        # Check if the portfolio is already holding this ticker
+        is_already_open = False
+        if self.manager:
+            is_already_open = self.manager.open_positions.get(ticker, False)
+
+        if not is_already_open:
+            signal_type = "BUY"
+            confidence = 1.0
+        else:
+            signal_type = "HOLD"
+            confidence = 1.0
+
+        metrics = {"close_price": current_close}
+        meta_data = {"ticker": ticker, "signal_date": today_date}
+
+        return StrategyDecision(
+            signal=signal_type,
+            confidence=confidence,
+            metrics=metrics,
+            meta_data=meta_data
+        )

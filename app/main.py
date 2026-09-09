@@ -4,6 +4,7 @@ from typing import Dict, Any, List
 
 # Core Backtester & Strategy Imports
 from app.backtester import Backtester
+from app.strategies.buy_and_hold import BuyAndHold
 from app.strategies.stock_health_filter import StockHealthFilterStrategy
 
 # Database Imports
@@ -22,10 +23,8 @@ app.add_middleware(
 
 # Registry for your hardcoded strategies
 STRATEGIES = {
+    "buy and hold": BuyAndHold,
     "stock-health-filter": StockHealthFilterStrategy,
-    # Add your 5-8 strategies here as you build them:
-    # "momentum-breakout": MomentumBreakoutStrategy,
-    # "mean-reversion": MeanReversionStrategy,
 }
 
 

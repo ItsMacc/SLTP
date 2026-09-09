@@ -149,32 +149,24 @@ class Backtester:
         downside_std = float(np.std(negative_returns, ddof=1)) if len(negative_returns) > 1 else 0.0
         sortino = round((mean_return / downside_std) * np.sqrt(252), 4) if downside_std > 0 else 0.0
 
-        peak = values[0]
-        max_dd = 0.0
-        drawdown_durations = []
-        current_dd_duration = 0
-        in_drawdown = False
+        # Vectorized Max Drawdown & Duration Calculation
+        vals = np.array(values, dtype=float)
+        cummax = np.maximum.accumulate(vals)
+        drawdowns = (cummax - vals) / cummax
 
-        for val in values:
-            if val > peak:
-                peak = val
-                if in_drawdown:
-                    drawdown_durations.append(current_dd_duration)
-                    current_dd_duration = 0
-                    in_drawdown = False
+        max_dd_ratio = float(np.max(drawdowns)) if len(drawdowns) > 0 else 0.0
+        max_drawdown = round(max_dd_ratio * 100.0, 2)
+
+        # Max Drawdown Duration
+        max_duration = 0
+        current_duration = 0
+        for i in range(1, len(vals)):
+            if vals[i] < cummax[i]:
+                current_duration += 1
+                if current_duration > max_duration:
+                    max_duration = current_duration
             else:
-                dd = (peak - val) / peak
-                if dd > max_dd:
-                    max_dd = dd
-                if dd > 0:
-                    in_drawdown = True
-                    current_dd_duration += 1
-
-        if in_drawdown:
-            drawdown_durations.append(current_dd_duration)
-
-        max_drawdown = round(max_dd * 100.0, 2)
-        drawdown_recovery = max(drawdown_durations) if drawdown_durations else 0
+                current_duration = 0
 
         all_closed_returns = []
         for ticker, trade_list in self.manager.trades.items():
@@ -195,31 +187,24 @@ class Backtester:
         loss_prob = len(losing_trades) / total_trades if total_trades > 0 else 0.0
         expectancy = round((win_prob * (average_win / 100.0)) - (loss_prob * abs(average_loss / 100.0)), 4)
 
-        # Retrieve current available cash balance
-        allocated_capital = sum(
-            state.get("entry_portfolio_value", self.manager.portfolio_value) * state.get("allocation_size", 0.0)
-            for ticker, state in self.manager.open_trade_state.items()
-            if self.manager.open_positions.get(ticker, False)
-        )
-
-        # Unallocated liquid cash balance
-        unrealized_cash = round(float(self.manager.portfolio_value - allocated_capital), 2)
+        # How much profit you'd walk away with if you sold everything right now
+        unrealized_profit = round(ending_value - starting_value, 2)
 
         return {
-            "starting value": starting_value,
-            "ending value": ending_value,
-            "CAGR": cagr,
+            "starting_value": starting_value,
+            "ending_value": ending_value,
+            "cagr": cagr,
             "sharpe": sharpe,
-            "PSR": psr,
+            "psr": psr,
             "sortino": sortino,
             "expectancy": expectancy,
-            "win rate": win_rate,
-            "loss rate": loss_rate,
-            "average win": average_win,
-            "average loss": average_loss,
-            "max drawdown": max_drawdown,
-            "drawdown recovery": drawdown_recovery,
-            "unrealized cash": unrealized_cash,
+            "win_rate": win_rate,
+            "loss_rate": loss_rate,
+            "average_win": average_win,
+            "average_loss": average_loss,
+            "max_drawdown": max_drawdown,
+            "drawdown_recovery": max_duration,
+            "unrealized_profit": unrealized_profit,
             "equity": equity_curve,
         }
 

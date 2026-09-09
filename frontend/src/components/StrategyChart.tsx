@@ -96,7 +96,10 @@ export default function StrategyChart() {
       })
       .catch(() => {
         if (!cancelled) {
-          setStrategies([{ id: 'stock-health-filter', name: 'Stock Health Filter' }])
+          setStrategies([
+            { id: 'stock-health-filter', name: 'Stock Health Filter' },
+            { id: 'buy and hold', name: 'Buy & Hold' },
+          ])
         }
       })
 
@@ -140,10 +143,10 @@ export default function StrategyChart() {
 
     setInputError(null)
     setError(null)
-    
+
     // Clear out the previous results/trades immediately when a new run starts
     setBacktestResult(null)
-    
+
     setLoading(true)
 
     try {
@@ -241,68 +244,58 @@ export default function StrategyChart() {
   const orderedMetricsList = useMemo(() => {
     if (!rawMetrics || Object.keys(rawMetrics).length === 0) return []
 
-    const findKey = (...aliases: string[]) => {
-      const keys = Object.keys(rawMetrics)
-      return keys.find((k) =>
-        aliases.some(
-          (alias) =>
-            k.toLowerCase().replace(/[^a-z0-9]/g, '') === alias.toLowerCase().replace(/[^a-z0-9]/g, '')
-        )
-      )
-    }
+    // Hardcoded layout ordering for metrics
+    const metricOrder = [
+      'starting_value',
+      'ending_value',
+      'cagr',
+      'sharpe',
+      'sortino',
+      'psr',
+      'win_rate',
+      'loss_rate',
+      'average_win',
+      'average_loss',
+      'max_drawdown',
+      'expectancy',
+      'drawdown_recovery',
+      'unrealized_profit',
+    ]
 
-    const startValKey = findKey('starting_value', 'start_value', 'initial_capital')
-    const endValKey = findKey('ending_value', 'end_value', 'final_value')
+    const normalizeKey = (str: string) => str.toLowerCase().replace(/[^a-z0-9]/g, '')
 
-    const cagrKey = findKey('cagr', 'annualized_return')
-    const sharpeKey = findKey('sharpe', 'sharpe_ratio')
-
-    const sortinoKey = findKey('sortino', 'sortino_ratio')
-    const psrKey = findKey('psr', 'probabilistic_sharpe_ratio')
-
-    const winRateKey = findKey('win_rate', 'winrate')
-    const lossRateKey = findKey('loss_rate', 'lossrate')
-
-    const avgWinKey = findKey('average_win', 'avg_win')
-    const avgLossKey = findKey('average_loss', 'avg_loss')
-
-    const maxDrawdownKey = findKey('max_drawdown', 'max_drawdown_pct')
-    const expectancyKey = findKey('expectancy')
-
-    const ddRecoveryKey = findKey('drawdown_recovery', 'recovery_factor')
-    const unrealizedCashKey = findKey('unrealized_cash', 'unrealised_cash', 'cash')
+    // Map normalized key representations to actual backend keys
+    const rawKeyMap = new Map<string, string>()
+    Object.keys(rawMetrics).forEach((k) => {
+      rawKeyMap.set(normalizeKey(k), k)
+    })
 
     const items: Array<{ key: string; label: string; value: any }> = []
-    const usedKeySet = new Set<string>()
+    const usedRawKeys = new Set<string>()
 
-    const rawPnlKey = findKey('pnl')
-    if (rawPnlKey) usedKeySet.add(rawPnlKey)
+    // 1. Process target ordered keys
+    metricOrder.forEach((targetKey) => {
+      const normalizedTarget = normalizeKey(targetKey)
+      const actualRawKey = rawKeyMap.get(normalizedTarget)
 
-    const appendKey = (k?: string) => {
-      if (k && rawMetrics[k] !== undefined && !usedKeySet.has(k)) {
-        usedKeySet.add(k)
-        items.push({ key: k, label: formatMetricKey(k), value: rawMetrics[k] })
+      if (actualRawKey && rawMetrics[actualRawKey] !== undefined && !usedRawKeys.has(actualRawKey)) {
+        usedRawKeys.add(actualRawKey)
+        items.push({
+          key: actualRawKey,
+          label: formatMetricKey(actualRawKey),
+          value: rawMetrics[actualRawKey],
+        })
       }
-    }
+    })
 
-    appendKey(startValKey)
-    appendKey(endValKey)
-    appendKey(cagrKey)
-    appendKey(sharpeKey)
-    appendKey(sortinoKey)
-    appendKey(psrKey)
-    appendKey(winRateKey)
-    appendKey(lossRateKey)
-    appendKey(avgWinKey)
-    appendKey(avgLossKey)
-    appendKey(maxDrawdownKey)
-    appendKey(expectancyKey)
-    appendKey(ddRecoveryKey)
-    appendKey(unrealizedCashKey)
-
-    Object.keys(rawMetrics).forEach((k) => {
-      if (!usedKeySet.has(k)) {
-        appendKey(k)
+    // 2. Append any extra metrics not defined in metricOrder
+    Object.keys(rawMetrics).forEach((rawKey) => {
+      if (!usedRawKeys.has(rawKey)) {
+        items.push({
+          key: rawKey,
+          label: formatMetricKey(rawKey),
+          value: rawMetrics[rawKey],
+        })
       }
     })
 
@@ -410,75 +403,75 @@ export default function StrategyChart() {
                 onPointerMove={handlePointerMove}
                 onPointerLeave={() => setHover(null)}
               >
-              <svg width={width} height={height}>
-                {gridTicks.map((val) => {
-                  const y = getY(val)
-                  return (
-                    <g key={val}>
-                      <line x1={0} x2={plotWidth} y1={y} y2={y} className="strategy-grid-line" />
-                      <text x={plotWidth + 8} y={y + 4} className="strategy-axis-label">
-                        {formatNumber(val)}
-                      </text>
-                    </g>
-                  )
-                })}
+                <svg width={width} height={height}>
+                  {gridTicks.map((val) => {
+                    const y = getY(val)
+                    return (
+                      <g key={val}>
+                        <line x1={0} x2={plotWidth} y1={y} y2={y} className="strategy-grid-line" />
+                        <text x={plotWidth + 8} y={y + 4} className="strategy-axis-label">
+                          {formatNumber(val)}
+                        </text>
+                      </g>
+                    )
+                  })}
 
-                {candles.map((candle, idx) => {
-                  const step = plotWidth / Math.max(1, candles.length - 1)
-                  const x = idx * step
-                  const openY = getY(candle.open)
-                  const closeY = getY(candle.close)
-                  const highY = getY(candle.high)
-                  const lowY = getY(candle.low)
+                  {candles.map((candle, idx) => {
+                    const step = plotWidth / Math.max(1, candles.length - 1)
+                    const x = idx * step
+                    const openY = getY(candle.open)
+                    const closeY = getY(candle.close)
+                    const highY = getY(candle.high)
+                    const lowY = getY(candle.low)
 
-                  const isBullish = candle.close >= candle.open
-                  const candleColor = isBullish ? 'var(--success)' : 'var(--error)'
+                    const isBullish = candle.close >= candle.open
+                    const candleColor = isBullish ? 'var(--success)' : 'var(--error)'
 
-                  const candleWidth = Math.max(2, Math.min(8, step * 0.7))
-                  const topY = Math.min(openY, closeY)
-                  const bodyHeight = Math.max(1, Math.abs(closeY - openY))
+                    const candleWidth = Math.max(2, Math.min(8, step * 0.7))
+                    const topY = Math.min(openY, closeY)
+                    const bodyHeight = Math.max(1, Math.abs(closeY - openY))
 
-                  return (
-                    <g key={candle.date + idx}>
-                      <line x1={x} x2={x} y1={highY} y2={lowY} stroke={candleColor} strokeWidth={1} />
-                      <rect
-                        x={x - candleWidth / 2}
-                        y={topY}
-                        width={candleWidth}
-                        height={bodyHeight}
-                        fill={candleColor}
-                        rx={1}
+                    return (
+                      <g key={candle.date + idx}>
+                        <line x1={x} x2={x} y1={highY} y2={lowY} stroke={candleColor} strokeWidth={1} />
+                        <rect
+                          x={x - candleWidth / 2}
+                          y={topY}
+                          width={candleWidth}
+                          height={bodyHeight}
+                          fill={candleColor}
+                          rx={1}
+                        />
+                      </g>
+                    );
+                  })}
+
+                  {hover && (
+                    <g pointerEvents="none">
+                      <line
+                        x1={hover.x}
+                        x2={hover.x}
+                        y1={PADDING_TOP}
+                        y2={PADDING_TOP + plotHeight}
+                        className="strategy-crosshair"
                       />
                     </g>
-                  )
-                })}
+                  )}
+                </svg>
 
-                {hover && (
-                  <g pointerEvents="none">
-                    <line
-                      x1={hover.x}
-                      x2={hover.x}
-                      y1={PADDING_TOP}
-                      y2={PADDING_TOP + plotHeight}
-                      className="strategy-crosshair"
-                    />
-                  </g>
+                {hoveredCandle && hover && (
+                  <div
+                    className="strategy-tooltip"
+                    style={{
+                      left: Math.min(hover.x + 12, plotWidth - 160),
+                      top: Math.max(PADDING_TOP, hover.y - 65),
+                    }}
+                  >
+                    <p className="tooltip-date">{hoveredCandle.date}</p>
+                    <p className="tooltip-value">O: {formatNumber(hoveredCandle.open)}</p>
+                    <p className="tooltip-value">C: {formatNumber(hoveredCandle.close)}</p>
+                  </div>
                 )}
-              </svg>
-
-              {hoveredCandle && hover && (
-                <div
-                  className="strategy-tooltip"
-                  style={{
-                    left: Math.min(hover.x + 12, plotWidth - 160),
-                    top: Math.max(PADDING_TOP, hover.y - 65),
-                  }}
-                >
-                  <p className="tooltip-date">{hoveredCandle.date}</p>
-                  <p className="tooltip-value">O: {formatNumber(hoveredCandle.open)}</p>
-                  <p className="tooltip-value">C: {formatNumber(hoveredCandle.close)}</p>
-                </div>
-              )}
               </div>
             </div>
 
