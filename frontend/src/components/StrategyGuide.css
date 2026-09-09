@@ -1,0 +1,511 @@
+/* src/components/StrategyGuide.css */
+
+/* ---------- Outer section ---------- */
+.stg-guide {
+  margin-top: calc(var(--space-2xl) + var(--space-xl));
+  padding-top: var(--space-xl);
+  border-top: 1px solid var(--border-subtle);
+  font-family: var(--font-sans);
+  color: var(--text-primary);
+}
+
+.stg-title {
+  font-family: var(--font-heading);
+  font-size: var(--text-xl);
+  line-height: 1.2;
+  margin: var(--space-sm) 0 var(--space-md);
+  color: var(--text-primary);
+}
+
+.stg-deck {
+  max-width: 64ch;
+  font-size: var(--text-base);
+  line-height: 1.7;
+  color: var(--text-primary);
+  opacity: 0.9;
+  margin: 0 0 var(--space-lg);
+}
+
+/* ---------- Chapter cards ---------- */
+.stg-flow {
+  display: grid;
+  gap: var(--space-xl);
+}
+
+.stg-chapter {
+  position: relative;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-lg);
+}
+
+.stg-chapter::after {
+  content: attr(data-num);
+  position: absolute;
+  top: var(--space-sm);
+  right: var(--space-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--space-xl);
+  height: var(--space-xl);
+  padding: 0 var(--space-2xs);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface-hover);
+  border: 1px solid var(--border-subtle);
+  font-family: var(--font-mono);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--text-muted);
+  line-height: 1;
+}
+
+.stg-chapter-title {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  font-family: var(--font-heading);
+  font-size: var(--text-lg);
+  font-weight: 400;
+  line-height: 1.3;
+  margin: 0 0 var(--space-sm);
+  color: var(--text-primary);
+}
+
+.stg-chapter-title::before {
+  content: "";
+  width: 9px;
+  height: 9px;
+  border-radius: var(--radius-full);
+  background: var(--accent);
+  flex: none;
+}
+
+.stg-tag {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.stg-copy {
+  font-size: var(--text-base);
+  line-height: 1.7;
+  margin: 0 0 var(--space-sm);
+  color: var(--text-primary);
+}
+
+.stg-copy strong {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.stg-list {
+  margin: 0 0 var(--space-sm);
+  padding-left: var(--space-md);
+  font-size: var(--text-base);
+  line-height: 1.7;
+  color: var(--text-primary);
+}
+
+.stg-list li {
+  margin: 0 0 var(--space-xs);
+}
+
+.stg-list li strong {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* Colored good sign strip */
+.stg-sign {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  background: var(--accent-muted);
+  border: 1px solid var(--border-subtle);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: var(--space-md);
+  margin: var(--space-md) 0 0;
+}
+
+.stg-sign p {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  color: var(--accent);
+}
+
+.stg-sign strong {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* Example / work-it-out box */
+.stg-example {
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface-hover);
+  padding: var(--space-sm) var(--space-md);
+  margin: var(--space-md) 0 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: 1.7;
+  color: var(--text-muted);
+  white-space: pre-line;
+}
+
+.stg-example strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* ---------- Investing vs trading duo ---------- */
+.stg-duo {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-lg);
+  margin-top: var(--space-md);
+}
+
+.stg-duo-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-top-width: 3px;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-md) var(--space-lg);
+}
+
+.stg-duo-card.is-invest {
+  border-top-color: var(--accent);
+}
+
+.stg-duo-card.is-trade {
+  border-top-color: var(--success);
+}
+
+.stg-duo-tag {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 0 0 var(--space-2xs);
+}
+
+.stg-duo-title {
+  font-family: var(--font-heading);
+  font-size: var(--text-lg);
+  font-weight: 400;
+  margin: 0 0 var(--space-xs);
+  color: var(--text-primary);
+}
+
+.stg-duo-copy {
+  font-size: var(--text-sm);
+  line-height: 1.7;
+  color: var(--text-primary);
+  opacity: 0.92;
+  margin: 0;
+}
+
+/* ---------- Scorecard table ---------- */
+.stg-scorecard-wrap {
+  width: 100%;
+  overflow-x: hidden; /* Prevents unwanted horizontal scrollbars */
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  margin-top: var(--space-lg);
+}
+
+.stg-scorecard {
+  width: 100%;
+  min-width: 0; /* Ensures dynamic fit within parent */
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: var(--text-sm);
+}
+
+.stg-scorecard th:nth-child(1) {
+  width: 25%;
+}
+
+.stg-scorecard th:nth-child(2) {
+  width: 45%;
+}
+
+.stg-scorecard th:nth-child(3) {
+  width: 30%;
+}
+
+.stg-scorecard th {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  background: var(--bg-surface-hover);
+  padding: var(--space-sm) var(--space-md);
+  text-align: left;
+  border-bottom: 1px solid var(--border-strong);
+}
+
+.stg-scorecard td {
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  vertical-align: top;
+  word-break: break-word; /* Allows long strings to wrap cleanly */
+}
+
+.stg-scorecard tbody tr:nth-child(even) td {
+  background: var(--bg-surface-hover);
+}
+
+.stg-scorecard tr:last-child td {
+  border-bottom: none;
+}
+
+.stg-scorecard td:first-child {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  white-space: normal; /* Permits column titles to wrap */
+}
+
+.stg-scorecard td:last-child {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--success);
+  white-space: normal; /* Permits long range criteria to wrap */
+}
+
+/* ---------- Callouts ---------- */
+.stg-fact {
+  background: var(--bg-surface);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: var(--space-md) var(--space-lg);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-md);
+}
+
+.stg-fact svg {
+  flex: none;
+  color: var(--accent);
+  margin-top: 2px;
+}
+
+.stg-fact-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.stg-fact-body .stg-tag {
+  display: block;
+  margin: 0 0 var(--space-2xs);
+}
+
+.stg-fact-copy {
+  font-size: var(--text-sm);
+  line-height: 1.65;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+/* ---------- Field notes ---------- */
+.stg-notes {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-md) var(--space-lg);
+}
+
+.stg-notes-heading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin: 0 0 var(--space-sm);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.stg-notes-heading::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--success);
+  flex: none;
+}
+
+.stg-notes-list {
+  margin: 0;
+  padding-left: var(--space-md);
+  font-size: var(--text-sm);
+  line-height: 1.65;
+  color: var(--text-primary);
+}
+
+.stg-notes-list li {
+  margin: 0 0 var(--space-sm);
+}
+
+.stg-notes-list li strong {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ---------- Five minute ritual ---------- */
+.stg-ritual {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  padding: var(--space-lg);
+}
+
+.stg-ritual-heading {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  font-family: var(--font-heading);
+  font-size: var(--text-lg);
+  margin: 0 0 var(--space-xs);
+  color: var(--text-primary);
+}
+
+.stg-ritual-heading::before {
+  content: "";
+  width: 9px;
+  height: 9px;
+  border-radius: var(--radius-full);
+  background: var(--success);
+  flex: none;
+}
+
+.stg-ritual-deck {
+  max-width: 60ch;
+  font-size: var(--text-sm);
+  line-height: 1.65;
+  color: var(--text-muted);
+  margin: 0 0 var(--space-md);
+}
+
+.stg-ritual-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 var(--space-sm);
+  display: grid;
+  gap: var(--space-sm);
+}
+
+.stg-ritual-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--text-sm);
+  line-height: 1.55;
+  color: var(--text-primary);
+  background: var(--bg-surface-hover);
+  border-radius: var(--radius-sm);
+}
+
+.stg-ritual-list li::before {
+  content: "";
+  width: calc(var(--space-md) * 1.25);
+  height: calc(var(--space-md) * 1.25);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  flex: none;
+  margin-top: 2px;
+}
+
+.stg-ritual-list li strong {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.stg-ritual-outro {
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  color: var(--text-primary);
+  opacity: 0.92;
+  margin: var(--space-md) 0 0;
+}
+
+/* ---------- Disclaimer ---------- */
+.stg-disclaimer {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-left: 3px solid var(--error);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-md) var(--space-lg);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-md);
+}
+
+.stg-disclaimer svg {
+  flex: none;
+  color: var(--error);
+  margin-top: 2px;
+}
+
+.stg-disclaimer-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.stg-disclaimer-body .stg-tag {
+  display: block;
+  margin: 0 0 var(--space-2xs);
+}
+
+.stg-disclaimer-copy {
+  font-size: var(--text-sm);
+  line-height: 1.65;
+  color: var(--text-primary);
+  margin: 0 0 var(--space-sm);
+}
+
+.stg-disclaimer-copy:last-child {
+  margin: 0;
+}
+
+/* ---------- Spacing helpers ---------- */
+.stg-section-gap {
+  margin-top: calc(var(--space-xl) + var(--space-lg));
+}
+
+.stg-2col {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-lg);
+}
+
+@media (min-width: 48rem) {
+  .stg-2col {
+    grid-template-columns: 1fr 1fr;
+  }
+}

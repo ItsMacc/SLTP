@@ -4,6 +4,7 @@ import './StrategyChart.css'
 import Select, { type SelectOption } from '../ui/Select'
 import TradeResults, { type TradeRecord } from './TradeResults'
 import DatePicker from '../ui/DatePicker'
+import StrategyGuide from './StrategyGuide'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 
@@ -503,6 +504,8 @@ export default function StrategyChart() {
       )}
 
       {backtestResult && <TradeResults trades={backtestResult.trades ?? null} />}
+
+      <StrategyGuide />
     </div>
   )
 }
