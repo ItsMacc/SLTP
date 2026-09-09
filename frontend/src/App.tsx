@@ -17,7 +17,6 @@ export interface UserProfile {
   settings?: { theme?: string; [key: string]: any };
 }
 
-// Tabs that require the user to be signed in before they can be visited.
 const AUTH_REQUIRED_TABS = ['lab'];
 
 export default function App() {
@@ -80,43 +79,59 @@ export default function App() {
         onAuthClick={(mode) => { setAuthMode(mode); setLegalPage(null); }}
         sessionUserName={user?.name}
         sessionUserEmail={user?.email}
-        onSignOut={async () => { await supabase.auth.signOut(); setUser(null); }}
+        onSignOut={async () => { 
+          setActiveTab('home');
+          setUser(null);
+          setAuthMode(null);
+          setLegalPage(null);
+          await supabase.auth.signOut(); 
+        }}
         onSettingsClick={() => { setActiveTab('settings'); setAuthMode(null); setLegalPage(null); }}
       />
 
       <main style={{ width: '100%', flex: 1, display: 'flex', flexDirection: 'column' }}>
         {legalPage ? (
           <LegalPage page={legalPage} onBack={() => setLegalPage(null)} />
-        ) : authMode ? (
-          <AuthCard key={authMode} initialMode={authMode} onSuccess={(u) => {
-            setUser((prev) => ({
-              id: u.id ?? prev?.id,
-              email: u.email,
-              name: u.name,
-              settings: prev?.settings,
-            }));
-            setAuthMode(null);
-          }} />
-        ) : activeTab === 'settings' && user?.id ? (
-          <SettingsPage 
-            userId={user.id}
-            userEmail={user.email}
-            initialName={user.name}
-            onProfileUpdated={(newName) => setUser((prev) => prev ? { ...prev, name: newName } : null)}
-            onAccountDeleted={async () => { await supabase.auth.signOut(); setUser(null); }}
-          />
-        ) : activeTab === 'performance' ? (
-          <PerformancePage/>
         ) : (
-          <div style={{ padding: '4rem 2rem', textAlign: 'center' }}>
-            <h1 style={{ fontSize: '2rem', marginBottom: '1rem' }}>
-              {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} View
-            </h1>
-            <p style={{ color: 'var(--text-muted)' }}>
-              {activeTab === 'settings' 
-                ? 'Please sign in to access your settings workspace.' 
-                : `Currently rendering the active layout module for ${activeTab}.`}
-            </p>
+          <div key={authMode || activeTab} className="page-transition">
+            {authMode ? (
+              <AuthCard initialMode={authMode} onSuccess={(u) => {
+                setUser((prev) => ({
+                  id: u.id ?? prev?.id,
+                  email: u.email,
+                  name: u.name,
+                  settings: prev?.settings,
+                }));
+                setAuthMode(null);
+              }} />
+            ) : activeTab === 'settings' && user?.id ? (
+              <SettingsPage 
+                userId={user.id}
+                userEmail={user.email}
+                initialName={user.name}
+                onProfileUpdated={(newName) => setUser((prev) => prev ? { ...prev, name: newName } : null)}
+                onAccountDeleted={async () => { 
+                  setActiveTab('home');
+                  setUser(null);
+                  setAuthMode(null);
+                  setLegalPage(null);
+                  await supabase.auth.signOut(); 
+                }}
+              />
+            ) : activeTab === 'performance' ? (
+              <PerformancePage/>
+            ) : (
+              <div style={{ padding: '4rem 2rem', textAlign: 'center' }}>
+                <h1 style={{ fontSize: '2rem', marginBottom: '1rem' }}>
+                  {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} View
+                </h1>
+                <p style={{ color: 'var(--text-muted)' }}>
+                  {activeTab === 'settings' 
+                    ? 'Please sign in to access your settings workspace.' 
+                    : `Currently rendering the active layout module for ${activeTab}.`}
+                </p>
+              </div>
+            )}
           </div>
         )}
       </main>

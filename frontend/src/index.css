@@ -164,3 +164,23 @@ h1, h2, h3, h4, h5, h6 {
     padding: 0 var(--space-md) var(--space-md) var(--space-md);
   }
 }
+
+/* Page Navigation Transition */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.page-transition {
+  animation: fadeIn 0.35s ease-out forwards;
+  width: 100%;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
