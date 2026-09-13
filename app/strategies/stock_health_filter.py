@@ -163,9 +163,9 @@ class StockHealthFilterStrategy(Strategy):
     def _is_market_favorable(self, current_date: str) -> bool:
         # Returns True when market regime if favorable to trade, otherwise False
         market_data = get_stock_history('SPY', end=current_date).close_price
-        sma = self._sma(market_data, window=300)
+        ema = self._ema(market_data, window=200)
 
-        if len(market_data) < 300:
+        if len(market_data) < 200:
             return True
 
-        return market_data[-1] >= sma[-1]
+        return market_data[-1] >= ema[-1]
