@@ -15,7 +15,7 @@ class StockHealthFilterManager(PortfolioManager):
         super().__init__()
 
         # Initial Configurations
-        self.max_positions = 10
+        self.max_positions = 20
         self.REBALANCE_FREQUENCY = RebalanceFrequency.QUARTERLY
         self.WARM_UP_PERIOD = 60
 

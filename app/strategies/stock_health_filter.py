@@ -53,7 +53,7 @@ class StockHealthFilterStrategy(Strategy):
         # Build output metadata and metric dictionary
         metrics, meta_data = self._build_decision_payload(ticker, today_date, ratios, deltas, h_short_list, h_long_list, close_arr)
 
-        signal_type = 'BUY' if is_spike else 'HOLD'
+        signal_type = 'BUY' if (is_spike and h_long_list[1] > 0.01) else 'HOLD'
         final_confidence = confidence if is_spike else 1.0
 
         return StrategyDecision(signal=signal_type, confidence=final_confidence, metrics=metrics, meta_data=meta_data)
