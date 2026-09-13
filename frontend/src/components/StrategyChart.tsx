@@ -46,6 +46,8 @@ const formatNumber = (val: number) =>
   val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 const formatMetricKey = (key: string) => {
+  if (key.toLowerCase() === 'cagr') return 'CAGR'
+  if (key.toLowerCase() === 'psr') return 'PSR'
   return key
     .replace(/_/g, ' ')
     .replace(/([a-z])([A-Z])/g, '$1 $2')
