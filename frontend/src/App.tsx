@@ -6,6 +6,7 @@ import Footer from './components/Footer';
 import SettingsPage, { applyAndStoreUserSettings } from './pages/SettingsPage';
 import LegalPage, { type LegalPageKind } from './pages/LegalPage';
 import PerformancePage from './pages/PerformancePage';
+import StrategiesPage from './pages/StrategiesPage';
 import ErrorToast from './ui/ErrorToast';
 import { supabase } from '../lib/supabase';
 import './index.css';
@@ -120,6 +121,8 @@ export default function App() {
               />
             ) : activeTab === 'performance' ? (
               <PerformancePage/>
+            ) : activeTab === 'strategies' ? (
+              <StrategiesPage/>
             ) : (
               <div style={{ padding: '4rem 2rem', textAlign: 'center' }}>
                 <h1 style={{ fontSize: '2rem', marginBottom: '1rem' }}>

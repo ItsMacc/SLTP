@@ -1,0 +1,97 @@
+/* Container for parsed text */
+.textContainer {
+  display: inline;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  line-height: 1.6;
+}
+
+/* Interactive underlined term */
+.trigger {
+  all: unset;
+  display: inline;
+  cursor: pointer;
+  font-weight: 500;
+  color: var(--text-primary);
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+  text-decoration-style: dotted;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+  border-radius: var(--radius-sm);
+  padding: 0 2px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  touch-action: manipulation;
+}
+
+/* Hover effects for pointer devices */
+@media (hover: hover) and (pointer: fine) {
+  .trigger:hover {
+    color: var(--accent-hover);
+    text-decoration-color: var(--accent-hover);
+    background-color: var(--accent-muted);
+  }
+}
+
+/* Touch active/focused state */
+.trigger:focus-visible,
+.trigger[data-state='open'] {
+  color: var(--accent-hover);
+  text-decoration-color: var(--accent-hover);
+  background-color: var(--accent-muted);
+}
+
+/* Floating tooltip overlay - using portalled position */
+.tooltipContent {
+  z-index: 9999;
+  max-width: 280px;
+  padding: var(--space-xs) var(--space-sm);
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  animation: tooltipFade 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.termHeader {
+  display: block;
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: var(--space-3xs);
+}
+
+.termDefinition {
+  color: var(--text-primary);
+}
+
+.termExample {
+  display: block;
+  margin-top: var(--space-2xs);
+  padding-top: var(--space-2xs);
+  border-top: 1px dashed var(--border-subtle);
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+/* Tooltip Arrow */
+.tooltipArrow {
+  fill: var(--bg-surface);
+  stroke: var(--border-strong);
+  stroke-width: 1px;
+}
+
+@keyframes tooltipFade {
+  from {
+    opacity: 0;
+    transform: translateY(2px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
