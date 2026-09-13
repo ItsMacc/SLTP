@@ -64,7 +64,6 @@
   color: var(--accent);
 }
 
-/* Dropdown panel + slide-in animation */
 @keyframes dropdownSlide {
   from {
     opacity: 0;
