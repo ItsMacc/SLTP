@@ -149,7 +149,7 @@ class Backtester:
         downside_std = float(np.std(negative_returns, ddof=1)) if len(negative_returns) > 1 else 0.0
         sortino = round((mean_return / downside_std) * np.sqrt(252), 4) if downside_std > 0 else 0.0
 
-        # Vectorized Max Drawdown & Duration Calculation
+        # Vectorized Max Drawdown & Accurate Recovery Duration Calculation
         vals = np.array(values, dtype=float)
         cummax = np.maximum.accumulate(vals)
         drawdowns = (cummax - vals) / cummax
@@ -157,16 +157,28 @@ class Backtester:
         max_dd_ratio = float(np.max(drawdowns)) if len(drawdowns) > 0 else 0.0
         max_drawdown = round(max_dd_ratio * 100.0, 2)
 
-        # Max Drawdown Duration
+        # True Drawdown Recovery Duration (bars from peak drop to recovery)
         max_duration = 0
         current_duration = 0
-        for i in range(1, len(vals)):
+        in_drawdown = False
+
+        for i in range(len(vals)):
             if vals[i] < cummax[i]:
-                current_duration += 1
-                if current_duration > max_duration:
-                    max_duration = current_duration
+                if not in_drawdown:
+                    in_drawdown = True
+                    current_duration = 1
+                else:
+                    current_duration += 1
             else:
-                current_duration = 0
+                if in_drawdown:
+                    if current_duration > max_duration:
+                        max_duration = current_duration
+                    current_duration = 0
+                    in_drawdown = False
+
+        # Catch case if backtest ends while still in a drawdown
+        if in_drawdown and current_duration > max_duration:
+            max_duration = current_duration
 
         all_closed_returns = []
         for ticker, trade_list in self.manager.trades.items():
@@ -187,8 +199,18 @@ class Backtester:
         loss_prob = len(losing_trades) / total_trades if total_trades > 0 else 0.0
         expectancy = round((win_prob * (average_win / 100.0)) - (loss_prob * abs(average_loss / 100.0)), 4)
 
-        # How much profit you'd walk away with if you sold everything right now
-        unrealized_profit = round(ending_value - starting_value, 2)
+        unrealized_profit = 0.0
+        for ticker, trade_list in self.manager.trades.items():
+            if self.manager.open_positions.get(ticker, False) and trade_list:
+                last_trade = trade_list[-1]
+                state = self.manager.open_trade_state.get(ticker)
+                if state and last_trade.entry_price and last_trade.entry_price > 0:
+                    last_close = state["last_close"]
+                    entry_portfolio_value = state["entry_portfolio_value"]
+                    pct_gain = (last_close - last_trade.entry_price) / last_trade.entry_price
+                    open_profit = entry_portfolio_value * last_trade.allocation_size * pct_gain
+                    unrealized_profit += open_profit
+        unrealized_profit = round(unrealized_profit, 2)
 
         return {
             "starting_value": starting_value,

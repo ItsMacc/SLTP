@@ -24,8 +24,8 @@ class StockHealthFilterStrategy(Strategy):
         self.manager = StockHealthFilterManager()
 
         # Strategy Parameters
-        self.SHORT_BARS = 21  # Short-term trading window length
-        self.LONG_BARS = 63  # Long-term baseline window length
+        self.SHORT_BARS = 20  # Short-term trading window length
+        self.LONG_BARS = 60  # Long-term baseline window length
 
         # Spike Detection Thresholds
         self.SPIKE_PEAK_THRESHOLD = 15.0  # Absolute min ratio peak to qualify as a massive spike
