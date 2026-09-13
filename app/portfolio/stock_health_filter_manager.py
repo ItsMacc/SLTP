@@ -149,7 +149,7 @@ class StockHealthFilterManager(PortfolioManager):
 
     def initialize_universe(self, current_date: str) -> bool:
         # Fetch top qualifying candidates
-        n = 25
+        n = 50
         top = self._get_top_candidates(current_date, n=n, exclude_current=False)
 
         if len(top) < n:

@@ -1,5 +1,6 @@
 # -------- Imports --------
 import numpy as np
+from app.database.fetch import get_stock_history
 from app.portfolio.stock_health_filter_manager import StockHealthFilterManager
 from app.strategies.base import Strategy, StrategyDecision
 from app.utils.StockData import StockData
@@ -40,6 +41,10 @@ class StockHealthFilterStrategy(Strategy):
             raise ValueError(f"{ticker} does not contain enough bars | required: {self.MIN_BARS_REQUIRED}")
 
         today_date = str(history.dates[-1])
+
+        # Check if market conditions are favorable
+        if not self._is_market_favorable(today_date):
+            return StrategyDecision(signal="NONE", confidence=0.0, metrics=None, meta_data=None)
 
         # Calculate short-term and long-term health ratio metrics
         ratios, deltas, h_short_list, h_long_list = self._compute_ratio_pair(close_arr)
@@ -145,7 +150,7 @@ class StockHealthFilterStrategy(Strategy):
         daily_growth_pct = float((np.exp(slope) - 1.0) * 100.0)
 
         # Score higher if trend line is overall positive
-        trend_score = 100.0 * r_squared if daily_growth_pct > 0 else 25.0 * r_squared
+        trend_score = 100.0 * r_squared if daily_growth_pct > 0 else 1.0 * r_squared
 
         # Calculate frequency of down days to penalize high volatility
         returns = np.diff(sub_close) / sub_close[:-1]
@@ -154,3 +159,13 @@ class StockHealthFilterStrategy(Strategy):
 
         # Combine trend and downside score into a final health score
         return max(0.01, float(np.sqrt(trend_score * downside_score)))
+
+    def _is_market_favorable(self, current_date: str) -> bool:
+        # Returns True when market regime if favorable to trade, otherwise False
+        market_data = get_stock_history('SPY', end=current_date).close_price
+        sma = self._sma(market_data, window=300)
+
+        if len(market_data) < 300:
+            return True
+
+        return market_data[-1] >= sma[-1]
