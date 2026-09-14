@@ -1,6 +1,5 @@
 # -------- Imports --------
 import numpy as np
-from app.database.fetch import get_stock_history
 from app.portfolio.stock_health_filter_manager import StockHealthFilterManager
 from app.strategies.base import Strategy, StrategyDecision
 from app.utils.StockData import StockData
@@ -24,14 +23,15 @@ class StockHealthFilterStrategy(Strategy):
         self.manager = StockHealthFilterManager()
 
         # Strategy Parameters
-        self.SHORT_BARS = 20  # Short-term trading window length
-        self.LONG_BARS = 60  # Long-term baseline window length
+        self.SHORT_BARS = 15  # Short-term trading window length
+        self.LONG_BARS = 45  # Long-term baseline window length
+        self.SMA_LENGTH = 100   # sma window length
 
         # Spike Detection Thresholds
-        self.SPIKE_PEAK_THRESHOLD = 15.0  # Absolute min ratio peak to qualify as a massive spike
-        self.MIN_1D_VELOCITY = 10.0  # Minimum 1-day jump required (delta_1d)
+        self.SPIKE_PEAK_THRESHOLD = 50.0  # Absolute min ratio peak to qualify as a massive spike
+        self.MIN_1D_VELOCITY = 50.0  # Minimum 1-day jump required (delta_1d)
 
-        self.MIN_BARS_REQUIRED = self.LONG_BARS + 2  # Add buffer
+        self.MIN_BARS_REQUIRED = max(self.SHORT_BARS, self.LONG_BARS, self.SMA_LENGTH) + 2
 
 
     def generate_signal(self, ticker: str, history: StockData) -> StrategyDecision:
@@ -42,14 +42,14 @@ class StockHealthFilterStrategy(Strategy):
 
         today_date = str(history.dates[-1])
 
-        # Check if market conditions are favorable
-        if not self._is_market_favorable(today_date):
-            return StrategyDecision(signal="NONE", confidence=0.0, metrics=None, meta_data=None)
-
         # Calculate short-term and long-term health ratio metrics
         ratios, deltas, h_short_list, h_long_list = self._compute_ratio_pair(close_arr)
         current_ratio = ratios[1]
         delta_1d = deltas[1]
+
+        # Check if stock is above it's current ema
+        sma = self._sma(values=close_arr, window=self.SMA_LENGTH)
+        is_above_sma = close_arr[-1] >= sma[-1]
 
         # Check if today's price action qualifies as a sudden upward health spike
         is_spike = (current_ratio >= self.SPIKE_PEAK_THRESHOLD) and (delta_1d >= self.MIN_1D_VELOCITY)
@@ -58,7 +58,8 @@ class StockHealthFilterStrategy(Strategy):
         # Build output metadata and metric dictionary
         metrics, meta_data = self._build_decision_payload(ticker, today_date, ratios, deltas, h_short_list, h_long_list, close_arr)
 
-        signal_type = 'BUY' if (is_spike and h_long_list[1] > 0.01) else 'HOLD'
+        buy_condition = is_spike and is_above_sma and h_long_list[1] > 0.01
+        signal_type = 'BUY' if buy_condition else 'HOLD'
         final_confidence = confidence if is_spike else 1.0
 
         return StrategyDecision(signal=signal_type, confidence=final_confidence, metrics=metrics, meta_data=meta_data)
@@ -159,13 +160,3 @@ class StockHealthFilterStrategy(Strategy):
 
         # Combine trend and downside score into a final health score
         return max(0.01, float(np.sqrt(trend_score * downside_score)))
-
-    def _is_market_favorable(self, current_date: str) -> bool:
-        # Returns True when market regime if favorable to trade, otherwise False
-        market_data = get_stock_history('SPY', end=current_date).close_price
-        ema = self._ema(market_data, window=200)
-
-        if len(market_data) < 200:
-            return True
-
-        return market_data[-1] >= ema[-1]

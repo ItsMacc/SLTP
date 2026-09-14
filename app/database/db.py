@@ -250,7 +250,7 @@ def insert_or_update_data() -> None:
                 period="max",
                 interval="1d",
                 group_by="ticker",
-                auto_adjust=True,
+                auto_adjust=False,
                 progress=False,
             )
             process_and_save_bars(download_all_data, df_max)
@@ -265,7 +265,7 @@ def insert_or_update_data() -> None:
                 period="5d",
                 interval="1d",
                 group_by="ticker",
-                auto_adjust=True,
+                auto_adjust=False,
                 progress=False,
             )
             process_and_save_bars(download_previous_data, df_5d)
