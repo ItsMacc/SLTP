@@ -1,3 +1,10 @@
+/* ============================================================
+   SettingsPage.css — Settings layout, sidebar nav, danger modal
+
+   Width conventions: % / vw for layout widths; rem for fixed
+   UI atoms. Breakpoints in rem.
+   ============================================================ */
+
 /* ---------- Settings page ---------- */
 .st-settings-layout {
   padding: 3rem 2rem;
@@ -9,7 +16,7 @@
 }
 
 .st-settings-container {
-  max-width: 1100px;
+  max-width: min(68.75rem, 95vw); /* ≈1100px, capped to viewport on small screens */
   width: 100%;
 }
 
@@ -24,7 +31,7 @@
 
 .st-settings-grid {
   display: grid;
-  grid-template-columns: 280px 1fr;
+  grid-template-columns: min(17.5rem, 30%) minmax(0, 1fr); /* ≈280px sidebar, capped to 30% viewport */
   gap: 2.5rem;
   align-items: start;
 }
@@ -93,7 +100,7 @@
 }
 
 .st-settings-divider {
-  height: 1px;
+  height: 0.0625rem; /* ≈1px hairline */
   background: var(--border-subtle);
   border-bottom: 1px dashed var(--border-strong);
   margin-bottom: 2rem;
@@ -161,6 +168,17 @@
   border: 1px solid var(--error);
 }
 
+/* ---------- Mobile: stack sidebar above content ---------- */
+@media (max-width: 48rem) {
+  .st-settings-grid {
+    grid-template-columns: 1fr; /* sidebar stacks above the card */
+  }
+
+  .st-settings-layout {
+    padding: 2rem 1rem;
+  }
+}
+
 /* ---------- Delete Account modal ---------- */
 .st-settings-modal-overlay {
   position: fixed;
@@ -176,7 +194,7 @@
 
 .st-settings-modal {
   width: 100%;
-  max-width: 26rem;
+  max-width: min(26rem, 92vw); /* fluid cap — never exceeds viewport on small phones */
   background: var(--bg-surface);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);

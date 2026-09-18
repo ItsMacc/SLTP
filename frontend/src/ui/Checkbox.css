@@ -1,3 +1,10 @@
+/* ============================================================
+   Checkbox.css — Custom checkbox with label + description
+
+   Width conventions: % / vw for layout widths; rem for fixed
+   UI atoms (box, icon). Breakpoints in rem.
+   ============================================================ */
+
 /* ---------- Checkbox ---------- */
 .checkbox-wrapper {
   display: flex;

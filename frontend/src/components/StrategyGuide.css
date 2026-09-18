@@ -1,3 +1,10 @@
+/* ============================================================
+   StrategyGuide.css — Long-form strategy guide chapters
+
+   Width conventions: % / vw / ch for layout widths; rem for
+   fixed-size atoms. Breakpoints in rem.
+   ============================================================ */
+
 /* src/components/StrategyGuide.css */
 
 /* ---------- Outer section ---------- */
@@ -76,8 +83,8 @@
 
 .stg-chapter-title::before {
   content: "";
-  width: 9px;
-  height: 9px;
+  width: 0.5625rem; /* ≈9px — fixed-size dot */
+  height: 0.5625rem;
   border-radius: var(--radius-full);
   background: var(--accent);
   flex: none;
@@ -168,7 +175,7 @@
 /* ---------- Investing vs trading duo ---------- */
 .stg-duo {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(17.5rem, 1fr)); /* ≈280px min track */
   gap: var(--space-lg);
   margin-top: var(--space-md);
 }
@@ -178,7 +185,7 @@
   flex-direction: column;
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
-  border-top-width: 3px;
+  border-top-width: 0.1875rem; /* ≈3px accent strip */
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
   padding: var(--space-md) var(--space-lg);
@@ -350,8 +357,8 @@
 
 .stg-notes-heading::before {
   content: "";
-  width: 8px;
-  height: 8px;
+  width: 0.5rem;  /* ≈8px — fixed-size dot */
+  height: 0.5rem;
   border-radius: var(--radius-full);
   background: var(--success);
   flex: none;
@@ -395,8 +402,8 @@
 
 .stg-ritual-heading::before {
   content: "";
-  width: 9px;
-  height: 9px;
+  width: 0.5625rem; /* ≈9px — fixed-size dot */
+  height: 0.5625rem;
   border-radius: var(--radius-full);
   background: var(--success);
   flex: none;

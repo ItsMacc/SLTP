@@ -1,3 +1,10 @@
+/* ============================================================
+   Chart.css — Candlestick chart card, toolbar, tooltip
+
+   Width conventions: % / vw for layout widths; rem for fixed
+   UI atoms. Breakpoints in rem.
+   ============================================================ */
+
 .chart-card {
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
@@ -68,8 +75,8 @@
 }
 
 .chart-zoom-btn {
-  width: 28px;
-  height: 26px;
+  width: 1.75rem; /* ≈28px — fixed-size control */
+  height: 1.625rem;
   border: none;
   background: var(--bg-surface-hover);
   color: var(--text-primary);
@@ -118,7 +125,7 @@
 }
 
 .chart-axis-label {
-  font-size: 10px;
+  font-size: 0.625rem; /* ≈10px — fixed-size SVG text */
   fill: var(--text-muted);
   font-family: var(--font-mono);
 }
@@ -140,7 +147,7 @@
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   padding: var(--space-sm) var(--space-md);
-  min-width: 140px;
+  min-width: min(8.75rem, 90%); /* ≈140px, viewport-safe on mobile */
   pointer-events: none;
   box-shadow: var(--shadow-lg);
 }
@@ -175,7 +182,8 @@
   margin: var(--space-sm) 0 0;
 }
 
-@media (max-width: 560px) {
+/* ---------- Mobile: stack toolbar, stretch actions ---------- */
+@media (max-width: 35rem) { /* ≈560px */
   .chart-toolbar { flex-direction: column; }
   .chart-toolbar-actions { width: 100%; justify-content: space-between; }
 }

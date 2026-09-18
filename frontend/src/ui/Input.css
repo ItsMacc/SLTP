@@ -1,3 +1,10 @@
+/* ============================================================
+   Input.css — Text input with optional icon + error state
+
+   Width conventions: % / vw for layout widths; rem for fixed
+   UI atoms. Breakpoints in rem.
+   ============================================================ */
+
 /* ---------- Input ---------- */
 .input-wrapper {
   display: flex;

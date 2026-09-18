@@ -1,6 +1,7 @@
 import React from 'react';
 import { StrategyCard } from '../components/StrategyCard';
 import { type StrategyData } from '../types/strategy';
+import './StrategiesPage.css';
 
 /** Define Strategy Data */
 const BuyAndHoldStrategy: StrategyData = {
@@ -107,15 +108,15 @@ export const StockHealthFilterStrategy: StrategyData = {
   metrics: {
     horizon: '2+ Years',
     activity: 'Medium',
-    positions: 'Top 10',
+    positions: 'Up to 20',
     rebalance: 'Quarterly',
   },
   idea: {
     hypothesis: 'Stocks with the highest trading volumes that are structurally healthy and accelerating in price are more likely to continue their momentum than those that are weak or declining. By filtering for high short-term vs. long-term health ratios, we can identify breakout candidates with strong upside potential.',
     whyItWorks: [
-          'Catches explosive breakouts by waiting for a stock’s short-term health score to violently jump way above its long-term baseline average.',
-          'Focuses exclusively on heavily traded, high-volume stocks so sudden ratio spikes signal real interest.',
-          'Exploits predictable human behaviour in market psychology during sudden price acceleration phases instead of attempting to guess or predict future market prices.'
+      'Catches explosive breakouts by waiting for a stock’s short-term health score to violently jump way above its long-term baseline average.',
+      'Focuses exclusively on heavily traded, high-volume stocks so sudden ratio spikes signal real interest.',
+      'Exploits predictable human behaviour in market psychology during sudden price acceleration phases instead of attempting to guess or predict future market prices.'
     ],
     whyItDoesnt: [
       'Risk of getting caught in false breakout traps when market-wide momentum stalls or reverses suddenly.',
@@ -130,7 +131,7 @@ export const StockHealthFilterStrategy: StrategyData = {
     {
       id: 'strategy-overview',
       title: 'Strategy Overview',
-      content: 'The Stock Health Filter strategy scans market universes for high-momentum breakouts by evaluating short-term vs. long-term price structural "health." Rather than inspecting simple price momentum, it calculates a compound score based on log-linear regression consistency (R-squared), annualized positive slope growth, and downside volatility frequency. Breakout buys are confirmed when the short-to-long health ratio spikes violently upward alongside velocity validation.',
+      content: 'The Stock Health Filter strategy scans market universes for high-momentum breakouts by evaluating short-term vs. long-term price structural "health." Rather than inspecting simple price momentum, it calculates a compound score based on log-linear regression consistency (R-squared), annualized positive slope growth, and downside volatility frequency. Breakout buys are confirmed when the short-to-long health ratio spikes upward alongside velocity validation.',
     },
     {
       id: 'risk-management',
@@ -152,39 +153,85 @@ export const StockHealthFilterStrategy: StrategyData = {
   ],
 
   glossary: {
+    momentum: {
+      definition: 'The tendency of an asset that has performed well in the recent past to continue performing well, or vice versa.',
+      example: 'If a stock’s price has been rising steadily for weeks, it has strong positive momentum.',
+    },
+    breakout: {
+      definition: 'When an investment price moves sharply above a resistance level or previous trading range, often signaling the start of a strong new trend.',
+      example: 'If a stock trades sideways under $50 for months and then suddenly surges to $55 on high volume, it has experienced a breakout.',
+    },
+    'choppy market': {
+      definition: 'A directionless, erratic market environment characterized by frequent, unpredictable price reversals rather than clean trends.',
+      example: 'A market where stocks bounce up 3% one day and drop 3% the next with no clear overall direction is considered choppy.',
+    },
+    'whipsaw trades': {
+      definition: 'Losing trades caused when a security’s price abruptly changes direction right after a trader enters a position, triggering false signals.',
+      example: 'Buying a sudden price spike only for the stock to crash immediately afterward is a classic whipsaw trade.',
+    },
+    'downside volatility': {
+      definition: 'Price fluctuations that specifically represent sudden downward drops or losses in an investment value, ignoring upward swings.',
+      example: 'A stock that frequently crashes by 5% on bad days while rarely moving up smoothly suffers from high downside volatility.',
+    },
+    ATR: {
+      definition: 'Average True Range (ATR) is an indicator that measures market volatility by breaking down the entire price range of an asset over a given period.',
+      example: 'If a stock has an ATR of $3, its average daily price swing from high to low is about $3.',
+    },
+    'liquid stocks': {
+      definition: 'Stocks that can be easily bought or sold in large quantities without causing a major shift in their market price.',
+      example: 'Apple or Microsoft shares can be traded instantly in millions of volumes, making them highly liquid stocks.',
+    },
+    'log-linear regression': {
+      definition: 'A statistical method used to evaluate exponential or percentage growth rates over time by fitting a straight line to logarithmic price data.',
+      example: 'Using log-linear regression helps measure whether a stock is growing at a steady compound percentage rate.',
+    },
+    'R-squared': {
+      definition: 'A statistical measure representing how closely a stock’s price movement fits a straight trend line, indicating trend consistency.',
+      example: 'An R-squared value close to 1.0 means a stock follows its upward trend line very closely with minimal random noise.',
+    },
   }
 };
 
 export const StrategiesPage: React.FC = () => {
   return (
-    <div
-      style={{
-        padding: 'var(--space-2xl) var(--space-md)',
-        maxWidth: '840px',
-        margin: '0 auto',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 'var(--space-xl)',
-      }}
-    >
-      <header style={{ textAlign: 'center', marginBottom: 'var(--space-md)' }}>
-        <h1
-          style={{
-            fontSize: 'var(--text-2xl)',
-            color: 'var(--text-primary)',
-            marginBottom: 'var(--space-3xs)',
-          }}
-        >
-          Quantitative Strategies
-        </h1>
-        <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)' }}>
-          Explore, analyze, and deploy strategy models.
-        </p>
-      </header>
+    <div className="strategies-page page-transition">
+      {/* Edge-to-Edge Hero Banner */}
+      <div className="strategies-hero-wrapper">
+        <div className="strategies-hero-inner">
+          <div className="strategies-hero-top">
+            <span className="strategies-subtitle">Strategy Library</span>
+            <h1 className="strategies-title">Quantitative Strategies</h1>
+            <p className="strategies-description">
+              Remove emotional bias through disciplined, rules-based capital allocation. 
+              Inspect our baseline benchmarks and active quantitative momentum models below 
+              to evaluate their core logic, risk bounds, and mathematical parameters.
+            </p>
+          </div>
+
+          <div className="strategies-stats-row">
+            <div className="strategy-stat-card">
+              <span className="strategy-stat-label">Execution Logic</span>
+              <span className="strategy-stat-value">Fully Algorithmic</span>
+            </div>
+            <div className="strategy-stat-card">
+              <span className="strategy-stat-label">Risk Protocol</span>
+              <span className="strategy-stat-value">Dynamic ATR &amp; Benchmarks</span>
+            </div>
+            <div className="strategy-stat-card">
+              <span className="strategy-stat-label">Strategies Available</span>
+              <span className="strategy-stat-value">2</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h2 className="strategies-section-title">Available Strategy Models</h2>
 
       {/* Render Strategy Cards */}
-      <StrategyCard strategy={BuyAndHoldStrategy} indexNumber={1} />
-      <StrategyCard strategy={StockHealthFilterStrategy} indexNumber={2} />
+      <div className="strategies-list">
+        <StrategyCard strategy={BuyAndHoldStrategy} indexNumber={1} />
+        <StrategyCard strategy={StockHealthFilterStrategy} indexNumber={2} />
+      </div>
     </div>
   );
 };

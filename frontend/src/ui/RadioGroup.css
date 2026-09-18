@@ -1,3 +1,10 @@
+/* ============================================================
+   RadioGroup.css — Radio group with card-style options
+
+   Width conventions: % / vw for layout widths; rem for fixed
+   UI atoms (bullet). Breakpoints in rem.
+   ============================================================ */
+
 /* ---------- Radio group ---------- */
 .radio-group-wrapper {
   display: flex;

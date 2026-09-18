@@ -1,3 +1,10 @@
+/* ============================================================
+   Select.css — Custom dropdown select
+
+   Width conventions: % / vw for layout widths; rem for fixed
+   UI atoms. Breakpoints in rem.
+   ============================================================ */
+
 /* ---------- Select ---------- */
 .select-wrapper {
   display: flex;
@@ -90,7 +97,7 @@
   flex-direction: column;
   gap: 2px;
   animation: dropdownSlide 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  max-height: 240px;
+  max-height: 15rem; /* ≈240px — dropdown scroll cap */
   overflow-y: auto;
 }
 

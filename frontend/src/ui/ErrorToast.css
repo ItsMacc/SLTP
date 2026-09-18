@@ -1,10 +1,17 @@
+/* ============================================================
+   ErrorToast.css — Fixed-position error notification
+
+   Width conventions: % / vw for layout widths; rem for fixed
+   UI atoms. Breakpoints in rem.
+   ============================================================ */
+
 /* ---------- ErrorToast ---------- */
 .error-toast {
   position: fixed;
   top: var(--space-lg);
   right: var(--space-lg);
   z-index: 1200;
-  max-width: min(420px, calc(100vw - var(--space-lg) * 2));
+  max-width: min(26.25rem, calc(100vw - var(--space-lg) * 2)); /* ≈420px, viewport-safe on mobile */
   display: flex;
   align-items: flex-start;
   gap: var(--space-sm);
@@ -50,7 +57,7 @@
   font-size: var(--text-lg);
   line-height: 1;
   cursor: pointer;
-  padding: 2px;
+  padding: 0.125rem; /* ≈2px — keeps the close icon glyph-aligned */
   transition: color 0.15s ease;
 }
 

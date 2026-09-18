@@ -1,3 +1,10 @@
+/* ============================================================
+   TradeResults.css — Executed trades table + pagination
+
+   Width conventions: % / vw for layout widths; rem for fixed
+   UI atoms. Breakpoints in rem.
+   ============================================================ */
+
 /* src/components/TradeResults.css */
 .trade-results-container {
   margin-top: var(--space-xl);
@@ -27,7 +34,7 @@
 
 .trade-table {
   width: 100%;
-  min-width: 760px;
+  min-width: 47.5rem; /* ≈760px — table scrolls horizontally below this */
   border-collapse: collapse;
   text-align: left;
   font-size: var(--text-sm);
@@ -97,8 +104,8 @@
   background: var(--bg-surface);
   border: 1px solid var(--border-strong);
   color: var(--text-primary);
-  width: 32px;
-  height: 32px;
+  width: 2rem;  /* ≈32px — fixed-size control */
+  height: 2rem;
   border-radius: var(--radius-sm);
   font-weight: 600;
   cursor: pointer;

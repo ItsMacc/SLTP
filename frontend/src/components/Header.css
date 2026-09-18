@@ -1,3 +1,10 @@
+/* ============================================================
+   Header.css — Top nav bar, animated links, mobile drawer
+
+   Width conventions: % / vw for layout widths; rem for fixed
+   UI atoms. Breakpoints in rem.
+   ============================================================ */
+
 /* ---------- Header ---------- */
 .header-container {
   position: relative;
@@ -21,7 +28,7 @@
 
 .brand-title {
   font-family: var(--font-heading);
-  font-size: 1.75rem;
+  font-size: clamp(1.375rem, 4vw, 1.75rem); /* scales down on narrow screens */
   color: var(--text-primary);
   letter-spacing: -0.02em;
 }
@@ -58,7 +65,7 @@
   bottom: -4px;
   left: 0;
   width: 100%;
-  height: 2px;
+  height: 0.125rem; /* ≈2px — underline thickness */
   background-color: var(--accent);
   transform: scaleX(0);
   transform-origin: right;
@@ -100,7 +107,7 @@
 
 .hamburger-line {
   width: 100%;
-  height: 2px;
+  height: 0.125rem; /* ≈2px — line thickness is part of the icon shape */
   background-color: var(--text-primary);
   border-radius: var(--radius-full);
   transition: transform 0.2s ease, opacity 0.2s ease;
@@ -108,13 +115,13 @@
 
 /* Morph the hamburger into an X when open */
 .hamburger-toggle.is-open .hamburger-line:nth-child(1) {
-  transform: translateY(9px) rotate(45deg);
+  transform: translateY(0.5625rem) rotate(45deg); /* ≈9px — line spacing is part of the icon shape */
 }
 .hamburger-toggle.is-open .hamburger-line:nth-child(2) {
   opacity: 0;
 }
 .hamburger-toggle.is-open .hamburger-line:nth-child(3) {
-  transform: translateY(-9px) rotate(-45deg);
+  transform: translateY(-0.5625rem) rotate(-45deg);
 }
 
 /* Mobile menu drawer */
@@ -123,7 +130,7 @@
 }
 
 /* Responsive behavior */
-@media (max-width: 48rem) { /* Below 768px */
+@media (max-width: 48rem) { /* ≈768px */
   .desktop-only {
     display: none !important;
   }

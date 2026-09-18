@@ -1,3 +1,10 @@
+/* ============================================================
+   StrategyCard.css — Strategy card: header, metrics, sections
+
+   Width conventions: % / vw for layout widths; rem for fixed
+   UI atoms (badges, bullets, dots). Breakpoints in rem.
+   ============================================================ */
+
 /* Card Container */
 .wireframe-card {
   background-color: var(--bg-surface);
@@ -53,7 +60,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-2xs);
-  padding: 4px 12px;
+  padding: var(--space-3xs) var(--space-sm); /* was 4px 12px, mapped to scale */
   border-radius: var(--radius-full);
   font-family: var(--font-mono);
   font-size: calc(var(--text-sm) * 0.9);
@@ -68,8 +75,8 @@
 
 /* Pulsing Status Dot */
 .badge-dot {
-  width: 6px;
-  height: 6px;
+  width: 0.375rem;  /* ≈6px — fixed-size dot */
+  height: 0.375rem;
   border-radius: var(--radius-full);
   display: inline-block;
   position: relative;
@@ -140,7 +147,7 @@
 .m-label {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-3xs); /* was 6px, mapped to scale */
   font-size: var(--text-xs);
   font-weight: 600;
   color: var(--text-muted);
@@ -282,12 +289,12 @@
 }
 
 .detail-bullet {
-  padding-top: 2px;
+  padding-top: 0.125rem; /* aligns dot with first text line */
 }
 
 .bullet-dot {
-  width: 5px;
-  height: 5px;
+  width: 0.3125rem;  /* ≈5px — fixed-size dot */
+  height: 0.3125rem;
   border-radius: var(--radius-full);
   background-color: var(--text-muted);
   display: inline-block;

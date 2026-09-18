@@ -37,37 +37,41 @@ const legalEmail = 'legal.sltp@gmail.com';
 
 const privacyDocument: LegalDocument = {
   title: 'Privacy Policy',
-  meta: 'Last Updated: August 17, 2026',
-  intro: 'This document outlines the data privacy practices of SLTP.',
+  meta: 'Last Updated: September 18, 2026',
+  intro: 'This Privacy Policy governs the data collection, storage, and processing practices of SLTP ("we," "our," or "us").',
   sections: [
     {
       step: '01',
-      title: 'Introduction',
+      title: 'Introduction & Scope',
       blocks: [
         {
           type: 'paragraph',
-          text: 'SLTP is operated independently. Respecting user privacy is a priority. This Privacy Policy explains what limited information is processed when accessing or using SLTP ("the Service").',
+          text: 'SLTP operates as an independent quantitative educational platform. We respect your right to privacy and are committed to minimizing data collection to the absolute operational necessities required to deliver our services.',
         },
       ],
     },
     {
       step: '02',
-      title: 'Information Processing',
+      title: 'Information We Collect',
       blocks: [
         {
           type: 'paragraph',
-          text: 'SLTP is designed to minimize data collection:',
+          text: 'To provide personalized user features, we process limited categories of information:',
         },
         {
           type: 'list',
           items: [
             {
-              lead: 'Information You Provide:',
-              text: 'If you contact support or submit inquiries, the email address and message details provided will be used solely to respond to you.',
+              lead: 'Account Credentials:',
+              text: 'If you register an account, we store authentication details (such as your email address and encrypted password credentials) via Supabase to secure your session.',
             },
             {
-              lead: 'Account Information:',
-              text: 'If an account is created, necessary authentication details (such as email address and password credentials) are processed to secure your login.',
+              lead: 'User Preferences & Portfolios:',
+              text: 'We save your custom settings, watchlists, saved parameters, and portfolio configurations to ensure platform continuity across your visits.',
+            },
+            {
+              lead: 'Support Communications:',
+              text: 'If you contact us via email, we retain your message details and email address solely to address your inquiries.',
             },
           ],
         },
@@ -75,26 +79,22 @@ const privacyDocument: LegalDocument = {
     },
     {
       step: '03',
-      title: 'What Is NOT Collected or Tracked',
+      title: 'Data Retention and Immediate Deletion',
       blocks: [
         {
           type: 'paragraph',
-          text: 'To provide full transparency, SLTP explicitly does not do any of the following:',
+          text: 'We believe in data minimization. You maintain full ownership and control over your account data:',
         },
         {
           type: 'list',
           items: [
             {
-              lead: 'No Tracking Cookies:',
-              text: 'SLTP does not use tracking, advertising, or third-party cookies.',
+              lead: 'Instant Removal:',
+              text: 'At the exact moment you request account deletion through your dashboard or settings, all associated records, watchlists, portfolios, and authentication identifiers are entirely and permanently purged from our Supabase database.',
             },
             {
-              lead: 'No Analytics or Behavioral Tracking:',
-              text: 'SLTP does not log individual page visits, track browsing activity, or build behavioral profiles.',
-            },
-            {
-              lead: 'No Data Sales:',
-              text: 'Personal data is never sold, rented, or commercialized.',
+              lead: 'No Residual Storage:',
+              text: 'We do not retain archived backups or lingering shadow profiles once an account or record is deleted.',
             },
           ],
         },
@@ -102,43 +102,89 @@ const privacyDocument: LegalDocument = {
     },
     {
       step: '04',
-      title: 'Data Security',
+      title: 'Infrastructure and Third-Party Data Processors',
       blocks: [
         {
           type: 'paragraph',
-          text: 'Standard administrative and technical measures are maintained to protect account credentials and support communications. However, no internet-based transmission or storage system can be guaranteed to be completely secure.',
+          text: 'SLTP utilizes industry-standard cloud infrastructure partners to maintain high availability and security:',
+        },
+        {
+          type: 'list',
+          items: [
+            {
+              lead: 'Supabase:',
+              text: 'Acts as our secure database and authentication provider, processing user credentials and saved preferences securely.',
+            },
+            {
+              lead: 'Hosting Providers (Vercel / Render):',
+              text: 'Deliver frontend and backend code execution environments. While these providers process standard web traffic logs for operational stability, they do not access or commercialize personal user data pools.',
+            },
+          ],
         },
       ],
     },
     {
       step: '05',
-      title: 'Third-Party Services',
+      title: 'Age Restrictions (13+ Policy)',
       blocks: [
         {
           type: 'paragraph',
-          text: 'If the Service links to external websites or third-party resources, this Privacy Policy does not apply to those outside services. Reviewing their respective privacy policies is recommended.',
+          text: 'SLTP is intended for users who are at least 13 years of age. Due to the complex nature of quantitative financial strategies, users under the age of 18 may only use the educational features of the platform and are strictly prohibited from utilizing strategies for live financial trading or investment execution.',
         },
       ],
     },
     {
       step: '06',
-      title: 'Changes to This Policy',
+      title: 'What We Do NOT Collect or Track',
       blocks: [
         {
           type: 'paragraph',
-          text: 'This Privacy Policy may be updated periodically to reflect service adjustments. The revision date at the top of this page indicates when the latest changes took effect.',
+          text: 'To ensure complete transparency, SLTP explicitly enforces the following data boundaries:',
+        },
+        {
+          type: 'list',
+          items: [
+            {
+              lead: 'No Tracking Cookies:',
+              text: 'We do not deploy intrusive tracking cookies, advertising pixels, or third-party marketing identifiers.',
+            },
+            {
+              lead: 'No Behavioral Profiling:',
+              text: 'We do not log individual browsing paths, build commercial user profiles, or sell data to brokers or advertisers.',
+            },
+          ],
         },
       ],
     },
     {
       step: '07',
-      title: 'Contact',
+      title: 'Data Security Measures',
+      blocks: [
+        {
+          type: 'paragraph',
+          text: 'We implement robust administrative, technical, and physical safeguards—including encrypted transport protocols (HTTPS/SSL) and secure database row-level security—to protect your information against unauthorized access or disclosure.',
+        },
+      ],
+    },
+    {
+      step: '08',
+      title: 'Changes to This Privacy Policy',
+      blocks: [
+        {
+          type: 'paragraph',
+          text: 'We may update this Privacy Policy from time to time. Continued use of the platform after modifications indicates your acknowledgment of the revised terms.',
+        },
+      ],
+    },
+    {
+      step: '09',
+      title: 'Contact Information',
       blocks: [
         {
           type: 'paragraph',
           text: (
             <>
-              For questions or privacy inquiries regarding SLTP, send an email to{' '}
+              For privacy inquiries, data requests, or removal verification, please contact us at{' '}
               <a className="st-legal-link" href={`mailto:${legalEmail}`}>
                 {legalEmail}
               </a>
@@ -153,113 +199,149 @@ const privacyDocument: LegalDocument = {
 
 const termsDocument: LegalDocument = {
   title: 'Terms of Service',
-  meta: 'Last Updated: August 17, 2026',
-  intro: 'This document is a legal agreement between you and SLTP. Please read it carefully.',
+  meta: 'Last Updated: September 18, 2026',
+  intro: 'Please read these Terms of Service carefully before accessing or using SLTP. By using the platform, you agree to be bound by these terms.',
   sections: [
     {
       step: '01',
-      title: 'Acceptance of Terms',
+      title: 'Acceptance of Terms & Governing Law',
       blocks: [
         {
           type: 'paragraph',
-          text: 'By accessing or using the SLTP website, platform, and associated services (collectively, the "Service"), you agree to be bound by these Terms of Service ("Terms"). If you do not agree to these Terms, do not access or use the Service.',
+          text: 'This agreement constitutes a binding legal contract between you and SLTP. These Terms shall be governed by, construed, and enforced in accordance with the laws of Canada and the provincial jurisdiction in which SLTP operates, without regard to conflict of law principles.',
         },
       ],
     },
     {
       step: '02',
-      title: 'Educational and Informational Purpose Only',
+      title: 'Educational Purpose & Not Financial Advice',
       blocks: [
         {
           type: 'paragraph',
-          text: 'SLTP is an educational and analytical research platform. SLTP is not a registered investment advisor, broker-dealer, financial planner, or tax professional.',
+          text: 'SLTP is strictly an educational, analytical, and research-focused software platform. SLTP is not a registered investment advisor, broker-dealer, financial planner, or tax professional.',
         },
         {
           type: 'paragraph',
-          text: 'All tools, data, metrics, strategies, and content provided through the Service are for informational and educational purposes only.',
+          text: 'All tools, quantitative models, metrics, indicators, and strategies provided on the platform are for informational and educational purposes only. Nothing contained on SLTP constitutes personalized financial, investment, legal, or tax advice.',
+        },
+      ],
+    },
+    {
+      step: '03',
+      title: 'Age Eligibility & Trading Restrictions',
+      blocks: [
+        {
+          type: 'paragraph',
+          text: 'You must be at least 13 years of age to access and use the basic informational features of SLTP. However, to execute strategies, utilize live market signals, or make real financial investments, you must be at least 18 years of age (or the legal age of majority in your jurisdiction). You represent that you meet these eligibility requirements.',
+        },
+      ],
+    },
+    {
+      step: '04',
+      title: 'Hypothetical Performance & Backtest Disclaimer',
+      blocks: [
+        {
+          type: 'paragraph',
+          text: 'Investing and trading financial instruments carry substantial risk of loss. You acknowledge and agree that:',
         },
         {
           type: 'list',
           items: [
             {
-              text: 'No content on SLTP should be construed as personalized financial, investment, legal, or tax advice.',
+              lead: 'Backtested Results:',
+              text: 'All strategies, metrics, and models displayed on SLTP can be tested across historical data up to the current date. Backtested performance figures are hypothetical constructs generated with the benefit of hindsight and do not represent actual trading performance.',
             },
             {
-              text: 'You are solely responsible for conducting your own independent research and due diligence before making any investment or financial decisions.',
+              lead: 'Live Results:',
+              text: 'Live tracking metrics and forward-looking signals follow the same quantitative rules and carry no guarantee of future profitability.',
+            },
+            {
+              lead: 'Capital Risk:',
+              text: 'Past performance does not predict future results. You may sustain a total loss of your invested capital.',
             },
           ],
         },
       ],
     },
     {
-      step: '03',
-      title: 'Investment Risk Acknowledgment',
-      blocks: [
-        {
-          type: 'paragraph',
-          text: 'Investing in financial markets, including stocks, options, cryptocurrencies, and other assets, carries inherent risk. Past performance, historical returns, or strategy backtests displayed on SLTP do not guarantee future performance or financial success. You acknowledge that you may lose some or all of your invested capital.',
-        },
-      ],
-    },
-    {
-      step: '04',
-      title: 'Intellectual Property Rights',
-      blocks: [
-        {
-          type: 'paragraph',
-          text: 'All content, branding, trademarks, graphics, code, algorithms, and data presented on SLTP are the property of SLTP and protected by applicable intellectual property laws. You agree not to copy, reproduce, scrape, modify, distribute, or reverse-engineer any portion of the Service without prior written authorization from SLTP.',
-        },
-      ],
-    },
-    {
       step: '05',
-      title: 'User Conduct and Account Security',
+      title: 'Intellectual Property & Anti-Scraping Provisions',
       blocks: [
         {
           type: 'paragraph',
-          text: 'If you create an account on SLTP, you are responsible for maintaining the confidentiality of your login credentials and for all activities under your account. You agree not to use the Service for unlawful purposes or attempt to interfere with platform operations or security.',
+          text: 'SLTP retains all ownership rights, title, and intellectual property interests in and to its platform design, algorithms, code structures, strategy logic, branding, and data compilations under Canadian and international intellectual property laws.',
+        },
+        {
+          type: 'list',
+          items: [
+            {
+              lead: 'Prohibition of Scraping:',
+              text: 'Automated data harvesting, web scraping, spidering, or mass extraction of content or strategy logic from SLTP is strictly prohibited.',
+            },
+            {
+              lead: 'No Reverse Engineering:',
+              text: 'You agree not to decompile, reverse-engineer, copy, or attempt to derive the source code or proprietary mathematical structures of our quantitative models.',
+            },
+            {
+              lead: 'Official API Usage:',
+              text: 'Access to data via official programmatic interfaces or APIs is governed by dedicated developer agreements and requires explicit authorization.',
+            },
+          ],
         },
       ],
     },
     {
       step: '06',
-      title: 'Limitation of Liability',
+      title: 'User Accounts & Future User-Generated Content (UGC)',
       blocks: [
         {
           type: 'paragraph',
-          text: 'To the maximum extent permitted by applicable law, SLTP, its founders, employees, partners, and affiliates shall not be liable for any direct, indirect, incidental, consequential, or punitive damages resulting from your access to, or inability to access, the Service, or any action taken based on content provided on the Service.',
+          text: 'You are responsible for maintaining the security of your account credentials. Furthermore, where the platform permits future user-generated content (such as custom strategy inputs, reviews, or comments):',
+        },
+        {
+          type: 'list',
+          items: [
+            {
+              lead: 'User Responsibility:',
+              text: 'You retain responsibility for any content you publish or upload, ensuring it violates no third-party rights or laws.',
+            },
+            {
+              lead: 'License Grant:',
+              text: 'By submitting content to SLTP, you grant us a non-exclusive license to host, display, and manage that content within the scope of platform operations.',
+            },
+          ],
         },
       ],
     },
     {
       step: '07',
-      title: 'Modifications to Terms',
+      title: 'Free Service Model & No Monetary Liability',
       blocks: [
         {
           type: 'paragraph',
-          text: 'SLTP reserves the right to update or modify these Terms at any time. Continued use of the Service following any changes constitutes acceptance of the new Terms.',
+          text: 'SLTP is provided to users entirely free of charge. No subscription fees, purchases, or monetary transactions are processed through the platform. Accordingly, to the maximum extent permitted by applicable law, SLTP, its founders, and affiliates shall bear zero financial or legal liability for any direct, indirect, incidental, or consequential damages arising from your use of the platform or reliance on its signals.',
         },
       ],
     },
     {
       step: '08',
-      title: 'Governing Law',
+      title: 'Modifications and Termination',
       blocks: [
         {
           type: 'paragraph',
-          text: 'These Terms shall be governed by and construed in accordance with the laws of the jurisdiction where SLTP operates, without regard to conflicts of law principles. Any disputes arising out of or relating to these Terms shall be resolved in the appropriate courts of that jurisdiction.',
+          text: 'We reserve the right to modify, suspend, or terminate the platform or these Terms at any time without notice. Continued use of SLTP following updates constitutes your binding acceptance of the revised terms.',
         },
       ],
     },
     {
       step: '09',
-      title: 'Contact',
+      title: 'Contact Information',
       blocks: [
         {
           type: 'paragraph',
           text: (
             <>
-              If you have questions about these Terms, please contact us at{' '}
+              For any questions regarding these Terms of Service, please contact us at{' '}
               <a className="st-legal-link" href={`mailto:${legalEmail}`}>
                 {legalEmail}
               </a>

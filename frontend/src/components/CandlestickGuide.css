@@ -1,3 +1,10 @@
+/* ============================================================
+   CandlestickGuide.css — Candlestick patterns guide layout
+
+   Width conventions: % / vw / ch for layout widths; rem for
+   fixed-size atoms. Breakpoints in rem.
+   ============================================================ */
+
 /* src/components/CandlestickGuide.css */
 
 .guide {
@@ -44,8 +51,8 @@
 
 .guide-step-index {
   flex: none;
-  width: 28px;
-  height: 28px;
+  width: 1.75rem;  /* ≈28px — fixed-size step badge */
+  height: 1.75rem;
   border-radius: var(--radius-full);
   border: 1px solid var(--border-subtle);
   display: flex;
@@ -98,8 +105,8 @@
 }
 
 .dot {
-  width: 9px;
-  height: 9px;
+  width: 0.5625rem; /* ≈9px — fixed-size dot */
+  height: 0.5625rem;
   border-radius: var(--radius-full);
   display: inline-block;
 }
@@ -129,7 +136,7 @@
 
 @media (min-width: 64rem) {
   .guide-layout-grid {
-    grid-template-columns: 1.3fr 0.7fr;
+    grid-template-columns: 65% 35%; /* ≈1.3fr 0.7fr ratio, % based */
   }
 }
 

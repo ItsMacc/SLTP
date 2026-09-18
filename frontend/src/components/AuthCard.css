@@ -1,3 +1,10 @@
+/* ============================================================
+   AuthCard.css — Sign in / sign up card
+
+   Width conventions: % / vw for layout widths; rem for fixed
+   UI atoms. Breakpoints in rem.
+   ============================================================ */
+
 /* ---------- Auth card ---------- */
 .st-auth {
   display: flex;
@@ -5,12 +12,12 @@
   justify-content: center;
   width: 100%;
   min-height: calc(100vh - 10rem);
-  padding: 2rem 1rem;
+  padding: 2rem 1rem; /* gutter spacing, not a width — kept as-is */
 }
 
 .st-auth__card {
   width: 100%;
-  max-width: 30rem;
+  max-width: min(30rem, 92vw); /* fluid cap — never exceeds viewport on small phones */
   padding: 2.5rem;
   box-sizing: border-box;
   
@@ -50,8 +57,8 @@
 
 /* Title and subtitle */
 .st-auth__title {
-  margin: 0 0 0.5rem 0;
-  font-size: 1.85rem;
+  margin: 0 0 var(--space-sm) 0;
+  font-size: clamp(1.5rem, 6vw, 1.85rem); /* scales down on narrow screens */
   font-weight: 700;
   letter-spacing: -0.02em;
 }
@@ -138,7 +145,8 @@
   color: var(--text-primary, #0f172a);
 }
 
-@media (max-width: 480px) {
+/* ---------- Mobile: reduce card padding ---------- */
+@media (max-width: 30rem) { /* ≈480px */
   .st-auth__card {
     padding: 1.5rem;
   }

@@ -1,3 +1,10 @@
+/* ============================================================
+   GlossaryText.css — Inline glossary terms + floating tooltip
+
+   Width conventions: % / vw for layout widths; rem for fixed
+   UI atoms. Breakpoints in rem.
+   ============================================================ */
+
 /* Container for parsed text */
 .textContainer {
   display: inline;
@@ -16,10 +23,10 @@
   text-decoration: underline;
   text-decoration-color: var(--accent);
   text-decoration-style: dotted;
-  text-decoration-thickness: 1.5px;
-  text-underline-offset: 3px;
+  text-decoration-thickness: 0.09375rem; /* ≈1.5px — inline text decoration */
+  text-underline-offset: 0.1875rem;
   border-radius: var(--radius-sm);
-  padding: 0 2px;
+  padding: 0 0.125rem; /* ≈2px */
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   touch-action: manipulation;
 }
@@ -44,7 +51,7 @@
 /* Floating tooltip overlay - using portalled position */
 .tooltipContent {
   z-index: 9999;
-  max-width: 280px;
+  max-width: min(17.5rem, calc(100vw - var(--space-md) * 2)); /* ≈280px, viewport-safe on mobile */
   padding: var(--space-xs) var(--space-sm);
   background-color: var(--bg-surface);
   color: var(--text-primary);

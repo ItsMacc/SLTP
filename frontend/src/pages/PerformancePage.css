@@ -1,3 +1,10 @@
+/* ============================================================
+   PerformancePage.css — Portfolio performance dashboard
+
+   Width conventions: % / vw for layout widths; rem for fixed
+   UI atoms. Breakpoints in rem.
+   ============================================================ */
+
 .perf-page {
   width: 100%;
   max-width: 90%;
@@ -38,15 +45,15 @@
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
-  padding: 3px;
+  padding: 0.1875rem; /* ≈3px — thumb must clear the border */
 }
 
 .mode-switch-thumb {
   position: absolute;
-  top: 3px;
-  bottom: 3px;
-  left: 3px;
-  width: calc(50% - 3px);
+  top: 0.1875rem;
+  bottom: 0.1875rem;
+  left: 0.1875rem;
+  width: calc(50% - 0.1875rem);
   background: var(--accent-muted);
   border: 1px solid var(--accent);
   border-radius: var(--radius-sm);
@@ -69,7 +76,7 @@
   padding: var(--space-sm) var(--space-lg);
   border-radius: var(--radius-sm);
   cursor: pointer;
-  min-width: 100px;
+  min-width: 6.25rem; /* ≈100px — keeps the two switch labels even */
 }
 
 .mode-switch-btn.is-active {
@@ -89,8 +96,7 @@
 
 .ticker-search {
   position: relative;
-  flex: 1 1 260px;
-  max-width: 340px;
+  flex: 1 1 clamp(16.25rem, 25vw, 21.25rem); /* 260px→340px search field, viewport-aware */
 }
 
 .ticker-search-icon {
@@ -133,7 +139,7 @@
   padding: var(--space-2xs);
   z-index: 10;
   box-shadow: var(--shadow-lg);
-  max-height: 220px;
+  max-height: 13.75rem; /* ≈220px — suggestions scroll cap */
   overflow-y: auto;
 }
 
@@ -222,6 +228,7 @@
 }
 
 
+/* ---------- Mobile: stack header, stretch mode switch ---------- */
 @media (max-width: 40rem) {
   .perf-header {
     flex-direction: column;

@@ -1,3 +1,16 @@
+/* ============================================================
+   index.css — Global styles & design tokens
+
+   Sizing conventions (apply to every stylesheet in src/):
+   - Layout widths use %, vw/vh, or min(Xvw, Yrem) fluid caps.
+     Never hardcode px widths on containers or sections.
+   - rem is reserved for fixed-size UI atoms (icons, buttons,
+     dots) and for exact px-equivalent caps inside min() so the
+     desktop rendering stays identical.
+   - Padding/gap/margins use the --space-* scale.
+   - Media-query breakpoints are written in rem (Xpx / 16).
+   ============================================================ */
+
 /* ---------- Fonts ---------- */
 @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -54,6 +67,7 @@
   --shadow-md: 0 4px 12px rgba(59, 55, 63, 0.08);
   --shadow-lg: 0 12px 24px -4px rgba(59, 55, 63, 0.12);
 
+  /* Fluid page container: 95% of the viewport, no px cap */
   --container-max: 95vw;
 }
 

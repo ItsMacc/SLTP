@@ -1,0 +1,135 @@
+/* ============================================================
+   StrategiesPage.css — Strategies listing page + hero banner
+
+   Width conventions: % / vw for layout widths; rem for fixed
+   UI atoms. Breakpoints in rem.
+   ============================================================ */
+
+.strategies-page {
+  padding: var(--space-xl) 0 var(--space-2xl) 0;
+  max-width: min(52.5rem, 95vw); /* ≈840px, capped to viewport on small screens */
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+  width: 100%;
+}
+
+/* Edge-to-edge full width hero banner */
+.strategies-hero-wrapper {
+  width: 100vw;
+  position: relative;
+  left: 50%;
+  right: 50%;
+  margin-left: -50vw;
+  margin-right: -50vw;
+  /* Uses theme canvas/surface tokens so it looks correct in both light & dark mode */
+  background: linear-gradient(180deg, var(--bg-surface) 0%, var(--bg-canvas) 100%);
+  border-bottom: 1px solid var(--border-subtle);
+  border-top: 1px solid var(--border-subtle);
+  padding: var(--space-2xl) var(--space-md);
+  margin-bottom: var(--space-md);
+}
+
+.strategies-hero-inner {
+  max-width: min(68.75rem, 95vw); /* ≈1100px, capped to viewport on small screens */
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+}
+
+.strategies-hero-top {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  max-width: min(45rem, 100%); /* ≈720px reading measure, fluid */
+}
+
+.strategies-title {
+  font-family: var(--font-heading);
+  font-size: clamp(2.5rem, 4vw, 3.5rem);
+  color: var(--text-primary);
+  font-weight: 400;
+  line-height: 1.05;
+}
+
+.strategies-subtitle {
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.strategies-description {
+  color: var(--text-muted);
+  font-size: var(--text-base);
+  line-height: 1.7;
+}
+
+/* Feature stats / pills row */
+.strategies-stats-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-md);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* ---------- Mobile: stack stat cards ---------- */
+@media (max-width: 48rem) { /* ≈768px */
+  .strategies-stats-row {
+    grid-template-columns: 1fr;
+    gap: var(--space-md);
+  }
+}
+
+.strategy-stat-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3xs);
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.2s ease;
+}
+
+.strategy-stat-card:hover {
+  border-color: var(--border-strong);
+}
+
+.strategy-stat-label {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  /* Uses your theme accent color (Purple in light mode, Orange in dark mode) */
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+.strategy-stat-value {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.strategies-section-title {
+  font-family: var(--font-heading);
+  font-size: var(--text-xl);
+  color: var(--text-primary);
+  margin-top: var(--space-sm);
+  margin-bottom: calc(-1 * var(--space-sm));
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.strategies-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}

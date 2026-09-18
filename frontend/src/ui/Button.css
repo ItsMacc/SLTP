@@ -1,3 +1,10 @@
+/* ============================================================
+   Button.css — Button sizes and color variants
+
+   Width conventions: buttons size to content — no hardcoded
+   widths. Padding uses the --space-* scale. Breakpoints in rem.
+   ============================================================ */
+
 /* ---------- Button ---------- */
 .btn {
   display: inline-flex;

@@ -1,3 +1,10 @@
+/* ============================================================
+   DatePicker.css — Date input + calendar popup
+
+   Width conventions: % / vw for layout widths; rem only for
+   fixed-size UI atoms (buttons, day cells). Breakpoints in rem.
+   ============================================================ */
+
 /* ---------- src/ui/DatePicker.css ---------- */
 .custom-datepicker-wrapper {
   position: relative;
@@ -20,10 +27,10 @@
   color: var(--text-primary);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  padding: 0 0.5rem 0 0.75rem;
+  padding: 0 var(--space-sm) 0 var(--space-xs);
   font-size: var(--text-base);
-  height: 42px;
-  min-width: 190px;
+  height: 42px; /* exact px keeps the input row visually identical */
+  min-width: min(12rem, 100%); /* ≈190px, shrinks on narrow screens */
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -68,7 +75,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 4px;
+  padding: var(--space-3xs); /* ≈4px, matches original button hit area */
   color: var(--text-muted);
   transition: color 0.15s ease;
 }
@@ -97,7 +104,7 @@
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
   padding: var(--space-md);
-  width: 300px;
+  width: min(18.75rem, 100%); /* ≈300px desktop, full-width on mobile */
   user-select: none;
 }
 
@@ -119,8 +126,8 @@
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
-  width: 28px;
-  height: 28px;
+  width: 1.75rem;  /* ≈28px — fixed-size control */
+  height: 1.75rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -141,16 +148,16 @@
 }
 
 .cal-weekday {
-  font-size: 11px;
+  font-size: 0.6875rem; /* ≈11px — fixed-size text atom */
   font-weight: 600;
   color: var(--text-muted);
-  padding: 4px 0;
+  padding: var(--space-3xs) 0;
 }
 
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 2px;
+  gap: 2px; /* hairline grid — px keeps day cells flush */
 }
 
 .cal-day-btn {
@@ -159,7 +166,7 @@
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   font-size: var(--text-sm);
-  height: 34px;
+  height: 2.125rem; /* ≈34px — fixed-size day cell */
   display: flex;
   align-items: center;
   justify-content: center;

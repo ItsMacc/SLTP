@@ -1,3 +1,10 @@
+/* ============================================================
+   StrategyChart.css — Strategy runner layout, metrics sidebar
+
+   Width conventions: % / vw for layout widths; rem for fixed
+   UI atoms. Breakpoints in rem.
+   ============================================================ */
+
 .strategy-card {
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
@@ -35,7 +42,7 @@
   font-weight: 600;
   padding: 0 var(--space-lg);
   cursor: pointer;
-  height: 38px;
+  height: 2.375rem; /* ≈38px — fixed-size control */
   transition: opacity 0.2s ease;
 }
 
@@ -91,7 +98,7 @@
 
 @media (min-width: 64rem) {
   .strategy-content-layout {
-    grid-template-columns: 1fr 340px;
+    grid-template-columns: minmax(0, 1fr) min(21.25rem, 30%); /* ≈340px sidebar, capped to 30% viewport */
   }
 }
 
@@ -154,7 +161,7 @@
 }
 
 .strategy-axis-label {
-  font-size: 10px;
+  font-size: 0.625rem; /* ≈10px — fixed-size SVG text */
   fill: var(--text-muted);
   font-family: var(--font-mono);
 }
@@ -180,9 +187,9 @@
 }
 
 .tooltip-date {
-  font-size: 10px;
+  font-size: 0.625rem; /* ≈10px — fixed-size tooltip text */
   color: var(--text-muted);
-  margin: 0 0 2px 0;
+  margin: 0 0 0.125rem 0;
   font-family: var(--font-mono);
 }
 
@@ -235,7 +242,7 @@
 }
 
 .metric-label {
-  font-size: 11px;
+  font-size: 0.6875rem; /* ≈11px — fixed-size label atom */
   color: var(--text-muted);
 }
 
@@ -261,7 +268,7 @@
   }
 
   .strategy-date-form .select-wrapper {
-    width: 200px;
+    width: 12.5rem; /* ≈200px — fixed-width control in scrollable row */
     flex: none;
   }
 
@@ -274,6 +281,6 @@
   }
 
   .strategy-chart-scroll .strategy-plot-area {
-    min-width: 560px;
+    min-width: 35rem; /* ≈560px — forces horizontal scroll below this */
   }
 }

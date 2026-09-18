@@ -1,3 +1,10 @@
+/* ============================================================
+   UserMenu.css — Header user pill + account dropdown
+
+   Width conventions: % / vw for layout widths; rem for fixed
+   UI atoms. Breakpoints in rem.
+   ============================================================ */
+
 /* ---------- User pill + dropdown ---------- */
 .st-user-menu {
   position: relative;
@@ -39,7 +46,7 @@
 }
 
 .st-user-email-truncate {
-  max-width: 120px;
+  max-width: 7.5rem; /* ≈120px — ellipsis cap for long emails */
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -55,7 +62,7 @@
   position: absolute;
   top: calc(100% + 0.5rem);
   right: 0;
-  width: 14rem;
+  width: min(14rem, calc(100vw - var(--space-md) * 2)); /* fixed panel, viewport-safe on mobile */
   background: var(--bg-surface);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
@@ -85,7 +92,7 @@
 }
 
 .st-dropdown__signed-in-as {
-  font-size: 0.7rem;
+  font-size: 0.7rem; /* fixed-size label atom */
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -128,7 +135,7 @@
 }
 
 .st-dropdown__divider {
-  height: 1px;
+  height: 0.0625rem; /* ≈1px hairline */
   background: var(--border-subtle);
   margin: 0.3rem 0;
 }
