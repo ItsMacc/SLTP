@@ -7,7 +7,6 @@
 
 .perf-page {
   width: 100%;
-  max-width: min(68.75rem, 95vw);
   margin: 0 auto;
   padding: var(--space-xl) 0 var(--space-2xl);
   font-family: var(--font-sans);
@@ -79,6 +78,12 @@
   padding: var(--space-lg);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
+}
+
+.perf-section {
+  max-width: min(68.5rem, 95vw);
+  width: 100%;
+  margin: 0 auto;
 }
 
 /* ---------- mode switch ---------- */

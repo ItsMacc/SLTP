@@ -7,7 +7,6 @@
 
 .strategies-page {
   padding: var(--space-xl) 0 var(--space-2xl) 0;
-  max-width: min(68.75rem, 95vw);
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -111,6 +110,10 @@
   color: var(--text-primary);
 }
 
+.strategies-section {
+  max-width: min(68.5rem, 95vw);
+}
+
 .strategies-section-title {
   font-family: var(--font-heading);
   font-size: var(--text-xl);
@@ -126,6 +129,12 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-lg);
+}
+
+.strategies-section {
+  max-width: min(68.5rem, 95vw);
+  width: 100%;
+  margin: 0 auto;
 }
 
 /* ---------- Collapse dock ---------- */

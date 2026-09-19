@@ -562,19 +562,19 @@ export const StrategiesPage: React.FC = () => {
         </div>
       </div>
 
-      <h2 className="strategies-section-title">Available Strategy Models</h2>
-
-      {/* Render Strategy Cards */}
-      <div className="strategies-list">
-        {STRATEGY_LIST.map(({ strategy, indexNumber }) => (
-          <StrategyCard
-            key={strategy.id}
-            strategy={strategy}
-            indexNumber={indexNumber}
-            isExpanded={expandedIds.includes(strategy.id)}
-            onToggle={() => toggleStrategy(strategy.id)}
-          />
-        ))}
+      <div className='strategies-section'>
+        {/* Render Strategy Cards */}
+        <div className="strategies-list">
+          {STRATEGY_LIST.map(({ strategy, indexNumber }) => (
+            <StrategyCard
+              key={strategy.id}
+              strategy={strategy}
+              indexNumber={indexNumber}
+              isExpanded={expandedIds.includes(strategy.id)}
+              onToggle={() => toggleStrategy(strategy.id)}
+            />
+          ))}
+        </div>
       </div>
 
       {/* Collapse controls stay on screen for every open strategy, so a long card

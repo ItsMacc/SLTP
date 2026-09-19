@@ -170,66 +170,68 @@ export default function PerformancePage({ initialSettings }: PerformancePageProp
         </div>
       </div>
 
-      {mode === 'stocks' && (
-        <div className='perf-chart-wrapper'>
-          <div className="perf-controls">
-            <div className="ticker-search" ref={searchWrapRef}>
-              <span className="ticker-search-icon">⌕</span>
-              <input
-                type="text"
-                value={query}
-                onFocus={() => setSuggestionsOpen(true)}
-                onChange={(e) => {
-                  setQuery(e.target.value.toUpperCase())
-                  setSuggestionsOpen(true)
-                }}
-                placeholder="Search a ticker, e.g. AAPL"
-                className="ticker-search-input"
-                aria-autocomplete="list"
-              />
-              {suggestionsOpen && suggestions.length > 0 && (
-                <ul className="ticker-suggestions">
-                  {suggestions.map((symbol) => (
-                    <li key={symbol}>
-                      <button type="button" onClick={() => handleSelectTicker(symbol)}>
-                        {symbol}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
+      <div className="perf-section">
+        {mode === 'stocks' && (
+          <div className='perf-chart-wrapper'>
+            <div className="perf-controls">
+              <div className="ticker-search" ref={searchWrapRef}>
+                <span className="ticker-search-icon">⌕</span>
+                <input
+                  type="text"
+                  value={query}
+                  onFocus={() => setSuggestionsOpen(true)}
+                  onChange={(e) => {
+                    setQuery(e.target.value.toUpperCase())
+                    setSuggestionsOpen(true)
+                  }}
+                  placeholder="Search a ticker, e.g. AAPL"
+                  className="ticker-search-input"
+                  aria-autocomplete="list"
+                />
+                {suggestionsOpen && suggestions.length > 0 && (
+                  <ul className="ticker-suggestions">
+                    {suggestions.map((symbol) => (
+                      <li key={symbol}>
+                        <button type="button" onClick={() => handleSelectTicker(symbol)}>
+                          {symbol}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <div className="timeframe-group" role="group" aria-label="Timeframe">
+                {TIMEFRAMES.map((tf) => (
+                  <button
+                    key={tf}
+                    onClick={() => setTimeframe(tf)}
+                    className={`timeframe-btn ${timeframe === tf ? 'is-active' : ''}`}
+                  >
+                    {tf.toUpperCase()}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            <div className="timeframe-group" role="group" aria-label="Timeframe">
-              {TIMEFRAMES.map((tf) => (
-                <button
-                  key={tf}
-                  onClick={() => setTimeframe(tf)}
-                  className={`timeframe-btn ${timeframe === tf ? 'is-active' : ''}`}
-                >
-                  {tf.toUpperCase()}
-                </button>
-              ))}
-            </div>
+            {!selectedTicker && (
+              <div className="empty-state">
+                <p className="empty-state-title">No ticker selected</p>
+                <p className="empty-state-body">Search for a symbol above to load its price history.</p>
+              </div>
+            )}
+
+            {loading && <p className="status-text">Loading market data...</p>}
+            {error && <p className="status-text is-error">{error}</p>}
+
+            {!loading && !error && stockData && <Chart bars={stockData.data} ticker={stockData.ticker} />}
+            
+            <CandlestickGuide />
           </div>
+        )}
 
-          {!selectedTicker && (
-            <div className="empty-state">
-              <p className="empty-state-title">No ticker selected</p>
-              <p className="empty-state-body">Search for a symbol above to load its price history.</p>
-            </div>
-          )}
-
-          {loading && <p className="status-text">Loading market data...</p>}
-          {error && <p className="status-text is-error">{error}</p>}
-
-          {!loading && !error && stockData && <Chart bars={stockData.data} ticker={stockData.ticker} />}
-          
-          <CandlestickGuide />
-        </div>
-      )}
-
-      {mode === 'strategies' && <StrategyChart />}
+        {mode === 'strategies' && <StrategyChart />}
+      </div>
     </div>
   )
 }
