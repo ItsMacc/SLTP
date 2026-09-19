@@ -45,6 +45,7 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
   const [securityWarnings, setSecurityWarnings] = useState(true);
   const [dailySummary, setDailySummary] = useState(false);
   const [priceAlerts, setPriceAlerts] = useState(true);
+  const [autoTrackSignals, setAutoTrackSignals] = useState(false);
 
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -88,6 +89,7 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
         if (currentSettings.securityWarnings !== undefined) setSecurityWarnings(currentSettings.securityWarnings);
         if (currentSettings.dailySummary !== undefined) setDailySummary(currentSettings.dailySummary);
         if (currentSettings.priceAlerts !== undefined) setPriceAlerts(currentSettings.priceAlerts);
+        if (currentSettings.autoTrackSignals !== undefined) setAutoTrackSignals(currentSettings.autoTrackSignals);
 
         applyAndStoreUserSettings(currentSettings, currentName);
       }
@@ -166,6 +168,7 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
         securityWarnings,
         dailySummary,
         priceAlerts,
+        autoTrackSignals,
       };
 
       const { error } = await supabase
@@ -398,6 +401,18 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
                   />
                   <span className="st-settings-hint is-indented">
                     Instant alerts if any tracked instrument moves +/- 5% within a single trading session.
+                  </span>
+                </div>
+
+                <div className="st-settings-field">
+                  <Checkbox
+                    checked={autoTrackSignals}
+                    onChange={(e) => setAutoTrackSignals(e.target.checked)}
+                    label="Enable automatic tracking on signal generation"
+                  />
+                  <span className="st-settings-hint is-indented">
+                    When a strategy generates a signal, automatically record the trade in your portfolio at our
+                    pre-calculated prices. Leave this off to add trades manually from the Portfolio page.
                   </span>
                 </div>
               </div>
