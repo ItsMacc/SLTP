@@ -1,17 +1,17 @@
 // StrategyCard.tsx — Strategy summary card: metrics and explainer sections
-import React, { useState, useRef } from 'react';
-import { 
-  Compass, 
-  Activity, 
-  Briefcase, 
+import React from 'react';
+import {
+  Compass,
+  Activity,
+  Briefcase,
   Repeat,
-  CheckCircle2, 
-  XCircle, 
+  CheckCircle2,
+  XCircle,
   Sparkles,
   Zap,
   BookOpen,
   Scale,
-  BarChart3
+  BarChart3,
 } from 'lucide-react';
 import { type StrategyData, type DetailedPoint, type BacktestMetricData } from '../types/strategy';
 import { GlossaryText } from './GlossaryText';
@@ -21,23 +21,20 @@ import './StrategyCard.css';
 interface StrategyCardProps {
   strategy: StrategyData;
   indexNumber?: number;
+  /* Open state is owned by the page so it can render a dock of collapse controls */
+  isExpanded: boolean;
+  onToggle: () => void;
   actionButton?: React.ReactNode;
 }
 
 export const StrategyCard: React.FC<StrategyCardProps> = ({ 
   strategy, 
   indexNumber = 1, 
+  isExpanded,
+  onToggle,
   actionButton 
 }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const cardRef = useRef<HTMLDivElement>(null);
-
-  const toggleExpand = () => {
-    if (isExpanded && cardRef.current) {
-      cardRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
-    setIsExpanded((prev) => !prev);
-  };
+  const panelId = `strategy-panel-${strategy.id}`;
 
   const renderDetailList = (items: (string | DetailedPoint)[], type: 'pro' | 'con' | 'neutral') => {
     return items.map((item, idx) => {
@@ -95,7 +92,7 @@ export const StrategyCard: React.FC<StrategyCardProps> = ({
   };
 
   return (
-    <div ref={cardRef} className={`wireframe-card ${isExpanded ? 'is-expanded' : ''}`}>
+    <div id={`strategy-card-${strategy.id}`} className={`wireframe-card ${isExpanded ? 'is-expanded' : ''}`}>
       {/* 1. TOP HEADER BLOCK */}
       <div className="card-block-header">
         <div className="header-top-row">
@@ -138,7 +135,7 @@ export const StrategyCard: React.FC<StrategyCardProps> = ({
       </div>
 
       {/* 3. PURE CSS GRID EXPANSION WRAPPER */}
-      <div className="expandable-wrapper">
+      <div id={panelId} className="expandable-wrapper">
         <div className="expandable-inner">
           <div className="card-block-expanded">
             {/* IDEA & HYPOTHESIS */}
@@ -304,11 +301,13 @@ export const StrategyCard: React.FC<StrategyCardProps> = ({
         {actionButton ? (
           actionButton
         ) : (
-          <Button 
-            variant="outline" 
-            size="md" 
+          <Button
+            variant="outline"
+            size="md"
             className="full-width-btn"
-            onClick={toggleExpand}
+            onClick={onToggle}
+            aria-expanded={isExpanded}
+            aria-controls={panelId}
           >
             <span>{isExpanded ? 'Collapse Strategy' : 'Explore Strategy'}</span>
           </Button>

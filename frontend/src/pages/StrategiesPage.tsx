@@ -1,5 +1,6 @@
 // StrategiesPage.tsx — Strategies listing page and hero banner
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { ChevronUp } from 'lucide-react';
 import { StrategyCard } from '../components/StrategyCard';
 import { type StrategyData } from '../types/strategy';
 import './StrategiesPage.css';
@@ -456,7 +457,81 @@ export const StockHealthFilterStrategy: StrategyData = {
   }
 };
 
+const STRATEGY_LIST = [
+  { strategy: BuyAndHoldStrategy, indexNumber: 1 },
+  { strategy: StockHealthFilterStrategy, indexNumber: 2 },
+];
+
+/* Breathing room left above a card when it is brought back into view */
+const CARD_SCROLL_OFFSET = 24;
+/* Roughly how long the glide back to the card takes */
+const CARD_GLIDE_MS = 380;
+/* How long to keep correcting the scroll, covering the whole collapse transition */
+const CARD_HOLD_MS = 900;
+
+/* Readers who ask for reduced motion get the jump instead of the glide */
+const prefersReducedMotion = () =>
+  typeof window.matchMedia === 'function' &&
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* Only one card corrects the scroll at a time. Starting a new collapse takes the
+   loop over from any still running, which matters when several cards are open. */
+let holdFrame: number | null = null;
+
+const stopCardHold = () => {
+  if (holdFrame !== null) cancelAnimationFrame(holdFrame);
+  holdFrame = null;
+};
+
+/* Closing a card removes a large amount of page height. Left alone the browser
+   clamps the scroll position and drops the reader at the very bottom of the
+   document, so the position is re-asserted every frame until the collapse
+   transition has finished. */
+const holdCardInView = (strategyId: string) => {
+  stopCardHold();
+
+  const startedAt = performance.now();
+  const startScroll = window.scrollY;
+  const glideMs = prefersReducedMotion() ? 1 : CARD_GLIDE_MS;
+
+  /* A card's distance from the top of the document does not change as it closes */
+  const destination = () => {
+    const card = document.getElementById(`strategy-card-${strategyId}`);
+    if (!card) return startScroll;
+    return Math.max(0, card.getBoundingClientRect().top + window.scrollY - CARD_SCROLL_OFFSET);
+  };
+
+  const step = () => {
+    const elapsed = performance.now() - startedAt;
+    const progress = Math.min(1, elapsed / glideMs);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+    const desired = startScroll + (destination() - startScroll) * eased;
+
+    window.scrollTo(0, Math.max(0, Math.min(desired, maxScroll)));
+
+    holdFrame = elapsed < CARD_HOLD_MS ? requestAnimationFrame(step) : null;
+  };
+
+  holdFrame = requestAnimationFrame(step);
+};
+
 export const StrategiesPage: React.FC = () => {
+  const [expandedIds, setExpandedIds] = useState<string[]>([]);
+
+  useEffect(() => stopCardHold, []);
+
+  const toggleStrategy = (strategyId: string) => {
+    const isOpen = expandedIds.includes(strategyId);
+    if (isOpen) holdCardInView(strategyId);
+
+    setExpandedIds((prev) =>
+      isOpen ? prev.filter((id) => id !== strategyId) : [...prev, strategyId]
+    );
+  };
+
+  const expanded = STRATEGY_LIST.filter(({ strategy }) => expandedIds.includes(strategy.id));
+
   return (
     <div className="strategies-page page-transition">
       {/* Edge-to-Edge Hero Banner */}
@@ -491,9 +566,36 @@ export const StrategiesPage: React.FC = () => {
 
       {/* Render Strategy Cards */}
       <div className="strategies-list">
-        <StrategyCard strategy={BuyAndHoldStrategy} indexNumber={1} />
-        <StrategyCard strategy={StockHealthFilterStrategy} indexNumber={2} />
+        {STRATEGY_LIST.map(({ strategy, indexNumber }) => (
+          <StrategyCard
+            key={strategy.id}
+            strategy={strategy}
+            indexNumber={indexNumber}
+            isExpanded={expandedIds.includes(strategy.id)}
+            onToggle={() => toggleStrategy(strategy.id)}
+          />
+        ))}
       </div>
+
+      {/* Collapse controls stay on screen for every open strategy, so a long card
+          never has to be scrolled to the bottom to be closed. */}
+      {expanded.length > 0 && (
+        <div className="strategy-dock" role="group" aria-label="Open strategies">
+          {expanded.map(({ strategy }) => (
+            <button
+              key={strategy.id}
+              type="button"
+              className="strategy-dock-btn"
+              onClick={() => toggleStrategy(strategy.id)}
+              aria-label={`Collapse ${strategy.name}`}
+            >
+              <ChevronUp size={15} aria-hidden="true" />
+              <span className="strategy-dock-action">Collapse</span>
+              <span className="strategy-dock-name">{strategy.name}</span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

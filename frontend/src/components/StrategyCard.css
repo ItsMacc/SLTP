@@ -10,11 +10,14 @@
   background-color: var(--bg-surface);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
+  /* Clips the header tint and body to the rounded corners */
   overflow: hidden;
   box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
   width: 100%;
+  /* Scroll anchoring is off so collapsing never drags the reader down the page */
+  overflow-anchor: none;
 }
 
 /* 1. TOP HEADER BLOCK */
@@ -347,6 +350,35 @@
   background-color: var(--bg-surface);
 }
 
+/* ---------- Mobile: compact the pinned header and widen the reading area ---------- */
+@media (max-width: 48rem) {
+  .card-block-header {
+    padding: var(--space-md) var(--space-lg);
+  }
+
+  .wireframe-title {
+    font-size: var(--text-xl);
+  }
+
+  .card-block-body,
+  .card-block-expanded,
+  .card-block-footer {
+    padding-left: var(--space-lg);
+    padding-right: var(--space-lg);
+  }
+
+  /* Four cramped columns become a readable two-by-two grid */
+  .metrics-row {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-md);
+  }
+
+  .m-label {
+    gap: var(--space-2xs);
+  }
+}
+
 /* Comparison analysis */
 .comparisons-container {
   display: flex;
@@ -505,7 +537,7 @@
 .metric-val-col {
   font-family: var(--font-mono);
   text-align: right;
-  color: var(--text-secondary);
+  color: var(--text-primary);
 }
 
 .metric-winner {
