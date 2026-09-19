@@ -52,6 +52,22 @@ export default function App() {
       
       applyAndStoreUserSettings(settings, name);
       setUser({ id: userId, email, name, settings });
+
+      // Ensure the user exists in Turso with default values (idempotent,
+      // safe on every login — only creates rows the first time).
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        if (token) {
+          await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/user/provision`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ name }),
+          });
+        }
+      } catch {
+        // Provisioning is best-effort; never block the UI on it
+      }
     }
 
     supabase.auth.getSession().then(async ({ data: { session } }) => {

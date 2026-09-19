@@ -9,8 +9,10 @@ from app.strategies.stock_health_filter import StockHealthFilterStrategy
 
 # Database Imports
 from app.database.fetch import get_stock_history_json, get_all_tickers as fetch_all_tickers
+from app.database.provision import router as provision_router
 
 app = FastAPI(title="Stocker Backtesting & Analytics API")
+app.include_router(provision_router)
 
 # Configure CORS for React/Vite Frontend
 app.add_middleware(

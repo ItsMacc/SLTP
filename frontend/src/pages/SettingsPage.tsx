@@ -44,7 +44,7 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
   const [tradeSignals, setTradeSignals] = useState(true);
   const [securityWarnings, setSecurityWarnings] = useState(true);
   const [dailySummary, setDailySummary] = useState(false);
-  const [priceAlerts, setPriceAlerts] = useState(true);
+  const [priceAlerts, setPriceAlerts] = useState(false);
   const [autoTrackSignals, setAutoTrackSignals] = useState(false);
 
   const [saving, setSaving] = useState(false);
