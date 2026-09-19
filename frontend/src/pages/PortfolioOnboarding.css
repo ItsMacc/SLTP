@@ -1,0 +1,150 @@
+/* ============================================================
+   PortfolioOnboarding.css — Setup wizard styles
+   ============================================================ */
+
+.pf-onboard {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding: var(--space-2xl) var(--space-md);
+}
+
+.pf-onboard-card {
+  width: 100%;
+  max-width: min(90vw, 34rem);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+/* Progress dots */
+.pf-onboard-progress {
+  display: flex;
+  gap: var(--space-xs);
+}
+
+.pf-onboard-dot {
+  height: var(--space-2xs);
+  flex: 1;
+  border-radius: var(--radius-full);
+  background: var(--border-subtle);
+  transition: background 0.25s ease;
+}
+
+.pf-onboard-dot.is-done {
+  background: var(--accent);
+}
+
+.pf-onboard-step-label {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* Step content */
+.pf-onboard-step {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  min-height: 16rem;
+}
+
+.pf-onboard-title {
+  font-size: var(--text-2xl);
+}
+
+.pf-onboard-sub {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.pf-onboard-label {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: var(--space-2xs);
+}
+
+/* Capital step */
+.pf-onboard-capital-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-md);
+}
+
+@media (max-width: 30rem) {
+  .pf-onboard-capital-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Strategy cards */
+.pf-onboard-strategies {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.pf-onboard-strategy {
+  text-align: left;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-canvas);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3xs);
+  font-family: var(--font-sans);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.pf-onboard-strategy:hover {
+  border-color: var(--border-strong);
+}
+
+.pf-onboard-strategy.is-selected {
+  border-color: var(--accent);
+  background: var(--accent-muted);
+}
+
+.pf-onboard-strategy-name {
+  font-weight: 600;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.pf-onboard-strategy-desc {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.pf-onboard-signal-check {
+  margin-top: var(--space-sm);
+}
+
+/* Error + actions */
+.pf-onboard-error {
+  background: rgba(220, 38, 38, 0.1);
+  color: var(--error);
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--text-sm);
+}
+
+.pf-onboard-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--border-subtle);
+}

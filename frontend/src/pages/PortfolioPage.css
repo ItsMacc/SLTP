@@ -1,0 +1,133 @@
+/* ============================================================
+   PortfolioPage.css — Portfolio view styles
+   ============================================================ */
+
+.pf-page {
+  width: 100%;
+  max-width: min(96vw, 64rem);
+  margin: 0 auto;
+  padding: var(--space-xl) var(--space-md) var(--space-2xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+/* Header */
+.pf-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.pf-header-kicker {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.pf-header-title {
+  font-size: var(--text-2xl);
+}
+
+/* Summary cards */
+.pf-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-md);
+}
+
+@media (max-width: 40rem) {
+  .pf-summary-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.pf-summary-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-md) var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+}
+
+.pf-summary-label {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.pf-summary-value {
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+/* Empty state */
+.pf-empty {
+  background: var(--bg-surface);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  padding: var(--space-2xl) var(--space-lg);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.pf-empty-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: var(--radius-full);
+  background: var(--accent-muted);
+  color: var(--accent);
+  margin-bottom: var(--space-2xs);
+}
+
+.pf-empty-title {
+  font-size: var(--text-xl);
+}
+
+.pf-empty-sub {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  max-width: 28rem;
+}
+
+/* Loading / error placeholder */
+.pf-page-placeholder {
+  padding: var(--space-2xl) var(--space-lg);
+  text-align: center;
+  color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.pf-page-placeholder-text {
+  font-size: var(--text-sm);
+}
+
+.pf-page-retry {
+  background: none;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  padding: var(--space-sm) var(--space-md);
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.pf-page-retry:hover {
+  border-color: var(--accent);
+}

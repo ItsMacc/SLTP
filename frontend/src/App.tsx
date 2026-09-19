@@ -8,6 +8,7 @@ import SettingsPage, { applyAndStoreUserSettings } from './pages/SettingsPage';
 import LegalPage, { type LegalPageKind } from './pages/LegalPage';
 import PerformancePage from './pages/PerformancePage';
 import StrategiesPage from './pages/StrategiesPage';
+import PortfolioPage from './pages/PortfolioPage';
 import ErrorToast from './ui/ErrorToast';
 import { supabase } from '../lib/supabase';
 import './index.css';
@@ -141,6 +142,8 @@ export default function App() {
               <PerformancePage userId={user?.id} initialSettings={user?.settings} />
             ) : activeTab === 'strategies' ? (
               <StrategiesPage />
+            ) : activeTab === 'portfolio' && user?.id ? (
+              <PortfolioPage defaultName={user.name} />
             ) : activeTab === 'home' ? (
               <HomePage onNavigate={handleTabChange} />
             ) : (

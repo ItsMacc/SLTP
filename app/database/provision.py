@@ -62,6 +62,9 @@ async def provision_user(
         )
         created = False
 
-    await turso.get_or_create_portfolio(user_id, name=f"{name or 'My'} Portfolio" if name else None)
+    # NOTE: we deliberately do NOT create a portfolio row here.
+    # A portfolio is only created when the user completes the onboarding
+    # wizard (POST /api/portfolio/complete-setup), so "no row" reliably
+    # means "hasn't onboarded yet".
 
     return {"provisioned": created, "user_id": user_id}
