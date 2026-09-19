@@ -1,3 +1,4 @@
+// Input.tsx — Text input with optional label, icon and error state
 import React from 'react';
 import './Input.css';
 

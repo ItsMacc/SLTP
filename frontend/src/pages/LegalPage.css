@@ -165,7 +165,7 @@
 
 .st-legal-list-lead {
   font-weight: 600;
-  margin-right: 0.35rem; /* Clean spacing between lead title and body text */
+  margin-right: 0.35rem;
 }
 
 .st-legal-link {
@@ -178,7 +178,7 @@
   text-decoration: underline;
 }
 
-/* Responsive */
+/* ---------- Mobile ---------- */
 @media (max-width: 48rem) {
   .st-legal-layout {
     padding: 1.5rem 1rem 2.5rem;

@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect } from 'react';
+// Select.tsx — Custom dropdown select with click-outside handling
+import { useEffect, useRef, useState } from 'react';
 import './Select.css';
 
 export interface SelectOption {
@@ -42,7 +43,6 @@ export default function Select({
     <div className="select-wrapper" ref={containerRef}>
       {label && <span className="select-label">{label}</span>}
       <div className={`select-container ${error ? 'has-error' : ''} ${isOpen ? 'is-open' : ''}`}>
-        
         <button
           type="button"
           className="select-trigger"

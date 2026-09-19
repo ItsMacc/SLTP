@@ -5,7 +5,7 @@
    UI atoms. Breakpoints in rem.
    ============================================================ */
 
-/* src/components/TradeResults.css */
+/* ---------- Container ---------- */
 .trade-results-container {
   margin-top: var(--space-xl);
   background: var(--bg-surface);
@@ -130,4 +130,16 @@
   font-size: var(--text-sm);
   font-weight: 500;
   color: var(--text-muted);
+}
+
+/* ---------- Mobile: tighter cells so more columns stay visible ---------- */
+@media (max-width: 48rem) {
+  .trade-results-container {
+    padding: var(--space-md);
+  }
+
+  .trade-table th,
+  .trade-table td {
+    padding: var(--space-sm);
+  }
 }

@@ -1,4 +1,5 @@
-// src/pages/SettingsPage.tsx
+// SettingsPage.tsx — Account settings, preferences, danger zone
+
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import Button from '../ui/Button';
@@ -265,36 +266,26 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
 
                 <div className="st-settings-field">
                   <label className="st-settings-label">Email address</label>
-                  <Input
-                    type="email"
-                    value={userEmail}
-                    disabled
-                    style={{ backgroundColor: 'var(--bg-surface-hover)', cursor: 'not-allowed' }}
-                  />
+                  <Input type="email" value={userEmail} disabled />
                   <span className="st-settings-hint">Your email is managed by your authentication provider.</span>
                 </div>
 
                 <div className="st-settings-field">
                   <label className="st-settings-label">Account created</label>
-                  <Input
-                    type="text"
-                    value={accountCreated}
-                    disabled
-                    style={{ backgroundColor: 'var(--bg-surface-hover)', cursor: 'not-allowed' }}
-                  />
+                  <Input type="text" value={accountCreated} disabled />
                   <span className="st-settings-hint">System registration timestamp.</span>
                 </div>
 
-                <div className="st-settings-field" style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px dashed var(--border-subtle)' }}>
-                  <label className="st-settings-label" style={{ color: 'var(--error, #dc2626)' }}>Danger Zone</label>
-                  <span className="st-settings-hint" style={{ marginBottom: '1rem', display: 'block' }}>
+                <div className="st-settings-field is-danger">
+                  <label className="st-settings-label is-danger">Danger Zone</label>
+                  <span className="st-settings-hint is-warning">
                     Permanently delete your account and all associated configuration data.
                   </span>
-                  <Button 
-                    variant="secondary" 
+                  <Button
+                    variant="secondary"
                     size="sm"
+                    className="st-settings-btn-danger"
                     onClick={handleRequestDelete}
-                    style={{ borderColor: 'var(--error, #dc2626)', color: 'var(--error, #dc2626)' }}
                   >
                     Delete account
                   </Button>
@@ -372,7 +363,7 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
                     onChange={(e) => setTradeSignals(e.target.checked)}
                     label="Notify me when trade signals are generated"
                   />
-                  <span className="st-settings-hint" style={{ marginLeft: '1.75rem' }}>
+                  <span className="st-settings-hint is-indented">
                     Receive instant notifications when active strategies hit buy/sell execution criteria.
                   </span>
                 </div>
@@ -383,7 +374,7 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
                     onChange={(e) => setSecurityWarnings(e.target.checked)}
                     label="Security warning alerts"
                   />
-                  <span className="st-settings-hint" style={{ marginLeft: '1.75rem' }}>
+                  <span className="st-settings-hint is-indented">
                     Get notified immediately regarding password changes or login attempts from unknown IPs.
                   </span>
                 </div>
@@ -394,7 +385,7 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
                     onChange={(e) => setDailySummary(e.target.checked)}
                     label="Daily Market Summary"
                   />
-                  <span className="st-settings-hint" style={{ marginLeft: '1.75rem' }}>
+                  <span className="st-settings-hint is-indented">
                     Receive an aggregated morning overview of portfolio performance and watchlist movements.
                   </span>
                 </div>
@@ -405,7 +396,7 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
                     onChange={(e) => setPriceAlerts(e.target.checked)}
                     label="Volatility & Price Threshold Spikes"
                   />
-                  <span className="st-settings-hint" style={{ marginLeft: '1.75rem' }}>
+                  <span className="st-settings-hint is-indented">
                     Instant alerts if any tracked instrument moves +/- 5% within a single trading session.
                   </span>
                 </div>
@@ -457,7 +448,7 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
               onChange={(e) => setDeleteConfirmText(e.target.value)}
               placeholder="CONFIRM"
               disabled={deleting}
-              style={{ textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}
+              className="st-settings-modal-input"
             />
 
             {deleteError && (

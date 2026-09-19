@@ -1,3 +1,4 @@
+// RadioGroup.tsx — Radio group with card-style options
 import './RadioGroup.css';
 
 export interface RadioOption {

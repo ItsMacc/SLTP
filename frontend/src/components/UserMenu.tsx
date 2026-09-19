@@ -1,3 +1,4 @@
+// UserMenu.tsx — Header user pill and account dropdown
 import { useState, useRef, useEffect } from 'react';
 import './UserMenu.css';
 
@@ -50,7 +51,7 @@ export default function UserMenu({
       {isOpen && (
         <div className="st-dropdown">
           <div className="st-dropdown__header">
-            {userName && <span className="st-dropdown__name" style={{ fontWeight: 600, display: 'block', marginBottom: '2px' }}>{userName}</span>}
+            {userName && <span className="st-dropdown__name">{userName}</span>}
             <span className="st-dropdown__signed-in-as">Signed in as</span>
             <span className="st-dropdown__email">{userEmail || 'user@example.com'}</span>
           </div>

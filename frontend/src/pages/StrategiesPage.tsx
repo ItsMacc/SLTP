@@ -1,3 +1,4 @@
+// StrategiesPage.tsx — Strategies listing page and hero banner
 import React from 'react';
 import { StrategyCard } from '../components/StrategyCard';
 import { type StrategyData } from '../types/strategy';
@@ -459,7 +460,7 @@ export const StrategiesPage: React.FC = () => {
   return (
     <div className="strategies-page page-transition">
       {/* Edge-to-Edge Hero Banner */}
-      <div className="strategies-hero-wrapper">
+      <div className="strategies-hero-wrapper is-full-bleed">
         <div className="strategies-hero-inner">
           <div className="strategies-hero-top">
             <span className="strategies-subtitle">Strategy Library</span>

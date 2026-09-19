@@ -1,3 +1,4 @@
+// Button.tsx — Shared button: variants, sizes, forwarded props
 import React from 'react';
 import './Button.css';
 

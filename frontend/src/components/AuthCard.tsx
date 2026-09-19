@@ -1,3 +1,4 @@
+// AuthCard.tsx — Sign in / sign up card
 import { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { loginSchema, signUpSchema } from '../../lib/authSchema';
@@ -145,7 +146,7 @@ export function AuthCard({ initialMode = 'login', onSuccess }: AuthCardProps) {
           {isLogin ? 'Sign in to access your portfolio' : 'Get started with your trading account'}
         </p>
 
-        {successMsg && <div className="st-auth__success" style={{ color: 'green', marginBottom: '1rem', fontSize: '0.9rem' }}>{successMsg}</div>}
+        {successMsg && <div className="st-auth__success">{successMsg}</div>}
 
         <form onSubmit={handleSubmit} className="st-auth__form">
           {!isLogin && (
@@ -160,7 +161,7 @@ export function AuthCard({ initialMode = 'login', onSuccess }: AuthCardProps) {
                   onChange={(e) => setFullNameInput(e.target.value)}
                 />
               </div>
-              {errors.fullName && <span className="st-auth__error" style={{ color: 'var(--error, #dc2626)', fontSize: '0.8rem' }}>{errors.fullName}</span>}
+              {errors.fullName && <span className="st-auth__error">{errors.fullName}</span>}
             </div>
           )}
 
@@ -175,7 +176,7 @@ export function AuthCard({ initialMode = 'login', onSuccess }: AuthCardProps) {
                 onChange={(e) => setEmail(e.target.value)}
               />
             </div>
-            {errors.email && <span className="st-auth__error" style={{ color: 'var(--error, #dc2626)', fontSize: '0.8rem' }}>{errors.email}</span>}
+            {errors.email && <span className="st-auth__error">{errors.email}</span>}
           </div>
 
           <div className="st-auth__field">
@@ -197,7 +198,7 @@ export function AuthCard({ initialMode = 'login', onSuccess }: AuthCardProps) {
                 {showPassword ? 'Hide' : 'Show'}
               </button>
             </div>
-            {errors.password && <span className="st-auth__error" style={{ color: 'var(--error, #dc2626)', fontSize: '0.8rem' }}>{errors.password}</span>}
+            {errors.password && <span className="st-auth__error">{errors.password}</span>}
           </div>
 
           {!isLogin && (
@@ -212,12 +213,12 @@ export function AuthCard({ initialMode = 'login', onSuccess }: AuthCardProps) {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                 />
               </div>
-              {errors.confirmPassword && <span className="st-auth__error" style={{ color: 'var(--error, #dc2626)', fontSize: '0.8rem' }}>{errors.confirmPassword}</span>}
+              {errors.confirmPassword && <span className="st-auth__error">{errors.confirmPassword}</span>}
             </div>
           )}
 
           <div className="st-auth__submit-container">
-            <Button type="submit" variant="primary" size="md" disabled={loading} style={{ width: '100%' }}>
+            <Button type="submit" variant="primary" size="md" disabled={loading}>
               {loading ? 'Processing...' : isLogin ? 'Sign In' : 'Sign Up'}
             </Button>
           </div>

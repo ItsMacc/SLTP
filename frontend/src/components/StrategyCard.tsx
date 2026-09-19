@@ -1,3 +1,4 @@
+// StrategyCard.tsx — Strategy summary card: metrics and explainer sections
 import React, { useState, useRef } from 'react';
 import { 
   Compass, 

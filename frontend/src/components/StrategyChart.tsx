@@ -1,4 +1,5 @@
-// src/components/StrategyChart.tsx
+// StrategyChart.tsx — Strategy runner: equity chart and metrics sidebar
+
 import React, { useState, useMemo, useRef, useLayoutEffect, useCallback, useEffect } from 'react'
 import './StrategyChart.css'
 import Select, { type SelectOption } from '../ui/Select'
@@ -392,7 +393,7 @@ export default function StrategyChart() {
               <h3 className="strategy-title">{backtestResult.strategy_name}</h3>
               {candles.length > 0 && (
                 <span className="strategy-subtext">
-                  {candles[0].date} — {candles[candles.length - 1].date}
+                  {candles[0].date} to {candles[candles.length - 1].date}
                 </span>
               )}
             </div>

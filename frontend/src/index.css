@@ -9,6 +9,16 @@
      desktop rendering stays identical.
    - Padding/gap/margins use the --space-* scale.
    - Media-query breakpoints are written in rem (Xpx / 16).
+
+   Mobile conventions:
+   - Never size a full-bleed band with 100vw. 100vw includes the
+     scrollbar, so it is wider than the layout viewport by ~15px
+     and forces a horizontal scrollbar. Break out of #root with
+     negative --gutter margins instead (see .is-full-bleed).
+   - html/body clip horizontal overflow as a safety net; content
+     must still fit without it. `clip` is used rather than `hidden`
+     because `hidden` makes the body a scroll container, which
+     silently breaks `position: sticky` descendants.
    ============================================================ */
 
 /* ---------- Fonts ---------- */
@@ -67,8 +77,11 @@
   --shadow-md: 0 4px 12px rgba(59, 55, 63, 0.08);
   --shadow-lg: 0 12px 24px -4px rgba(59, 55, 63, 0.12);
 
-  /* Fluid page container: 95% of the viewport, no px cap */
-  --container-max: 95vw;
+  /* Page shell fills the layout viewport; sections carry their own caps */
+  --container-max: 100%;
+
+  /* Side gutter shared by #root padding and full-bleed bands */
+  --gutter: var(--space-md);
 }
 
 /* Dark palette from OS preference, or the manual dark override below */
@@ -134,6 +147,13 @@ html {
   -webkit-text-size-adjust: 100%;
 }
 
+/* Clip stray horizontal overflow so a wide child can never scroll the page */
+html,
+body {
+  overflow-x: clip;
+  max-width: 100%;
+}
+
 body {
   font-family: var(--font-sans);
   font-size: var(--text-base);
@@ -161,22 +181,60 @@ h1, h2, h3, h4, h5, h6 {
   width: 100%;
   max-width: var(--container-max);
   margin: 0 auto;
-  padding: 0 var(--space-sm) var(--space-sm) var(--space-sm);
+  padding: 0 var(--gutter) var(--space-sm) var(--gutter);
   display: flex;
   flex-direction: column;
   min-height: 100vh;
 }
 
+/* Band that escapes #root's gutter to reach both viewport edges */
+.is-full-bleed {
+  width: auto;
+  margin-left: calc(-1 * var(--gutter));
+  margin-right: calc(-1 * var(--gutter));
+}
+
 @media (min-width: 48rem) {
   #root {
-    padding: 0 var(--space-md) var(--space-md) var(--space-md);
+    padding: 0 var(--gutter) var(--space-md) var(--gutter);
   }
 }
 
-@media (min-width: 64rem) {
-  #root {
-    padding: 0 var(--space-md) var(--space-md) var(--space-md);
+/* Small phones: tighten the whole type scale a touch so copy and
+   controls breathe without overflowing the viewport */
+@media (max-width: 30rem) {
+  html {
+    font-size: 95%;
   }
+}
+
+/* ---------- App shell ---------- */
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-main {
+  width: 100%;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Placeholder shown for tabs that have no page yet */
+.app-placeholder {
+  padding: var(--space-2xl) var(--space-lg);
+  text-align: center;
+}
+
+.app-placeholder-title {
+  font-size: var(--text-2xl);
+  margin-bottom: var(--space-md);
+}
+
+.app-placeholder-text {
+  color: var(--text-muted);
 }
 
 /* Page Navigation Transition */
@@ -192,7 +250,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .page-transition {
-  animation: fadeIn 0.35s ease-out forwards;
+  animation: fadeIn 0.6s ease-out forwards;
   width: 100%;
   flex: 1;
   display: flex;

@@ -5,7 +5,7 @@
    fixed-size atoms. Breakpoints in rem.
    ============================================================ */
 
-/* src/components/StrategyGuide.css */
+/* ---------- Guide shell ---------- */
 
 /* ---------- Outer section ---------- */
 .stg-guide {
@@ -228,7 +228,7 @@
 /* ---------- Scorecard table ---------- */
 .stg-scorecard-wrap {
   width: 100%;
-  overflow-x: hidden; /* Prevents unwanted horizontal scrollbars */
+  overflow-x: hidden;
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
@@ -238,7 +238,7 @@
 
 .stg-scorecard {
   width: 100%;
-  min-width: 0; /* Ensures dynamic fit within parent */
+  min-width: 0;
   border-collapse: collapse;
   table-layout: fixed;
   font-size: var(--text-sm);
@@ -275,7 +275,7 @@
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
   vertical-align: top;
-  word-break: break-word; /* Allows long strings to wrap cleanly */
+  word-break: break-word;
 }
 
 .stg-scorecard tbody tr:nth-child(even) td {
@@ -289,18 +289,19 @@
 .stg-scorecard td:first-child {
   font-family: var(--font-mono);
   font-weight: 600;
-  white-space: normal; /* Permits column titles to wrap */
+  white-space: normal;
 }
 
 .stg-scorecard td:last-child {
   font-family: var(--font-mono);
   font-weight: 600;
   color: var(--success);
-  white-space: normal; /* Permits long range criteria to wrap */
+  white-space: normal;
 }
 
 /* ---------- Callouts ---------- */
 .stg-fact {
+  margin-top: var(--space-md);
   background: var(--bg-surface);
   border: 1px dashed var(--border-strong);
   border-radius: var(--radius-md);
@@ -335,6 +336,7 @@
 
 /* ---------- Field notes ---------- */
 .stg-notes {
+  margin-top: var(--space-md);
   background: var(--bg-surface);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);

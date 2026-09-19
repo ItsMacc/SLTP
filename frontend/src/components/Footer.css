@@ -66,7 +66,7 @@
   color: var(--accent-hover);
 }
 
-/* Column grid */
+/* ---------- Column grid ---------- */
 .st-footer-grid {
   display: grid;
   grid-template-columns: 2fr 1fr 1fr;
@@ -167,11 +167,16 @@
   color: var(--text-muted);
 }
 
-/* Responsive */
+/* ---------- Mobile ---------- */
 @media (max-width: 48rem) {
   .st-footer-grid {
-    grid-template-columns: 1fr;
-    gap: var(--space-lg);
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-lg) var(--space-md);
+  }
+
+  /* Brand spans the full width, leaving the two link columns side by side */
+  .st-footer-brand {
+    grid-column: 1 / -1;
   }
 
   .st-footer-bottom {

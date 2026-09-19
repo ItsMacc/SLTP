@@ -1,4 +1,5 @@
-// src/components/StrategyGuide.tsx
+// StrategyGuide.tsx — Long-form strategy guide chapters
+
 import './StrategyGuide.css'
 
 export default function StrategyGuide() {
@@ -49,7 +50,7 @@ export default function StrategyGuide() {
             Strategies generally fall into two distinct execution models. Understanding which
             framework a strategy uses informs how you evaluate risk, return, and transaction costs.
           </p>
-          <div className="stg-duo" style={{ marginTop: 'var(--space-md)' }}>
+          <div className="stg-duo">
             <div className="stg-duo-card is-invest">
               <p className="stg-duo-tag">Long-Term Horizon</p>
               <h4 className="stg-duo-title">Investing</h4>
@@ -419,7 +420,7 @@ export default function StrategyGuide() {
           <div>
             <span className="stg-tag">Quantitative Insights</span>
             <h3 className="stg-title">Core Principles</h3>
-            <div className="stg-fact" style={{ marginTop: 'var(--space-md)' }}>
+            <div className="stg-fact">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M12 2L12 2L5 12L19 12L12 22Z M2 12L12 12L22 12L12 2Z" />
               </svg>
@@ -430,7 +431,7 @@ export default function StrategyGuide() {
                 </p>
               </div>
             </div>
-            <div className="stg-fact" style={{ marginTop: 'var(--space-md)' }}>
+            <div className="stg-fact">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M12 2L12 2L5 12L19 12L12 22Z M2 12L12 12L22 12L12 2Z" />
               </svg>
@@ -441,7 +442,7 @@ export default function StrategyGuide() {
                 </p>
               </div>
             </div>
-            <div className="stg-fact" style={{ marginTop: 'var(--space-md)' }}>
+            <div className="stg-fact">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M12 2L12 2L5 12L19 12L12 22Z M2 12L12 12L22 12L12 2Z" />
               </svg>
@@ -452,7 +453,7 @@ export default function StrategyGuide() {
                 </p>
               </div>
             </div>
-            <div className="stg-fact" style={{ marginTop: 'var(--space-md)' }}>
+            <div className="stg-fact">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M12 2L12 2L5 12L19 12L12 22Z M2 12L12 12L22 12L12 2Z" />
               </svg>
@@ -463,7 +464,7 @@ export default function StrategyGuide() {
                 </p>
               </div>
             </div>
-            <div className="stg-fact" style={{ marginTop: 'var(--space-md)' }}>
+            <div className="stg-fact">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M12 2L12 2L5 12L19 12L12 22Z M2 12L12 12L22 12L12 2Z" />
               </svg>
@@ -479,7 +480,7 @@ export default function StrategyGuide() {
           <div>
             <span className="stg-tag">Analysis Guidelines</span>
             <h3 className="stg-title">Evaluation Framework</h3>
-            <div className="stg-notes" style={{ marginTop: 'var(--space-md)' }}>
+            <div className="stg-notes">
               <h4 className="stg-notes-heading">How professionals evaluate backtests</h4>
               <ul className="stg-notes-list">
                 <li>
@@ -530,12 +531,12 @@ export default function StrategyGuide() {
           <line x1="12" y1="16.5" x2="12" y2="16.5" />
         </svg>
         <div className="stg-disclaimer-body">
-          <span className="stg-tag">Standard Risk Disclosure</span>
+          <span className="stg-tag">Worth Knowing</span>
           <p className="stg-disclaimer-copy">
-            Backtested performance is hypothetical and derived from historical market data. Historical outcomes do not guarantee future performance. Dynamic market conditions, execution slippage, and liquidity changes can impact live execution.
+            Backtested results are hypothetical, built from historical data. They show how a set of rules would have behaved, not how it will behave next. Live markets add slippage, liquidity and conditions that a backtest cannot capture.
           </p>
           <p className="stg-disclaimer-copy">
-            Do not rely solely on backtest simulations for capital deployment decisions. Conduct thorough risk analysis and incorporate professional financial discretion.
+            Treat a backtest as the start of your thinking rather than the end of it. Use the signals as a starting point for your own research, size positions so a bad outcome is survivable, and make the final call yourself.
           </p>
         </div>
       </div>

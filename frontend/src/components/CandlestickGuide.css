@@ -5,7 +5,7 @@
    fixed-size atoms. Breakpoints in rem.
    ============================================================ */
 
-/* src/components/CandlestickGuide.css */
+/* ---------- Guide shell ---------- */
 
 .guide {
   margin-top: var(--space-2xl);
@@ -15,6 +15,12 @@
 
 .guide-intro-block {
   max-width: 62ch;
+}
+
+/* Follow-up intro block that sits between two guides */
+.guide-intro-block.is-spaced {
+  margin-top: var(--space-xl);
+  margin-bottom: var(--space-lg);
 }
 
 .guide-heading {
@@ -81,6 +87,10 @@
 .guide-examples {
   display: grid;
   gap: var(--space-lg);
+}
+
+.guide-examples.is-spaced {
+  margin-top: var(--space-xl);
 }
 
 @media (min-width: 48rem) {

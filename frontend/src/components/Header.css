@@ -129,7 +129,7 @@
   display: none;
 }
 
-/* Responsive behavior */
+/* ---------- Mobile ---------- */
 @media (max-width: 48rem) { /* ≈768px */
   .desktop-only {
     display: none !important;
@@ -199,5 +199,26 @@
     gap: var(--space-xs);
     padding-top: var(--space-sm);
     border-top: 1px solid var(--border-subtle);
+  }
+
+  .mobile-auth-group .btn {
+    width: 100%;
+  }
+
+  .mobile-user-info {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3xs);
+    padding: var(--space-sm) 0;
+  }
+
+  .mobile-user-name {
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .mobile-user-email {
+    font-size: var(--text-sm);
+    color: var(--text-muted);
   }
 }

@@ -98,6 +98,13 @@
   letter-spacing: 0.04em;
 }
 
+.st-dropdown__name {
+  display: block;
+  margin-bottom: var(--space-3xs);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
 .st-dropdown__email {
   font-size: var(--text-xs);
   font-weight: 600;

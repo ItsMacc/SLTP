@@ -1,3 +1,4 @@
+// Checkbox.tsx — Custom checkbox with label and description
 import React from 'react';
 import './Checkbox.css';
 

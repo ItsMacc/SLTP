@@ -1,4 +1,4 @@
-// src/App.tsx
+// App.tsx — Root shell: auth session, tab routing, legal pages
 import { useState, useEffect } from 'react';
 import Header from './components/Header';
 import { AuthCard } from './components/AuthCard';
@@ -38,6 +38,7 @@ export default function App() {
     }
 
     setActiveTab(tab);
+    window.scrollTo(0, 0);
     setAuthMode(null);
     setLegalPage(null);
     setAuthNotice(null);
@@ -74,7 +75,7 @@ export default function App() {
   if (loading) return null;
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div className="app-shell">
       <Header 
         activeTab={activeTab}
         onTabChange={handleTabChange}
@@ -91,7 +92,7 @@ export default function App() {
         onSettingsClick={() => { setActiveTab('settings'); setAuthMode(null); setLegalPage(null); }}
       />
 
-      <main style={{ width: '100%', flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <main className="app-main">
         {legalPage ? (
           <LegalPage page={legalPage} onBack={() => setLegalPage(null)} />
         ) : (
@@ -127,13 +128,13 @@ export default function App() {
             ) : activeTab === 'home' ? (
               <HomePage onNavigate={handleTabChange} />
             ) : (
-              <div style={{ padding: '4rem 2rem', textAlign: 'center' }}>
-                <h1 style={{ fontSize: '2rem', marginBottom: '1rem' }}>
+              <div className="app-placeholder">
+                <h1 className="app-placeholder-title">
                   {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} View
                 </h1>
-                <p style={{ color: 'var(--text-muted)' }}>
-                  {activeTab === 'settings' 
-                    ? 'Please sign in to access your settings workspace.' 
+                <p className="app-placeholder-text">
+                  {activeTab === 'settings'
+                    ? 'Please sign in to access your settings workspace.'
                     : `Currently rendering the active layout module for ${activeTab}.`}
                 </p>
               </div>

@@ -5,7 +5,7 @@
    fixed-size UI atoms (buttons, day cells). Breakpoints in rem.
    ============================================================ */
 
-/* ---------- src/ui/DatePicker.css ---------- */
+/* ---------- Date input ---------- */
 .custom-datepicker-wrapper {
   position: relative;
   display: flex;
@@ -191,4 +191,15 @@
 
 .cal-day-btn.selected:hover {
   opacity: 0.9;
+}
+
+/* ---------- Mobile: let the calendar use the full screen width ---------- */
+@media (max-width: 30rem) {
+  .custom-calendar-dropdown {
+    width: min(18.75rem, calc(100vw - var(--gutter) * 2 - 1rem));
+  }
+
+  .cal-day-btn {
+    height: 2.5rem;
+  }
 }

@@ -15,19 +15,13 @@
   width: 100%;
 }
 
-/* Edge-to-edge full width hero banner */
+/* Edge-to-edge hero banner (breaks out of #root's gutter) */
 .strategies-hero-wrapper {
-  width: 100vw;
   position: relative;
-  left: 50%;
-  right: 50%;
-  margin-left: -50vw;
-  margin-right: -50vw;
-  /* Uses theme canvas/surface tokens so it looks correct in both light & dark mode */
   background: linear-gradient(180deg, var(--bg-surface) 0%, var(--bg-canvas) 100%);
   border-bottom: 1px solid var(--border-subtle);
   border-top: 1px solid var(--border-subtle);
-  padding: var(--space-2xl) var(--space-md);
+  padding: var(--space-2xl) var(--gutter);
   margin-bottom: var(--space-md);
 }
 

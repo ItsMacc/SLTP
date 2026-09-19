@@ -1,3 +1,4 @@
+// GlossaryText.tsx — Inline glossary terms with hover tooltip
 import React, { useMemo, useState } from 'react';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { type GlossaryTerm } from '../types/strategy';

@@ -125,6 +125,37 @@
   margin-top: 0.4rem;
 }
 
+/* Variant used under a checkbox, indented to clear the box itself */
+.st-settings-hint.is-indented {
+  margin-left: calc(var(--space-lg) + var(--space-2xs)); /* ≈28px */
+}
+
+/* Push the danger block away from the fields above it */
+.st-settings-field.is-danger {
+  margin-top: var(--space-xl);
+  padding-top: var(--space-lg);
+  border-top: 1px dashed var(--border-subtle);
+}
+
+.st-settings-label.is-danger {
+  color: var(--error);
+}
+
+.st-settings-hint.is-warning {
+  margin-bottom: var(--space-md);
+}
+
+.btn.st-settings-btn-danger {
+  border-color: var(--error);
+  color: var(--error);
+}
+
+/* Confirmation field in the delete modal reads as a typed keyphrase */
+.input-field.st-settings-modal-input {
+  text-transform: uppercase;
+  font-family: var(--font-mono);
+}
+
 .st-settings-select {
   width: 100%;
   padding: 0.75rem 1rem;

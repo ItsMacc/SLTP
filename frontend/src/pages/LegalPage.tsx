@@ -1,3 +1,4 @@
+// LegalPage.tsx — Privacy Policy and Terms of Service
 import type { ReactNode } from 'react';
 import './LegalPage.css';
 
@@ -46,7 +47,7 @@ const privacyDocument: LegalDocument = {
       blocks: [
         {
           type: 'paragraph',
-          text: 'SLTP operates as an independent quantitative educational platform. We respect your right to privacy and are committed to minimizing data collection to the absolute operational necessities required to deliver our services.',
+          text: 'SLTP is an independent quantitative research platform. We respect your right to privacy and are committed to minimizing data collection to the absolute operational necessities required to deliver our services.',
         },
       ],
     },
@@ -129,7 +130,7 @@ const privacyDocument: LegalDocument = {
       blocks: [
         {
           type: 'paragraph',
-          text: 'SLTP is intended for users who are at least 13 years of age. Due to the complex nature of quantitative financial strategies, users under the age of 18 may only use the educational features of the platform and are strictly prohibited from utilizing strategies for live financial trading or investment execution.',
+          text: 'SLTP is intended for users who are at least 13 years of age. Because quantitative strategies carry real financial risk, users under the age of 18 may use the research and analysis features of the platform, but may not apply any strategy to live financial trading or investment execution.',
         },
       ],
     },
@@ -162,7 +163,7 @@ const privacyDocument: LegalDocument = {
       blocks: [
         {
           type: 'paragraph',
-          text: 'We implement robust administrative, technical, and physical safeguards—including encrypted transport protocols (HTTPS/SSL) and secure database row-level security—to protect your information against unauthorized access or disclosure.',
+          text: 'We implement robust administrative, technical, and physical safeguards, including encrypted transport protocols (HTTPS/SSL) and database row-level security, to protect your information against unauthorized access or disclosure.',
         },
       ],
     },
@@ -214,15 +215,15 @@ const termsDocument: LegalDocument = {
     },
     {
       step: '02',
-      title: 'Educational Purpose & Not Financial Advice',
+      title: 'Our Role and What We Do Not Provide',
       blocks: [
         {
           type: 'paragraph',
-          text: 'SLTP is strictly an educational, analytical, and research-focused software platform. SLTP is not a registered investment advisor, broker-dealer, financial planner, or tax professional.',
+          text: 'SLTP is a quantitative research and analysis platform. We are not a registered investment advisor, broker-dealer, financial planner or tax professional, and we do not manage money or hold client accounts on your behalf.',
         },
         {
           type: 'paragraph',
-          text: 'All tools, quantitative models, metrics, indicators, and strategies provided on the platform are for informational and educational purposes only. Nothing contained on SLTP constitutes personalized financial, investment, legal, or tax advice.',
+          text: 'Everything on the platform is designed to help you research markets and understand strategies more clearly. Our models, metrics and signals are a starting point for your own analysis rather than personalized financial, investment, legal or tax advice. What you do with them, and the due diligence behind it, stays your decision.',
         },
       ],
     },
@@ -238,26 +239,26 @@ const termsDocument: LegalDocument = {
     },
     {
       step: '04',
-      title: 'Hypothetical Performance & Backtest Disclaimer',
+      title: 'Backtested and Hypothetical Performance',
       blocks: [
         {
           type: 'paragraph',
-          text: 'Investing and trading financial instruments carry substantial risk of loss. You acknowledge and agree that:',
+          text: 'Investing carries risk, including the possibility of losing the capital you commit. We want that to be clear before you use any of our models. You acknowledge and agree that:',
         },
         {
           type: 'list',
           items: [
             {
               lead: 'Backtested Results:',
-              text: 'All strategies, metrics, and models displayed on SLTP can be tested across historical data up to the current date. Backtested performance figures are hypothetical constructs generated with the benefit of hindsight and do not represent actual trading performance.',
+              text: 'Every strategy, metric and model on SLTP can be tested across historical data up to the current date. Backtested figures are hypothetical: they are produced with hindsight over past data and do not represent trades that were actually placed.',
             },
             {
               lead: 'Live Results:',
-              text: 'Live tracking metrics and forward-looking signals follow the same quantitative rules and carry no guarantee of future profitability.',
+              text: 'Signals and live tracking apply the same documented rules to current market data. They are not predictions, and they carry no guarantee of profit.',
             },
             {
               lead: 'Capital Risk:',
-              text: 'Past performance does not predict future results. You may sustain a total loss of your invested capital.',
+              text: 'Past performance does not predict future results, and you can lose some or all of the capital you invest. Treat a signal as a starting point for your own research, sized so that being wrong is survivable.',
             },
           ],
         },

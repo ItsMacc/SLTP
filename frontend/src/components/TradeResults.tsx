@@ -1,5 +1,5 @@
-// src/components/TradeResults.tsx
-import { useState, useEffect } from 'react'
+// TradeResults.tsx — Executed trades table with pagination
+import { useEffect, useMemo, useState } from 'react'
 import './TradeResults.css'
 
 export interface TradeRecord {
@@ -27,30 +27,31 @@ const PAGE_SIZE = 6
 export default function TradeResults({ trades }: TradeResultsProps) {
   const [currentPage, setCurrentPage] = useState(1)
 
-  if (!trades) {
-    return null
-  }
+  /* Flatten every trade into one chronological list */
+  const allTrades = useMemo(() => {
+    if (!trades) return []
 
-  const allTrades: { ticker: string; trade: TradeRecord; dateKey: string }[] = []
+    const list: { ticker: string; trade: TradeRecord; dateKey: string }[] = []
 
-  if (Array.isArray(trades)) {
-    for (const trade of trades) {
-      const dateKey = trade.exit_date || trade.entry_date || trade.signal_date || ''
-      allTrades.push({ ticker: trade.ticker || 'UNKNOWN', trade, dateKey })
-    }
-  } else {
-    for (const [ticker, list] of Object.entries(trades)) {
-      if (Array.isArray(list)) {
-        for (const trade of list) {
-          const dateKey = trade.exit_date || trade.entry_date || trade.signal_date || ''
-          allTrades.push({ ticker, trade, dateKey })
+    if (Array.isArray(trades)) {
+      for (const trade of trades) {
+        const dateKey = trade.exit_date || trade.entry_date || trade.signal_date || ''
+        list.push({ ticker: trade.ticker || 'UNKNOWN', trade, dateKey })
+      }
+    } else {
+      for (const [ticker, entries] of Object.entries(trades)) {
+        if (Array.isArray(entries)) {
+          for (const trade of entries) {
+            const dateKey = trade.exit_date || trade.entry_date || trade.signal_date || ''
+            list.push({ ticker, trade, dateKey })
+          }
         }
       }
     }
-  }
 
-  // Sort all trades globally by date chronologically
-  allTrades.sort((a, b) => a.dateKey.localeCompare(b.dateKey))
+    list.sort((a, b) => a.dateKey.localeCompare(b.dateKey))
+    return list
+  }, [trades])
 
   const totalPages = Math.ceil(allTrades.length / PAGE_SIZE) || 1
 

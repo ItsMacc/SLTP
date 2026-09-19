@@ -1,3 +1,4 @@
+// Header.tsx — Top nav: brand, links, auth actions, mobile drawer
 import { useState } from 'react';
 import Button from '../ui/Button';
 import UserMenu from './UserMenu';
@@ -105,31 +106,26 @@ export default function Header({
             ))}
           </nav>
           
-          <div className="mobile-auth-group">
-            {sessionUserEmail ? (
+          <div className="mobile-auth-group">            {sessionUserEmail ? (
               <>
-                <div className="mobile-user-info" style={{ display: 'flex', flexDirection: 'column', gap: '2px', padding: '0.5rem 0' }}>
+                <div className="mobile-user-info">
                   {sessionUserName && (
-                    <span style={{ fontWeight: 600, color: 'var(--text-primary, #0f172a)' }}>
-                      {sessionUserName}
-                    </span>
+                    <span className="mobile-user-name">{sessionUserName}</span>
                   )}
-                  <span className="mobile-user-email-label" style={{ fontSize: '0.85rem', color: 'var(--text-muted, #64748b)' }}>
+                  <span className="mobile-user-email">
                     Signed in as&nbsp;{sessionUserEmail}
                   </span>
                 </div>
-                <Button 
-                  variant="secondary" 
-                  size="md" 
-                  style={{ width: '100%' }}
+                <Button
+                  variant="secondary"
+                  size="md"
                   onClick={() => { setMobileMenuOpen(false); onSettingsClick(); }}
                 >
                   Settings
                 </Button>
-                <Button 
-                  variant="primary" 
-                  size="md" 
-                  style={{ width: '100%' }}
+                <Button
+                  variant="primary"
+                  size="md"
                   onClick={() => { setMobileMenuOpen(false); onSignOut(); }}
                 >
                   Sign Out
@@ -137,19 +133,17 @@ export default function Header({
               </>
             ) : (
               <>
-                <Button 
+                <Button
                   variant="primary"
                   size="md"
-                  style={{ width: '100%' }}
                   onClick={() => { setMobileMenuOpen(false); onAuthClick('login'); }}
                 >
                   Sign In
                 </Button>
-                <Button 
-                  variant="secondary" 
-                  size="md" 
-                  style={{ width: '100%' }}
-                  onClick={() => { setMobileMenuOpen(false); onAuthClick('signup'); }} 
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onClick={() => { setMobileMenuOpen(false); onAuthClick('signup'); }}
                 >
                   Sign Up
                 </Button>

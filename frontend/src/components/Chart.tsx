@@ -1,3 +1,4 @@
+// Chart.tsx — Candlestick chart with toolbar and tooltip
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import './Chart.css'
 

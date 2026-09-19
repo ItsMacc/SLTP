@@ -1,3 +1,4 @@
+// Footer.tsx — Site footer: nav columns, legal links, disclaimer
 import type { LegalPageKind } from '../pages/LegalPage';
 import './Footer.css';
 
@@ -79,11 +80,11 @@ export default function Footer({ activeTab, onNavigate, onLegalPage }: FooterPro
         <div className="st-footer-disclaimer">
           <span className="st-footer-disclaimer-label">Disclaimer</span>
           <p className="st-footer-disclaimer-text">
-            SLTP provides research and educational content for informational purposes only.
-            It is not intended to be a substitute for professional financial advice.
-            Historical performance does not predict future performance, and all investing involves
-            the risk of loss. Please do your due diligence before making any investment decisions.
-            By using this website, you agree to our{' '}
+            SLTP is a research platform built to help you invest with better information. Every
+            strategy is documented and backtested, so you can see the rules, the risk and the track
+            record behind each signal before you act on it. Markets carry risk and no result, past
+            or projected, is guaranteed, so treat what you find here as a starting point for your
+            own research and decisions. By using this website, you agree to our{' '}
             <button
               type="button"
               className="st-footer-inline-link"
@@ -105,7 +106,7 @@ export default function Footer({ activeTab, onNavigate, onLegalPage }: FooterPro
 
         <div className="st-footer-bottom">
           <span>© 2026 SLTP. All rights reserved.</span>
-          <span>SLTP is for educational use only — not financial advice.</span>
+          <span>Independent research to support your own investment decisions.</span>
         </div>
       </div>
     </footer>

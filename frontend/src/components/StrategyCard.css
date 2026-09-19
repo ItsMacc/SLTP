@@ -60,7 +60,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-2xs);
-  padding: var(--space-3xs) var(--space-sm); /* was 4px 12px, mapped to scale */
+  padding: var(--space-3xs) var(--space-sm);
   border-radius: var(--radius-full);
   font-family: var(--font-mono);
   font-size: calc(var(--text-sm) * 0.9);
@@ -142,7 +142,7 @@
 .m-label {
   display: flex;
   align-items: center;
-  gap: var(--space-3xs); /* was 6px, mapped to scale */
+  gap: var(--space-3xs);
   font-size: var(--text-xs);
   font-weight: 600;
   color: var(--text-muted);
@@ -171,7 +171,7 @@
   overflow: hidden;
 }
 
-/* EXPANDED DETAILS */
+/* ---------- Expanded details ---------- */
 .card-block-expanded {
   padding: 0 var(--space-xl) var(--space-xl) var(--space-xl);
 }
@@ -230,7 +230,7 @@
   font-size: var(--text-sm);
 }
 
-/* SUBSECTION TITLES WITH ACCENT COLORS */
+/* Subsection titles carry the accent colour */
 .box-title, 
 .logic-label {
   display: block;
@@ -239,7 +239,7 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   margin-bottom: var(--space-xs);
-  color: var(--accent); /* Replaces text-primary with accent theme color */
+  color: var(--accent);
 }
 
 .pros-title { 
@@ -309,7 +309,7 @@
   margin-top: var(--space-3xs);
 }
 
-/* IN-DEPTH ANALYSIS STYLING */
+/* ---------- In-depth analysis ---------- */
 .in-depth-container {
   display: flex;
   flex-direction: column;

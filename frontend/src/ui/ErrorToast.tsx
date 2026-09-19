@@ -1,4 +1,5 @@
-// src/ui/ErrorToast.tsx
+// ErrorToast.tsx — Fixed-position error notification
+
 import { useEffect } from 'react'
 import './ErrorToast.css'
 

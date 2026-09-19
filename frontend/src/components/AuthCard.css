@@ -12,15 +12,15 @@
   justify-content: center;
   width: 100%;
   min-height: calc(100vh - 10rem);
-  padding: 2rem 1rem; /* gutter spacing, not a width — kept as-is */
+  padding: var(--space-xl) var(--space-md);
 }
 
 .st-auth__card {
   width: 100%;
   max-width: min(30rem, 92vw); /* fluid cap — never exceeds viewport on small phones */
-  padding: 2.5rem;
+  padding: var(--space-xl);
   box-sizing: border-box;
-  
+
   /* Card surface and border */
   background: var(--bg-surface, #ffffff);
   border: 1px solid var(--border-strong, #e2e8f0);
@@ -124,8 +124,18 @@
   color: var(--error, #dc2626);
 }
 
+.st-auth__success {
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  color: var(--success, #059669);
+}
+
 .st-auth__submit-container {
   margin-top: 0.5rem;
+  width: 100%;
+}
+
+.st-auth__submit-container .btn {
   width: 100%;
 }
 

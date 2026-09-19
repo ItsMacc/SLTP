@@ -1,4 +1,5 @@
-// src/ui/DatePicker.tsx
+// DatePicker.tsx — Date input with calendar popup
+
 import { useState, useRef, useEffect, useLayoutEffect } from 'react'
 import './DatePicker.css'
 

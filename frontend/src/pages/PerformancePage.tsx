@@ -1,3 +1,4 @@
+// PerformancePage.tsx — Portfolio performance dashboard
 import { useEffect, useMemo, useRef, useState } from 'react'
 import CandlestickGuide from '../components/CandlestickGuide'
 import Chart, { type Bar } from '../components/Chart'
@@ -133,7 +134,7 @@ export default function PerformancePage({ initialSettings }: PerformancePageProp
   return (
     <div className="perf-page">
       {/* Edge-to-Edge Hero Banner */}
-      <div className="perf-hero-wrapper">
+      <div className="perf-hero-wrapper is-full-bleed">
         <div className="perf-hero-inner">
           <div className="perf-hero-top">
             <span className="perf-hero-subtitle">Performance Analytics</span>

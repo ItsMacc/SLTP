@@ -1,4 +1,5 @@
-// src/components/CandlestickGuide.tsx
+// CandlestickGuide.tsx — Candlestick pattern guide
+
 import './CandlestickGuide.css'
 
 interface CandleDiagramProps {
@@ -101,8 +102,8 @@ export default function CandlestickGuide() {
             </li>
           </ol>
 
-          <div className="guide-intro-block" style={{ marginTop: '2rem', marginBottom: '1.5rem' }}>
-            <h3 className="guide-heading" style={{ fontSize: '1.25rem' }}>Decoding Timeframes</h3>
+          <div className="guide-intro-block is-spaced">
+            <h3 className="guide-heading">Decoding Timeframes</h3>
             <p className="guide-copy">
               You can toggle between different horizons using the timeframe buttons (1Y, 2Y, 5Y, ALL). Choosing a shorter window zooms in on recent sessions to inspect daily volatility, while longer selections reveal multi-year structural trends and broader market cycles.
             </p>
@@ -133,7 +134,7 @@ export default function CandlestickGuide() {
         </aside>
 </div>
 
-      <div className="guide-examples" style={{ marginTop: '2rem' }}>
+      <div className="guide-examples is-spaced">
         <article className="guide-example">
           <h3 className="guide-example-title">
             <span className="dot dot-bull" /> Green Candle (Price Increased)
