@@ -4,9 +4,9 @@ import json
 import traceback
 from datetime import datetime, timezone
 from app.database import turso
-from app.strategies.buy_and_hold import BuyAndHold
 from app.strategies.stock_health_filter import StockHealthFilterStrategy
 from app.notification.email import send_notification_email
+from app.database.db import insert_or_update_data
 
 # Strategies that must never be run by the daily job
 BLOCKED_STRATEGIES = {"buy and hold", "buy-and-hold", "buy_and_hold"}
@@ -174,6 +174,13 @@ async def run() -> dict:
     """Full daily run: refresh cache -> run strategies -> send emails."""
     started = datetime.now(timezone.utc)
     print(f"=== SLTP daily runner — {started.isoformat()} ===")
+
+    print("[data] Updating daily market bars in Parquet...")
+    try:
+        await asyncio.to_thread(insert_or_update_data)
+        print("[data] Parquet update complete.")
+    except Exception as e:
+        print(f"[data] Failed to update Parquet file: {e}")
 
     refreshed = await refresh_user_cache_from_supabase()
     print(f"[cache] refreshed {refreshed} user(s) from Supabase")
