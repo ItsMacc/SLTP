@@ -7,34 +7,83 @@
 
 .perf-page {
   width: 100%;
-  max-width: 90%;
+  max-width: min(68.75rem, 95vw);
   margin: 0 auto;
   padding: var(--space-xl) 0 var(--space-2xl);
   font-family: var(--font-sans);
   color: var(--text-primary);
-}
-
-/* ---------- header ---------- */
-
-.perf-header {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-lg);
-  flex-wrap: wrap;
-  margin-bottom: var(--space-lg);
+  flex-direction: column;
+  gap: var(--space-xl);
 }
 
-.perf-title {
-  font-size: var(--text-2xl);
-  margin: 0 0 var(--space-2xs);
+/* ---------- hero banner (edge-to-edge) ---------- */
+
+.perf-hero-wrapper {
+  width: 100vw;
+  position: relative;
+  left: 50%;
+  right: 50%;
+  margin-left: -50vw;
+  margin-right: -50vw;
+  background: linear-gradient(180deg, var(--bg-surface) 0%, var(--bg-canvas) 100%);
+  border-bottom: 1px solid var(--border-subtle);
+  border-top: 1px solid var(--border-subtle);
+  padding: var(--space-2xl) var(--space-md);
+  margin-bottom: var(--space-md);
 }
 
-.perf-subtitle {
+.perf-hero-inner {
+  max-width: min(68.75rem, 95vw);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+}
+
+.perf-hero-top {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  max-width: min(45rem, 100%);
+}
+
+.perf-hero-title {
+  font-family: var(--font-heading);
+  font-size: clamp(2.5rem, 4vw, 3.5rem);
+  color: var(--text-primary);
+  font-weight: 400;
+  line-height: 1.05;
   margin: 0;
-  color: var(--text-muted);
+}
+
+.perf-hero-subtitle {
+  color: var(--accent);
+  font-family: var(--font-mono);
   font-size: var(--text-sm);
-  max-width: 42ch;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.perf-hero-description {
+  color: var(--text-muted);
+  font-size: var(--text-base);
+  line-height: 1.7;
+  margin: 0;
+}
+
+.perf-hero-actions {
+  display: flex;
+  align-items: center;
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.perf-chart-wrapper {
+  background: var(--bg-surface);
+  padding: var(--space-lg);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
 }
 
 /* ---------- mode switch ---------- */
@@ -228,13 +277,11 @@
 }
 
 
-/* ---------- Mobile: stack header, stretch mode switch ---------- */
+/* ---------- Mobile: stack mode switch ---------- */
 @media (max-width: 40rem) {
-  .perf-header {
-    flex-direction: column;
-  }
   .mode-switch {
     align-self: stretch;
+    display: flex;
   }
   .mode-switch-btn {
     flex: 1;

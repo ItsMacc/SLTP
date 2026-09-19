@@ -157,7 +157,7 @@ export default function CandlestickGuide() {
             Conversely, if a stock opened at $185, spiked to $187, dropped to a low of $176, and closed at $180, the closing value sits lower than the start, turning the candle red.
           </p>
           <p className="guide-copy">
-            This indicates downward selling pressure, meaning sellers dominated the session and drove prices down from the morning open.
+            This indicates downward selling pressure, meaning sellers dominated the session and drove prices down from the open.
           </p>
           <div className="guide-diagram-wrap">
             <CandleDiagram variant="bear" openPrice={185} highPrice={187} lowPrice={176} closePrice={180} />

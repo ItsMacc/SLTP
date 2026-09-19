@@ -131,12 +131,255 @@ export const StockHealthFilterStrategy: StrategyData = {
     {
       id: 'strategy-overview',
       title: 'Strategy Overview',
-      content: 'The Stock Health Filter strategy scans market universes for high-momentum breakouts by evaluating short-term vs. long-term price structural "health." Rather than inspecting simple price momentum, it calculates a compound score based on log-linear regression consistency (R-squared), annualized positive slope growth, and downside volatility frequency. Breakout buys are confirmed when the short-to-long health ratio spikes upward alongside velocity validation.',
+      content: 'The Stock Health Filter strategy scans market universes for high-momentum breakouts by evaluating short-term vs. long-term price structural "health." Rather than inspecting simple price momentum, it calculates a compound score based on log-linear regression consistency, annualized positive slope growth, and downside volatility frequency. Breakout buys are confirmed when the short-to-long health ratio spikes upward alongside velocity validation.',
     },
     {
       id: 'risk-management',
       title: 'Dynamic Risk Management',
       content: 'This strategy employs a dynamic risk management framework using Average True Range (ATR) to set stop-loss and take-profit levels. The stop-loss is placed at 4x ATR below the entry price, while the take-profit is set at 2x the calculated risk distance above the entry. This approach allows for flexible position sizing and helps protect capital during volatile market conditions.',
+    },
+  ],
+
+  comparisons : [
+    {
+      id: 'recent-market',
+      periodName: 'Recent Market (2024-2026)',
+      expectation: 'The strategy aims to generate superior risk-adjusted returns during steady market conditions, trading off some raw growth for capital preservation.',
+      resultSummary: 'Although the strategy lagged slightly in total returns, it fulfilled its risk objectives by limiting maximum drawdowns compared to the broader benchmark.',
+      strategySvg: '/assets/backtests/StockHealthFilter_Recent.svg',
+      benchmarkSvg: '/assets/backtests/BuyAndHold_Recent.svg',
+      metrics: {
+        strategy: {
+          finalValue: '132.68',
+          cagr: '15.22%',
+          maxDrawdown: '-11.08%',
+          sharpeRatio: '1.4446',
+          rawFinalValue: 132.68,
+          rawCagr: 15.22,
+          rawMaxDrawdown: -11.08,
+          rawSharpe: 1.4446,
+        },
+        benchmark: {
+          finalValue: '137.66',
+          cagr: '17.37%',
+          maxDrawdown: '-16.22%',
+          sharpeRatio: '1.2468',
+          rawFinalValue: 137.66,
+          rawCagr: 17.37,
+          rawMaxDrawdown: -16.22,
+          rawSharpe: 1.2468,
+        },
+      },
+    },
+    {
+      id: 'bear-market-1',
+      periodName: 'Bear Market 1 (January - December 2022)',
+      expectation: 'During sustained market declines, the strategy is designed to protect capital and mitigate severe losses relative to holding broad equity indices.',
+      resultSummary: 'The strategy successfully cushioned downside risk, maintaining a significantly lower peak-to-trough decline than the benchmark throughout the pullback.',
+      strategySvg: '/assets/backtests/StockHealthFilter_Bear_Market_1.svg',
+      benchmarkSvg: '/assets/backtests/BuyAndHold_Bear_Market_1.svg',
+      metrics: {
+        strategy: {
+          finalValue: '89.68',
+          cagr: '-10.43%',
+          maxDrawdown: '-10.87%',
+          sharpeRatio: '-2.2102',
+          rawFinalValue: 89.68,
+          rawCagr: -10.43,
+          rawMaxDrawdown: -10.87,
+          rawSharpe: -2.2102,
+        },
+        benchmark: {
+          finalValue: '88.22',
+          cagr: '-11.91%',
+          maxDrawdown: '-18.56%',
+          sharpeRatio: '-0.6142',
+          rawFinalValue: 88.22,
+          rawCagr: -11.91,
+          rawMaxDrawdown: -18.56,
+          rawSharpe: -0.6142,
+        },
+      },
+    },
+    {
+      id: 'bear-market-2',
+      periodName: 'Bear Market 2 (2007-2009)',
+      expectation: 'During major structural downturns, the strategy should systematically exit deteriorating positions to minimize severe drawdown exposure.',
+      resultSummary: 'Capital preservation rules performed as intended, cutting overall portfolio losses and peak drawdown depth roughly in half during a historical market crash.',
+      strategySvg: '/assets/backtests/StockHealthFilter_Bear_Market_2.svg',
+      benchmarkSvg: '/assets/backtests/BuyAndHold_Bear_Market_2.svg',
+      metrics: {
+        strategy: {
+          finalValue: '85.06',
+          cagr: '-10.24%',
+          maxDrawdown: '-15.70%',
+          sharpeRatio: '-1.9112',
+          rawFinalValue: 85.06,
+          rawCagr: -10.24,
+          rawMaxDrawdown: -15.70,
+          rawSharpe: -1.9112,
+        },
+        benchmark: {
+          finalValue: '69.49',
+          cagr: '-21.58%',
+          maxDrawdown: '-36.27%',
+          sharpeRatio: '-1.1263',
+          rawFinalValue: 69.49,
+          rawCagr: -21.58,
+          rawMaxDrawdown: -36.27,
+          rawSharpe: -1.1263,
+        },
+      },
+    },
+    {
+      id: 'covid',
+      periodName: 'COVID Crash & Recovery (2020-2021)',
+      expectation: 'The strategy seeks to limit drawdowns during sharp market drops while maintaining enough market exposure to capture the subsequent recovery.',
+      resultSummary: 'While downside protection was effective during the initial shock, defensive positioning caused the strategy to lag the benchmark in the rapid market rally that followed.',
+      strategySvg: '/assets/backtests/StockHealthFilter_COVID.svg',
+      benchmarkSvg: '/assets/backtests/BuyAndHold_COVID.svg',
+      metrics: {
+        strategy: {
+          finalValue: '125.75',
+          cagr: '13.52%',
+          maxDrawdown: '-10.08%',
+          sharpeRatio: '1.3804',
+          rawFinalValue: 125.75,
+          rawCagr: 13.52,
+          rawMaxDrawdown: -10.08,
+          rawSharpe: 1.3804,
+        },
+        benchmark: {
+          finalValue: '181.78',
+          cagr: '39.20%',
+          maxDrawdown: '-16.71%',
+          sharpeRatio: '1.5687',
+          rawFinalValue: 181.78,
+          rawCagr: 39.20,
+          rawMaxDrawdown: -16.71,
+          rawSharpe: 1.5687,
+        },
+      },
+    },
+    {
+      id: 'bull-market-1',
+      periodName: 'Bull Market 1 (2012-2018)',
+      expectation: 'In extended equity uptrends, the strategy aims to deliver stable compounding while maintaining disciplined risk limits relative to broad holdings.',
+      resultSummary: 'The strategy achieved steady growth, but the benchmark yielded higher overall return metrics given the low-volatility nature of this prolonged upward move.',
+      strategySvg: '/assets/backtests/StockHealthFilter_Bull_Market_1.svg',
+      benchmarkSvg: '/assets/backtests/BuyAndHold_Bull_Market_1.svg',
+      metrics: {
+        strategy: {
+          finalValue: '202.76',
+          cagr: '11.05%',
+          maxDrawdown: '-16.97%',
+          sharpeRatio: '1.0003',
+          rawFinalValue: 202.76,
+          rawCagr: 11.05,
+          rawMaxDrawdown: -16.97,
+          rawSharpe: 1.0003,
+        },
+        benchmark: {
+          finalValue: '252.42',
+          cagr: '14.72%',
+          maxDrawdown: '-16.14%',
+          sharpeRatio: '1.2371',
+          rawFinalValue: 252.42,
+          rawCagr: 14.72,
+          rawMaxDrawdown: -16.14,
+          rawSharpe: 1.2371,
+        },
+      },
+    },
+    {
+      id: 'bull-market-2',
+      periodName: 'Bull Market 2 (2009-2016)',
+      expectation: 'Throughout multi-year expansions, periodic portfolio rebalancing should keep fundamental quality high without heavily drag on total compounding.',
+      resultSummary: 'Continuous risk management led to performance drag relative to a pure buy-and-hold approach, which strongly benefits from uninterrupted market expansion.',
+      strategySvg: '/assets/backtests/StockHealthFilter_Bull_Market_2.svg',
+      benchmarkSvg: '/assets/backtests/BuyAndHold_Bull_Market_2.svg',
+      metrics: {
+        strategy: {
+          finalValue: '184.53',
+          cagr: '8.06%',
+          maxDrawdown: '-16.85%',
+          sharpeRatio: '0.8072',
+          rawFinalValue: 184.53,
+          rawCagr: 8.06,
+          rawMaxDrawdown: -16.85,
+          rawSharpe: 0.8072,
+        },
+        benchmark: {
+          finalValue: '321.66',
+          cagr: '15.92%',
+          maxDrawdown: '-21.07%',
+          sharpeRatio: '0.9785',
+          rawFinalValue: 321.66,
+          rawCagr: 15.92,
+          rawMaxDrawdown: -21.07,
+          rawSharpe: 0.9785,
+        },
+      },
+    },
+    {
+      id: '10-year-current',
+      periodName: '10-Year Current (2016-2026)',
+      expectation: 'Across a ten-year horizon, filtering underperforming assets and limiting large drawdowns should drive higher risk-adjusted efficiency.',
+      resultSummary: 'The strategy delivered stronger risk efficiency over the decade by successfully shielding the portfolio from major market drawdowns.',
+      strategySvg: '/assets/backtests/StockHealthFilter_10-year_current.svg',
+      benchmarkSvg: '/assets/backtests/BuyAndHold_10-year_current.svg',
+      metrics: {
+        strategy: {
+          finalValue: '275.22',
+          cagr: '10.66%',
+          maxDrawdown: '-19.11%',
+          sharpeRatio: '1.0713',
+          rawFinalValue: 275.22,
+          rawCagr: 10.66,
+          rawMaxDrawdown: -19.11,
+          rawSharpe: 1.0713,
+        },
+        benchmark: {
+          finalValue: '364.33',
+          cagr: '13.82%',
+          maxDrawdown: '-35.40%',
+          sharpeRatio: '0.7951',
+          rawFinalValue: 364.33,
+          rawCagr: 13.82,
+          rawMaxDrawdown: -35.40,
+          rawSharpe: 0.7951,
+        },
+      },
+    },
+    {
+      id: '15-year',
+      periodName: '15-Year Horizon (2010-2025)',
+      expectation: 'Over multiple full market cycles, rigorous risk controls should protect principal during downturns and smooth long-term equity compounding.',
+      resultSummary: 'The strategy demonstrated significant downside protection by holding peak-to-trough drawdowns to half that of the benchmark over 15 years.',
+      strategySvg: '/assets/backtests/StockHealthFilter_15-year.svg',
+      benchmarkSvg: '/assets/backtests/BuyAndHold_15-year.svg',
+      metrics: {
+        strategy: {
+          finalValue: '223.81',
+          cagr: '5.52%',
+          maxDrawdown: '-17.85%',
+          sharpeRatio: '0.7148',
+          rawFinalValue: 223.81,
+          rawCagr: 5.52,
+          rawMaxDrawdown: -17.85,
+          rawSharpe: 0.7148,
+        },
+        benchmark: {
+          finalValue: '719.43',
+          cagr: '14.07%',
+          maxDrawdown: '-36.65%',
+          sharpeRatio: '0.8391',
+          rawFinalValue: 719.43,
+          rawCagr: 14.07,
+          rawMaxDrawdown: -36.65,
+          rawSharpe: 0.8391,
+        },
+      },
     },
   ],
 
@@ -185,9 +428,29 @@ export const StockHealthFilterStrategy: StrategyData = {
       definition: 'A statistical method used to evaluate exponential or percentage growth rates over time by fitting a straight line to logarithmic price data.',
       example: 'Using log-linear regression helps measure whether a stock is growing at a steady compound percentage rate.',
     },
-    'R-squared': {
-      definition: 'A statistical measure representing how closely a stock’s price movement fits a straight trend line, indicating trend consistency.',
-      example: 'An R-squared value close to 1.0 means a stock follows its upward trend line very closely with minimal random noise.',
+    cagr: {
+      definition: 'Compound Annual Growth Rate (CAGR) measures the average annualized rate of return of an investment over a period longer than one year.',
+      example: 'If an account grows from $10,000 to $12,100 over two years, its CAGR is 10% per year.',
+    },
+    'sharpe ratio': {
+      definition: 'A mathematical measure used to evaluate how much excess return an investment yields relative to the volatility and risk taken.',
+      example: 'A strategy with a Sharpe ratio above 1.0 is generally considered good, showing high efficiency per unit of risk taken.',
+    },
+    'max drawdown': {
+      definition: 'The maximum percentage drop in portfolio value from its peak level down to its lowest point before making a new high.',
+      example: 'If your portfolio drops from $100 to $70 during a crash, the maximum drawdown for that period is 30%.',
+    },
+    'capital preservation': {
+      definition: 'An investment strategy aimed strictly at preventing financial loss and protecting the primary principal amount over market growth.',
+      example: 'Shifting portfolio assets into cash during an impending crash is a capital preservation tactic.',
+    },
+    'performance drag': {
+      definition: 'Factors such as holding cash, paying fees, or hedging positions that cause a portfolio to grow more slowly than an unmanaged market benchmark.',
+      example: 'Holding 30% cash during an explosive bull market creates performance drag on your overall returns.',
+    },
+    compounding: {
+      definition: 'The process where an investment generates earnings, which are then reinvested to generate their own earnings over time.',
+      example: 'Earning 10% on $100 gives you $110; the next year, earning 10% on $110 yields $11 instead of $10 due to compounding.',
     },
   }
 };
@@ -202,24 +465,22 @@ export const StrategiesPage: React.FC = () => {
             <span className="strategies-subtitle">Strategy Library</span>
             <h1 className="strategies-title">Quantitative Strategies</h1>
             <p className="strategies-description">
-              Remove emotional bias through disciplined, rules-based capital allocation. 
-              Inspect our baseline benchmarks and active quantitative momentum models below 
-              to evaluate their core logic, risk bounds, and mathematical parameters.
+              Remove the guesswork from your investing with a clear, rules-based approach. Take a look at our performance benchmarks and models below to see how they manage risk and make decisions.
             </p>
           </div>
 
           <div className="strategies-stats-row">
             <div className="strategy-stat-card">
-              <span className="strategy-stat-label">Execution Logic</span>
-              <span className="strategy-stat-value">Fully Algorithmic</span>
+              <span className="strategy-stat-label">Available Models</span>
+              <span className="strategy-stat-value">2 Strategies</span>
             </div>
             <div className="strategy-stat-card">
-              <span className="strategy-stat-label">Risk Protocol</span>
-              <span className="strategy-stat-value">Dynamic ATR &amp; Benchmarks</span>
+              <span className="strategy-stat-label">Backtest Data</span>
+              <span className="strategy-stat-value">Multi-Timeframe Comparisons</span>
             </div>
             <div className="strategy-stat-card">
-              <span className="strategy-stat-label">Strategies Available</span>
-              <span className="strategy-stat-value">2</span>
+              <span className="strategy-stat-label">Evaluation Metrics</span>
+              <span className="strategy-stat-value">Benchmark</span>
             </div>
           </div>
         </div>

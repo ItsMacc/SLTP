@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import Header from './components/Header';
 import { AuthCard } from './components/AuthCard';
 import Footer from './components/Footer';
+import HomePage from './pages/HomePage';
 import SettingsPage, { applyAndStoreUserSettings } from './pages/SettingsPage';
 import LegalPage, { type LegalPageKind } from './pages/LegalPage';
 import PerformancePage from './pages/PerformancePage';
@@ -18,7 +19,7 @@ export interface UserProfile {
   settings?: { theme?: string; [key: string]: any };
 }
 
-const AUTH_REQUIRED_TABS = ['lab'];
+const AUTH_REQUIRED_TABS = ['lab', 'invest', 'portfolio'];
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('home');
@@ -120,9 +121,11 @@ export default function App() {
                 }}
               />
             ) : activeTab === 'performance' ? (
-              <PerformancePage/>
+              <PerformancePage userId={user?.id} initialSettings={user?.settings} />
             ) : activeTab === 'strategies' ? (
-              <StrategiesPage/>
+              <StrategiesPage />
+            ) : activeTab === 'home' ? (
+              <HomePage onNavigate={handleTabChange} />
             ) : (
               <div style={{ padding: '4rem 2rem', textAlign: 'center' }}>
                 <h1 style={{ fontSize: '2rem', marginBottom: '1rem' }}>

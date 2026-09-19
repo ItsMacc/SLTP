@@ -1,11 +1,9 @@
-// src/pages/PerformancePage.tsx
 import { useEffect, useMemo, useRef, useState } from 'react'
 import CandlestickGuide from '../components/CandlestickGuide'
 import Chart, { type Bar } from '../components/Chart'
 import StrategyChart from '../components/StrategyChart'
 import './PerformancePage.css'
 import type { PerformanceTimeframe } from '../../lib/settings'
-import { supabase } from '../../lib/supabase'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 const TIMEFRAMES: PerformanceTimeframe[] = ['1y', '2y', '5y', 'all']
@@ -21,17 +19,20 @@ type Mode = 'stocks' | 'strategies'
 
 interface PerformancePageProps {
   userId?: string
+  initialSettings?: { defaultTimeframe?: string; [key: string]: any }
 }
 
-export default function PerformancePage({ userId }: PerformancePageProps) {
+export default function PerformancePage({ initialSettings }: PerformancePageProps) {
   const [mode, setMode] = useState<Mode>('stocks')
   const [allTickers, setAllTickers] = useState<string[]>([])
   const [query, setQuery] = useState('')
   const [suggestionsOpen, setSuggestionsOpen] = useState(false)
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null)
 
-  const [timeframe, setTimeframe] = useState<PerformanceTimeframe>('1y')
-  const [settingsLoaded, setSettingsLoaded] = useState(false)
+  const [timeframe, setTimeframe] = useState<PerformanceTimeframe>(() => {
+    const savedTf = initialSettings?.defaultTimeframe?.toLowerCase() as PerformanceTimeframe
+    return TIMEFRAMES.includes(savedTf) ? savedTf : '1y'
+  })
 
   const [stockData, setStockData] = useState<StockHistoryResponse | null>(null)
   const [loading, setLoading] = useState(false)
@@ -40,45 +41,13 @@ export default function PerformancePage({ userId }: PerformancePageProps) {
   const searchWrapRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    let cancelled = false
-
-    async function loadUserSettings() {
-      try {
-        let activeUserId = userId
-        if (!activeUserId) {
-          const { data: sessionData } = await supabase.auth.getSession()
-          activeUserId = sessionData?.session?.user?.id
-        }
-
-        if (!activeUserId) {
-          if (!cancelled) setSettingsLoaded(true)
-          return
-        }
-
-        const { data, error } = await supabase
-          .from('users')
-          .select('settings')
-          .eq('id', activeUserId)
-          .single()
-
-        if (!cancelled && !error && data?.settings?.defaultTimeframe) {
-          const savedTf = data.settings.defaultTimeframe.toLowerCase() as PerformanceTimeframe
-          if (TIMEFRAMES.includes(savedTf)) {
-            setTimeframe(savedTf)
-          }
-        }
-      } catch {
-        // Fallback silently
-      } finally {
-        if (!cancelled) setSettingsLoaded(true)
+    if (initialSettings?.defaultTimeframe) {
+      const savedTf = initialSettings.defaultTimeframe.toLowerCase() as PerformanceTimeframe
+      if (TIMEFRAMES.includes(savedTf)) {
+        setTimeframe(savedTf)
       }
     }
-
-    loadUserSettings()
-    return () => {
-      cancelled = true
-    }
-  }, [userId])
+  }, [initialSettings?.defaultTimeframe])
 
   useEffect(() => {
     let cancelled = false
@@ -125,7 +94,7 @@ export default function PerformancePage({ userId }: PerformancePageProps) {
   }, [query, allTickers])
 
   useEffect(() => {
-    if (!settingsLoaded || !selectedTicker || mode !== 'stocks') return
+    if (!selectedTicker || mode !== 'stocks') return
 
     const controller = new AbortController()
     setLoading(true)
@@ -145,7 +114,7 @@ export default function PerformancePage({ userId }: PerformancePageProps) {
       .finally(() => setLoading(false))
 
     return () => controller.abort()
-  }, [selectedTicker, timeframe, mode, settingsLoaded])
+  }, [selectedTicker, timeframe, mode])
 
   const handleSelectTicker = (symbol: string) => {
     setSelectedTicker(symbol)
@@ -161,45 +130,47 @@ export default function PerformancePage({ userId }: PerformancePageProps) {
     setQuery('')
   }
 
-  if (!settingsLoaded) {
-    return (
-      <div className="perf-page">
-        <p className="status-text">Loading preferences...</p>
-      </div>
-    )
-  }
-
   return (
     <div className="perf-page">
-      <header className="perf-header">
-        <div>
-          <h1 className="perf-title">Performance</h1>
-          <p className="perf-subtitle">Track price history for a stock, or review saved strategy results.</p>
-        </div>
+      {/* Edge-to-Edge Hero Banner */}
+      <div className="perf-hero-wrapper">
+        <div className="perf-hero-inner">
+          <div className="perf-hero-top">
+            <span className="perf-hero-subtitle">Performance Analytics</span>
+            <h1 className="perf-hero-title">Market Performance &amp; Strategy Backtests</h1>
+            <p className="perf-hero-description">
+              Analyze deep historical price action across equities with full candlestick granularity, 
+              or inspect backtested performance metrics for our quantitative strategy models. Track asset 
+              trends, evaluate volatility bounds, and measure historical returns to validate capital allocation decisions.
+            </p>
+          </div>
 
-        <div className="mode-switch" role="tablist" aria-label="View mode">
-          <span className={`mode-switch-thumb ${mode === 'strategies' ? 'is-right' : ''}`} aria-hidden="true" />
-          <button
-            role="tab"
-            aria-selected={mode === 'stocks'}
-            className={`mode-switch-btn ${mode === 'stocks' ? 'is-active' : ''}`}
-            onClick={() => switchMode('stocks')}
-          >
-            Stocks
-          </button>
-          <button
-            role="tab"
-            aria-selected={mode === 'strategies'}
-            className={`mode-switch-btn ${mode === 'strategies' ? 'is-active' : ''}`}
-            onClick={() => switchMode('strategies')}
-          >
-            Strategies
-          </button>
+          <div className="perf-hero-actions">
+            <div className="mode-switch" role="tablist" aria-label="View mode">
+              <span className={`mode-switch-thumb ${mode === 'strategies' ? 'is-right' : ''}`} aria-hidden="true" />
+              <button
+                role="tab"
+                aria-selected={mode === 'stocks'}
+                className={`mode-switch-btn ${mode === 'stocks' ? 'is-active' : ''}`}
+                onClick={() => switchMode('stocks')}
+              >
+                Stocks
+              </button>
+              <button
+                role="tab"
+                aria-selected={mode === 'strategies'}
+                className={`mode-switch-btn ${mode === 'strategies' ? 'is-active' : ''}`}
+                onClick={() => switchMode('strategies')}
+              >
+                Strategies
+              </button>
+            </div>
+          </div>
         </div>
-      </header>
+      </div>
 
       {mode === 'stocks' && (
-        <>
+        <div className='perf-chart-wrapper'>
           <div className="perf-controls">
             <div className="ticker-search" ref={searchWrapRef}>
               <span className="ticker-search-icon">⌕</span>
@@ -252,9 +223,9 @@ export default function PerformancePage({ userId }: PerformancePageProps) {
           {error && <p className="status-text is-error">{error}</p>}
 
           {!loading && !error && stockData && <Chart bars={stockData.data} ticker={stockData.ticker} />}
-
+          
           <CandlestickGuide />
-        </>
+        </div>
       )}
 
       {mode === 'strategies' && <StrategyChart />}

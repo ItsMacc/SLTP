@@ -20,6 +20,7 @@
 .guide-heading {
   font-size: var(--text-xl);
   margin: 0 0 var(--space-sm);
+  color: var(--accent);
 }
 
 .guide-copy {
@@ -94,6 +95,9 @@
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
   padding: var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
 .guide-example-title {
@@ -115,7 +119,7 @@
 .dot-bear { background: var(--error); }
 
 .guide-diagram-wrap {
-  margin-top: var(--space-md);
+  margin-top: auto;
   background: var(--bg-surface-hover);
   border-radius: var(--radius-sm);
   padding: var(--space-sm);
@@ -136,7 +140,7 @@
 
 @media (min-width: 64rem) {
   .guide-layout-grid {
-    grid-template-columns: 65% 35%; /* ≈1.3fr 0.7fr ratio, % based */
+    grid-template-columns: 1.8fr 1fr;
   }
 }
 

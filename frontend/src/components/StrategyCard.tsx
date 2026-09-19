@@ -9,9 +9,10 @@ import {
   Sparkles,
   Zap,
   BookOpen,
-  Scale
+  Scale,
+  BarChart3
 } from 'lucide-react';
-import { type StrategyData, type DetailedPoint } from '../types/strategy';
+import { type StrategyData, type DetailedPoint, type BacktestMetricData } from '../types/strategy';
 import { GlossaryText } from './GlossaryText';
 import Button from '../ui/Button';
 import './StrategyCard.css';
@@ -60,6 +61,36 @@ export const StrategyCard: React.FC<StrategyCardProps> = ({
         </li>
       );
     });
+  };
+
+  const renderMetricComparison = (
+    label: string, 
+    stratMetric: BacktestMetricData, 
+    benchMetric: BacktestMetricData, 
+    metricKey: keyof BacktestMetricData,
+    isLowerBetter: boolean = false
+  ) => {
+    const stratVal = stratMetric[metricKey] as number;
+    const benchVal = benchMetric[metricKey] as number;
+
+    const isStratWinner = isLowerBetter ? stratVal < benchVal : stratVal > benchVal;
+    const isBenchWinner = isLowerBetter ? benchVal < stratVal : benchVal > stratVal;
+
+    return (
+      <div className="comparison-metric-row">
+        <span className="metric-title-col">{label}</span>
+        <span className={`metric-val-col ${isStratWinner ? 'metric-winner' : ''}`}>
+          {metricKey.includes('FinalValue') ? stratMetric.finalValue : 
+           metricKey.includes('Cagr') ? stratMetric.cagr : 
+           metricKey.includes('MaxDrawdown') ? stratMetric.maxDrawdown : stratMetric.sharpeRatio}
+        </span>
+        <span className={`metric-val-col ${isBenchWinner ? 'metric-winner' : ''}`}>
+          {metricKey.includes('FinalValue') ? benchMetric.finalValue : 
+           metricKey.includes('Cagr') ? benchMetric.cagr : 
+           metricKey.includes('MaxDrawdown') ? benchMetric.maxDrawdown : benchMetric.sharpeRatio}
+        </span>
+      </div>
+    );
   };
 
   return (
@@ -152,7 +183,7 @@ export const StrategyCard: React.FC<StrategyCardProps> = ({
               </div>
             </section>
 
-            {/* IN-DEPTH ANALYSIS (RENDERED CONDITIONALLY) */}
+            {/* IN-DEPTH ANALYSIS */}
             {strategy.inDepthSections && strategy.inDepthSections.length > 0 && (
               <section className="section-block">
                 <div className="section-header">
@@ -169,6 +200,76 @@ export const StrategyCard: React.FC<StrategyCardProps> = ({
                         ) : (
                           sec.content
                         )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* STRATEGY COMPARISON SECTION */}
+            {strategy.comparisons && strategy.comparisons.length > 0 && (
+              <section className="section-block">
+                <div className="section-header">
+                  <BarChart3 size={16} className="section-icon" />
+                  <span>Strategy Comparison</span>
+                </div>
+                
+                <div className="comparisons-container">
+                  {strategy.comparisons.map((comp) => (
+                    <div key={comp.id} className="comparison-period-card">
+                      <div className="comparison-period-header">
+                        <span className="comparison-period-title">{comp.periodName}</span>
+                      </div>
+
+                      <div className="comparison-qualitative-grid">
+                        <div className="qualitative-box expectation-box">
+                          <span className="qualitative-label">Expectation for this period</span>
+                          <p className="qualitative-text">
+                            <GlossaryText text={comp.expectation} glossary={strategy.glossary} />
+                          </p>
+                        </div>
+                        <div className="qualitative-box result-box">
+                          <span className="qualitative-label">Result &amp; Match Analysis</span>
+                          <p className="qualitative-text">
+                            <GlossaryText text={comp.resultSummary} glossary={strategy.glossary} />
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="comparison-svgs-row">
+                        <div className="svg-chart-box">
+                          <span className="svg-chart-label">{strategy.name}</span>
+                          <div className="svg-container-wrapper">
+                            {typeof comp.strategySvg === 'string' ? (
+                              <img src={comp.strategySvg as string} alt={`${strategy.name} backtest chart`} className="backtest-svg-img" />
+                            ) : (
+                              comp.strategySvg
+                            )}
+                          </div>
+                        </div>
+                        <div className="svg-chart-box">
+                          <span className="svg-chart-label">Buy and Hold (Benchmark)</span>
+                          <div className="svg-container-wrapper">
+                            {typeof comp.benchmarkSvg === 'string' ? (
+                              <img src={comp.benchmarkSvg as string} alt="Benchmark backtest chart" className="backtest-svg-img" />
+                            ) : (
+                              comp.benchmarkSvg
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="comparison-metrics-table">
+                        <div className="comparison-metric-header-row">
+                          <span className="metric-title-col">Performance Metric</span>
+                          <span className="metric-val-col">{strategy.name}</span>
+                          <span className="metric-val-col">Buy &amp; Hold</span>
+                        </div>
+                        {renderMetricComparison('Final Portfolio Value', comp.metrics.strategy, comp.metrics.benchmark, 'rawFinalValue', false)}
+                        {renderMetricComparison('CAGR', comp.metrics.strategy, comp.metrics.benchmark, 'rawCagr', false)}
+                        {renderMetricComparison('Max Drawdown', comp.metrics.strategy, comp.metrics.benchmark, 'rawMaxDrawdown', false)}
+                        {renderMetricComparison('Sharpe Ratio', comp.metrics.strategy, comp.metrics.benchmark, 'rawSharpe', false)}
                       </div>
                     </div>
                   ))}

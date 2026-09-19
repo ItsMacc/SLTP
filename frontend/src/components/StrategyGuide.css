@@ -21,7 +21,7 @@
   font-size: var(--text-xl);
   line-height: 1.2;
   margin: var(--space-sm) 0 var(--space-md);
-  color: var(--text-primary);
+  color: var(--accent);
 }
 
 .stg-deck {
