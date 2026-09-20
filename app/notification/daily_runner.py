@@ -1,15 +1,11 @@
-# daily_runner.py — Runs selected strategies over each user's watchlist
 import asyncio
-import json
 import traceback
 from datetime import datetime, timezone
+from dateutil.relativedelta import relativedelta
 from app.database import turso
+from app.portfolio.portfolio_manager import REBALANCE_SETTINGS, RebalanceFrequency
 from app.strategies.stock_health_filter import StockHealthFilterStrategy
-from app.notification.email import send_notification_email
 from app.database.db import insert_or_update_data
-
-# Strategies that must never be run by the daily job
-BLOCKED_STRATEGIES = {"buy and hold", "buy-and-hold", "buy_and_hold"}
 
 # Registry of runnable strategies: strategy_id -> factory
 STRATEGY_REGISTRY: dict[str, type] = {
@@ -19,7 +15,7 @@ STRATEGY_REGISTRY: dict[str, type] = {
 
 async def refresh_user_cache_from_supabase(limit: int = 500) -> int:
     """
-    Pulls all user profiles from Supabase and refreshes the Turso users_cache,
+    Pulls all user profiles from Supabase and refreshes the users table,
     so the runner always has current emails + notification settings.
     Returns the number of users refreshed.
     """
@@ -53,28 +49,75 @@ async def refresh_user_cache_from_supabase(limit: int = 500) -> int:
     return len(users)
 
 
+def _next_rebalance_date(from_date: str, frequency: str) -> str:
+    """Same schedule math as the backtester's REBALANCE_SETTINGS."""
+    delta = REBALANCE_SETTINGS.get(RebalanceFrequency(frequency))
+    base = datetime.strptime(from_date, "%Y-%m-%d")
+    return (base + delta).strftime("%Y-%m-%d") if delta else None
+
+
+async def _maybe_rebalance(user_id: str, follow: dict, today: str, stats: dict) -> None:
+    """Checks if a followed strategy's rebalance is due; if so, re-runs its
+    rebalance logic over its own universe and persists the new state."""
+    strategy_id = follow["strategy_id"]
+    universe = await turso.get_strategy_universe(user_id, strategy_id)
+    if not universe:
+        return  # never initialized — nothing to rebalance
+
+    # Not due yet
+    if not universe.get("next_rebalance_date") or today < universe["next_rebalance_date"]:
+        return
+
+    factory = STRATEGY_REGISTRY.get(strategy_id)
+    if factory is None:
+        return
+
+    try:
+        strategy = factory()
+        # Rebuild the manager from the strategy's own saved universe, then rebalance
+        strategy.manager.tickers = list(universe["tickers"])
+        strategy.manager.add_tickers(strategy.manager.tickers)
+        strategy.manager.on_rebalance(today)
+
+        next_date = _next_rebalance_date(today, universe["rebalance_frequency"])
+        await turso.replace_strategy_universe_tickers(user_id, strategy_id,
+                                                     list(strategy.manager.tickers))
+        await turso.mark_strategy_rebalanced(user_id, strategy_id, today, next_date)
+        stats["rebalances"] = stats.get("rebalances", 0) + 1
+        print(f"  [{user_id}] {strategy_id} rebalanced on {today} -> next {next_date}")
+    except Exception:
+        print(f"  [{user_id}] rebalance failed for {strategy_id}:")
+        traceback.print_exc()
+        stats["errors"] += 1
+
+
 async def run_for_user(user: dict) -> dict:
     """Runs all of one user's selected strategies over their watchlist."""
     user_id = user["id"]
-    name = user.get("name") or "there"
-    email = user.get("email")
-    stats = {"signals": 0, "notified": 0, "errors": 0}
+    stats = {"signals": 0, "rebalances": 0, "errors": 0}
+    today = datetime.now(timezone.utc).date().isoformat()
 
     tickers = await turso.watchlist_tickers(user_id)
     follows = await turso.list_follows(user_id)
 
-    if not tickers or not follows:
+    if not follows:
         return stats  # nothing to do for this user
 
     for follow in follows:
         strategy_id = follow["strategy_id"]
         strategy_name = follow.get("strategy_name") or strategy_id
 
-        if strategy_id.lower() in BLOCKED_STRATEGIES:
-            continue
+        # Rebalance check — runs at most once per strategy per day
+        await _maybe_rebalance(user_id, follow, today, stats)
+
         factory = STRATEGY_REGISTRY.get(strategy_id)
         if factory is None:
             print(f"  [{user_id}] Unknown strategy '{strategy_id}' — skipping")
+            continue
+
+        # Refresh tickers in case the rebalance just changed the universe
+        tickers = await turso.watchlist_tickers(user_id)
+        if not tickers:
             continue
 
         try:
@@ -95,7 +138,6 @@ async def run_for_user(user: dict) -> dict:
 
                 decision = strategy.generate_signal(ticker, history)
                 price = decision.metrics.get("close_price")
-                today = datetime.now(timezone.utc).date().isoformat()
 
                 await turso.insert_signal(
                     strategy_id=strategy_id,
@@ -104,34 +146,8 @@ async def run_for_user(user: dict) -> dict:
                     confidence=decision.confidence,
                     price=price,
                     signal_date=today,
-                    metrics=decision.metrics,
                 )
                 stats["signals"] += 1
-
-                # Only actionable signals notify, and only if the user allows emails
-                if decision.signal.upper() == "HOLD" or not follow.get("notify_email"):
-                    continue
-                if not email:
-                    continue
-
-                notif_id = await turso.queue_notification(
-                    user_id=user_id,
-                    kind="trade_signal",
-                    title=f"{decision.signal} {ticker} — {strategy_name}",
-                    body=f"{strategy_name} generated a {decision.signal} for {ticker}",
-                    payload={
-                        "strategy_name": strategy_name,
-                        "ticker": ticker,
-                        "signal_type": decision.signal,
-                        "price": price,
-                        "confidence": decision.confidence,
-                        "note": (decision.meta_data or {}).get("note"),
-                        "stop_loss": decision.metrics.get("stop_loss"),
-                        "take_profit": decision.metrics.get("take_profit"),
-                    },
-                )
-                if notif_id:
-                    stats["notified"] += 1
 
             except Exception:
                 print(f"  [{user_id}] {strategy_name} / {ticker} failed:")
@@ -141,37 +157,8 @@ async def run_for_user(user: dict) -> dict:
     return stats
 
 
-async def drain_outbox() -> tuple[int, int]:
-    """Sends all pending notifications through the templated emails."""
-    rows = await turso.pending_notifications()
-    sent = failed = 0
-    for row in rows:
-        user = await turso.get_user(row["user_id"])
-        email = (user or {}).get("email")
-        if not email:
-            await turso.mark_notification_failed(row["id"], "no recipient email in users_cache")
-            failed += 1
-            continue
-
-        try:
-            payload = json.loads(row.get("payload_json") or "{}")
-        except (TypeError, ValueError):
-            payload = {}
-
-        ok, err = send_notification_email(
-            row["kind"], email, user.get("name") or "there", payload
-        )
-        if ok:
-            await turso.mark_notification_sent(row["id"])
-            sent += 1
-        else:
-            await turso.mark_notification_failed(row["id"], err or "unknown error")
-            failed += 1
-    return sent, failed
-
-
 async def run() -> dict:
-    """Full daily run: refresh cache -> run strategies -> send emails."""
+    """Full daily run: refresh cache -> run strategies."""
     started = datetime.now(timezone.utc)
     print(f"=== SLTP daily runner — {started.isoformat()} ===")
 
@@ -188,12 +175,12 @@ async def run() -> dict:
     users = await turso.get_all_users()
     print(f"[run] processing {len(users)} user(s)")
 
-    totals = {"signals": 0, "notified": 0, "errors": 0}
+    totals = {"signals": 0, "rebalances": 0, "errors": 0}
     for user in users:
         try:
             stats = await run_for_user(user)
             totals["signals"] += stats["signals"]
-            totals["notified"] += stats["notified"]
+            totals["rebalances"] += stats.get("rebalances", 0)
             totals["errors"] += stats["errors"]
             print(f"[run] {user.get('email') or user['id']}: {stats}")
         except Exception:
@@ -201,13 +188,9 @@ async def run() -> dict:
             traceback.print_exc()
             totals["errors"] += 1
 
-    sent, failed = await drain_outbox()
-    print(f"[outbox] sent {sent}, failed {failed}")
-
     await turso.close()
     elapsed = (datetime.now(timezone.utc) - started).total_seconds()
-    print(f"=== done in {elapsed:.1f}s | signals {totals['signals']}, "
-          f"queued {totals['notified']}, errors {totals['errors']} ===")
+    print(f"=== done in {elapsed:.1f}s | signals {totals['signals']}, errors {totals['errors']} ===")
     return totals
 
 

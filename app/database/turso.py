@@ -1,16 +1,16 @@
+import json
 import os
 import uuid
-import json
-import aiohttp
 from datetime import datetime, timezone
 from typing import Any
+
+import aiohttp
 from dotenv import load_dotenv
 
 load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".env"))
 
 TURSO_DATABASE_URL = os.environ.get("TURSO_DATABASE_URL")
 TURSO_AUTH_TOKEN = os.environ.get("TURSO_AUTH_TOKEN")
-
 
 # ------------------------------------------------------------------
 # Connection
@@ -42,9 +42,6 @@ async def close() -> None:
     _session = None
 
 
-# ------------------------------------------------------------------
-# Value encoding / row decoding (Hrana v2 JSON protocol)
-# ------------------------------------------------------------------
 def _enc(value: Any) -> dict[str, Any]:
     if value is None:
         return {"type": "null", "value": None}
@@ -86,9 +83,6 @@ async def execute(sql: str, args: list[Any] | None = None) -> list[dict[str, Any
     return _dec_rows(result.get("response", {}).get("result", {}))
 
 
-# ------------------------------------------------------------------
-# Helpers
-# ------------------------------------------------------------------
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -97,104 +91,116 @@ def _id() -> str:
     return str(uuid.uuid4())
 
 
+def _parse_json(text: Any, default: Any) -> Any:
+    try:
+        return json.loads(text) if text else default
+    except (TypeError, ValueError):
+        return default
+
+
 # ------------------------------------------------------------------
-# Users cache (Supabase mirror: id, name, email, settings)
+# Users (mirror of Supabase auth users)
 # ------------------------------------------------------------------
 async def upsert_user(user_id: str, name: str | None, email: str | None,
                       settings: dict[str, Any] | None) -> None:
-    await execute("DELETE FROM users_cache WHERE id = ?", [user_id])
+    await execute("DELETE FROM users WHERE id = ?", [user_id])
     await execute(
-        "INSERT INTO users_cache (id, name, email, settings_json, synced_at) VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO users (id, name, email, settings_json, created_at) VALUES (?, ?, ?, ?, ?)",
         [user_id, name, email, json.dumps(settings or {}), _now()],
     )
 
 
-async def get_all_users() -> list[dict[str, Any]]:
-    """All cached users with parsed settings — the runner's mailing list."""
-    rows = await execute("SELECT id, name, email, settings_json FROM users_cache")
-    for r in rows:
-        try:
-            r["settings"] = json.loads(r.pop("settings_json") or "{}")
-        except (TypeError, ValueError):
-            r["settings"] = {}
-    return rows
-
-
 async def get_user(user_id: str) -> dict[str, Any] | None:
-    rows = await execute("SELECT id, name, email, settings_json FROM users_cache WHERE id = ?", [user_id])
+    """Read: user name/email/settings (frontend: settings page, runner: emails)."""
+    rows = await execute(
+        "SELECT id, name, email, settings_json FROM users WHERE id = ?", [user_id]
+    )
     if not rows:
         return None
     r = rows[0]
-    try:
-        r["settings"] = json.loads(r.pop("settings_json") or "{}")
-    except (TypeError, ValueError):
-        r["settings"] = {}
+    r["settings"] = _parse_json(r.pop("settings_json"), {})
     return r
+
+
+async def get_all_users() -> list[dict[str, Any]]:
+    """Read: every cached user — the runner's mailing list."""
+    rows = await execute("SELECT id, name, email, settings_json FROM users")
+    for r in rows:
+        r["settings"] = _parse_json(r.pop("settings_json"), {})
+    return rows
 
 
 # ------------------------------------------------------------------
 # Portfolios
 # ------------------------------------------------------------------
-async def get_or_create_portfolio(user_id: str, name: str | None = None) -> dict[str, Any]:
+async def get_portfolio(user_id: str) -> dict[str, Any] | None:
+    """Read: onboarding status + summary (frontend: portfolio page)."""
     rows = await execute("SELECT * FROM portfolios WHERE user_id = ?", [user_id])
-    if rows:
-        return rows[0]
+    if not rows:
+        return None
+    r = rows[0]
+    r["preferences"] = _parse_json(r.pop("preferences_json", None), {})
+    return r
+
+
+async def upsert_portfolio(user_id: str, *, name: str, base_currency: str,
+                           starting_cash: float, preferences: dict[str, Any],
+                           onboarded: bool) -> None:
+    """Write: called once when the user completes the setup wizard."""
     now = _now()
-    pid = _id()
-    await execute(
-        """INSERT INTO portfolios (id, user_id, name, base_currency, starting_cash, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?)""",
-        [pid, user_id, name or "My Portfolio", "USD", 10000.0, now, now],
-    )
-    return (await execute("SELECT * FROM portfolios WHERE id = ?", [pid]))[0]
-
-
-async def update_portfolio(user_id: str, *, name: str | None = None,
-                           base_currency: str | None = None,
-                           starting_cash: float | None = None) -> None:
-    sets, args = [], []
-    if name is not None:
-        sets.append("name = ?"); args.append(name)
-    if base_currency is not None:
-        sets.append("base_currency = ?"); args.append(base_currency)
-    if starting_cash is not None:
-        sets.append("starting_cash = ?"); args.append(starting_cash)
-    if not sets:
-        return
-    sets.append("updated_at = ?"); args.extend([_now(), user_id])
-    await execute(f"UPDATE portfolios SET {', '.join(sets)} WHERE user_id = ?", args)
+    existing = await execute("SELECT id FROM portfolios WHERE user_id = ?", [user_id])
+    if existing:
+        await execute(
+            """UPDATE portfolios
+               SET name = ?, base_currency = ?, starting_cash = ?, preferences_json = ?,
+                   onboarded = ?, updated_at = ?
+               WHERE user_id = ?""",
+            [name, base_currency, starting_cash, json.dumps(preferences),
+             int(onboarded), now, user_id],
+        )
+    else:
+        await execute(
+            """INSERT INTO portfolios
+               (id, user_id, name, base_currency, starting_cash, preferences_json,
+                onboarded, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            [_id(), user_id, name, base_currency, starting_cash,
+             json.dumps(preferences), int(onboarded), now, now],
+        )
 
 
 # ------------------------------------------------------------------
 # Watchlist
 # ------------------------------------------------------------------
 async def list_watchlist(user_id: str) -> list[dict[str, Any]]:
+    """Read: the user's tickers (frontend: portfolio/watchlist views)."""
     return await execute(
-        "SELECT * FROM watchlist_items WHERE user_id = ? ORDER BY created_at DESC", [user_id]
+        "SELECT id, ticker, note, created_at FROM watchlist_items WHERE user_id = ? ORDER BY created_at DESC",
+        [user_id],
     )
 
 
 async def watchlist_tickers(user_id: str) -> list[str]:
+    """Read: just the ticker symbols (runner: signal generation)."""
     rows = await execute("SELECT ticker FROM watchlist_items WHERE user_id = ?", [user_id])
     return [r["ticker"] for r in rows]
 
 
-async def add_watchlist_item(user_id: str, ticker: str, note: str | None = None,
-                             target_price: float | None = None,
-                             alert_above: float | None = None,
-                             alert_below: float | None = None) -> dict[str, Any]:
+async def add_watchlist_item(user_id: str, ticker: str, note: str | None = None) -> dict[str, Any]:
+    """Write: add one ticker (idempotent per user+ticker)."""
     now = _now()
     item_id = _id()
+    ticker = ticker.upper()
     await execute(
-        """INSERT OR IGNORE INTO watchlist_items
-           (id, user_id, ticker, note, target_price, alert_above, alert_below, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-        [item_id, user_id, ticker.upper(), note, target_price, alert_above, alert_below, now, now],
+        """INSERT OR IGNORE INTO watchlist_items (id, user_id, ticker, note, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?)""",
+        [item_id, user_id, ticker, note, now, now],
     )
-    return {"id": item_id, "ticker": ticker.upper()}
+    return {"id": item_id, "ticker": ticker}
 
 
 async def remove_watchlist_item(user_id: str, ticker: str) -> None:
+    """Write: remove one ticker."""
     await execute("DELETE FROM watchlist_items WHERE user_id = ? AND ticker = ?",
                   [user_id, ticker.upper()])
 
@@ -203,13 +209,17 @@ async def remove_watchlist_item(user_id: str, ticker: str) -> None:
 # Strategy follows
 # ------------------------------------------------------------------
 async def list_follows(user_id: str) -> list[dict[str, Any]]:
+    """Read: which strategies the user follows (frontend + runner)."""
     return await execute(
-        "SELECT * FROM strategy_follows WHERE user_id = ? ORDER BY created_at DESC", [user_id]
+        """SELECT id, strategy_id, strategy_name, notify_email, created_at
+           FROM strategy_follows WHERE user_id = ? ORDER BY created_at DESC""",
+        [user_id],
     )
 
 
 async def follow_strategy(user_id: str, strategy_id: str, strategy_name: str,
-                          notify_email: bool = True, auto_track: bool = False) -> None:
+                          notify_email: bool = True) -> None:
+    """Write: follow a strategy (idempotent per user+strategy)."""
     now = _now()
     existing = await execute(
         "SELECT id FROM strategy_follows WHERE user_id = ? AND strategy_id = ?",
@@ -218,22 +228,90 @@ async def follow_strategy(user_id: str, strategy_id: str, strategy_name: str,
     if existing:
         await execute(
             """UPDATE strategy_follows
-               SET strategy_name = ?, notify_email = ?, auto_track = ?, updated_at = ?
+               SET strategy_name = ?, notify_email = ?, updated_at = ?
                WHERE user_id = ? AND strategy_id = ?""",
-            [strategy_name, int(notify_email), int(auto_track), now, user_id, strategy_id],
+            [strategy_name, int(notify_email), now, user_id, strategy_id],
         )
     else:
         await execute(
             """INSERT INTO strategy_follows
-               (id, user_id, strategy_id, strategy_name, notify_email, auto_track, created_at, updated_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-            [_id(), user_id, strategy_id, strategy_name, int(notify_email), int(auto_track), now, now],
+               (id, user_id, strategy_id, strategy_name, notify_email, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            [_id(), user_id, strategy_id, strategy_name, int(notify_email), now, now],
         )
 
 
 async def unfollow_strategy(user_id: str, strategy_id: str) -> None:
+    """Write: stop following a strategy."""
     await execute("DELETE FROM strategy_follows WHERE user_id = ? AND strategy_id = ?",
                   [user_id, strategy_id])
+
+
+# ------------------------------------------------------------------
+# Strategy universes (per user+strategy universe + rebalance state)
+# ------------------------------------------------------------------
+async def upsert_strategy_universe(user_id: str, strategy_id: str, tickers: list[str],
+                                   initialized_date: str, rebalance_frequency: str,
+                                   next_rebalance_date: str | None) -> None:
+    """Write: create or replace a strategy's universe snapshot + rebalance schedule."""
+    now = _now()
+    existing = await execute(
+        "SELECT id FROM strategy_universes WHERE user_id = ? AND strategy_id = ?",
+        [user_id, strategy_id],
+    )
+    if existing:
+        await execute(
+            """UPDATE strategy_universes
+               SET tickers_json = ?, initialized_date = ?, rebalance_frequency = ?,
+                   next_rebalance_date = ?, updated_at = ?
+               WHERE user_id = ? AND strategy_id = ?""",
+            [json.dumps(tickers), initialized_date, rebalance_frequency,
+             next_rebalance_date, now, user_id, strategy_id],
+        )
+    else:
+        await execute(
+            """INSERT INTO strategy_universes
+               (id, user_id, strategy_id, tickers_json, initialized_date,
+                rebalance_frequency, next_rebalance_date, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            [_id(), user_id, strategy_id, json.dumps(tickers), initialized_date,
+             rebalance_frequency, next_rebalance_date, now, now],
+        )
+
+
+async def get_strategy_universe(user_id: str, strategy_id: str) -> dict[str, Any] | None:
+    """Read: one strategy's universe state (runner: rebalance check, frontend: display)."""
+    rows = await execute(
+        "SELECT * FROM strategy_universes WHERE user_id = ? AND strategy_id = ?",
+        [user_id, strategy_id],
+    )
+    if not rows:
+        return None
+    r = rows[0]
+    r["tickers"] = _parse_json(r.pop("tickers_json"), [])
+    return r
+
+
+async def mark_strategy_rebalanced(user_id: str, strategy_id: str,
+                                   rebalance_date: str, next_rebalance_date: str) -> None:
+    """Write: after the runner executes on_rebalance, record last/next dates."""
+    await execute(
+        """UPDATE strategy_universes
+           SET last_rebalance_date = ?, next_rebalance_date = ?, updated_at = ?
+           WHERE user_id = ? AND strategy_id = ?""",
+        [rebalance_date, next_rebalance_date, _now(), user_id, strategy_id],
+    )
+
+
+async def replace_strategy_universe_tickers(user_id: str, strategy_id: str,
+                                            tickers: list[str]) -> None:
+    """Write: update only the ticker list (after a rebalance swaps holdings)."""
+    await execute(
+        """UPDATE strategy_universes
+           SET tickers_json = ?, updated_at = ?
+           WHERE user_id = ? AND strategy_id = ?""",
+        [json.dumps(tickers), _now(), user_id, strategy_id],
+    )
 
 
 # ------------------------------------------------------------------
@@ -241,71 +319,28 @@ async def unfollow_strategy(user_id: str, strategy_id: str) -> None:
 # ------------------------------------------------------------------
 async def insert_signal(strategy_id: str, ticker: str, signal_type: str,
                         confidence: float | None, price: float | None,
-                        signal_date: str, metrics: dict[str, Any] | None = None) -> str:
+                        signal_date: str) -> str:
+    """Write: one signal from the daily runner."""
     signal_id = _id()
     await execute(
         """INSERT INTO signals
-           (id, strategy_id, ticker, signal_type, confidence, price, signal_date, metrics_json, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+           (id, strategy_id, ticker, signal_type, confidence, price, signal_date, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
         [signal_id, strategy_id, ticker.upper(), signal_type.upper(), confidence, price,
-         signal_date, json.dumps(metrics or {}), _now()],
+         signal_date, _now()],
     )
     return signal_id
 
 
-async def get_signals_for_date(signal_date: str, strategy_id: str | None = None) -> list[dict[str, Any]]:
-    if strategy_id:
-        return await execute(
-            """SELECT * FROM signals WHERE signal_date = ? AND strategy_id = ?
-               ORDER BY created_at DESC""",
-            [signal_date, strategy_id],
-        )
+async def get_signals(user_id: str, limit: int = 50) -> list[dict[str, Any]]:
+    """Read: latest signals for strategies the user follows (frontend: signals feed)."""
     return await execute(
-        "SELECT * FROM signals WHERE signal_date = ? ORDER BY created_at DESC", [signal_date]
+        """SELECT s.id, s.strategy_id, s.ticker, s.signal_type, s.confidence, s.price,
+                  s.signal_date, s.created_at
+           FROM signals s
+           JOIN strategy_follows f
+             ON f.user_id = ? AND f.strategy_id = s.strategy_id
+           ORDER BY s.signal_date DESC, s.created_at DESC
+           LIMIT ?""",
+        [user_id, limit],
     )
-
-
-# ------------------------------------------------------------------
-# Notification outbox
-# ------------------------------------------------------------------
-async def queue_notification(user_id: str, kind: str, title: str, body: str,
-                             payload: dict[str, Any] | None = None) -> str | None:
-    """
-    Writes a pending outbox row, respecting the user's settings gate
-    (e.g. tradeSignals controls trade_signal notifications).
-    Returns the notification id, or None when gated off.
-    """
-    user = await get_user(user_id)
-    settings = (user or {}).get("settings", {})
-    gates = {"trade_signal": "tradeSignals", "price_alert": "priceAlerts",
-             "daily_summary": "dailySummary"}
-    flag = gates.get(kind)
-    if flag is not None and not settings.get(flag, False):
-        return None
-
-    notif_id = _id()
-    await execute(
-        """INSERT INTO notifications_outbox
-           (id, user_id, kind, title, body, payload_json, status, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)""",
-        [notif_id, user_id, kind, title, body, json.dumps(payload or {}), _now()],
-    )
-    return notif_id
-
-
-async def pending_notifications(limit: int = 100) -> list[dict[str, Any]]:
-    return await execute(
-        """SELECT * FROM notifications_outbox WHERE status = 'pending'
-           ORDER BY created_at ASC LIMIT ?""",
-        [limit],
-    )
-
-
-async def mark_notification_sent(notif_id: str) -> None:
-    await execute("UPDATE notifications_outbox SET status = 'sent', sent_at = ? WHERE id = ?",
-                  [_now(), notif_id])
-
-
-async def mark_notification_failed(notif_id: str, error: str) -> None:
-    await execute("UPDATE notifications_outbox SET status = 'failed', error = ? WHERE id = ?",
-                  [error[:500], notif_id])

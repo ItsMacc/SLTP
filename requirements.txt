@@ -1,3 +1,4 @@
+pydantic
 aiohttp
 python-dotenv
 numpy~=2.5.3
