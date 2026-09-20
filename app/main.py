@@ -4,7 +4,6 @@ from typing import Dict, Any, List
 
 # Core Backtester & Strategy Imports
 from app.backtester import Backtester
-from app.strategies.buy_and_hold import BuyAndHold
 from app.strategies.stock_health_filter import StockHealthFilterStrategy
 
 # Database Imports
@@ -25,23 +24,31 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Registry for your hardcoded strategies
+# Registry for user-followable strategies. Buy & Hold is intentionally absent:
+# it is a benchmark only and users must never follow or run it.
 STRATEGIES = {
-    "buy and hold": BuyAndHold,
-    "stock-health-filter": StockHealthFilterStrategy,
+    "stock-health-filter": (StockHealthFilterStrategy, "trading"),
+}
+
+# Strategy catalog for the onboarding wizard. To surface a new strategy on the
+# onboarding page, just add an entry here with its type — the frontend filters
+# the list by the user's selected intent (invest / trade / both).
+STRATEGY_CATALOG = {
+    "stock-health-filter": {"name": "Stock Health Filter", "type": "trading"},
 }
 
 
 @app.get("/api/strategies")
 def get_available_strategies() -> List[Dict[str, str]]:
-    """Returns a list of all available hardcoded strategies for the frontend dropdown/selection."""
+    """Returns followable strategies (id, name, description, type) for the frontend."""
     strategy_list = []
-    for key, strategy_cls in STRATEGIES.items():
+    for key, (strategy_cls, stype) in STRATEGIES.items():
         instance = strategy_cls()
         strategy_list.append({
             "id": key,
             "name": instance.name,
-            "description": instance.description
+            "description": instance.description,
+            "type": stype,
         })
     return strategy_list
 

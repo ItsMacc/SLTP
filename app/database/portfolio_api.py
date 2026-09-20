@@ -18,6 +18,10 @@ SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE")
 
 router = APIRouter()
 
+# Strategies users are allowed to follow. Buy & Hold is a benchmark and is
+# intentionally excluded — never followable.
+FOLLOWABLE_STRATEGIES = {"stock-health-filter"}
+
 
 class CompleteSetupIn(BaseModel):
     name: str
@@ -76,6 +80,7 @@ async def portfolio_status(user: dict[str, Any] = Depends(get_current_user)) -> 
         except ValueError:
             preferences = {}
     return {
+        "id": pf.get("id"),
         "onboarded": onboarded,
         "name": pf.get("name", "My Portfolio"),
         "base_currency": pf.get("base_currency", "USD"),
@@ -115,13 +120,20 @@ async def complete_setup(
         )
 
     # Persist followed strategies so the daily runner can use them.
+    # Buy & Hold (and any unknown id) is rejected — it is a benchmark, never followable.
+    followed: list[tuple[str, str]] = []
     for s in prefs.get("followedStrategies", []):
         if isinstance(s, dict):
             sid, sname = s.get("id"), s.get("name", "")
         else:
             sid, sname = s, ""
-        if sid:
+        if sid and sid in FOLLOWABLE_STRATEGIES:
+            followed.append((sid, sname))
             await turso.follow_strategy(user_id, sid, sname, notify_email=True)
+        elif sid:
+            print(f"Ignoring non-followable strategy '{sid}' for user {user_id}")
+            # Remove any pre-existing follow so stale rows can't linger
+            await turso.unfollow_strategy(user_id, sid)
 
     _mirror_to_supabase(user_id, prefs)
 

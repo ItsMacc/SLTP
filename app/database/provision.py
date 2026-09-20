@@ -33,7 +33,7 @@ async def provision_user(
 ) -> dict[str, Any]:
     """
     Idempotently ensures the authenticated user exists in Turso with
-    default values. Safe to call on every login — existing rows are untouched.
+    default values. Safe to call on every login
     """
     user_id = user["id"]
     email = user.get("email")
@@ -62,9 +62,5 @@ async def provision_user(
         )
         created = False
 
-    # NOTE: we deliberately do NOT create a portfolio row here.
     # A portfolio is only created when the user completes the onboarding
-    # wizard (POST /api/portfolio/complete-setup), so "no row" reliably
-    # means "hasn't onboarded yet".
-
     return {"provisioned": created, "user_id": user_id}

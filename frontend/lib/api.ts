@@ -3,17 +3,12 @@
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
 export interface PortfolioStatus {
+  id?: string | null;
   onboarded: boolean;
   name: string;
   base_currency: string;
   starting_cash: number;
   preferences: Record<string, any>;
-}
-
-export interface StrategyInfo {
-  id: string;
-  name: string;
-  description: string;
 }
 
 export interface CompleteSetupInput {
@@ -50,6 +45,3 @@ export async function completeSetup(token: string, input: CompleteSetupInput) {
   });
 }
 
-export async function getAvailableStrategies(token: string): Promise<StrategyInfo[]> {
-  return authedFetch('/api/strategies', token);
-}

@@ -32,15 +32,15 @@ def _get_jwks_client() -> PyJWKClient:
 
 
 def _verify_token(token: str) -> dict[str, Any]:
-    """Verifies the Supabase access token (ES256 via JWKS, HS256 fallback)."""
-    last_error: Exception
+    """Verifies the Supabase access token (JWKS first, HS256 fallback)."""
+    last_error: Exception = jwt.InvalidTokenError("Token verification failed")
 
     try:
         signing_key = _get_jwks_client().get_signing_key_from_jwt(token)
         return jwt.decode(
             token,
             signing_key.key,
-            algorithms=["ES256", "RS256"],
+            algorithms=["RS256", "ES256", "HS256"],
             audience=["authenticated"],
             options={"leeway": 30},
         )
@@ -52,7 +52,7 @@ def _verify_token(token: str) -> dict[str, Any]:
             return jwt.decode(
                 token,
                 SUPABASE_JWT_SECRET,
-                algorithms=["HS256"],
+                algorithms=["HS256", "RS256", "ES256"],
                 audience=["authenticated"],
                 options={"leeway": 30},
             )

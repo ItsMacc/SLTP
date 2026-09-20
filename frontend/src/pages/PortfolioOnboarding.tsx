@@ -1,5 +1,5 @@
 // PortfolioOnboarding.tsx — Setup wizard shown the first time a user opens Portfolio
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
@@ -10,9 +10,24 @@ import './PortfolioOnboarding.css';
 
 interface PortfolioOnboardingProps {
   defaultName?: string | null;
-  availableStrategies: { id: string; name: string; description: string }[];
   onDone: () => void;
 }
+
+/**
+ * Strategy catalog for the onboarding wizard. To surface a new strategy here,
+ * just add an entry — it shows up automatically based on the user's intent:
+ *   invest -> 'investing' strategies | trade -> 'trading' | both -> all
+ */
+const STRATEGY_CATALOG: { id: string; name: string; description: string; type: 'investing' | 'trading' }[] = [
+  {
+    id: 'stock-health-filter',
+    name: 'Stock Health Filter',
+    description: 'Momentum breakout strategy targeting high-velocity stocks with strong short-term price health.',
+    type: 'trading',
+  },
+  // Add new strategies here, e.g.:
+  // { id: 'dividend-aristocrats', name: 'Dividend Aristocrats', description: '...', type: 'investing' },
+];
 
 const CURRENCIES = [
   { label: 'USD — US Dollar', value: 'USD' },
@@ -22,7 +37,7 @@ const CURRENCIES = [
   { label: 'INR — Indian Rupee', value: 'INR' },
 ];
 
-export default function PortfolioOnboarding({ defaultName, availableStrategies, onDone }: PortfolioOnboardingProps) {
+export default function PortfolioOnboarding({ defaultName, onDone }: PortfolioOnboardingProps) {
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,6 +51,20 @@ export default function PortfolioOnboarding({ defaultName, availableStrategies, 
   const [selectedStrategies, setSelectedStrategies] = useState<string[]>([]);
   const [wantsSignals, setWantsSignals] = useState(false);
 
+  // Strategies matching the chosen intent: invest -> investing, trade -> trading,
+  // both -> everything. Uses the local catalog; server list is a fallback filter.
+  const intentTypes: Record<string, string[]> = {
+    invest: ['investing'],
+    trade: ['trading'],
+    both: ['investing', 'trading'],
+  };
+  const visibleStrategies = STRATEGY_CATALOG.filter((s) =>
+    (intentTypes[intent] ?? ['investing', 'trading']).includes(s.type),
+  );
+
+  // Drop any selected strategies that are no longer visible after an intent change
+  const selectableIds = new Set(visibleStrategies.map((s) => s.id));
+
   const totalSteps = 4;
   const canAdvance =
     (step === 0 && portfolioName.trim().length > 0) ||
@@ -48,6 +77,12 @@ export default function PortfolioOnboarding({ defaultName, availableStrategies, 
       prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id],
     );
   };
+
+  // Deselect strategies that no longer match the chosen intent
+  useEffect(() => {
+    setSelectedStrategies((prev) => prev.filter((sid) => selectableIds.has(sid)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [intent]);
 
   const handleFinish = async () => {
     setSubmitting(true);
@@ -174,7 +209,7 @@ export default function PortfolioOnboarding({ defaultName, availableStrategies, 
               Pick SLTP strategies to follow, or just watch for signals. You can change this later.
             </p>
             <div className="pf-onboard-strategies">
-              {availableStrategies.map((s) => (
+              {visibleStrategies.map((s) => (
                 <button
                   key={s.id}
                   type="button"
@@ -185,8 +220,8 @@ export default function PortfolioOnboarding({ defaultName, availableStrategies, 
                   <span className="pf-onboard-strategy-desc">{s.description}</span>
                 </button>
               ))}
-              {availableStrategies.length === 0 && (
-                <p className="pf-onboard-sub">No strategies available right now — you can follow some later.</p>
+              {visibleStrategies.length === 0 && (
+                <p className="pf-onboard-sub">No {intent === 'invest' ? 'investing' : 'trading'} strategies available yet — you can follow some later.</p>
               )}
             </div>
             <div className="pf-onboard-signal-check">
@@ -194,7 +229,7 @@ export default function PortfolioOnboarding({ defaultName, availableStrategies, 
                 checked={wantsSignals}
                 onChange={(e) => setWantsSignals(e.target.checked)}
                 label="Keep on the lookout for trade signals"
-                description="We'll notify you when strategies hit buy/sell criteria — even if you don't follow them."
+                description="We'll notify you when strategies hit buy/sell criteria"
               />
             </div>
           </div>

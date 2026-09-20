@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { Wallet } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { getPortfolioStatus, getAvailableStrategies, type PortfolioStatus } from '../../lib/api';
+import { getPortfolioStatus, type PortfolioStatus } from '../../lib/api';
 import PortfolioOnboarding from './PortfolioOnboarding';
 import './PortfolioPage.css';
 
@@ -12,7 +12,6 @@ interface PortfolioPageProps {
 
 export default function PortfolioPage({ defaultName }: PortfolioPageProps) {
   const [status, setStatus] = useState<PortfolioStatus | null>(null);
-  const [strategies, setStrategies] = useState<{ id: string; name: string; description: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -23,12 +22,7 @@ export default function PortfolioPage({ defaultName }: PortfolioPageProps) {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
       if (!token) throw new Error('Not signed in');
-      const [s, strategies_] = await Promise.all([
-        getPortfolioStatus(token),
-        getAvailableStrategies(token).catch(() => []),
-      ]);
-      setStatus(s);
-      setStrategies(strategies_);
+      setStatus(await getPortfolioStatus(token));
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : 'Failed to load portfolio');
     } finally {
@@ -64,13 +58,11 @@ export default function PortfolioPage({ defaultName }: PortfolioPageProps) {
     return (
       <PortfolioOnboarding
         defaultName={defaultName}
-        availableStrategies={strategies}
         onDone={loadStatus}
       />
     );
   }
 
-  // Basic portfolio layout — we'll flesh this out later.
   const fmt = new Intl.NumberFormat(undefined, {
     style: 'currency',
     currency: status.base_currency || 'USD',
@@ -87,6 +79,10 @@ export default function PortfolioPage({ defaultName }: PortfolioPageProps) {
       </header>
 
       <section className="pf-summary-grid">
+        <div className="pf-summary-card">
+          <span className="pf-summary-label">Portfolio ID</span>
+          <span className="pf-summary-value" style={{ fontSize: 13 }}>{status.id || '—'}</span>
+        </div>
         <div className="pf-summary-card">
           <span className="pf-summary-label">Starting cash</span>
           <span className="pf-summary-value price">{fmt.format(status.starting_cash)}</span>

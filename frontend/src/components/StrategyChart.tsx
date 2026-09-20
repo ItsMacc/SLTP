@@ -101,7 +101,6 @@ export default function StrategyChart() {
         if (!cancelled) {
           setStrategies([
             { id: 'stock-health-filter', name: 'Stock Health Filter' },
-            { id: 'buy and hold', name: 'Buy & Hold' },
           ])
         }
       })

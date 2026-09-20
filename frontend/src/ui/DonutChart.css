@@ -1,0 +1,108 @@
+/* ============================================================
+   DonutChart.css — Donut chart + legend
+   ============================================================ */
+
+/* Palette — tinted siblings of the accent for a cohesive look.
+   Light theme: indigo family; dark theme: amber family. */
+:root {
+  --donut-1: var(--accent);
+  --donut-2: #8b5cf6;
+  --donut-3: #06b6d4;
+  --donut-4: #10b981;
+  --donut-5: #f59e0b;
+  --donut-6: #f43f5e;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --donut-2: #fbbf24;
+    --donut-3: #34d399;
+    --donut-4: #60a5fa;
+    --donut-5: #f87171;
+    --donut-6: #c084fc;
+  }
+}
+
+:root[data-theme="dark"] {
+  --donut-2: #fbbf24;
+  --donut-3: #34d399;
+  --donut-4: #60a5fa;
+  --donut-5: #f87171;
+  --donut-6: #c084fc;
+}
+
+.donut {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.donut-svg-wrap {
+  position: relative;
+  flex: none;
+}
+
+.donut-arc {
+  transition: stroke-dasharray 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.donut-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3xs);
+  pointer-events: none;
+}
+
+.donut-center-label {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.donut-center-value {
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+
+/* Legend */
+.donut-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-width: 8rem;
+}
+
+.donut-legend-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--text-sm);
+}
+
+.donut-swatch {
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: var(--radius-full);
+  flex: none;
+}
+
+.donut-legend-label {
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.donut-legend-pct {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
