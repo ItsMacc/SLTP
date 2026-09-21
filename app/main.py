@@ -4,6 +4,7 @@ from typing import Dict, Any, List
 
 # Core Backtester & Strategy Imports
 from app.backtester import Backtester
+from app.strategies.buy_and_hold import BuyAndHold
 from app.strategies.stock_health_filter import StockHealthFilterStrategy
 
 # Database Imports
@@ -24,9 +25,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Registry for user-followable strategies. Buy & Hold is intentionally absent:
-# it is a benchmark only and users must never follow or run it.
+# Registry for user-followable strategies.
 STRATEGIES = {
+    "buy-and-hold": (BuyAndHold, "investing"),
     "stock-health-filter": (StockHealthFilterStrategy, "trading"),
 }
 
@@ -34,6 +35,7 @@ STRATEGIES = {
 # onboarding page, just add an entry here with its type — the frontend filters
 # the list by the user's selected intent (invest / trade / both).
 STRATEGY_CATALOG = {
+    "buy-and-hold": {"name": "Buy & Hold", "type": "investing"},
     "stock-health-filter": {"name": "Stock Health Filter", "type": "trading"},
 }
 
@@ -73,7 +75,8 @@ def run_backtest(
 
     try:
         # Instantiate the requested strategy
-        strategy_instance = STRATEGIES[strategy_id]()
+        strategy_cls, _ = STRATEGIES[strategy_id]
+        strategy_instance = strategy_cls()
 
         # Initialize and run backtest
         backtester = Backtester(

@@ -1,9 +1,12 @@
-// PortfolioPage.tsx — Portfolio view: onboarding gate + basic layout
-import { useState, useEffect } from 'react';
+// PortfolioPage.tsx — Onboarding gate + simple portfolio summary.
+// All trades/positions/performance tracking UI was removed; this page shows
+// the wizard answers saved during onboarding. Coming back soon.
+import { useState, useEffect, useCallback } from 'react';
 import { Wallet } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { getPortfolioStatus, type PortfolioStatus } from '../../lib/api';
 import PortfolioOnboarding from './PortfolioOnboarding';
+import { Loader } from '../ui/Loader';
 import './PortfolioPage.css';
 
 interface PortfolioPageProps {
@@ -15,7 +18,7 @@ export default function PortfolioPage({ defaultName }: PortfolioPageProps) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const loadStatus = async () => {
+  const loadStatus = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
     try {
@@ -28,16 +31,14 @@ export default function PortfolioPage({ defaultName }: PortfolioPageProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  useEffect(() => { loadStatus(); }, []);
+  useEffect(() => { loadStatus(); }, [loadStatus]);
 
   if (loading) {
     return (
       <div className="pf-page">
-        <div className="pf-page-placeholder">
-          <span className="pf-page-placeholder-text">Loading your portfolio…</span>
-        </div>
+        <Loader label="Loading your portfolio…" />
       </div>
     );
   }
@@ -53,14 +54,8 @@ export default function PortfolioPage({ defaultName }: PortfolioPageProps) {
     );
   }
 
-  // First time (or not onboarded yet): show the setup wizard
   if (!status.onboarded) {
-    return (
-      <PortfolioOnboarding
-        defaultName={defaultName}
-        onDone={loadStatus}
-      />
-    );
+    return <PortfolioOnboarding defaultName={defaultName} onDone={loadStatus} />;
   }
 
   const fmt = new Intl.NumberFormat(undefined, {
@@ -68,6 +63,13 @@ export default function PortfolioPage({ defaultName }: PortfolioPageProps) {
     currency: status.base_currency || 'USD',
     maximumFractionDigits: 2,
   });
+
+  const prefs = status.preferences || {};
+  const followed: string[] = Array.isArray(prefs.followedStrategies)
+    ? prefs.followedStrategies
+        .map((s: any) => (typeof s === 'string' ? s : s?.name || s?.id))
+        .filter(Boolean)
+    : [];
 
   return (
     <div className="pf-page">
@@ -80,10 +82,6 @@ export default function PortfolioPage({ defaultName }: PortfolioPageProps) {
 
       <section className="pf-summary-grid">
         <div className="pf-summary-card">
-          <span className="pf-summary-label">Portfolio ID</span>
-          <span className="pf-summary-value" style={{ fontSize: 13 }}>{status.id || '—'}</span>
-        </div>
-        <div className="pf-summary-card">
           <span className="pf-summary-label">Starting cash</span>
           <span className="pf-summary-value price">{fmt.format(status.starting_cash)}</span>
         </div>
@@ -92,16 +90,42 @@ export default function PortfolioPage({ defaultName }: PortfolioPageProps) {
           <span className="pf-summary-value">{status.base_currency}</span>
         </div>
         <div className="pf-summary-card">
-          <span className="pf-summary-label">Holdings</span>
-          <span className="pf-summary-value">0</span>
+          <span className="pf-summary-label">Experience</span>
+          <span className="pf-summary-value" style={{ textTransform: 'capitalize' }}>
+            {prefs.experience || '—'}
+          </span>
         </div>
       </section>
 
+      <section className="pf-summary-grid">
+        <div className="pf-summary-card">
+          <span className="pf-summary-label">Intent</span>
+          <span className="pf-summary-value" style={{ textTransform: 'capitalize' }}>
+            {prefs.intent === 'both' ? 'Investing & Trading' : prefs.intent === 'invest' ? 'Investing' : prefs.intent === 'trade' ? 'Trading' : '—'}
+          </span>
+        </div>
+        <div className="pf-summary-card">
+          <span className="pf-summary-label">Signal notifications</span>
+          <span className="pf-summary-value">{prefs.wantsSignalNotifications ? 'On' : 'Off'}</span>
+        </div>
+      </section>
+
+      {followed.length > 0 && (
+        <section className="pf-summary-card">
+          <span className="pf-summary-label">Followed strategies</span>
+          <div className="pf-chips">
+            {followed.map((name) => (
+              <span key={name} className="pf-chip">{name}</span>
+            ))}
+          </div>
+        </section>
+      )}
+
       <section className="pf-empty">
         <span className="pf-empty-icon"><Wallet size={22} strokeWidth={1.75} /></span>
-        <h2 className="pf-empty-title">No positions yet.</h2>
+        <h2 className="pf-empty-title">Portfolio tracking is being rebuilt.</h2>
         <p className="pf-empty-sub">
-          Trades you record will show up here, with gain or loss on each holding.
+          Your setup is saved. Trades, holdings, and the performance chart will return in a simpler form.
         </p>
       </section>
     </div>

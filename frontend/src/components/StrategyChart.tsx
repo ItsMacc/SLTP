@@ -7,6 +7,7 @@ import TradeResults, { type TradeRecord } from './TradeResults'
 import DatePicker from '../ui/DatePicker'
 import ErrorToast from '../ui/ErrorToast'
 import StrategyGuide from './StrategyGuide'
+import { Loader } from '../ui/Loader'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 
@@ -374,7 +375,12 @@ export default function StrategyChart() {
         </form>
       </div>
 
-      {loading && <p className="status-text">Executing backtest engine...</p>}
+      {loading && (
+        <Loader
+          label={`Running ${strategies.find((s) => s.id === selectedStrategy)?.name || 'strategy'}…`}
+          sub="Simulating the backtest engine over your date range — this can take a moment."
+        />
+      )}
 
       {!loading && !error && !backtestResult && (
         <div className="empty-state">

@@ -15,20 +15,21 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --donut-2: #fbbf24;
+    /* Slice 2+ must contrast with the amber accent (Cash) — blue/green family */
+    --donut-2: #38bdf8;
     --donut-3: #34d399;
-    --donut-4: #60a5fa;
+    --donut-4: #a78bfa;
     --donut-5: #f87171;
-    --donut-6: #c084fc;
+    --donut-6: #fbbf24;
   }
 }
 
 :root[data-theme="dark"] {
-  --donut-2: #fbbf24;
+  --donut-2: #38bdf8;
   --donut-3: #34d399;
-  --donut-4: #60a5fa;
+  --donut-4: #a78bfa;
   --donut-5: #f87171;
-  --donut-6: #c084fc;
+  --donut-6: #fbbf24;
 }
 
 .donut {

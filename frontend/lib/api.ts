@@ -29,11 +29,18 @@ async function authedFetch(path: string, token: string, init?: RequestInit) {
   });
   if (!res.ok) {
     const body = await res.text().catch(() => '');
-    throw new Error(`Request failed (${res.status}): ${body.slice(0, 200)}`);
+    let detail = body;
+    try {
+      detail = JSON.parse(body).detail || body;
+    } catch {
+      /* keep raw text */
+    }
+    throw new Error(detail || `Request failed (${res.status})`);
   }
   return res.json();
 }
 
+// ---------- Status / onboarding ----------
 export async function getPortfolioStatus(token: string): Promise<PortfolioStatus> {
   return authedFetch('/api/portfolio/status', token);
 }
@@ -45,3 +52,8 @@ export async function completeSetup(token: string, input: CompleteSetupInput) {
   });
 }
 
+export async function getAllTickers(): Promise<string[]> {
+  const res = await fetch(`${API_BASE}/api/stock/all-tickers`);
+  if (!res.ok) return [];
+  return res.json();
+}

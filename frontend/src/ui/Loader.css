@@ -1,0 +1,58 @@
+/* ============================================================
+   Loader.css — Shared animated loader + dimming overlay
+   ============================================================ */
+
+.loader-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-lg) var(--space-xl);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.3);
+}
+
+.loader-chart {
+  overflow: hidden;
+}
+
+/* The line draws itself, then fades — climbing, dipping, restarting. */
+.loader-line {
+  stroke-dasharray: 160;
+  stroke-dashoffset: 160;
+  animation: loader-draw 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes loader-draw {
+  0%   { stroke-dashoffset: 160; opacity: 0; }
+  15%  { opacity: 1; }
+  70%  { stroke-dashoffset: 0; opacity: 1; }
+  100% { stroke-dashoffset: 0; opacity: 0; }
+}
+
+.loader-label {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.loader-sub {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  max-width: 16rem;
+  text-align: center;
+  line-height: 1.5;
+}

@@ -12,6 +12,8 @@
 # Layout uses inline styles + table markup so it renders correctly in Gmail,
 # Outlook and mobile mail clients.
 
+# USAGE: python -m app.notification.email <to> <kind> [user_name]
+
 import os
 import smtplib
 from email.mime.multipart import MIMEMultipart
@@ -322,7 +324,6 @@ def send_notification_email(kind: str, receiver: str, user_name: str,
 
 if __name__ == "__main__":
     # CLI test — send one of the four templates:
-    #   python -m app.notification.email <to> <kind> [user_name]
     import sys
 
     if len(sys.argv) < 3:

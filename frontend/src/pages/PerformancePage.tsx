@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import CandlestickGuide from '../components/CandlestickGuide'
 import Chart, { type Bar } from '../components/Chart'
 import StrategyChart from '../components/StrategyChart'
+import { Loader } from '../ui/Loader'
 import './PerformancePage.css'
 import type { PerformanceTimeframe } from '../../lib/settings'
 
@@ -221,8 +222,8 @@ export default function PerformancePage({ initialSettings }: PerformancePageProp
               </div>
             )}
 
-            {loading && <p className="status-text">Loading market data...</p>}
-            {error && <p className="status-text is-error">{error}</p>}
+            {loading && <Loader label={`Loading ${selectedTicker}…`} sub="Fetching price history from the database." />}
+            {!loading && error && <p className="status-text is-error">{error}</p>}
 
             {!loading && !error && stockData && <Chart bars={stockData.data} ticker={stockData.ticker} />}
             
