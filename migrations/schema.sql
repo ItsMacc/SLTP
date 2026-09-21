@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS portfolios (
   name TEXT NOT NULL DEFAULT 'My Portfolio',
   base_currency TEXT NOT NULL DEFAULT 'USD',
   starting_cash REAL NOT NULL DEFAULT 10000,
-  preferences_json TEXT,               -- setup wizard answers (intent, experience, ...)
+  preferences_json TEXT,               -- setup wizard answers
   onboarded INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS strategy_follows (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,
   strategy_id TEXT NOT NULL,
-  strategy_name TEXT,                  -- denormalized display name for the runner
+  strategy_name TEXT,
   notify_email INTEGER NOT NULL DEFAULT 1,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS strategy_universes (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,
   strategy_id TEXT NOT NULL,
-  tickers_json TEXT NOT NULL DEFAULT '[]',  -- strategy's OWN universe (user-custom tickers live in watchlist_items)
+  tickers_json TEXT NOT NULL DEFAULT '[]',  -- strategy's OWN universe
   initialized_date TEXT NOT NULL,           -- YYYY-MM-DD the universe was computed on
   rebalance_frequency TEXT NOT NULL,        -- daily | weekly | monthly | quarterly | yearly | never
   last_rebalance_date TEXT,                 -- YYYY-MM-DD, NULL until first rebalance
