@@ -11,9 +11,11 @@ import './PortfolioPage.css';
 
 interface PortfolioPageProps {
   defaultName?: string | null;
+  /** Live Supabase settings (source of truth for notification booleans) */
+  settings?: { tradeSignals?: boolean; [key: string]: any } | null;
 }
 
-export default function PortfolioPage({ defaultName }: PortfolioPageProps) {
+export default function PortfolioPage({ defaultName, settings }: PortfolioPageProps) {
   const [status, setStatus] = useState<PortfolioStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -106,7 +108,9 @@ export default function PortfolioPage({ defaultName }: PortfolioPageProps) {
         </div>
         <div className="pf-summary-card">
           <span className="pf-summary-label">Signal notifications</span>
-          <span className="pf-summary-value">{prefs.wantsSignalNotifications ? 'On' : 'Off'}</span>
+          <span className="pf-summary-value">
+            {settings?.tradeSignals === false ? 'Off' : 'On'}
+          </span>
         </div>
       </section>
 

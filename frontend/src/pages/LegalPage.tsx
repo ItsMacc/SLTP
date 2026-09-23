@@ -38,7 +38,7 @@ const legalEmail = 'legal.sltp@gmail.com';
 
 const privacyDocument: LegalDocument = {
   title: 'Privacy Policy',
-  meta: 'Last Updated: September 18, 2026',
+  meta: 'Last Updated: September 23, 2026',
   intro: 'This Privacy Policy governs the data collection, storage, and processing practices of SLTP ("we," "our," or "us").',
   sections: [
     {
@@ -69,6 +69,10 @@ const privacyDocument: LegalDocument = {
             {
               lead: 'User Preferences & Portfolios:',
               text: 'We save your custom settings, watchlists, saved parameters, and portfolio configurations to ensure platform continuity across your visits.',
+            },
+            {
+              lead: 'Sign-In Device Checks:',
+              text: 'At the moment you sign in, and only at that moment, we record a one-way hashed fingerprint of your IP address and browser device string for device security. We never store the raw IP address, we do not track you while you use the platform, and the record exists solely so we can alert you when an unfamiliar device signs in to your account.',
             },
             {
               lead: 'Support Communications:',
@@ -153,6 +157,10 @@ const privacyDocument: LegalDocument = {
               lead: 'No Behavioral Profiling:',
               text: 'We do not log individual browsing paths, build commercial user profiles, or sell data to brokers or advertisers.',
             },
+            {
+              lead: 'No Continuous IP Tracking:',
+              text: 'Your IP address and device are only processed at the instant of sign-in, for device security alerts. We do not monitor your IP, location, or device activity at any other time, and only salted hashes (never raw values) are kept.',
+            },
           ],
         },
       ],
@@ -200,7 +208,7 @@ const privacyDocument: LegalDocument = {
 
 const termsDocument: LegalDocument = {
   title: 'Terms of Service',
-  meta: 'Last Updated: September 18, 2026',
+  meta: 'Last Updated: September 23, 2026',
   intro: 'Please read these Terms of Service carefully before accessing or using SLTP. By using the platform, you agree to be bound by these terms.',
   sections: [
     {

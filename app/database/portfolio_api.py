@@ -17,6 +17,18 @@ SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE")
 
 router = APIRouter()
 
+# Keys that belong to Supabase users.settings (notification preferences),
+# NOT to portfolios.preferences_json. The runner reads notification
+# booleans from settings and strategy info from portfolios.
+NOTIFICATION_KEYS = {
+    "wantsSignalNotifications",
+    "tradeSignals",
+    "dailySummary",
+    "priceAlerts",
+    "securityWarnings",
+    "autoTrackSignals",
+}
+
 
 class CompleteSetupIn(BaseModel):
     name: str
@@ -26,7 +38,12 @@ class CompleteSetupIn(BaseModel):
 
 
 def _mirror_to_supabase(user_id: str, preferences: dict[str, Any]) -> None:
-    """Merges the onboarding preferences into Supabase users.settings (best-effort)."""
+    """
+    Merges the onboarding preferences into Supabase users.settings (best-effort).
+    Notification booleans are autoset here: new users get tradeSignals = true
+    (the wizard no longer asks), while anyone who has toggled Settings keeps
+    their existing choices — existing keys are never overwritten.
+    """
     if not SUPABASE_SERVICE_KEY:
         return
     try:
@@ -47,7 +64,18 @@ def _mirror_to_supabase(user_id: str, preferences: dict[str, Any]) -> None:
         if rows and isinstance(rows[0].get("settings"), dict):
             existing = rows[0]["settings"]
 
-        merged = {**existing, **preferences}
+        # Only mirror non-notification wizard answers into settings.
+        # Notification booleans: autoset only when absent.
+        wizard_answers = {k: v for k, v in preferences.items() if k not in NOTIFICATION_KEYS}
+        autoset = {
+            "tradeSignals": True,
+            "dailySummary": False,
+            "priceAlerts": False,
+            "securityWarnings": True,
+        }
+        autoset = {k: v for k, v in autoset.items() if k not in existing}
+
+        merged = {**existing, **wizard_answers, **autoset}
         requests.patch(
             f"{SUPABASE_URL}/rest/v1/users",
             params={"id": f"eq.{user_id}"},
@@ -83,7 +111,9 @@ async def complete_setup(
 ) -> dict[str, Any]:
     """Frontend write: save the wizard answers + portfolio row."""
     user_id = user["id"]
-    prefs = {**body.preferences}
+    # Notification preferences never live in portfolios: they are read from
+    # users.settings by the runner and managed from the Settings page.
+    prefs = {k: v for k, v in body.preferences.items() if k not in NOTIFICATION_KEYS}
 
     await turso.upsert_portfolio(
         user_id,

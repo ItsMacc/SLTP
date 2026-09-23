@@ -85,6 +85,21 @@ export function AuthCard({ initialMode = 'login', onSuccess }: AuthCardProps) {
           }
         }
 
+        // Device security check: fires once per sign-in (best-effort, never
+        // blocks or delays the login flow). See app/security.py.
+        if (authData.session?.access_token) {
+          fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/user/login-event`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${authData.session.access_token}`,
+            },
+            body: JSON.stringify({}),
+          }).catch(() => {
+            /* best-effort: device check must never break sign-in */
+          });
+        }
+
         onSuccess({
           id: userId,
           email: userEmail,

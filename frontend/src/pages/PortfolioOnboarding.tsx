@@ -4,7 +4,6 @@ import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import RadioGroup from '../ui/RadioGroup';
-import Checkbox from '../ui/Checkbox';
 import { completeSetup } from '../../lib/api';
 import './PortfolioOnboarding.css';
 
@@ -49,7 +48,6 @@ export default function PortfolioOnboarding({ defaultName, onDone }: PortfolioOn
   const [startingCash, setStartingCash] = useState('10000');
   const [currency, setCurrency] = useState('USD');
   const [selectedStrategies, setSelectedStrategies] = useState<string[]>([]);
-  const [wantsSignals, setWantsSignals] = useState(false);
 
   // Strategies matching the chosen intent: invest -> investing, trade -> trading,
   // both -> everything. Uses the local catalog; server list is a fallback filter.
@@ -99,7 +97,6 @@ export default function PortfolioOnboarding({ defaultName, onDone }: PortfolioOn
           intent,               // invest | trade | both
           experience,           // beginner | intermediate | advanced
           followedStrategies: selectedStrategies,
-          wantsSignalNotifications: wantsSignals,
           onboardedAt: new Date().toISOString(),
         },
       });
@@ -224,14 +221,9 @@ export default function PortfolioOnboarding({ defaultName, onDone }: PortfolioOn
                 <p className="pf-onboard-sub">No {intent === 'invest' ? 'investing' : 'trading'} strategies available yet — you can follow some later.</p>
               )}
             </div>
-            <div className="pf-onboard-signal-check">
-              <Checkbox
-                checked={wantsSignals}
-                onChange={(e) => setWantsSignals(e.target.checked)}
-                label="Keep on the lookout for trade signals"
-                description="We'll notify you when strategies hit buy/sell criteria"
-              />
-            </div>
+            <p className="pf-onboard-sub" style={{ marginTop: 'var(--space-md)', fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
+              Signal notifications are on by default — you can manage them anytime in Settings.
+            </p>
           </div>
         )}
 

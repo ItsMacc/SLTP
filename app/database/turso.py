@@ -164,3 +164,43 @@ async def upsert_portfolio(user_id: str, *, name: str, base_currency: str,
             [_id(), user_id, name, base_currency, starting_cash,
              json.dumps(preferences), int(onboarded), now, now],
         )
+
+
+# ------------------------------------------------------------------
+# Signals (strategy-level outputs written by the daily runner)
+# ------------------------------------------------------------------
+async def insert_signal(strategy_id: str, ticker: str, signal_type: str,
+                        confidence: float | None, price: float | None,
+                        signal_date: str) -> bool:
+    """Inserts one signal. Returns False if an identical signal for the same
+    (strategy, ticker, date) already exists — keeps runner re-runs idempotent."""
+    existing = await execute(
+        """SELECT id FROM signals
+           WHERE strategy_id = ? AND ticker = ? AND signal_date = ? LIMIT 1""",
+        [strategy_id, ticker, signal_date],
+    )
+    if existing:
+        return False
+    await execute(
+        """INSERT INTO signals (id, strategy_id, ticker, signal_type, confidence,
+                                price, signal_date, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+        [_id(), strategy_id, ticker, signal_type, confidence, price,
+         signal_date, _now()],
+    )
+    return True
+
+
+async def get_signals(strategy_ids: list[str], signal_date: str) -> list[dict[str, Any]]:
+    """Read: all signals for the given strategies on a date (Invest tab seam)."""
+    if not strategy_ids:
+        return []
+    placeholders = ", ".join("?" for _ in strategy_ids)
+    rows = await execute(
+        f"""SELECT strategy_id, ticker, signal_type, confidence, price, signal_date
+            FROM signals
+            WHERE strategy_id IN ({placeholders}) AND signal_date = ?
+            ORDER BY confidence DESC""",
+        [*strategy_ids, signal_date],
+    )
+    return rows

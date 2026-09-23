@@ -186,6 +186,91 @@ def trade_signal_email(receiver: str, user_name: str, strategy_name: str,
 
 
 # ------------------------------------------------------------------
+# 1b. Daily signals digest — ALL of a user's signals in ONE email
+# ------------------------------------------------------------------
+def signals_digest_email(receiver: str, user_name: str,
+                         signals: list[dict[str, Any]],
+                         signal_date: str | None = None) -> tuple[bool, str | None]:
+    """
+    One email containing every signal generated for a user's followed
+    strategies on a given trading day. `signals` entries:
+      { strategy, ticker, signal_type, price?, confidence?,
+        stop_loss?, take_profit? }
+    Only BUY signals are expected today, but any type renders correctly.
+    """
+    if not signals:
+        return False, "No signals — digest email skipped"
+
+    date_str = f" for {signal_date}" if signal_date else ""
+    n = len(signals)
+    strategies = sorted({s.get("strategy", "Strategy") for s in signals})
+
+    if n == 1:
+        s = signals[0]
+        subject = f"{BRAND} Signal: {s['signal_type']} {s['ticker']} — {s['strategy']}"
+    else:
+        strat_part = f" from {len(strategies)} strategies" if len(strategies) > 1 else ""
+        subject = f"{BRAND}: {n} new signals{strat_part}"
+
+    # One compact row per signal
+    rows_html = ""
+    for s in signals:
+        sig = str(s.get("signal_type", "")).upper()
+        is_buy = sig == "BUY"
+        color = C_GREEN if is_buy else C_RED
+        conf = s.get("confidence")
+        conf_html = f" <span style='color:{C_MUTED};'>({conf * 100:.0f}%)</span>" if conf is not None else ""
+
+        details = []
+        if s.get("price") is not None:
+            details.append(f"@ ${s['price']:,.2f}")
+        if s.get("stop_loss") is not None:
+            details.append(f"SL ${s['stop_loss']:,.2f}")
+        if s.get("take_profit") is not None:
+            details.append(f"TP ${s['take_profit']:,.2f}")
+        detail_html = f"<span style='color:{C_MUTED};font-size:12px;'> · {' · '.join(details)}</span>" if details else ""
+
+        rows_html += (
+            f'<tr>'
+            f'<td style="padding:10px 0;border-bottom:1px solid {C_BORDER};">'
+            f'<span style="display:inline-block;background:{color};color:#ffffff;font-weight:700;'
+            f'font-size:11px;padding:2px 8px;border-radius:6px;">{sig}</span>'
+            f' <strong style="font-size:15px;margin-left:4px;">{s["ticker"]}</strong>{conf_html}'
+            f'<br><span style="color:{C_MUTED};font-size:12px;">{s.get("strategy", "")}</span>'
+            f'{detail_html}'
+            f'</td>'
+            f'</tr>'
+        )
+
+    signals_block = (
+        f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
+        f'style="background:{C_PANEL};border:1px solid {C_BORDER};border-radius:10px;padding:4px 16px;">'
+        f'{rows_html}</table>'
+    )
+
+    intro = (
+        "Your followed strategy spotted a new opportunity."
+        if n == 1 else
+        f"Your {len(strategies)} followed strategies finished today's run and spotted {n} opportunities."
+    )
+
+    inner = f"""{_greeting(user_name)}
+<p style="margin:0 0 20px;">{intro}</p>
+{signals_block}
+<p style="margin:20px 0 0;">These signals come from each strategy's backtested criteria. Review the strategy's track record and do your own research before acting.</p>
+{_btn("http://localhost:5173/#/strategies", "View strategies")}"""
+
+    preheader = (
+        f"{signals[0]['signal_type']} {signals[0]['ticker']}"
+        if n == 1 else f"{n} new signals across your strategies"
+    )
+    return send_email(
+        receiver, subject,
+        _shell(preheader + date_str, "Trade Signals", C_ACCENT, inner),
+    )
+
+
+# ------------------------------------------------------------------
 # 2. Security warning
 # ------------------------------------------------------------------
 def security_warning_email(receiver: str, user_name: str, event: str,
@@ -213,8 +298,102 @@ def security_warning_email(receiver: str, user_name: str, event: str,
 
 
 # ------------------------------------------------------------------
-# 3. Daily market summary — open-ended data hook for future analysis
+# 3. Daily market summary — mood-based recap of the trading day
 # ------------------------------------------------------------------
+def market_summary_email(receiver: str, user_name: str,
+                         summary: dict[str, Any]) -> tuple[bool, str | None]:
+    """
+    Daily recap of the biggest moves across the universe. `summary` keys:
+      mood: str            — one of the MOOD_* constants from market_summary.py
+      headline: str        — the mood's headline sentence
+      trading_date: str
+      breadth_pct: float   — % of tickers that closed up
+      gainers: list        — [{ticker, change_pct, close}] top movers up
+      losers: list         — [{ticker, change_pct, close}] top movers down
+      spotlight: dict      — {ticker, change_pct, close, note} biggest mover
+      flat_note: str       — fallback text when data is thin (optional)
+    """
+    mood = summary.get("mood", "mixed")
+    mood_config = {
+        "risk_on": ("Market Summary", C_GREEN, "&#9650;"),
+        "risk_off": ("Market Summary", C_RED, "&#9660;"),
+        "mixed": ("Market Summary", C_ACCENT, "&#9660;"),
+        "quiet": ("Market Summary", C_MUTED, "&#9650;"),
+    }
+    _, accent, _ = mood_config.get(mood, mood_config["mixed"])
+
+    subject = f"{BRAND} Market Summary: {summary.get('headline', 'The day in review')}"
+    parts: list[str] = [_greeting(user_name)]
+
+    flat_note = summary.get("flat_note")
+    if flat_note:
+        parts.append(f'<p style="margin:0 0 16px;color:{C_MUTED};">{flat_note}</p>')
+    else:
+        # Mood headline
+        parts.append(
+            f'<div style="background:{C_PANEL};border:1px solid {C_BORDER};'
+            f'border-left:4px solid {accent};border-radius:10px;padding:14px 16px;margin:0 0 20px;">'
+            f'<strong style="font-size:16px;">{summary.get("headline", "")}</strong>'
+            f'</div>'
+        )
+
+        # Breadth line
+        breadth = summary.get("breadth_pct")
+        if breadth is not None:
+            b_color = C_GREEN if breadth >= 50 else C_RED
+            parts.append(
+                f'<p style="margin:0 0 16px;">Across the universe we track, '
+                f'<strong style="color:{b_color};">{breadth:.0f}%</strong> of tickers closed higher.</p>'
+            )
+
+        # Movers tables
+        def movers_table(label: str, movers: list[dict], color: str) -> str:
+            if not movers:
+                return ""
+            rows = "".join(
+                f'<tr>'
+                f'<td style="padding:6px 0;font-weight:600;font-size:14px;">{m["ticker"]}</td>'
+                f'<td style="padding:6px 0;text-align:right;color:{color};font-weight:600;">'
+                f'{m["change_pct"]:+.2f}%</td>'
+                f'<td style="padding:6px 0;text-align:right;color:{C_MUTED};font-size:13px;">'
+                f'${m["close"]:,.2f}</td>'
+                f'</tr>'
+                for m in movers
+            )
+            return (
+                f'<p style="margin:0 0 8px;color:{C_MUTED};font-size:11px;font-weight:700;'
+                f'letter-spacing:0.1em;text-transform:uppercase;">{label}</p>'
+                f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
+                f'style="background:{C_PANEL};border:1px solid {C_BORDER};border-radius:10px;padding:8px 16px;margin:0 0 20px;">'
+                f'{rows}</table>'
+            )
+
+        parts.append(movers_table("Biggest gainers", summary.get("gainers") or [], C_GREEN))
+        parts.append(movers_table("Biggest decliners", summary.get("losers") or [], C_RED))
+
+        # Spotlight on the single biggest mover
+        spot = summary.get("spotlight")
+        if spot:
+            up = spot["change_pct"] >= 0
+            s_color = C_GREEN if up else C_RED
+            parts.append(
+                f'<p style="margin:0 0 16px;">Spotlight: <strong>{spot["ticker"]}</strong> '
+                f'<span style="color:{s_color};font-weight:600;">{spot["change_pct"]:+.2f}%</span> '
+                f'to ${spot["close"]:,.2f} — the biggest move of the day. {spot.get("note", "")}</p>'
+            )
+
+    date_line = f"<p style=\"margin:0;color:{C_MUTED};font-size:12px;\">Trading session: {summary.get('trading_date', 'latest')}</p>"
+    parts.append(date_line)
+
+    inner = "".join(f'<div style="margin-bottom:4px;">{p}</div>' for p in parts)
+    inner += _btn("http://localhost:5173/#/performance", "Open Performance")
+
+    return send_email(
+        receiver, subject,
+        _shell(summary.get("headline", "The day in review"), "Market Summary", accent, inner),
+    )
+
+
 def daily_summary_email(receiver: str, user_name: str,
                         summary_data: dict[str, Any] | None = None) -> tuple[bool, str | None]:
     """
@@ -298,7 +477,8 @@ def price_alert_email(receiver: str, user_name: str, ticker: str,
 # ------------------------------------------------------------------
 def send_notification_email(kind: str, receiver: str, user_name: str,
                             payload: dict[str, Any] | None = None) -> tuple[bool, str | None]:
-    """kind: trade_signal | security_warning | daily_summary | price_alert."""
+    """kind: trade_signal | signals_digest | security_warning | daily_summary |
+    market_summary | price_alert."""
     p = payload or {}
     if kind == "trade_signal":
         return trade_signal_email(
@@ -307,6 +487,12 @@ def send_notification_email(kind: str, receiver: str, user_name: str,
             p.get("price"), p.get("confidence"), p.get("note"),
             p.get("stop_loss"), p.get("take_profit"),
         )
+    if kind == "signals_digest":
+        return signals_digest_email(
+            receiver, user_name, p.get("signals", []), p.get("signal_date"),
+        )
+    if kind == "market_summary":
+        return market_summary_email(receiver, user_name, p.get("summary", {}))
     if kind == "security_warning":
         return security_warning_email(
             receiver, user_name, p.get("event", "Account activity detected"),
@@ -328,7 +514,7 @@ if __name__ == "__main__":
 
     if len(sys.argv) < 3:
         print("Usage: python -m app.notification.email <to> <kind> [user_name]")
-        print("Kinds: trade_signal | security_warning | daily_summary | price_alert")
+        print("Kinds: trade_signal | signals_digest | market_summary | security_warning | daily_summary | price_alert")
         sys.exit(1)
 
     to, kind = sys.argv[1], sys.argv[2]
@@ -341,6 +527,28 @@ if __name__ == "__main__":
             "signal_type": "BUY", "price": 187.42, "confidence": 0.82,
             "stop_loss": 174.50, "take_profit": 215.00,
             "note": "Health-spike criteria met for the third consecutive session.",
+        },
+        "signals_digest": {
+            "signal_date": "2026-09-23",
+            "signals": [
+                {"strategy": "Stock Health Filter", "ticker": "AAPL", "signal_type": "BUY",
+                 "price": 187.42, "confidence": 0.82, "stop_loss": 174.50, "take_profit": 215.00},
+                {"strategy": "Stock Health Filter", "ticker": "MU", "signal_type": "BUY",
+                 "price": 612.10, "confidence": 0.64, "stop_loss": 560.00, "take_profit": 720.00},
+            ],
+        },
+        "market_summary": {
+            "summary": {
+                "mood": "risk_on",
+                "headline": "Risk-on rally: buyers swept the board",
+                "trading_date": "2026-09-23",
+                "breadth_pct": 71.0,
+                "gainers": [{"ticker": "NVDA", "change_pct": 6.4, "close": 1210.55},
+                            {"ticker": "MU", "change_pct": 5.1, "close": 612.10}],
+                "losers": [{"ticker": "SHOP.TO", "change_pct": -2.3, "close": 158.40}],
+                "spotlight": {"ticker": "NVDA", "change_pct": 6.4, "close": 1210.55,
+                              "note": "Led the advance on heavy volume."},
+            },
         },
         "security_warning": {
             "event": "New sign-in from an unrecognized device",

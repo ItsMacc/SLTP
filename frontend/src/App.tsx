@@ -150,7 +150,7 @@ export default function App() {
             ) : activeTab === 'strategies' ? (
               <StrategiesPage />
             ) : activeTab === 'portfolio' && user?.id ? (
-              <PortfolioPage defaultName={user.name} />
+              <PortfolioPage defaultName={user.name} settings={user.settings} />
             ) : activeTab === 'home' || activeTab === 'guide' ? (
               <HomePage onNavigate={handleTabChange} onOpenGuide={() => setGuideOpen(true)} />
             ) : (
