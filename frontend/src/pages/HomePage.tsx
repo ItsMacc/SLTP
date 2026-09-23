@@ -1,5 +1,4 @@
-// HomePage.tsx — Landing page: hero and platform modules
-import { useEffect, type CSSProperties, type ComponentType } from 'react';
+import { useEffect, useState, type CSSProperties, type ComponentType } from 'react';
 import {
   Bell,
   FlaskConical,
@@ -14,6 +13,7 @@ import './HomePage.css';
 
 interface HomePageProps {
   onNavigate: (tab: string) => void;
+  onOpenGuide?: () => void;
 }
 
 type IconType = ComponentType<{ size?: number; className?: string; strokeWidth?: number }>;
@@ -101,7 +101,7 @@ const MODULES: ModuleData[] = [
   },
 ];
 
-export default function HomePage({ onNavigate }: HomePageProps) {
+export default function HomePage({ onNavigate, onOpenGuide }: HomePageProps) {
   /* Fade elements up as they enter the viewport */
   useEffect(() => {
     const targets = Array.from(document.querySelectorAll('.home-reveal'));
@@ -154,13 +154,10 @@ export default function HomePage({ onNavigate }: HomePageProps) {
                 variant="primary"
                 size="lg"
                 className="home-btn-primary"
-                onClick={() => onNavigate('strategies')}
+                onClick={() => (onOpenGuide ? onOpenGuide() : onNavigate('guide'))}
               >
-                Browse strategies
+                See how the site works
                 <ArrowRight size={18} className="home-btn-icon" />
-              </Button>
-              <Button variant="secondary" size="lg" onClick={() => onNavigate('performance')}>
-                View performance
               </Button>
             </div>
           </div>

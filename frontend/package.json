@@ -12,6 +12,7 @@
   "dependencies": {
     "@radix-ui/react-tooltip": "^1.2.16",
     "@supabase/supabase-js": "^2.112.4",
+    "driver.js": "^1.8.0",
     "lucide-react": "^1.45.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",

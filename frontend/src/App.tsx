@@ -4,6 +4,8 @@ import Header from './components/Header';
 import { AuthCard } from './components/AuthCard';
 import Footer from './components/Footer';
 import HomePage from './pages/HomePage';
+import SiteGuide from './components/SiteGuide';
+import 'driver.js/dist/driver.css';
 import SettingsPage, { applyAndStoreUserSettings } from './pages/SettingsPage';
 import LegalPage, { type LegalPageKind } from './pages/LegalPage';
 import PerformancePage from './pages/PerformancePage';
@@ -29,6 +31,7 @@ export default function App() {
   const [authNotice, setAuthNotice] = useState<string | null>(null);
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [guideOpen, setGuideOpen] = useState(false);
 
   const handleTabChange = (tab: string) => {
     if (AUTH_REQUIRED_TABS.includes(tab) && !user?.id) {
@@ -109,6 +112,10 @@ export default function App() {
         onSettingsClick={() => { setActiveTab('settings'); setAuthMode(null); setLegalPage(null); }}
       />
 
+      {/* Site guide slideshow lives at app level so it can navigate tabs
+          mid-tour (Driver.js spotlights real elements on real pages). */}
+      <SiteGuide open={guideOpen} onClose={() => setGuideOpen(false)} onNavigate={handleTabChange} />
+
       <main className="app-main">
         {legalPage ? (
           <LegalPage page={legalPage} onBack={() => setLegalPage(null)} />
@@ -144,8 +151,8 @@ export default function App() {
               <StrategiesPage />
             ) : activeTab === 'portfolio' && user?.id ? (
               <PortfolioPage defaultName={user.name} />
-            ) : activeTab === 'home' ? (
-              <HomePage onNavigate={handleTabChange} />
+            ) : activeTab === 'home' || activeTab === 'guide' ? (
+              <HomePage onNavigate={handleTabChange} onOpenGuide={() => setGuideOpen(true)} />
             ) : (
               <div className="app-placeholder">
                 <h1 className="app-placeholder-title">
