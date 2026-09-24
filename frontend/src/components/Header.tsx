@@ -21,6 +21,7 @@ const navItems = [
   { id: 'strategies', label: 'Strategies' },
   { id: 'performance', label: 'Performance' },
   { id: 'lab', label: 'Lab' },
+  { id: 'docs', label: 'Docs' },
 ];
 
 export default function Header({ 

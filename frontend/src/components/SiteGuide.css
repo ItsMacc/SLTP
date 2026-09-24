@@ -456,7 +456,7 @@
   font-family: var(--font-heading);
   font-weight: 400;
   font-size: var(--text-lg);
-  color: var(--text-primary);
+  color: var(--accent-hover);
 }
 
 .tsg-driver-popover .driver-popover-description {

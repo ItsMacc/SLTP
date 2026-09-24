@@ -38,7 +38,8 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
   // Preferences State
   const [theme, setTheme] = useState(() => sessionStorage.getItem('st_user_theme') || 'Light');
   const [defaultTimeframe, setDefaultTimeframe] = useState('1y');
-  const [riskTolerance, setRiskTolerance] = useState('Medium');
+  const [chartStyle, setChartStyle] = useState('candles');
+  const [defaultZoom, setDefaultZoom] = useState(90);
 
   // Notifications & Alerts State
   const [tradeSignals, setTradeSignals] = useState(true);
@@ -83,7 +84,8 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
 
         if (currentSettings.theme) setTheme(currentSettings.theme);
         if (currentSettings.defaultTimeframe) setDefaultTimeframe(currentSettings.defaultTimeframe);
-        if (currentSettings.riskTolerance) setRiskTolerance(currentSettings.riskTolerance);
+        if (currentSettings.chartStyle) setChartStyle(currentSettings.chartStyle);
+        if (currentSettings.defaultZoom) setDefaultZoom(currentSettings.defaultZoom);
         
         if (currentSettings.tradeSignals !== undefined) setTradeSignals(currentSettings.tradeSignals);
         if (currentSettings.securityWarnings !== undefined) setSecurityWarnings(currentSettings.securityWarnings);
@@ -163,7 +165,8 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
       const updatedSettings = {
         theme,
         defaultTimeframe,
-        riskTolerance,
+        chartStyle,
+        defaultZoom,
         tradeSignals,
         securityWarnings,
         dailySummary,
@@ -335,18 +338,32 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
                 </div>
 
                 <div className="st-settings-field">
-                  <label className="st-settings-label">Risk Tolerance</label>
+                  <label className="st-settings-label">Chart style</label>
                   <RadioGroup
-                    name="riskTolerance"
-                    value={riskTolerance}
-                    onChange={(val) => setRiskTolerance(String(val))}
+                    name="chartStyle"
+                    value={chartStyle}
+                    onChange={(val) => setChartStyle(String(val))}
                     options={[
-                      { label: 'Low', value: 'Low' },
-                      { label: 'Medium', value: 'Medium' },
-                      { label: 'High', value: 'High' },
+                      { label: 'Candlesticks', value: 'candles' },
+                      { label: 'Line', value: 'line' },
                     ]}
                   />
-                  <span className="st-settings-hint">Tailors strategy suggestions and volatility metrics.</span>
+                  <span className="st-settings-hint">Candlesticks show open, high, low and close per day. The line view just draws the close price, which is easier to read at a glance.</span>
+                </div>
+
+                <div className="st-settings-field">
+                  <label className="st-settings-label">Default chart zoom</label>
+                  <RadioGroup
+                    name="defaultZoom"
+                    value={String(defaultZoom)}
+                    onChange={(val) => setDefaultZoom(Number(val))}
+                    options={[
+                      { label: '30 bars', value: '30' },
+                      { label: '60 bars', value: '60' },
+                      { label: '90 bars', value: '90' },
+                    ]}
+                  />
+                  <span className="st-settings-hint">How many trading days the chart shows when it first loads. You can always zoom in and out.</span>
                 </div>
               </div>
             )}

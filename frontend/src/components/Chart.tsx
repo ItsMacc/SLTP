@@ -14,6 +14,8 @@ export interface Bar {
 interface ChartProps {
   bars: Bar[]
   ticker: string
+  chartStyle?: 'candles' | 'line'
+  defaultZoom?: number
 }
 
 const AXIS_WIDTH = 54
@@ -21,6 +23,7 @@ const PADDING_TOP = 16
 const PADDING_BOTTOM = 24
 const VOLUME_RATIO = 0.18
 const MIN_VISIBLE = 15
+const ZOOM_OPTIONS = [30, 60, 90] as const
 const DEFAULT_VISIBLE = 90
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
@@ -47,13 +50,13 @@ const volumeLabel = (value: number) => {
  * crosshair tooltip. All the interaction state lives here so the page
  * itself only ever has to pass in a ticker and a list of bars.
  */
-export default function Chart({ bars, ticker }: ChartProps) {
+export default function Chart({ bars, ticker, chartStyle = 'candles', defaultZoom }: ChartProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(360)
   const [height, setHeight] = useState(420)
 
-  const preferred = useRef(DEFAULT_VISIBLE)
-  const [visible, setVisibleState] = useState(DEFAULT_VISIBLE)
+  const preferred = useRef(defaultZoom && ZOOM_OPTIONS.includes(defaultZoom as 30 | 60 | 90) ? defaultZoom : DEFAULT_VISIBLE)
+  const [visible, setVisibleState] = useState(preferred.current)
   const setVisible = useCallback((next: number | ((current: number) => number)) => {
     setVisibleState((current) => {
       const value = typeof next === 'function' ? next(current) : next
@@ -264,7 +267,24 @@ export default function Chart({ bars, ticker }: ChartProps) {
             </g>
           ))}
 
-          {windowData.map((bar, index) => {
+          {chartStyle === 'line' ? (() => {
+            const points = windowData.map((bar, index) => `${(index * slot + slot / 2).toFixed(1)},${yPrice(bar.close).toFixed(1)}`).join(' ')
+            return (
+              <g>
+                <polyline points={points} className="chart-line" fill="none" />
+                {windowData.map((bar, index) => (
+                  <rect
+                    key={bar.date || index}
+                    x={index * slot + slot / 2 - candleWidth / 2}
+                    y={yVolume(bar.volume)}
+                    width={candleWidth}
+                    height={Math.max(1, volumeTop + volumeHeight - yVolume(bar.volume))}
+                    className="candle-volume"
+                  />
+                ))}
+              </g>
+            )
+          })() : windowData.map((bar, index) => {
             const cx = index * slot + slot / 2
             const up = bar.close >= bar.open
             const top = yPrice(Math.max(bar.open, bar.close))

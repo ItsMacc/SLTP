@@ -225,7 +225,14 @@ export default function PerformancePage({ initialSettings }: PerformancePageProp
             {loading && <Loader label={`Loading ${selectedTicker}…`} sub="Fetching price history from the database." />}
             {!loading && error && <p className="status-text is-error">{error}</p>}
 
-            {!loading && !error && stockData && <Chart bars={stockData.data} ticker={stockData.ticker} />}
+            {!loading && !error && stockData && (
+              <Chart
+                bars={stockData.data}
+                ticker={stockData.ticker}
+                chartStyle={initialSettings?.chartStyle === 'line' ? 'line' : 'candles'}
+                defaultZoom={typeof initialSettings?.defaultZoom === 'number' ? initialSettings.defaultZoom : undefined}
+              />
+            )}
             
             <CandlestickGuide />
           </div>
