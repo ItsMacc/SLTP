@@ -14,6 +14,21 @@
 # and plain equities participate. Actually simpler: we exclude a small
 # denylist of well-known index/commodity funds so the leaderboard shows
 # companies, not funds.
+# market_summary.py — Computes the daily market recap from the parquet store.
+#
+# Looks at the last two trading sessions across the whole tradable universe
+# (everything in the master parquet file) and produces a mood-classified
+# summary: biggest gainers, biggest decliners, market breadth, and a
+# spotlight on the single biggest mover. Three moods cover the session:
+#   risk_on  — broad advance (>= 60% of tickers closed up)
+#   risk_off — broad selloff (<= 40% closed up)
+#   mixed    — everything in between
+# A fourth quiet fallback handles days with no fresh closes.
+#
+# Excluded from the rankings: a small denylist of well-known index and
+# commodity funds, so the leaderboard shows companies, not funds.
+
+# -------- Imports --------
 import os
 from typing import Any
 
@@ -21,6 +36,7 @@ import numpy as np
 
 from app.database.fetch import get_all_tickers, get_stock_history
 
+# -------- Configuration --------
 # Index funds / commodities that shouldn't headline a "biggest movers" list.
 # Kept small and explicit — extend as the universe grows.
 FUND_DENYLIST = {
@@ -38,6 +54,7 @@ MOOD_MIXED = "mixed"
 MOOD_QUIET = "quiet"
 
 
+# -------- Public API --------
 def build_market_summary(reference_tickers: list[str] | None = None) -> dict[str, Any]:
     """
     Builds the market summary for the latest trading session.
@@ -125,9 +142,7 @@ def build_market_summary(reference_tickers: list[str] | None = None) -> dict[str
     }
 
 
-# ------------------------------------------------------------------
-# Helpers
-# ------------------------------------------------------------------
+# -------- Helper Methods --------
 
 def _latest_trading_date(reference_tickers: list[str]) -> str | None:
     """Latest trading date agreed on by the reference tickers (majority vote)."""

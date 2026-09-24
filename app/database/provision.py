@@ -1,3 +1,9 @@
+# provision.py — Idempotent user provisioning in Turso.
+#
+# Called on login: ensures the authenticated user has a row in the users
+# table (the Supabase mirror the runner reads emails/settings from).
+
+# -------- Imports --------
 import json
 from datetime import datetime, timezone
 
@@ -10,6 +16,7 @@ from app.database import turso
 
 router = APIRouter()
 
+# -------- Configuration --------
 DEFAULT_SETTINGS = {
     "theme": "Light",
     "priceAlerts": False,
@@ -26,6 +33,7 @@ class ProvisionIn(BaseModel):
     name: Optional[str] = None
 
 
+# -------- Endpoints --------
 @router.post("/api/user/provision")
 async def provision_user(
     body: ProvisionIn,

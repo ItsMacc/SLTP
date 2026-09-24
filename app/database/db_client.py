@@ -1,3 +1,8 @@
+# db_client.py — Local Parquet storage path configuration.
+#
+# Single source of truth for where market data lives on disk, shared by
+# the ingestion (db.py) and query (fetch.py) layers.
+
 # -------- Imports --------
 import os
 

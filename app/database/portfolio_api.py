@@ -1,3 +1,10 @@
+# portfolio_api.py — Setup wizard endpoints (onboarding state + answers).
+#
+# Reads/writes the Turso portfolios table and mirrors wizard preferences
+# into Supabase users.settings. Notification booleans never live in
+# portfolios: they are stripped here and managed from the Settings page.
+
+# -------- Imports --------
 import json
 import os
 
@@ -12,6 +19,7 @@ from app.database import turso
 
 load_dotenv()
 
+# -------- Configuration --------
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://jqyqfkrzwimxuzugyuiw.supabase.co")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE")
 

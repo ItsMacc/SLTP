@@ -5,6 +5,7 @@
 # shared secret. We verify via JWKS first and fall back to HS256.
 # PyJWKClientError is caught so unknown-key errors become 401s, not 500s.
 
+# -------- Imports --------
 import os
 from typing import Any
 
@@ -16,6 +17,7 @@ from jwt import PyJWKClient, PyJWKClientError
 
 load_dotenv()
 
+# -------- Configuration --------
 SUPABASE_JWT_SECRET: str | None = os.environ.get("SUPABASE_JWT")
 SUPABASE_URL: str | None = os.environ.get("SUPABASE_URL", "https://jqyqfkrzwimxuzugyuiw.supabase.co")
 SUPABASE_SERVICE_KEY: str | None = os.environ.get("SUPABASE_SERVICE_ROLE")
@@ -24,6 +26,7 @@ _JWKS_URL = f"{SUPABASE_URL}/auth/v1/.well-known/jwks.json"
 _jwks_client: PyJWKClient | None = None
 
 
+# -------- Helper Methods --------
 def _get_jwks_client() -> PyJWKClient:
     global _jwks_client
     if _jwks_client is None:
@@ -86,6 +89,7 @@ def _fetch_profile(user_id: str) -> dict[str, Any]:
         return {}
 
 
+# -------- FastAPI Dependency --------
 async def get_current_user(authorization: str = Header(default="")) -> dict[str, Any]:
     """
     FastAPI dependency: verifies the Supabase access token from the

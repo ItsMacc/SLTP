@@ -1,3 +1,14 @@
+# main.py — FastAPI application entry point.
+#
+# Exposes the public REST API:
+#   GET /api/strategies        -> followable strategy catalog
+#   GET /api/backtest/run      -> full simulation (metrics + equity + trades)
+#   GET /api/stock/history     -> daily candles for one ticker
+#   GET /api/stock/all-tickers -> the tradable universe
+# Routers: provisioning (users), portfolio (setup wizard), security (login
+# device checks). Strategies are registered in STRATEGIES / STRATEGY_CATALOG.
+
+# -------- Imports --------
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Dict, Any, List
@@ -13,6 +24,7 @@ from app.database.provision import router as provision_router
 from app.database.portfolio_api import router as portfolio_router
 from app.security import router as security_router
 
+# -------- App Setup --------
 app = FastAPI(title="Stocker Backtesting & Analytics API")
 app.include_router(provision_router)
 app.include_router(portfolio_router)
@@ -27,6 +39,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# -------- Strategy Registry --------
 # Registry for user-followable strategies.
 STRATEGIES = {
     "buy-and-hold": (BuyAndHold, "investing"),
@@ -42,6 +55,7 @@ STRATEGY_CATALOG = {
 }
 
 
+# -------- Endpoints --------
 @app.get("/api/strategies")
 def get_available_strategies() -> List[Dict[str, str]]:
     """Returns followable strategies (id, name, description, type) for the frontend."""

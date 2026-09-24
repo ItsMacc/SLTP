@@ -44,9 +44,7 @@ C_BORDER = "#e6e0d4"
 C_PANEL = "#faf8f2"
 
 
-# ------------------------------------------------------------------
-# Low-level sender (contract unchanged: returns (ok, error))
-# ------------------------------------------------------------------
+# -------- Low-Level Sender --------
 def send_email(receiver: str, subject: str, html: str) -> tuple[bool, str | None]:
     """Sends an HTML email via Gmail SMTP. Returns (success, error_message)."""
     sender_email = os.environ.get("SENDER_EMAIL")
@@ -71,9 +69,7 @@ def send_email(receiver: str, subject: str, html: str) -> tuple[bool, str | None
         return False, str(e)
 
 
-# ------------------------------------------------------------------
-# Shared boilerplate
-# ------------------------------------------------------------------
+# -------- Shared Boilerplate --------
 def _shell(preheader: str, title: str, accent: str, inner_html: str) -> str:
     """Wraps content in the common branded frame (tables = email-safe layout)."""
     return f"""<!DOCTYPE html>
@@ -136,9 +132,7 @@ def _btn(href: str, label: str) -> str:
     )
 
 
-# ------------------------------------------------------------------
-# 1. Trade signal — fields pulled from StrategyDecision
-# ------------------------------------------------------------------
+# -------- Trade Signal Email --------
 def trade_signal_email(receiver: str, user_name: str, strategy_name: str,
                        ticker: str, signal_type: str, price: float | None,
                        confidence: float | None = None,
@@ -185,9 +179,7 @@ def trade_signal_email(receiver: str, user_name: str, strategy_name: str,
     return send_email(receiver, subject, _shell(f"{signal_type} {ticker} via {strategy_name}", "Trade Signal", accent, inner))
 
 
-# ------------------------------------------------------------------
-# 1b. Daily signals digest — ALL of a user's signals in ONE email
-# ------------------------------------------------------------------
+# -------- Signals Digest Email --------
 def signals_digest_email(receiver: str, user_name: str,
                          signals: list[dict[str, Any]],
                          signal_date: str | None = None) -> tuple[bool, str | None]:
@@ -270,9 +262,7 @@ def signals_digest_email(receiver: str, user_name: str,
     )
 
 
-# ------------------------------------------------------------------
-# 2. Security warning
-# ------------------------------------------------------------------
+# -------- Security Warning Email --------
 def security_warning_email(receiver: str, user_name: str, event: str,
                            ip_address: str | None = None,
                            device: str | None = None,
@@ -297,9 +287,7 @@ def security_warning_email(receiver: str, user_name: str, event: str,
     return send_email(receiver, subject, _shell(event, "Security Alert", C_RED, inner))
 
 
-# ------------------------------------------------------------------
-# 3. Daily market summary — mood-based recap of the trading day
-# ------------------------------------------------------------------
+# -------- Market Summary Email --------
 def market_summary_email(receiver: str, user_name: str,
                          summary: dict[str, Any]) -> tuple[bool, str | None]:
     """
@@ -441,9 +429,7 @@ def daily_summary_email(receiver: str, user_name: str,
     return send_email(receiver, subject, _shell("Your morning market overview", "Daily Summary", C_ACCENT, inner))
 
 
-# ------------------------------------------------------------------
-# 4. Instant price alert (+/- 5% in one session)
-# ------------------------------------------------------------------
+# -------- Price Alert Email --------
 def price_alert_email(receiver: str, user_name: str, ticker: str,
                       change_pct: float, current_price: float | None = None,
                       direction: str | None = None) -> tuple[bool, str | None]:
@@ -472,9 +458,7 @@ def price_alert_email(receiver: str, user_name: str, ticker: str,
     return send_email(receiver, subject, _shell(f"{ticker} {change_pct:+.1f}%", "Price Alert", accent, inner))
 
 
-# ------------------------------------------------------------------
-# Dispatch helper — maps an outbox 'kind' to the right template
-# ------------------------------------------------------------------
+# -------- Dispatch Helper --------
 def send_notification_email(kind: str, receiver: str, user_name: str,
                             payload: dict[str, Any] | None = None) -> tuple[bool, str | None]:
     """kind: trade_signal | signals_digest | security_warning | daily_summary |

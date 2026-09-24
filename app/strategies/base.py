@@ -1,3 +1,10 @@
+# base.py — Base Strategy interface and technical indicator helpers.
+#
+# Every SLTP strategy subclasses Strategy. A strategy decides WHEN to buy;
+# its paired PortfolioManager decides HOW MUCH and where to cut losses.
+# Subclasses implement generate_signal() and set MIN_BARS_REQUIRED.
+# The indicator helpers below are thin TA-Lib wrappers for common analysis.
+
 # -------- Imports --------
 import talib as ta
 from app.portfolio.portfolio_manager import PortfolioManager
@@ -13,6 +20,7 @@ class Strategy:
     """
 
     def __init__(self):
+        # Identity, paired manager, and minimum history requirement
         self.name: str = "Base Strategy"
         self.description: str = "Base Strategy Interface"
         self.manager: PortfolioManager = None

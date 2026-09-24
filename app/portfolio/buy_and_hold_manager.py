@@ -1,3 +1,10 @@
+# buy_and_hold_manager.py — Manager for the Buy & Hold benchmark strategy.
+#
+# Universe: every ticker available in the master database, loaded once at
+# initialization. Buys are equal-weight (1 / number of positions) with no
+# stop-loss and no take-profit, so positions are never sold once opened.
+
+# -------- Imports --------
 from app.portfolio.portfolio_manager import (
     PortfolioManager, RebalanceFrequency, TradeRecord, UNIVERSE
 )
@@ -5,6 +12,7 @@ from app.utils.StrategyDecision import StrategyDecision
 from app.database.fetch import get_stock_histories, get_all_tickers
 
 
+# -------- Buy And Hold Manager Class --------
 class BuyAndHoldManager(PortfolioManager):
     def __init__(self):
         super().__init__()
@@ -14,10 +22,9 @@ class BuyAndHoldManager(PortfolioManager):
         self.REBALANCE_FREQUENCY = RebalanceFrequency.NEVER
         self.WARM_UP_PERIOD = 30
 
+    # -------- Lifecycle Hooks --------
     def on_signal(self, ticker: str, decision: StrategyDecision) -> TradeRecord | None:
-        """
-        Executes a single initial buy order with no stop-loss or take-profit limits.
-        """
+        # Executes a single initial buy order with no stop-loss or take-profit limits
         # Ignore non-BUY decisions or already open positions
         if decision.signal != "BUY" or self.open_positions.get(ticker, False):
             return None
@@ -48,9 +55,7 @@ class BuyAndHoldManager(PortfolioManager):
         )
 
     def initialize_universe(self, current_date: str) -> bool:
-        """
-        Initializes all stocks in the universe at start date.
-        """
+        # Initializes all stocks in the universe at start date
         self.tickers.clear()
         self.histories.clear()
 

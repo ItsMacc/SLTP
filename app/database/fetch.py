@@ -1,3 +1,9 @@
+# fetch.py — Read layer over the local Parquet market data.
+#
+# Loads the master parquet file into an in-memory cache once, then serves
+# StockData slices: single histories, batched histories, or JSON for the
+# API. All strategies, managers and runners read market data through here.
+
 # -------- Imports --------
 import numpy as np
 import os
@@ -103,6 +109,7 @@ def get_stock_history(ticker: str,
                       start: str | None = None,
                       end: str | None = None,
                       ) -> StockData:
+    # Return one ticker's history, optionally sliced to a date range
     validate_dates(start, end)
     __load_cache()
 
@@ -143,6 +150,7 @@ def get_stock_history(ticker: str,
 def get_stock_history_json(ticker: str,
                            timeframe: str = "1y",
                            ) -> Dict[str, Any]:
+    # API shape: one ticker's candles for a named timeframe (1y, 2y, 5y, all)
     start_date = calculate_start_date(timeframe)
     stock_data = get_stock_history(ticker=ticker, start=start_date)
 
@@ -177,6 +185,7 @@ def get_stock_histories(tickers: list[str],
                         start: str | None = None,
                         end: str | None = None,
                         ) -> dict[str, StockData]:
+    # Batch version of get_stock_history; missing tickers are silently skipped
     if not tickers:
         return {}
 

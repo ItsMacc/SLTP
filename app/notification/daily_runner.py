@@ -15,6 +15,7 @@
 # Notification booleans come from users.settings (Supabase mirror);
 # followed strategies come from portfolios.preferences_json.
 
+# -------- Imports --------
 import asyncio
 import traceback
 from datetime import datetime, timezone
@@ -27,12 +28,14 @@ from app.notification.email import (
     signals_digest_email,
 )
 
+# -------- Configuration --------
 # Liquid cross-market tickers used to anchor "the latest trading date" —
 # a single stale ticker can't misdate the whole run (majority vote).
 REFERENCE_TICKERS = ["SPY", "QQQ", "XEQT.TO"]
 
 # Lazy-loaded strategy registry: mirrors app.main.STRATEGIES without
 # importing FastAPI at runner startup.
+# -------- Step 1: User Cache --------
 def _strategy_registry() -> dict[str, tuple[type, str]]:
     from app.strategies.buy_and_hold import BuyAndHold
     from app.strategies.stock_health_filter import StockHealthFilterStrategy
@@ -43,9 +46,7 @@ def _strategy_registry() -> dict[str, tuple[type, str]]:
     }
 
 
-# ==================================================================
-# Step 1: market data
-# ==================================================================
+# -------- Step 1: Market Data --------
 
 async def refresh_user_cache_from_supabase(limit: int = 500) -> int:
     """
@@ -82,9 +83,7 @@ async def refresh_user_cache_from_supabase(limit: int = 500) -> int:
     return len(users)
 
 
-# ==================================================================
-# Step 2: latest trading date
-# ==================================================================
+# -------- Step 2: Latest Trading Date --------
 
 def _latest_trading_date() -> str | None:
     """Latest trading date via majority vote across liquid reference tickers."""
@@ -103,9 +102,7 @@ def _latest_trading_date() -> str | None:
     return max(set(candidates), key=candidates.count)
 
 
-# ==================================================================
-# Step 3: run strategies, collect today's signals
-# ==================================================================
+# -------- Step 3: Strategy Signals --------
 
 def _initialize_universe_at(strategy, latest_date: str) -> str | None:
     """
@@ -248,9 +245,7 @@ async def _run_all_strategies(strategy_ids: set[str], latest_date: str) -> dict[
     return results
 
 
-# ==================================================================
-# Step 4: notify users
-# ==================================================================
+# -------- Step 4: User Notification --------
 
 def _wants(settings: dict, key: str) -> bool:
     """Reads a notification boolean from users.settings with safe defaults."""
@@ -328,9 +323,7 @@ async def _notify_users(latest_date: str, signals_by_strategy: dict[str, list[di
     return {"users_seen": len(users), "emails_sent": emails_sent}
 
 
-# ==================================================================
-# Full run
-# ==================================================================
+# -------- Full Run --------
 
 async def run() -> dict:
     """Full daily run: data -> cache -> strategies -> notifications."""

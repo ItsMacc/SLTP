@@ -1,3 +1,14 @@
+# turso.py — Data layer over Turso (LibSQL HTTP pipeline).
+#
+# The app's two tables live here: users (Supabase auth mirror, refreshed
+# by the runner) and portfolios (setup wizard answers). Also owns the
+# signals table: strategy outputs written by the daily runner, deduped
+# per (strategy, ticker, date) so re-runs are idempotent.
+#
+# Every function is a small focused read or write shared by the API
+# and the daily runner.
+
+# -------- Imports --------
 import json
 import os
 import uuid
@@ -12,9 +23,7 @@ load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file_
 TURSO_DATABASE_URL = os.environ.get("TURSO_DATABASE_URL")
 TURSO_AUTH_TOKEN = os.environ.get("TURSO_AUTH_TOKEN")
 
-# ------------------------------------------------------------------
-# Connection
-# ------------------------------------------------------------------
+# -------- Connection --------
 _session: aiohttp.ClientSession | None = None
 _pipeline_url: str | None = None
 
@@ -42,6 +51,7 @@ async def close() -> None:
     _session = None
 
 
+# -------- Helper Methods --------
 def _enc(value: Any) -> dict[str, Any]:
     if value is None:
         return {"type": "null", "value": None}
@@ -98,9 +108,7 @@ def _parse_json(text: Any, default: Any) -> Any:
         return default
 
 
-# ------------------------------------------------------------------
-# Users (mirror of Supabase auth users)
-# ------------------------------------------------------------------
+# -------- Users (mirror of Supabase auth users) --------
 async def upsert_user(user_id: str, name: str | None, email: str | None,
                       settings: dict[str, Any] | None) -> None:
     await execute("DELETE FROM users WHERE id = ?", [user_id])
@@ -128,9 +136,7 @@ async def get_all_users() -> list[dict[str, Any]]:
     return rows
 
 
-# ------------------------------------------------------------------
-# Portfolios (setup wizard answers)
-# ------------------------------------------------------------------
+# -------- Portfolios (setup wizard answers) --------
 async def get_portfolio(user_id: str) -> dict[str, Any] | None:
     rows = await execute("SELECT * FROM portfolios WHERE user_id = ?", [user_id])
     if not rows:
@@ -166,9 +172,7 @@ async def upsert_portfolio(user_id: str, *, name: str, base_currency: str,
         )
 
 
-# ------------------------------------------------------------------
-# Signals (strategy-level outputs written by the daily runner)
-# ------------------------------------------------------------------
+# -------- Signals (written by the daily runner) --------
 async def insert_signal(strategy_id: str, ticker: str, signal_type: str,
                         confidence: float | None, price: float | None,
                         signal_date: str) -> bool:

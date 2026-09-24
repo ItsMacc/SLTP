@@ -1,3 +1,16 @@
+# stock_health_filter.py — Momentum breakout strategy with a health-score filter.
+#
+# Key Terms & Definitions:
+# - Health Score: A score from 0 to 100 measuring how smoothly and consistently
+#   a stock's price is rising while avoiding frequent downward drops.
+#   (Uses linear regression for trend score and ratio of positive-to-negative
+#   return days for downward drops)
+# - Health Ratio: The relative multiple between short-term health and long-term health
+#
+# Entry rule: buy when a sudden upward health spike occurs above the 200-day
+# SMA with positive long-term health. The paired StockHealthFilterManager
+# sizes the position by confidence and sets ATR-based stop-loss/take-profit.
+
 # -------- Imports --------
 import numpy as np
 from app.portfolio.stock_health_filter_manager import StockHealthFilterManager
@@ -6,18 +19,12 @@ from app.utils.StockData import StockData
 
 
 # -------- Stock Health Filter Strategy Class --------
+# -------- Stock Health Filter Strategy Class --------
 class StockHealthFilterStrategy(Strategy):
-    """
-    Key Terms & Definitions:
-    - Health Score: A score from 0 to 100 measuring how smoothly and consistently
-      a stock's price is rising while avoiding frequent downward drops.
-      (Uses linear regression for trend score and ratio of positive-to-negative
-      return days for downward drops)
-    - Health Ratio: The relative multiple between short-term health and long-term health
-    """
-
     def __init__(self):
         super().__init__()
+
+        # Identity and paired manager
         self.name = "Stock Health Filter"
         self.description = "Identifies momentum breakouts filtered through a balanced multi-sector health and liquidity selection model."
         self.manager = StockHealthFilterManager()

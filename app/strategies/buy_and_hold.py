@@ -1,13 +1,21 @@
+# buy_and_hold.py — Passive benchmark strategy.
+#
+# Buys every ticker in the universe once at the start and holds it for the
+# entire backtest. No stop-loss, no take-profit, no rotation. Serves as the
+# baseline every active strategy is compared against.
+
+# -------- Imports --------
 from app.portfolio.buy_and_hold_manager import BuyAndHoldManager
 from app.strategies.base import Strategy, StrategyDecision
 from app.utils.StockData import StockData
 
 
-# -------- Stock Health Filter Strategy Class --------
+# -------- Buy And Hold Strategy Class --------
 class BuyAndHold(Strategy):
     def __init__(self):
         super().__init__()
 
+        # Identity and paired manager
         self.name = "Buy & Hold"
         self.description = "Standard Buy and Hold benchmark strategy"
         self.manager = BuyAndHoldManager()
@@ -15,6 +23,7 @@ class BuyAndHold(Strategy):
         self.MIN_BARS_REQUIRED = 1
 
     def generate_signal(self, ticker: str, history: StockData) -> StrategyDecision:
+        # Check if stock has enough price history to calculate metrics
         if len(history.close_price) < self.MIN_BARS_REQUIRED:
             raise ValueError(f"{ticker} does not contain enough bars | required: {self.MIN_BARS_REQUIRED}")
 
@@ -26,6 +35,7 @@ class BuyAndHold(Strategy):
         if self.manager:
             is_already_open = self.manager.open_positions.get(ticker, False)
 
+        # Buy once at the start, then hold indefinitely
         if not is_already_open:
             signal_type = "BUY"
             confidence = 1.0

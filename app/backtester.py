@@ -1,3 +1,14 @@
+# backtester.py — Day-by-day simulation engine for strategies.
+#
+# Runs a Strategy + its PortfolioManager over a trading calendar:
+#   1. Initializes the universe (walking forward from start_date).
+#   2. Each day: rebalance if due, fill yesterday's queued buys at today's
+#      open, check stop-loss/take-profit exits, generate signals on history
+#      sliced up to today (no lookahead), and mark positions to market.
+#   3. Records one equity point per day; performance_metrics() summarizes
+#      the curve (CAGR, Sharpe, PSR, Sortino, drawdown, trade stats).
+
+# -------- Imports --------
 import numpy as np
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
@@ -7,8 +18,10 @@ from app.utils.StockData import StockData
 from scipy.stats import skew, kurtosis, norm
 
 
+# -------- Backtester --------
 class Backtester:
     def __init__(self, strategy: Strategy, start_date: str, end_date: str | None = None):
+        # Bind the strategy and its manager, plus the simulation window
         self.strategy = strategy
         self.manager = strategy.manager
         self.start_date = start_date
@@ -100,6 +113,7 @@ class Backtester:
             )
 
     def performance_metrics(self) -> dict:
+        # Require at least one equity point to summarize
         if not self.manager.equity_curve:
             return {}
 
@@ -107,6 +121,7 @@ class Backtester:
         starting_value = float(equity_curve[0]["portfolio_value"])
         ending_value = float(equity_curve[-1]["portfolio_value"])
 
+        # Annualized growth rate from the curve endpoints
         start_dt = datetime.strptime(equity_curve[0]["date"], "%Y-%m-%d")
         end_dt = datetime.strptime(equity_curve[-1]["date"], "%Y-%m-%d")
         days = max(1, (end_dt - start_dt).days)
@@ -145,6 +160,7 @@ class Backtester:
         else:
             psr = 0.0
 
+        # Sortino uses only the downside deviation of returns
         negative_returns = daily_returns[daily_returns < 0]
         downside_std = float(np.std(negative_returns, ddof=1)) if len(negative_returns) > 1 else 0.0
         sortino = round((mean_return / downside_std) * np.sqrt(252), 4) if downside_std > 0 else 0.0
@@ -180,6 +196,7 @@ class Backtester:
         if in_drawdown and current_duration > max_duration:
             max_duration = current_duration
 
+        # Gather realized returns from all closed trades across tickers
         all_closed_returns = []
         for ticker, trade_list in self.manager.trades.items():
             for trade in trade_list:
@@ -195,10 +212,12 @@ class Backtester:
         average_win = round((sum(winning_trades) / len(winning_trades)) * 100.0, 2) if winning_trades else 0.0
         average_loss = round((sum(losing_trades) / len(losing_trades)) * 100.0, 2) if losing_trades else 0.0
 
+        # Expectancy = win prob * avg win - loss prob * avg loss
         win_prob = len(winning_trades) / total_trades if total_trades > 0 else 0.0
         loss_prob = len(losing_trades) / total_trades if total_trades > 0 else 0.0
         expectancy = round((win_prob * (average_win / 100.0)) - (loss_prob * abs(average_loss / 100.0)), 4)
 
+        # Mark open positions to their last close for the unrealized profit figure
         unrealized_profit = 0.0
         for ticker, trade_list in self.manager.trades.items():
             if self.manager.open_positions.get(ticker, False) and trade_list:
@@ -292,6 +311,7 @@ class Backtester:
         return ticker_data
 
     def _sync_ticker_data(self, ticker_data: dict, current_date: str) -> None:
+        # Caches any ticker added mid-run by on_rebalance so it joins the simulation
         for ticker, history in self.manager.histories.items():
             if ticker in ticker_data:
                 continue
@@ -302,6 +322,7 @@ class Backtester:
 
     @staticmethod
     def _build_cache_entry(history: StockData, anchor_date: str) -> dict | None:
+        # Build arrays and a date->index map anchored at the given date
         dates = history.dates
         start_idx = np.searchsorted(dates, anchor_date)
         if start_idx >= len(dates):

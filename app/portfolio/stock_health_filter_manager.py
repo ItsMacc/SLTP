@@ -1,3 +1,12 @@
+# stock_health_filter_manager.py — Manager for the Stock Health Filter strategy.
+#
+# Universe: top 50 stocks by average dollar volume with positive trailing
+# growth, rebuilt quarterly via on_rebalance (worst performers removed,
+# fresh candidates brought in; open losers are blacklisted until they exit).
+# Position sizing scales the base (Kelly) allocation by signal confidence,
+# with a 4x ATR stop-loss and a 2:1 reward-to-risk take-profit.
+
+# -------- Imports --------
 import numpy as np
 import talib as ta
 from datetime import datetime
@@ -9,6 +18,7 @@ from app.utils.StrategyDecision import StrategyDecision
 from app.database.fetch import get_stock_histories, get_stock_history
 
 
+# -------- Stock Health Filter Manager Class --------
 class StockHealthFilterManager(PortfolioManager):
     def __init__(self):
         super().__init__()
@@ -18,6 +28,7 @@ class StockHealthFilterManager(PortfolioManager):
         self.REBALANCE_FREQUENCY = RebalanceFrequency.QUARTERLY
         self.WARM_UP_PERIOD = 60
 
+    # -------- Lifecycle Hooks --------
     def on_signal(self,
                   ticker: str,
                   decision: StrategyDecision
@@ -67,6 +78,7 @@ class StockHealthFilterManager(PortfolioManager):
         if np.isnan(atr) or atr <= 0:
             return None
 
+        # ATR-scaled risk levels: 4x ATR stop, 2:1 reward-to-risk target
         k_multiplier = 4.0
         rrr = 2.0
 

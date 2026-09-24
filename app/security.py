@@ -11,6 +11,7 @@
 # Purpose: device security only. The user learns a new device signed in;
 # we never use this data for tracking, profiling, or analytics.
 
+# -------- Imports --------
 import hashlib
 import json
 import os
@@ -31,6 +32,7 @@ SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://jqyqfkrzwimxuzugyuiw.supa
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE")
 HASH_SALT = os.environ.get("LOGIN_HASH_SALT", "sltp-login-device-salt-v1")
 
+# -------- Configuration --------
 MAX_DEVICES = 10
 
 router = APIRouter()
@@ -41,9 +43,7 @@ class LoginEventIn(BaseModel):
     screen: str | None = None  # e.g. "1920x1080" — cosmetic only
 
 
-# ------------------------------------------------------------------
-# Helpers
-# ------------------------------------------------------------------
+# -------- Helper Methods --------
 
 def _hash(value: str) -> str:
     """SHA-256 with an app salt. One-way: raw values are never stored."""
@@ -123,9 +123,7 @@ def _save_settings(user_id: str, settings: dict[str, Any]) -> None:
     ).raise_for_status()
 
 
-# ------------------------------------------------------------------
-# Endpoint
-# ------------------------------------------------------------------
+# -------- Endpoints --------
 
 @router.post("/api/user/login-event")
 async def record_login_event(

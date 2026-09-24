@@ -1,3 +1,12 @@
+# portfolio_manager.py — Base portfolio manager: sizing, execution, accounting.
+#
+# Paired with a Strategy: the Strategy decides WHEN to buy, the Manager
+# decides HOW MUCH (allocation), WHERE to cut losses (stop-loss / take-profit)
+# and keeps the portfolio's books (fees, slippage, mark-to-market, equity).
+# Subclasses implement on_signal(); initialize_universe() and on_rebalance()
+# are optional. check_exits / buy_order / mark_to_market / _base_allocation
+# are the engine's execution internals and are shared by all strategies.
+
 # -------- Imports --------
 from dataclasses import dataclass, replace
 from enum import Enum

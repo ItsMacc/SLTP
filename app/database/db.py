@@ -1,3 +1,10 @@
+# db.py — Market data ingestion into the local Parquet master file.
+#
+# Builds the tradable symbol universe from Wikipedia (S&P 500, TSX 60,
+# ETFs, gold) and keeps the master market_data.parquet fresh: tickers
+# missing from the file get full history, existing ones get a 5-day top-up.
+# One row per (Symbol, Date) with OHLCV columns.
+
 # -------- Imports --------
 import os
 import re
