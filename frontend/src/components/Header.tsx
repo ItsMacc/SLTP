@@ -22,6 +22,7 @@ const navItems = [
   { id: 'performance', label: 'Performance' },
   { id: 'lab', label: 'Lab' },
   { id: 'docs', label: 'Docs' },
+  { id: 'learn', label: 'Learn' },
 ];
 
 export default function Header({ 

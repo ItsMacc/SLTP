@@ -12,6 +12,7 @@ import PerformancePage from './pages/PerformancePage';
 import StrategiesPage from './pages/StrategiesPage';
 import PortfolioPage from './pages/PortfolioPage';
 import DocsPage from './pages/DocsPage';
+import LearnPage from './pages/LearnPage';
 import ErrorToast from './ui/ErrorToast';
 import { supabase } from '../lib/supabase';
 import './index.css';
@@ -152,6 +153,8 @@ export default function App() {
               <StrategiesPage />
             ) : activeTab === 'docs' ? (
               <DocsPage onNavigate={handleTabChange} />
+            ) : activeTab === 'learn' ? (
+              <LearnPage onNavigate={handleTabChange} />
             ) : activeTab === 'portfolio' && user?.id ? (
               <PortfolioPage defaultName={user.name} settings={user.settings} />
             ) : activeTab === 'home' || activeTab === 'guide' ? (

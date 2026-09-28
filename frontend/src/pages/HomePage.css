@@ -125,6 +125,33 @@
   gap: var(--space-sm);
 }
 
+.home-beginner-link {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.92rem;
+  color: var(--text-muted);
+  padding: 6px 4px;
+  transition: color 0.15s ease;
+}
+
+.home-beginner-link strong {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.home-beginner-link svg {
+  align-self: center;
+  color: var(--accent);
+  transition: transform 0.15s ease;
+}
+
+.home-beginner-link:hover { color: var(--text); }
+.home-beginner-link:hover svg { transform: translateX(3px); }
+
 .home-btn-icon {
   margin-left: var(--space-2xs);
   transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
