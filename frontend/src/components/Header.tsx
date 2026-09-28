@@ -14,15 +14,17 @@ interface HeaderProps {
   onSettingsClick: () => void;
 }
 
+/* Order tells a story: read about the market, use the platform,
+   then the reference material. */
 const navItems = [
   { id: 'home', label: 'Home' },
+  { id: 'learn', label: 'Learn' },
   { id: 'invest', label: 'Invest' },
   { id: 'portfolio', label: 'Portfolio' },
   { id: 'strategies', label: 'Strategies' },
   { id: 'performance', label: 'Performance' },
   { id: 'lab', label: 'Lab' },
   { id: 'docs', label: 'Docs' },
-  { id: 'learn', label: 'Learn' },
 ];
 
 export default function Header({ 

@@ -300,7 +300,7 @@ const PAGE_TOURS: PageTour[] = [  {
   {
     tab: 'performance',
     label: 'Performance',
-    blurb: 'Research any stock or run a strategy backtest.',
+    blurb: 'Research any stock, then run a strategy backtest.',
     steps: () => [
       {
         element: '.perf-hero-top',
@@ -308,16 +308,6 @@ const PAGE_TOURS: PageTour[] = [  {
           title: 'This is the Performance page',
           description:
             'Your research desk. Before buying anything, look at its history here. Let us walk through the pieces.',
-          side: 'bottom',
-          align: 'start',
-        },
-      },
-      {
-        element: '.mode-switch',
-        popover: {
-          title: 'Two modes',
-          description:
-            'Stocks shows one price chart at a time. Strategies runs full backtests of our models. The switch flips between them.',
           side: 'bottom',
           align: 'start',
         },
@@ -358,6 +348,56 @@ const PAGE_TOURS: PageTour[] = [  {
           title: 'A guide lives right here',
           description:
             'Under the chart sits a long beginner guide explaining candlesticks step by step, with diagrams. Remember this spot.',
+          side: 'top',
+          align: 'center',
+        },
+      },
+      {
+        element: '.mode-switch',
+        popover: {
+          title: 'Two modes',
+          description:
+            'Everything so far was Stocks mode: one price chart at a time. The other side of this switch runs full backtests of our strategies. We will flip it now.',
+          side: 'bottom',
+          align: 'start',
+          onNextClick: (_el, _step, opts) => {
+            /* Flip the Performance page into Strategies mode, then advance
+               once the strategy view has mounted. */
+            const buttons = document.querySelectorAll('.mode-switch-btn');
+            (buttons[1] as HTMLElement | undefined)?.click();
+            window.setTimeout(() => opts.driver.moveNext(), 250);
+          },
+        },
+      },
+      {
+        element: '.strategy-card',
+        popover: {
+          title: 'Strategies mode',
+          description:
+            'This is the backtest runner. Instead of one stock\u2019s price, it replays a full SLTP strategy over real market history and reports how it would have done.',
+          side: 'bottom',
+          align: 'start',
+          /* The stock-mode elements behind us are unmounted, so Back
+             cannot highlight them; hide the button on this first step. */
+          showButtons: ['next', 'close'],
+        },
+      },
+      {
+        element: '.strategy-controls-bar',
+        popover: {
+          title: 'Set up the backtest',
+          description:
+            'Pick one of the built-in strategies, choose a start date (and optionally an end date), then press Run Analysis.',
+          side: 'bottom',
+          align: 'start',
+        },
+      },
+      {
+        element: '.strategy-card .empty-state',
+        popover: {
+          title: 'Run it to see results',
+          description:
+            'Right now there is nothing to show. After your first run, this area fills with the strategy\u2019s equity chart plus a Performance Metrics panel comparing it against simply buying and holding.',
           side: 'top',
           align: 'center',
         },
@@ -581,7 +621,9 @@ export default function SiteGuide({ open, onClose, onNavigate }: SiteGuideProps)
           <SlideTour
             onNavigate={onNavigate}
             onTourActiveChange={setTourOpen}
-            onFinish={() => setIndex(4)}
+            /* Finishing a tour returns to this picker slide (4 of 5) so
+               another page tour can be started right away. */
+            onFinish={() => setIndex(3)}
           />
         )}
         {index === 4 && <SlideFinal />}
