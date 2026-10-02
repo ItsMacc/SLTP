@@ -107,6 +107,14 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Opening Terms / Privacy swaps the whole page body but leaves the window
+  // scroll offset untouched, so arriving from the middle of a long page
+  // dropped you into the middle of the legal text instead of its title.
+  // Smooth on the way in, instant on the way back out.
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: legalPage ? 'smooth' : 'auto' });
+  }, [legalPage]);
+
   if (loading) return null;
 
   return (
