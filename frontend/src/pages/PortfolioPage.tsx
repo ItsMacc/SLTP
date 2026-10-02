@@ -4,7 +4,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Wallet } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { getPortfolioStatus, type PortfolioStatus } from '../../lib/api';
+import {
+  getPortfolioStatus,
+  peekPortfolio,
+  isPortfolioStale,
+  type PortfolioStatus,
+} from '../../lib/api';
 import PortfolioOnboarding from './PortfolioOnboarding';
 import { Loader } from '../ui/Loader';
 import './PortfolioPage.css';
@@ -16,28 +21,64 @@ interface PortfolioPageProps {
 }
 
 export default function PortfolioPage({ defaultName, settings }: PortfolioPageProps) {
-  const [status, setStatus] = useState<PortfolioStatus | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Seed from the module-level cache so returning to this tab paints the
+  // previous result immediately instead of flashing a spinner.
+  const [status, setStatus] = useState<PortfolioStatus | null>(() => peekPortfolio());
+  const [loading, setLoading] = useState(() => peekPortfolio() === null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const loadStatus = useCallback(async () => {
-    setLoading(true);
-    setLoadError(null);
+  /**
+   * Loads portfolio status. With a cached copy present this revalidates in the
+   * background — `background` keeps the current data on screen and never shows
+   * the spinner, so a slow or failed refresh is invisible to the user.
+   */
+  const loadStatus = useCallback(async (options: { force?: boolean; background?: boolean } = {}) => {
+    const { force = false, background = false } = options;
+    if (!background) {
+      setLoading(true);
+      setLoadError(null);
+    }
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
       if (!token) throw new Error('Not signed in');
-      setStatus(await getPortfolioStatus(token));
+      setStatus(await getPortfolioStatus(token, { force }));
     } catch (err) {
-      setLoadError(err instanceof Error ? err.message : 'Failed to load portfolio');
+      // A failed background refresh must not replace good data with an error.
+      if (!background || !peekPortfolio()) {
+        setLoadError(err instanceof Error ? err.message : 'Failed to load portfolio');
+      }
     } finally {
-      setLoading(false);
+      if (!background) setLoading(false);
     }
   }, []);
 
-  useEffect(() => { loadStatus(); }, [loadStatus]);
+  // On mount, fetch only if the cache is missing or stale. Returning to the
+  // tab within the TTL paints instantly and issues no request at all.
+  useEffect(() => {
+    if (isPortfolioStale()) loadStatus({ background: peekPortfolio() !== null });
+  }, [loadStatus]);
 
-  if (loading) {
+  // Picking the tab back up is the natural moment to notice database changes.
+  useEffect(() => {
+    function onVisible() {
+      if (document.visibilityState === 'visible') {
+        loadStatus({ background: true });
+      }
+    }
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+    };
+  }, [loadStatus]);
+
+  // NB: the cache is deliberately NOT cleared on unmount - that is what keeps
+  // the data around when the user visits another tab and comes back. Sign-out
+  // clears it instead, so one user never sees the previous user's portfolio.
+
+  if (loading && !status) {
     return (
       <div className="pf-page">
         <Loader label="Loading your portfolio…" />
@@ -50,14 +91,17 @@ export default function PortfolioPage({ defaultName, settings }: PortfolioPagePr
       <div className="pf-page">
         <div className="pf-page-placeholder">
           <span className="pf-page-placeholder-text">{loadError || 'Portfolio unavailable.'}</span>
-          <button type="button" className="pf-page-retry" onClick={loadStatus}>Try again</button>
+          <button type="button" className="pf-page-retry" onClick={() => loadStatus({ force: true })}>
+            Try again
+          </button>
         </div>
       </div>
     );
   }
 
   if (!status.onboarded) {
-    return <PortfolioOnboarding defaultName={defaultName} onDone={loadStatus} />;
+    // complete-setup invalidates the cache, so this reloads with force.
+    return <PortfolioOnboarding defaultName={defaultName} onDone={() => loadStatus({ force: true })} />;
   }
 
   const fmt = new Intl.NumberFormat(undefined, {

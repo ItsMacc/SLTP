@@ -247,6 +247,33 @@ async def _run_all_strategies(strategy_ids: set[str], latest_date: str) -> dict[
 
 # -------- Step 4: User Notification --------
 
+async def _followed_ids_for(user_id: str, portfolio: dict | None) -> list[str]:
+    """Strategy IDs a user follows.
+
+    strategy_follows is the source of truth. The portfolios.preferences_json
+    copy is still consulted as a fallback so users onboarded before that table
+    existed keep getting signals until they next run the wizard.
+    """
+    try:
+        followed = await turso.get_followed_strategies(user_id)
+    except Exception as e:
+        print(f"  [notify] follows read failed for {user_id}: {e}")
+        followed = []
+
+    if followed:
+        return followed
+
+    if not portfolio:
+        return []
+
+    raw = (portfolio.get("preferences") or {}).get("followedStrategies") or []
+    return [
+        s.get("id") if isinstance(s, dict) else s
+        for s in raw
+        if (s.get("id") if isinstance(s, dict) else s)
+    ]
+
+
 def _wants(settings: dict, key: str) -> bool:
     """Reads a notification boolean from users.settings with safe defaults."""
     value = settings.get(key)
@@ -281,13 +308,7 @@ async def _notify_users(latest_date: str, signals_by_strategy: dict[str, list[di
 
         followed_ids: list[str] = []
         if portfolio and portfolio.get("onboarded"):
-            prefs = portfolio.get("preferences") or {}
-            raw = prefs.get("followedStrategies") or []
-            followed_ids = [
-                s.get("id") if isinstance(s, dict) else s
-                for s in raw
-                if (s.get("id") if isinstance(s, dict) else s)
-            ]
+            followed_ids = await _followed_ids_for(user_id, portfolio)
 
         # --- Signals digest: one email, all strategies ---
         if followed_ids and _wants(settings, "tradeSignals"):
@@ -347,21 +368,23 @@ async def run() -> dict:
         return {"refreshed": refreshed, "signals": {}, "notify": {}}
     print(f"[signals] latest trading date: {latest_date}")
 
-    # Which strategies does anyone actually follow?
-    followed: set[str] = set()
-    users = await turso.get_all_users()
-    for u in users:
-        try:
-            portfolio = await turso.get_portfolio(u["id"])
-        except Exception:
-            continue
-        if not portfolio or not portfolio.get("onboarded"):
-            continue
-        prefs = portfolio.get("preferences") or {}
-        for s in prefs.get("followedStrategies") or []:
-            sid = s.get("id") if isinstance(s, dict) else s
-            if sid:
-                followed.add(sid)
+    # Which strategies does anyone actually follow? One indexed read instead
+    # of loading every portfolio and parsing JSON out of it.
+    followed: set[str] = set(await turso.get_followed_strategies_all())
+    if not followed:
+        # Fallback for users onboarded before strategy_follows existed.
+        users = await turso.get_all_users()
+        for u in users:
+            try:
+                portfolio = await turso.get_portfolio(u["id"])
+            except Exception:
+                continue
+            if not portfolio or not portfolio.get("onboarded"):
+                continue
+            for s in (portfolio.get("preferences") or {}).get("followedStrategies") or []:
+                sid = s.get("id") if isinstance(s, dict) else s
+                if sid:
+                    followed.add(sid)
     print(f"[signals] strategies in play: {sorted(followed) or 'none'}")
 
     signals_by_strategy: dict[str, list[dict]] = {}

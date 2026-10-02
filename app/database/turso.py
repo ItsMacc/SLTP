@@ -61,6 +61,46 @@ async def _get_session() -> aiohttp.ClientSession:
     return _session
 
 
+# -------- Settings mirror (Supabase is authoritative) --------
+async def mirror_settings(user_id: str, settings: dict[str, Any], *,
+                          name: str | None = None,
+                          email: str | None = None) -> bool:
+    """Copies Supabase users.settings into this table's settings_json.
+
+    Supabase is the source of truth for settings; this mirror exists so the
+    nightly runner can read notification preferences without calling PostgREST
+    per user. Previously the mirror only refreshed during a runner pass, which
+    left it stale in Turso for the whole day after any settings change.
+
+    name/email come from the verified token so a row created here is complete.
+    They are only ever filled in, never blanked, so a call without them cannot
+    wipe what an earlier write or the runner already stored.
+    """
+    payload = json.dumps(settings or {})
+    now = _now()
+
+    existing = await execute(
+        "SELECT id, name, email FROM users WHERE id = ?", [user_id]
+    )
+    if not existing:
+        await execute(
+            """INSERT INTO users (id, name, email, settings_json, created_at)
+               VALUES (?, ?, ?, ?, ?)""",
+            [user_id, name, email, payload, now],
+        )
+        return True
+
+    await execute(
+        """UPDATE users
+           SET settings_json = ?,
+               name = COALESCE(?, name),
+               email = COALESCE(?, email)
+           WHERE id = ?""",
+        [payload, name, email, user_id],
+    )
+    return True
+
+
 async def close() -> None:
     global _session
     if _session and not _session.closed:
@@ -128,9 +168,25 @@ def _parse_json(text: Any, default: Any) -> Any:
 # -------- Users (mirror of Supabase auth users) --------
 async def upsert_user(user_id: str, name: str | None, email: str | None,
                       settings: dict[str, Any] | None) -> None:
-    await execute("DELETE FROM users WHERE id = ?", [user_id])
+    """Creates or refreshes the users row in ONE statement.
+
+    Idempotent, so it is safe to fire on every sign-in. This deliberately
+    creates NOTHING else: no portfolio, no follows, no positions. Those only
+    appear once the user finishes onboarding.
+
+    Previously this was DELETE-then-INSERT, which left a window where the row
+    did not exist at all - anything reading concurrently saw no user, and a
+    failure between the two statements lost the row entirely. ON CONFLICT is
+    atomic and only overwrites fields we actually have values for, so a call
+    with no email can never blank an email we already know.
+    """
     await execute(
-        "INSERT INTO users (id, name, email, settings_json, created_at) VALUES (?, ?, ?, ?, ?)",
+        """INSERT INTO users (id, name, email, settings_json, created_at)
+           VALUES (?, ?, ?, ?, ?)
+           ON CONFLICT(id) DO UPDATE SET
+               name = COALESCE(excluded.name, name),
+               email = COALESCE(excluded.email, email),
+               settings_json = excluded.settings_json""",
         [user_id, name, email, json.dumps(settings or {}), _now()],
     )
 
@@ -286,6 +342,16 @@ async def get_followed_strategies(user_id: str) -> list[str]:
         "SELECT strategy_id FROM strategy_follows WHERE user_id = ? ORDER BY created_at",
         [user_id],
     )
+    return [r["strategy_id"] for r in rows]
+
+
+async def get_followed_strategies_all() -> list[str]:
+    """Every strategy anyone follows, deduplicated.
+
+    Lets the runner work out which strategies are in play with one query
+    instead of loading every user's portfolio and parsing JSON out of it.
+    """
+    rows = await execute("SELECT DISTINCT strategy_id FROM strategy_follows")
     return [r["strategy_id"] for r in rows]
 
 

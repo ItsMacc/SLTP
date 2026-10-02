@@ -62,7 +62,9 @@
   position: absolute;
   top: calc(100% + 0.5rem);
   right: 0;
-  width: min(14rem, calc(100vw - var(--space-md) * 2)); /* fixed panel, viewport-safe on mobile */
+  width: min(16rem, calc(100vw - var(--space-md) * 2)); /* fixed panel, viewport-safe on mobile */
+  max-width: calc(100vw - var(--space-md) * 2);
+  min-width: 0; /* let the panel shrink instead of pushing the viewport */
   background: var(--bg-surface);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
@@ -85,10 +87,13 @@
   }
 }
 
+/* Flex children default to min-width:auto, which makes them refuse to shrink
+   below their content — that is what let a long email escape the panel. */
 .st-dropdown__header {
   padding: 0.5rem 0.75rem;
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .st-dropdown__signed-in-as {
@@ -103,9 +108,16 @@
   margin-bottom: var(--space-3xs);
   font-weight: 600;
   color: var(--text-primary);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .st-dropdown__email {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
   font-size: var(--text-xs);
   font-weight: 600;
   color: var(--text-primary);

@@ -51,7 +51,9 @@ export default function UserMenu({
           <div className="st-dropdown__header">
             {userName && <span className="st-dropdown__name">{userName}</span>}
             <span className="st-dropdown__signed-in-as">Signed in as</span>
-            <span className="st-dropdown__email">{userEmail || 'user@example.com'}</span>
+            <span className="st-dropdown__email" title={userEmail || undefined}>
+              {userEmail || 'user@example.com'}
+            </span>
           </div>
           <div className="st-dropdown__divider"></div>
           

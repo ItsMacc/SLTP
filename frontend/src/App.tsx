@@ -15,6 +15,7 @@ import DocsPage from './pages/DocsPage';
 import LearnPage from './pages/LearnPage';
 import ErrorToast from './ui/ErrorToast';
 import { supabase } from '../lib/supabase';
+import { invalidatePortfolio } from '../lib/api';
 import './index.css';
 
 export interface UserProfile {
@@ -52,7 +53,13 @@ export default function App() {
 
   useEffect(() => {
     async function syncUser(userId: string, email: string) {
-      const { data } = await supabase.from('users').select('name, settings').eq('id', userId).single();
+      // maybeSingle, not single: a brand-new user has no profile row yet, and
+      // single() reports that as an error rather than an empty result.
+      const { data } = await supabase
+        .from('users')
+        .select('name, settings')
+        .eq('id', userId)
+        .maybeSingle();
       const name = data?.name || email;
       const settings = data?.settings || {};
       
@@ -83,9 +90,15 @@ export default function App() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_, session) => {
       if (session?.user) {
+        // A different account must never inherit the cached portfolio.
+        setUser((prev) => {
+          if (prev?.id && prev.id !== session.user.id) invalidatePortfolio();
+          return prev;
+        });
         await syncUser(session.user.id, session.user.email || '');
       } else {
         setUser(null);
+        invalidatePortfolio();
         sessionStorage.clear();
         document.documentElement.removeAttribute('data-theme');
       }
@@ -107,6 +120,7 @@ export default function App() {
         onSignOut={async () => { 
           setActiveTab('home');
           setUser(null);
+          invalidatePortfolio();
           setAuthMode(null);
           setLegalPage(null);
           await supabase.auth.signOut(); 

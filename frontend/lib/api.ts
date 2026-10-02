@@ -41,15 +41,87 @@ async function authedFetch(path: string, token: string, init?: RequestInit) {
 }
 
 // ---------- Status / onboarding ----------
-export async function getPortfolioStatus(token: string): Promise<PortfolioStatus> {
-  return authedFetch('/api/portfolio/status', token);
+
+/**
+ * Portfolio status cache.
+ *
+ * The Portfolio tab unmounts whenever the user navigates away, but this cache
+ * lives at module scope, so the data survives. Returning to the tab renders
+ * from cache instantly and revalidates in the background — stale-while-
+ * revalidate. The user never waits twice for the same data, and we still pick
+ * up database changes without a manual refresh.
+ *
+ * In-flight requests are shared, so an impatient double-mount cannot fire two
+ * requests, and nothing ever blocks rendering on a pending fetch.
+ */
+const PORTFOLIO_TTL_MS = 30_000;
+
+interface PortfolioCache {
+  entry: { data: PortfolioStatus; at: number } | null;
+  inflight: Promise<PortfolioStatus> | null;
+}
+
+const portfolioCache: PortfolioCache = {
+  entry: null,
+  inflight: null,
+};
+
+/** Last known portfolio status, or null if never loaded. Never triggers I/O. */
+export function peekPortfolio(): PortfolioStatus | null {
+  return portfolioCache.entry?.data ?? null;
+}
+
+/** True when the cached copy is old enough to be worth re-checking. */
+export function isPortfolioStale(): boolean {
+  if (!portfolioCache.entry) return true;
+  return Date.now() - portfolioCache.entry.at > PORTFOLIO_TTL_MS;
+}
+
+/**
+ * Drops the cached copy so the next read hits the database. Call after any
+ * write (completing onboarding, changing settings).
+ */
+export function invalidatePortfolio(): void {
+  portfolioCache.entry = null;
+}
+
+/**
+ * Fetches portfolio status, reusing a fresh cache entry when possible.
+ * `force` bypasses the freshness check but still shares an in-flight request.
+ */
+export async function getPortfolioStatus(
+  token: string,
+  options: { force?: boolean } = {},
+): Promise<PortfolioStatus> {
+  const { entry, inflight } = portfolioCache;
+  if (!options.force && entry && !isPortfolioStale()) return entry.data;
+  if (inflight) return inflight;
+
+  const request = authedFetch('/api/portfolio/status', token)
+    .then((data: PortfolioStatus) => {
+      portfolioCache.entry = { data, at: Date.now() };
+      portfolioCache.inflight = null;
+      return data;
+    })
+    .catch((err) => {
+      portfolioCache.inflight = null;
+      // Keep serving the stale copy if we have one — a failed background
+      // revalidation should never blank out a working page.
+      throw err;
+    });
+
+  portfolioCache.inflight = request;
+  return request;
 }
 
 export async function completeSetup(token: string, input: CompleteSetupInput) {
-  return authedFetch('/api/portfolio/complete-setup', token, {
+  const res = await authedFetch('/api/portfolio/complete-setup', token, {
     method: 'POST',
     body: JSON.stringify(input),
   });
+  // The portfolio just changed server-side; the cached copy is now wrong.
+  invalidatePortfolio();
+  return res;
 }
 
 export async function getAllTickers(): Promise<string[]> {

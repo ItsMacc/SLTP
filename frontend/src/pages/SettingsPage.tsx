@@ -195,9 +195,30 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
       if (verifyData) {
         const freshName = verifyData.name || updatedName;
         const freshSettings = verifyData.settings || updatedSettings;
-        
+
         applyAndStoreUserSettings(freshSettings, freshName);
         onProfileUpdated(freshName);
+
+        // Supabase is the source of truth; Turso keeps a mirror the nightly
+        // runner reads. Without this the mirror would stay stale until the
+        // next run, and the runner would act on yesterday's preferences.
+        try {
+          const { data: sessionData } = await supabase.auth.getSession();
+          const token = sessionData.session?.access_token;
+          if (token) {
+            await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/user/sync-settings`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({ settings: freshSettings }),
+            });
+          }
+        } catch {
+          // Best-effort: Supabase already has the change, so a failed mirror
+          // must not surface as a failed save.
+        }
       }
 
       setMessage({ type: 'success', text: 'Changes saved and synced successfully!' });
