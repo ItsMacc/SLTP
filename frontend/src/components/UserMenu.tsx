@@ -6,7 +6,6 @@ interface UserMenuProps {
   userName?: string | null;
   userEmail?: string | null;
   onSettingsClick: () => void;
-  onExtraOptionClick?: (option: string) => void;
   onSignOut: () => void;
 }
 
@@ -14,7 +13,6 @@ export default function UserMenu({
   userName,
   userEmail, 
   onSettingsClick, 
-  onExtraOptionClick, 
   onSignOut 
 }: UserMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -63,22 +61,6 @@ export default function UserMenu({
             onClick={() => { setIsOpen(false); onSettingsClick(); }}
           >
             Settings
-          </button>
-
-          <button 
-            type="button" 
-            className="st-dropdown__item"
-            onClick={() => { setIsOpen(false); onExtraOptionClick?.('portfolio'); }}
-          >
-            My Portfolios
-          </button>
-
-          <button 
-            type="button" 
-            className="st-dropdown__item"
-            onClick={() => { setIsOpen(false); onExtraOptionClick?.('strategies'); }}
-          >
-            My Strategies
           </button>
 
           <div className="st-dropdown__divider"></div>

@@ -9,3 +9,6 @@ requests~=2.34.2
 yfinance~=1.7.0
 python-dateutil~=2.9.0.post0
 scipy~=1.18.1
+# Supabase JWT verification (JWKS + legacy HS256). The [crypto] extra
+# pulls in `cryptography`, which PyJWT needs for RS256/ES256 tokens.
+PyJWT[crypto]~=2.14.0

@@ -1,10 +1,10 @@
 import { useEffect, useState, type CSSProperties, type ComponentType } from 'react';
 import {
-  Bell,
   FlaskConical,
   Wallet,
   Layers,
   LineChart,
+  FileCode2,
   ArrowRight,
   ArrowUpRight,
 } from 'lucide-react';
@@ -34,26 +34,9 @@ interface ModuleData {
 /* ---------- Platform modules ---------- */
 const MODULES: ModuleData[] = [
   {
-    id: 'invest',
-    nav: 'invest',
-    index: '01',
-    kicker: 'Signals & alerts',
-    title: 'Invest',
-    description:
-      'Shape how SLTP reaches you. Follow the models that fit your comfort, set the position and risk limits you can live with, then decide exactly when and how you want to be notified.',
-    icon: Bell,
-    points: [
-      'Subscribe to signals from the model library',
-      'Customise alert channels, triggers and quiet hours',
-      'Plan each entry before you commit any capital',
-    ],
-    cta: 'Open the desk',
-    feature: true,
-  },
-  {
     id: 'lab',
     nav: 'lab',
-    index: '02',
+    index: '01',
     kicker: 'Build & backtest',
     title: 'Lab',
     description:
@@ -69,18 +52,19 @@ const MODULES: ModuleData[] = [
   {
     id: 'portfolio',
     nav: 'portfolio',
-    index: '03',
+    index: '02',
     kicker: 'Positions & watchlist',
     title: 'Portfolio',
     description:
       'Keep a watchlist of the stocks you are considering and record the positions you hold, with the gain or loss on each one.',
     icon: Wallet,
     cta: 'Manage portfolio',
+    feature: true,
   },
   {
     id: 'strategies',
     nav: 'strategies',
-    index: '04',
+    index: '03',
     kicker: 'Model library',
     title: 'Strategies',
     description:
@@ -91,13 +75,24 @@ const MODULES: ModuleData[] = [
   {
     id: 'performance',
     nav: 'performance',
-    index: '05',
+    index: '04',
     kicker: 'Track record',
     title: 'Performance',
     description:
       'Follow how each model behaves in real market conditions, with drawdown, CAGR and risk-adjusted returns kept in plain sight.',
     icon: LineChart,
     cta: 'View performance',
+  },
+  {
+    id: 'docs',
+    nav: 'docs',
+    index: '05',
+    kicker: 'Write & extend',
+    title: 'Docs',
+    description:
+      'The reference for building on SLTP: how a strategy class works, which methods to override, and worked recipes you can copy into the Lab.',
+    icon: FileCode2,
+    cta: 'Open the docs',
   },
 ];
 

@@ -11,7 +11,7 @@ interface FooterProps {
 const navLinks = [
   { id: 'home', label: 'Home' },
   { id: 'learn', label: 'Learn' },
-  { id: 'invest', label: 'Invest' },
+  
   { id: 'portfolio', label: 'Portfolio' },
   { id: 'strategies', label: 'Strategies' },
   { id: 'performance', label: 'Performance' },

@@ -129,6 +129,46 @@ def init_db() -> None:
     print(f"Local Parquet storage initialized at: {parquet_dir}")
 
 
+def _validate_tickers(tickers: list) -> list:
+    """
+    Confirms each symbol still resolves to a real listing before we spend time
+    downloading it.
+
+    The universe is scraped from Wikipedia index/ETF tables, which keep rows
+    for companies and funds that have since been delisted, merged away or
+    renamed. yfinance then returns nothing for those, so they silently consume
+    a slot in every download batch while never contributing data. Checking up
+    front means the delisted names are dropped explicitly and reported, rather
+    than being discovered implicitly (or not at all) during ingestion.
+    """
+    if not tickers:
+        return []
+
+    valid: list = []
+    invalid: list = []
+
+    for ticker in tickers:
+        try:
+            ticker_info = yf.Ticker(ticker)
+            # history() is the same call the bulk download uses, so a symbol
+            # that passes here is one that will actually return bars.
+            probe = ticker_info.history(period="5d", auto_adjust=False)
+            if probe is None or probe.empty:
+                invalid.append(ticker)
+            else:
+                valid.append(ticker)
+        except Exception:
+            invalid.append(ticker)
+
+    if invalid:
+        print(
+            f"-> Skipping {len(invalid)} delisted/unresolvable symbol(s): "
+            f"{', '.join(invalid[:20])}{' ...' if len(invalid) > 20 else ''}"
+        )
+
+    return valid
+
+
 def process_and_save_bars(download_list: list,
                           df: pd.DataFrame) -> None:
     # Return early if dataframe or download list is empty
@@ -140,6 +180,7 @@ def process_and_save_bars(download_list: list,
     print(f"Processing bar data for {len(download_list)} tickers...")
 
     new_rows_list = []
+    written_tickers = set()
 
     for ticker in download_list:
         safe_ticker = ticker.replace(".", "-")
@@ -184,12 +225,21 @@ def process_and_save_bars(download_list: list,
         # Insert Symbol column to distinguish tickers inside the single master file
         valid_rows.insert(0, "Symbol", ticker)
         new_rows_list.append(valid_rows)
+        written_tickers.add(ticker)
 
     if not new_rows_list:
         print("No valid new bars to save.")
         return
 
     incoming_df = pd.concat(new_rows_list, ignore_index=True)
+
+    unwritten = [t for t in download_list if t not in written_tickers]
+    if unwritten:
+        print(
+            f"-> {len(unwritten)} requested symbol(s) returned no usable bars "
+            f"and were not written: {', '.join(unwritten[:20])}"
+            f"{' ...' if len(unwritten) > 20 else ''}"
+        )
 
     # Merge incoming data with the master Parquet file to preserve historical records safely
     if os.path.exists(master_file_path):
@@ -208,7 +258,16 @@ def process_and_save_bars(download_list: list,
 
 def insert_or_update_data() -> None:
     init_db()
-    all_tickers = load_symbols()
+    raw_tickers = load_symbols()
+
+    # Drop delisted/renamed symbols before any download work happens, so they
+    # never reach market_data.parquet in the first place.
+    all_tickers = _validate_tickers(raw_tickers)
+    print(f"-> Universe: {len(raw_tickers)} scraped, {len(all_tickers)} tradable")
+
+    if not all_tickers:
+        print("No tradable symbols resolved — aborting without touching the master file.")
+        return
 
     download_all_data = []
     download_previous_data = []

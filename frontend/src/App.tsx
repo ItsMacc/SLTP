@@ -24,7 +24,7 @@ export interface UserProfile {
   settings?: { theme?: string; [key: string]: any };
 }
 
-const AUTH_REQUIRED_TABS = ['lab', 'invest', 'portfolio'];
+const AUTH_REQUIRED_TABS = ['lab', 'portfolio'];
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('home');

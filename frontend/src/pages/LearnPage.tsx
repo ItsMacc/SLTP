@@ -209,8 +209,8 @@ function StockSection() {
             </div>
             <input
               type="range"
-              min={100}
-              max={1000}
+              min={1000}
+              max={2000}
               step={100}
               value={invest}
               onChange={(e) => setInvest(parseInt(e.target.value, 10))}
@@ -218,7 +218,7 @@ function StockSection() {
               aria-label="Money you invest in your company"
             />
             <div className="learn-slider-scale">
-              <span>$100</span><span>$1,000</span>
+              <span>$1,000</span><span>$2,000</span>
             </div>
           </div>
 

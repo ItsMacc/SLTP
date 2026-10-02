@@ -238,12 +238,7 @@ interface PageTour {
   steps: (() => DriveStep[]) | null;
 }
 
-const PAGE_TOURS: PageTour[] = [  {
-    tab: 'invest',
-    label: 'Invest',
-    blurb: 'Signals, alerts, and following strategies.',
-    steps: null,
-  },
+const PAGE_TOURS: PageTour[] = [
   {
     tab: 'portfolio',
     label: 'Portfolio',
