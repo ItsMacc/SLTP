@@ -95,12 +95,12 @@ def _mirror_to_supabase(user_id: str, preferences: dict[str, Any]) -> None:
         print(f"Supabase settings mirror failed for {user_id}: {e}")
 
 
-async def _sync_follows(user_id: str, preferences: dict[str, Any]) -> list[str]:
-    """Makes strategy_follows match the wizard's followedStrategies list.
+def _followed_ids(preferences: dict[str, Any]) -> list[str]:
+    """Normalises the wizard's followedStrategies list to plain ids.
 
-    The wizard sends either plain ids or {id, name} objects, so both shapes are
-    normalised here. strategy_follows is the queryable source of truth; the
-    preferences_json copy is kept only so older readers keep working.
+    The wizard sends either plain ids or {id, name} objects, so both shapes
+    are normalised here. The ids are stored in preferences_json — there is no
+    separate strategy_follows table anymore.
     """
     raw = preferences.get("followedStrategies") or []
     wanted: list[str] = []
@@ -110,26 +110,6 @@ async def _sync_follows(user_id: str, preferences: dict[str, Any]) -> list[str]:
             sid = sid.strip()
             if sid not in wanted:
                 wanted.append(sid)
-
-    try:
-        current = set(await turso.get_followed_strategies(user_id))
-    except Exception as e:
-        print(f"  [follows] read failed for {user_id}: {e}")
-        return wanted
-
-    # Add newly followed, then drop ones the user removed in the wizard.
-    for sid in wanted:
-        if sid not in current:
-            try:
-                await turso.follow_strategy(user_id, sid)
-            except Exception as e:
-                print(f"  [follows] could not follow {sid} for {user_id}: {e}")
-    for sid in current - set(wanted):
-        try:
-            await turso.unfollow_strategy(user_id, sid)
-        except Exception as e:
-            print(f"  [follows] could not unfollow {sid} for {user_id}: {e}")
-
     return wanted
 
 
@@ -209,6 +189,6 @@ async def complete_setup(
     )
 
     _mirror_to_supabase(user_id, prefs)
-    followed = await _sync_follows(user_id, prefs)
+    followed = _followed_ids(prefs)
 
     return {"onboarded": True, "user_id": user_id, "followed_strategies": followed}
