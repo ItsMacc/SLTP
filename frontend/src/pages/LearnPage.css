@@ -1302,3 +1302,744 @@
 }
 
 /* ---------- Remove the unused order simulator styles ---------- */
+
+/* ============================================================
+   Credentialing framework: roadmap cards, milestones, gates
+   ============================================================ */
+
+.learn-roadmap {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: 24px 0 8px;
+}
+
+.learn-tiercard {
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 20px 22px;
+  background: var(--bg-canvas);
+  transition: border-color 0.2s ease, opacity 0.2s ease;
+}
+
+.learn-tiercard.is-locked { opacity: 0.55; }
+.learn-tiercard.is-certified { border-color: var(--accent); }
+
+.learn-tiercard-head {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.learn-tiercard-roman {
+  font-family: var(--font-heading);
+  font-size: 1.35rem;
+  min-width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.learn-tiercard-heading { flex: 1; }
+
+.learn-tiercard-title {
+  font-family: var(--font-heading);
+  font-size: 1.02rem;
+  margin: 2px 0 4px;
+}
+
+.learn-tiercard-objective {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  line-height: 1.55;
+  margin: 0;
+}
+
+.learn-tiercard-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.learn-tiercard-status.status-certified {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.learn-tiercard-modules {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.learn-modulechip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.learn-modulechip .learn-modulechip-num {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--accent);
+}
+
+.learn-modulechip.is-open { color: var(--text-main); }
+.learn-modulechip.is-open:hover { border-color: var(--accent); }
+
+.learn-modulechip.is-done {
+  color: var(--accent);
+  border-color: var(--accent);
+  cursor: default;
+}
+
+.learn-modulechip.is-stub {
+  cursor: not-allowed;
+  opacity: 0.6;
+  border-style: dashed;
+}
+
+.learn-modulechip.is-stub em {
+  font-style: normal;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+
+.learn-tiercard-milestones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.learn-milestone {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.76rem;
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px dashed var(--border-subtle);
+  color: var(--text-muted);
+}
+
+.learn-milestone.is-earned {
+  border-style: solid;
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.learn-milestone.is-upcoming { opacity: 0.55; }
+.learn-milestone.is-upcoming em {
+  font-style: normal;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.learn-tiercard-cert {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.learn-tiercard-cert-label {
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.learn-tiercard-cert strong { font-size: 0.92rem; }
+
+.learn-tiercard-cert-mech {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.learn-tiercard-locknote {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin: 12px 0 0;
+}
+
+/* ---------- Formative validation gate ---------- */
+.learn-gates {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.learn-gate {
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 18px 20px;
+  background: var(--bg-canvas);
+}
+
+.learn-gate-locked { opacity: 0.6; }
+.learn-gate-passed { border-color: var(--accent); }
+
+.learn-gate-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-heading);
+  font-size: 0.95rem;
+  margin: 0 0 6px;
+}
+
+.learn-gate-note {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin: 0 0 14px;
+  line-height: 1.55;
+}
+
+.learn-gate-q { margin-bottom: 18px; }
+
+.learn-gate-q-text {
+  font-size: 0.88rem;
+  line-height: 1.55;
+  margin: 0 0 8px;
+}
+
+.learn-gate-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.learn-gate-option {
+  text-align: left;
+  font-size: 0.84rem;
+  padding: 9px 13px;
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-main);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.learn-gate-option:hover:not(:disabled) { border-color: var(--accent); }
+.learn-gate-option.is-chosen { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.learn-gate-option.is-correct { border-color: var(--accent); color: var(--accent); }
+.learn-gate-option.is-wrong { border-color: #c0392b; color: #c0392b; }
+.learn-gate-option:disabled { cursor: default; opacity: 0.9; }
+
+.learn-gate-explain {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  margin: 8px 0 0;
+  color: var(--text-muted);
+}
+
+.learn-gate-explain.is-right { color: var(--accent); }
+.learn-gate-explain.is-wrong { color: #c0392b; }
+
+.learn-gate-result { margin-top: 4px; }
+
+/* ---------- Module completion ---------- */
+.learn-module-mark { margin-top: 18px; }
+.learn-module-done { margin-top: 18px; }
+
+@media (max-width: 640px) {
+  .learn-tiercard-head { flex-wrap: wrap; }
+  .learn-tiercard-cert-mech { margin-left: 0; }
+}
+
+/* ============================================================
+   Tiered progression: hero stats, tier nav, badge shelf
+   ============================================================ */
+
+/* ---------- Hero stats ---------- */
+.learn-herostats {
+  display: flex;
+  gap: 2.5rem;
+  margin-top: 28px;
+}
+
+.learn-herostat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.learn-herostat-value {
+  font-family: var(--font-heading);
+  font-size: 1.75rem;
+  line-height: 1;
+  color: var(--text-primary);
+}
+
+.learn-herostat-label {
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* ---------- Start-here tier list ---------- */
+.learn-tierlist {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 22px 0;
+}
+
+.learn-tierlist-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+}
+
+.learn-tierlist-item.is-locked {
+  opacity: 0.55;
+  border-style: dashed;
+}
+
+.learn-tierlist-num {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-strong);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--accent);
+}
+
+.learn-tierlist-body { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+.learn-tierlist-body strong { font-size: 0.95rem; }
+.learn-tierlist-body small { color: var(--text-muted); font-size: 0.8rem; line-height: 1.5; }
+.learn-tierlist-item > svg { color: var(--accent); flex: none; }
+
+/* ---------- Sidebar: tier groups ---------- */
+.learn-toc-heading-tiers { margin-top: 18px; }
+
+.learn-toc-link-plain { margin-bottom: 1px; }
+
+.learn-toc-tier { margin-bottom: 2px; }
+
+.learn-toc-tier-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-left: 2px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  cursor: pointer;
+  color: var(--text-primary);
+  transition: border-color 0.15s ease, opacity 0.15s ease;
+}
+
+.learn-toc-tier-head:hover { border-color: var(--border-strong); }
+.learn-toc-tier-head.is-active { border-left-color: var(--accent); }
+.learn-toc-tier.is-locked .learn-toc-tier-head { cursor: default; opacity: 0.55; background: transparent; }
+.learn-toc-tier.is-certified .learn-toc-tier-head { background: var(--accent-muted); }
+
+.learn-toc-tier-body { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.learn-toc-tier-title { font-size: 0.82rem; line-height: 1.3; }
+.learn-toc-tier-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+.learn-toc-tier.is-certified .learn-toc-tier-meta { color: var(--accent); }
+
+.learn-toc-caret {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.learn-toc-caret:hover { background: var(--bg-surface-hover); color: var(--text-primary); }
+
+.learn-toc-modules {
+  list-style: none;
+  margin: 2px 0 8px;
+  padding: 0 0 0 14px;
+  border-left: 1px solid var(--border-subtle);
+}
+
+.learn-toc-modules .learn-toc-link {
+  width: 100%;
+  align-items: center;
+  padding: 6px 8px;
+  font-size: 0.78rem;
+}
+
+.learn-toc-module-label { flex: 1; min-width: 0; }
+.learn-toc-tick { flex: none; color: var(--success); }
+
+.learn-toc-link-gate .learn-toc-module-label {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+@media (max-width: 900px) {
+  .learn-toc-modules {
+    border-left: none;
+    padding-left: 0;
+    width: 100%;
+  }
+  .learn-toc-tier { width: 100%; }
+  .learn-toc-tier-head { padding: 6px 10px; }
+}
+
+/* ---------- Badge shelf ---------- */
+.learn-shelf {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 22px;
+  margin: 20px 0;
+}
+
+.learn-shelf-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.learn-shelf-title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 1.25rem;
+}
+
+.learn-shelf-sub {
+  margin: 4px 0 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.learn-shelf-count {
+  font-family: var(--font-heading);
+  font-size: 2rem;
+  line-height: 1;
+  color: var(--accent);
+}
+
+.learn-shelf-empty {
+  margin: 18px 0 0;
+  padding: 18px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.learn-badgegrid {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 20px 0 26px;
+  padding: 0;
+}
+
+.learn-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 7.5rem;
+  padding: 14px 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-canvas);
+  text-align: center;
+  animation: badgePop 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes badgePop {
+  from { opacity: 0; transform: scale(0.85); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.learn-badge-icon {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: var(--radius-full);
+  background: var(--accent-muted);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+}
+
+.learn-badge-name {
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: var(--text-primary);
+}
+
+.learn-shelf-subhead {
+  margin: 0 0 12px;
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.learn-trophyrow {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+}
+
+.learn-trophy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 6.5rem;
+  padding: 14px 6px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  text-align: center;
+}
+
+.learn-trophy.is-locked { opacity: 0.42; border-style: dashed; }
+
+.learn-trophy-icon {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: var(--radius-full);
+  background: var(--bg-canvas);
+  border: 1px solid currentColor;
+}
+
+.learn-trophy.is-earned { box-shadow: var(--shadow-sm); }
+.learn-trophy.is-earned.is-bronze { color: #b45309; background: rgba(180, 83, 9, 0.06); }
+.learn-trophy.is-earned.is-silver { color: #64748b; background: rgba(148, 163, 184, 0.08); }
+.learn-trophy.is-earned.is-gold { color: #b45309; background: rgba(212, 160, 23, 0.1); }
+.learn-trophy.is-earned.is-emerald { color: #059669; background: rgba(5, 150, 105, 0.09); }
+.learn-trophy.is-earned.is-diamond { color: #0284c7; background: rgba(56, 189, 248, 0.1); }
+.learn-trophy.is-locked .learn-trophy-icon { color: var(--text-muted); }
+
+.learn-trophy-label {
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  color: var(--text-primary);
+}
+
+/* ---------- Section heading + badge caption ---------- */
+.learn-section-heading > div { min-width: 0; }
+
+.learn-section-badge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 5px 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.learn-section-badge.is-earned { color: var(--accent); }
+
+/* ---------- Module complete cluster ---------- */
+.learn-module-done {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.learn-module-done .learn-quiz-right { margin: 0; }
+.learn-module-next { margin-top: 0; }
+
+/* ---------- Tier banner ---------- */
+.learn-tierblock { margin-bottom: 20px; }
+
+.learn-tierbanner {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  padding: 22px 24px;
+  margin: 34px 0 8px;
+  scroll-margin-top: 88px;
+}
+
+.learn-tierbanner.is-certified { border-color: var(--accent); }
+
+.learn-tierbanner-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.learn-tierbanner-num {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: var(--radius-full);
+  background: var(--accent-muted);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+}
+
+.learn-tierbanner-head > div { flex: 1; min-width: 0; }
+
+.learn-tierbanner-kicker {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.learn-tierbanner-title {
+  margin: 2px 0 0;
+  font-family: var(--font-heading);
+  font-size: 1.45rem;
+  line-height: 1.15;
+}
+
+.learn-tierbanner-status {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.learn-tierbanner.is-certified .learn-tierbanner-status { color: var(--accent); }
+
+.learn-tierbanner-objective {
+  margin: 12px 0 14px;
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+  max-width: 68ch;
+}
+
+.learn-progressbar {
+  height: 4px;
+  border-radius: var(--radius-full);
+  background: var(--bg-surface-hover);
+  overflow: hidden;
+}
+
+.learn-progressbar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: var(--radius-full);
+  transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ---------- End-of-tier pop quiz ---------- */
+.learn-tiergate {
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  padding: 22px 24px;
+  margin: 26px 0 12px;
+  scroll-margin-top: 88px;
+}
+
+.learn-tiergate-kicker {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 14px;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.learn-tiergate-next {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 14px 0 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+@media (max-width: 640px) {
+  .learn-herostats { gap: 1.5rem; }
+  .learn-tierbanner, .learn-tiergate { padding: 18px; }
+  .learn-tierbanner-head { flex-wrap: wrap; }
+}

@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties, type ComponentType } from 'react';
+import { useEffect, type CSSProperties, type ComponentType } from 'react';
 import {
   FlaskConical,
   Wallet,

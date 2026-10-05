@@ -2,7 +2,7 @@
 // QuantConnect-style: sticky sidebar TOC, reference viewers, worked recipes.
 import { useEffect, useState, type ReactNode } from 'react';
 import {
-  ArrowRight, FlaskConical, Workflow, ShieldCheck, Blocks, Cog, PenLine, FileCode2,
+  Cog, PenLine, FileCode2,
 } from 'lucide-react';
 import {
   BASE_STRATEGY_SOURCE,
@@ -93,7 +93,7 @@ function Field({ name, required, children }: { name: string; required?: boolean;
 
 // ---------- page ----------
 
-export default function DocsPage({ onNavigate }: DocsPageProps) {
+export default function DocsPage(_props: DocsPageProps) {
   const [activeSection, setActiveSection] = useState('overview');
 
   // Track scroll position for sidebar highlighting

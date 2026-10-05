@@ -2,29 +2,36 @@
 // lessons that teach stocks, price movement, order execution, candles,
 // strategies, risk and testing from zero.
 // Layout mirrors DocsPage: sticky sidebar TOC on the left, content on the right.
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowRight, Check, ChevronRight, Building2, TrendingUp, Calculator, FlaskConical,
-  Sparkles, Users, CircleDollarSign, Lightbulb, AlertTriangle, Receipt,
+  Sparkles, Users, CircleDollarSign, Lightbulb, AlertTriangle, Receipt, Lock, Trophy,
 } from 'lucide-react';
 import { GlossaryText } from '../components/GlossaryText';
 import { type GlossaryTerm } from '../types/strategy';
+import { useLearn } from '../learn/useLearn';
+import { TIERS } from '../learn/curriculum';
+import { badgeFor } from '../learn/badges';
+import LongShortSection from './learn/LongShortSection';
+import RewardToast from './learn/RewardToast';
+import { BadgeShelf, TierBanner, TierGate, TierNav } from './learn/LearnShell';
+import { useActiveSection } from '../learn/useActiveSection';
 import './LearnPage.css';
 
 interface LearnPageProps {
   onNavigate?: (tab: string) => void;
 }
 
-const SECTIONS = [
+// Landmark sections that are always rendered, above the tier-by-tier modules.
+const INTRO_SECTIONS = [
   { id: 'start', label: 'Start here', num: '00' },
-  { id: 'stocks', label: 'Understanding stocks', num: 'A' },
-  { id: 'prices', label: 'Why prices move', num: 'B' },
-  { id: 'orders', label: 'How trades execute', num: 'C' },
-  { id: 'candles', label: 'Reading a price chart', num: 'D' },
-  { id: 'math', label: 'How strategies are made', num: 'E' },
-  { id: 'risk', label: 'Risk management', num: 'F' },
-  { id: 'testing', label: 'Testing a strategy', num: 'G' },
+  { id: 'credentials', label: 'Your badges', num: '★' },
 ];
+
+/** Scrolls a module back to its own heading — story steps change in place. */
+function scrollToSectionTop(id: string) {
+  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
 
 /* ============================================================
    Glossary (beginner terms, same tooltip component as the guide)
@@ -136,6 +143,44 @@ function Money({ value }: { value: number }) {
   );
 }
 
+// Marks a module complete, earning its badge. Rendering it hides the button,
+// and the next module in the tier is revealed underneath.
+function ModuleComplete({ sectionId, learn, nextId }: {
+  sectionId: string;
+  learn: ReturnType<typeof useLearn>;
+  nextId?: string;
+}) {
+  if (learn.isSectionDone(sectionId)) {
+    return (
+      <div className="learn-module-done">
+        <p className="learn-quiz-right">
+          <Check size={14} /> Module complete — badge earned
+        </p>
+        {nextId && !learn.isSectionDone(nextId) && (
+          <button
+            type="button"
+            className="learn-continue learn-module-next"
+            onClick={() => scrollToSectionTop(nextId)}
+          >
+            Next module unlocked
+            <ArrowRight size={15} />
+          </button>
+        )}
+      </div>
+    );
+  }
+  return (
+    <button
+      type="button"
+      className="learn-continue learn-module-mark"
+      onClick={() => learn.completeSection(sectionId)}
+    >
+      Mark module complete
+      <Check size={15} />
+    </button>
+  );
+}
+
 // Persistent valuation readout shown in the story's corner while the
 // company exists, so the math (30% of X = Y) is always visible.
 function ValuationChip({ worth, stakePct }: { worth: number; stakePct: number }) {
@@ -179,8 +224,17 @@ function StockSection() {
     setSharesResult(n === correctShares ? 'correct' : 'wrong');
   };
 
+  const advance = (next: number) => {
+    setStep(next);
+    // The next beat replaces this one in place. Without this the reader is
+    // left staring at empty space where the old copy used to be, so bring
+    // them back to the top of the story for the new step.
+    scrollToSectionTop('stocks');
+  };
+
   const reset = () => {
     setStep(0);
+    scrollToSectionTop('stocks');
     setYears(0);
     setSharesAnswer('');
     setSharesResult('none');
@@ -248,7 +302,7 @@ function StockSection() {
             {' '}{invest.toLocaleString()} dollars until the company starts earning.
           </Narrator>
 
-          <Continue onClick={() => setStep(1)} />
+          <Continue onClick={() => advance(1)} />
         </div>
       )}
 
@@ -304,7 +358,7 @@ function StockSection() {
           )}
 
           {years >= 1 ? (
-            <Continue onClick={() => setStep(2)} label="Keep going" />
+            <Continue onClick={() => advance(2)} label="Keep going" />
           ) : (
             <p className="learn-hint">Add at least 1 year to watch the profit arrive, then continue.</p>
           )}
@@ -373,7 +427,7 @@ function StockSection() {
             it: a claim that used to be 100% yours is now split between you and the buyers.
             The corner readout shows your stake dropping to 70%.
           </p>
-          <Continue onClick={() => setStep(3)} />
+          <Continue onClick={() => advance(3)} />
         </div>
       )}
 
@@ -439,7 +493,7 @@ function StockSection() {
                 what makes it possible for anyone, with any amount of money, to own a piece
                 of it.
               </p>
-              <Continue onClick={() => setStep(4)} />
+              <Continue onClick={() => advance(4)} />
             </>
           )}
         </div>
@@ -487,7 +541,7 @@ function StockSection() {
             {saleValue.toLocaleString()} dollars</strong>. That is a stock sale.
             <GlossaryText text=" This exact trade, at a much larger scale, happens every day on the real stock market." glossary={LEARN_GLOSSARY} />
           </p>
-          <Continue onClick={() => setStep(5)} />
+          <Continue onClick={() => advance(5)} />
         </div>
       )}
 
@@ -584,7 +638,7 @@ function StockSection() {
           {payoffBeat < 4 ? (
             <Continue onClick={() => setPayoffBeat((b) => b + 1)} label="Next" />
           ) : (
-            <Continue onClick={() => setStep(6)} label="Finish the story" />
+            <Continue onClick={() => advance(6)} label="Finish the story" />
           )}
         </div>
       )}
@@ -1144,6 +1198,11 @@ function RiskSection() {
   const [stop, setStop] = useState(90);
   const [target, setTarget] = useState(110);
 
+  const advanceSub = (next: number) => {
+    setSubStep(next);
+    scrollToSectionTop('risk');
+  };
+
   const riskPerShare = entry - stop;
   const gainPerShare = target - entry;
   const rrr = gainPerShare / riskPerShare;
@@ -1233,7 +1292,7 @@ function RiskSection() {
             free, and there is no universally correct number. The professional habit is
             simply to choose it here, calmly, in advance.
           </Narrator>
-          <Continue onClick={() => setSubStep(1)} label="I picked my stop" />
+          <Continue onClick={() => advanceSub(1)} label="I picked my stop" />
         </div>
       )}
 
@@ -1285,7 +1344,7 @@ function RiskSection() {
             often it wins. The target decides how much each victory pays; the stop
             decides how much each defeat costs; the strategy lives between the two.
           </Narrator>
-          <Continue onClick={() => setSubStep(2)} label="See what I just built" />
+          <Continue onClick={() => advanceSub(2)} label="See what I just built" />
         </div>
       )}
 
@@ -1517,35 +1576,68 @@ function TestingSection({ onNavigate }: { onNavigate?: (tab: string) => void }) 
 }
 
 // ============================================================
-// Page shell
-// ============================================================
-
 export default function LearnPage({ onNavigate }: LearnPageProps) {
-  const [activeSection, setActiveSection] = useState('start');
+  const learn = useLearn();
 
-  // Highlight the TOC entry for whichever section is currently on screen.
-  // A scroll listener is used instead of an observer because short sections
-  // can sit entirely outside an observer's root margin band.
+  // Every anchor the sidebar can point at, in document order: the two intro
+  // landmarks, then each unlocked tier's revealed modules and its gate.
+  const anchorIds = useMemo(() => {
+    const ids = INTRO_SECTIONS.map((s) => s.id);
+    for (const tier of TIERS) {
+      if (learn.tierStatus(tier) === 'locked') continue;
+      for (const s of learn.visibleSections(tier)) ids.push(s.id);
+      if (learn.gateAvailable(tier) && !learn.isCertified(tier.id)) ids.push(`gate-${tier.id}`);
+    }
+    return ids;
+  }, [learn]);
+
+  const activeId = useActiveSection(anchorIds);
+
+  // Passing a tier's pop quiz removes that quiz from the page (it has done its
+  // job) and mounts the next tier. Left alone, the document suddenly gets
+  // shorter and the scroll offset ends up pointing at unrelated content — the
+  // "weird jump". Instead, send the learner to the tier they just unlocked.
+  const certifiedCount = learn.progress.certifications.length;
+  const prevCertifiedCount = useRef(certifiedCount);
   useEffect(() => {
-    const onScroll = () => {
-      const offset = window.scrollY + 200;
-      let current = SECTIONS[0].id;
-      for (const { id } of SECTIONS) {
-        const el = document.getElementById(id);
-        if (!el) continue;
-        const top = el.getBoundingClientRect().top + window.scrollY;
-        if (top <= offset) current = id;
-      }
-      setActiveSection(current);
-    };
-    onScroll();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
+    const gained = certifiedCount - prevCertifiedCount.current;
+    prevCertifiedCount.current = certifiedCount;
+    if (gained <= 0) return;
+    // `certifiedCount` is now how many tiers are DONE, so the tier that just
+    // opened is the one at that index — not the one before it. On the last
+    // tier there is nothing left to open, so send the learner to the badge
+    // case where the final trophy is on display.
+    const next = TIERS[certifiedCount];
+    const targetId = next ? `tier-${next.id}` : 'credentials';
+    // Two frames: one for React to commit the removal, one for the browser
+    // to lay out the shortened document before we measure.
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }));
+  }, [certifiedCount]);
 
   const jump = (id: string) => {
-    setActiveSection(id);
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const moduleFor = (id: string) => {
+    switch (id) {
+      case 'stocks': return <StockSection />;
+      case 'prices': return <PricesSection />;
+      case 'orders': return <ExecutionSection />;
+      case 'candles': return <CandlesSection />;
+      case 'long-short':
+        return (
+          <LongShortSection
+            onComplete={() => learn.completeSection('long-short')}
+            onCredentials={() => jump('credentials')}
+          />
+        );
+      case 'math': return <MathSection />;
+      case 'risk': return <RiskSection />;
+      case 'testing': return <TestingSection onNavigate={onNavigate} />;
+      default: return null;
+    }
   };
 
   return (
@@ -1554,27 +1646,29 @@ export default function LearnPage({ onNavigate }: LearnPageProps) {
         <p className="learn-kicker">Absolute beginner? No worries. Start here.</p>
         <h1 className="learn-title">The stock market, from zero.</h1>
         <p className="learn-sub">
-          This course assumes no prior knowledge of markets. Through an interactive story,
-          it covers what a stock actually is, how trades are executed, how to read a price
-          chart, and how a set of rules becomes a tested strategy.
+          Five tiers, unlocked one at a time. Each tier opens with a single module, and the
+          next one appears only when you finish the last — so there is always exactly one
+          thing to do. Complete a module, collect its badge; pass a tier's pop quiz, take
+          the trophy.
         </p>
+        <div className="learn-herostats">
+          <div className="learn-herostat">
+            <span className="learn-herostat-value">{learn.earnedBadges.length}</span>
+            <span className="learn-herostat-label">badges</span>
+          </div>
+          <div className="learn-herostat">
+            <span className="learn-herostat-value">{learn.earnedTrophies.length}</span>
+            <span className="learn-herostat-label">trophies</span>
+          </div>
+          <div className="learn-herostat">
+            <span className="learn-herostat-value">{learn.progress.certifications.length}/5</span>
+            <span className="learn-herostat-label">tiers</span>
+          </div>
+        </div>
       </div>
 
       <div className="learn-layout">
-        <aside className="learn-toc">
-          <p className="learn-toc-heading">Your path</p>
-          {SECTIONS.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              className={`learn-toc-link ${activeSection === s.id ? 'is-active' : ''}`}
-              onClick={() => jump(s.id)}
-            >
-              <span className="learn-toc-num">{s.num}</span>
-              {s.label}
-            </button>
-          ))}
-        </aside>
+        <TierNav learn={learn} activeId={activeId} onJump={jump} />
 
         <div className="learn-content">
           <section id="start" className="learn-section">
@@ -1587,77 +1681,85 @@ export default function LearnPage({ onNavigate }: LearnPageProps) {
               assumes the opposite. Everything is built up from one story about a small
               company, and the decisions are yours to make along the way.
             </p>
-            <div className="learn-pathmap">
-              <div className="learn-pathitem"><span>A</span> What a stock really is, by starting your own company</div>
-              <div className="learn-pathitem"><span>B</span> Why prices go up and down every day</div>
-              <div className="learn-pathitem"><span>C</span> How a trade actually executes: orders, brokers and costs</div>
-              <div className="learn-pathitem"><span>D</span> How to read a price chart, candle by candle</div>
-              <div className="learn-pathitem"><span>E</span> How strategies are made: patterns and business fundamentals</div>
-              <div className="learn-pathitem"><span>F</span> Managing risk: position size, stops and targets</div>
-              <div className="learn-pathitem"><span>G</span> How a strategy is tested before it is trusted</div>
+            <div className="learn-tierlist">
+              {TIERS.map((tier, i) => {
+                const status = learn.tierStatus(tier);
+                return (
+                  <div key={tier.id} className={`learn-tierlist-item is-${status}`}>
+                    <span className="learn-tierlist-num">{i + 1}</span>
+                    <span className="learn-tierlist-body">
+                      <strong>{tier.title}</strong>
+                      <small>
+                        {status === 'locked'
+                          ? 'Locked — finish the tier above'
+                          : status === 'certified'
+                            ? `Certified — ${tier.certification}`
+                            : tier.objective}
+                      </small>
+                    </span>
+                    {status === 'certified' && <Trophy size={16} />}
+                    {status === 'locked' && <Lock size={14} />}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
+          <section id="credentials" className="learn-section">
+            <div className="learn-section-heading">
+              <span className="learn-section-num">★</span>
+              <h2>Your badges</h2>
             </div>
             <p>
-              When you are done, the rest of SLTP will make sense.
+              Everything you have earned, saved to your account. Badges come from finishing
+              a module; trophies come from passing a tier's pop quiz.
             </p>
+            <BadgeShelf learn={learn} />
           </section>
 
-          <section id="stocks" className="learn-section">
-            <div className="learn-section-heading">
-              <span className="learn-section-num">A</span>
-              <h2>Understanding stocks</h2>
-            </div>
-            <StockSection />
-          </section>
+          {TIERS.map((tier, tierIdx) => {
+            if (learn.tierStatus(tier) === 'locked') return null;
+            const visible = learn.visibleSections(tier);
+            const gateOpen = learn.gateAvailable(tier);
 
-          <section id="prices" className="learn-section">
-            <div className="learn-section-heading">
-              <span className="learn-section-num">B</span>
-              <h2>Why prices move</h2>
-            </div>
-            <PricesSection />
-          </section>
+            return (
+              <div key={tier.id} className="learn-tierblock">
+                <TierBanner id={`tier-${tier.id}`} tier={tier} learn={learn} index={tierIdx} />
 
-          <section id="orders" className="learn-section">
-            <div className="learn-section-heading">
-              <span className="learn-section-num">C</span>
-              <h2>How trades execute</h2>
-            </div>
-            <ExecutionSection />
-          </section>
+                {visible.map((s) => {
+                  const next = visible[visible.indexOf(s) + 1];
+                  const badge = badgeFor(s.id);
+                  const BadgeIcon = badge.icon;
+                  return (
+                    <section key={s.id} id={s.id} className="learn-section">
+                      <div className="learn-section-heading">
+                        <span className="learn-section-num">{s.num}</span>
+                        <div>
+                          <h2>{s.label}</h2>
+                          <p className={`learn-section-badge ${learn.isSectionDone(s.id) ? 'is-earned' : ''}`}>
+                            <BadgeIcon size={13} />
+                            {learn.isSectionDone(s.id) ? `Badge earned: ${badge.name}` : `Badge: ${badge.name}`}
+                          </p>
+                        </div>
+                      </div>
+                      {moduleFor(s.id)}
+                      {s.id !== 'long-short' && (
+                        <ModuleComplete sectionId={s.id} learn={learn} nextId={next?.id} />
+                      )}
+                    </section>
+                  );
+                })}
 
-          <section id="candles" className="learn-section">
-            <div className="learn-section-heading">
-              <span className="learn-section-num">D</span>
-              <h2>Reading a price chart</h2>
-            </div>
-            <CandlesSection />
-          </section>
-
-          <section id="math" className="learn-section">
-            <div className="learn-section-heading">
-              <span className="learn-section-num">E</span>
-              <h2>How strategies are made</h2>
-            </div>
-            <MathSection />
-          </section>
-
-          <section id="risk" className="learn-section">
-            <div className="learn-section-heading">
-              <span className="learn-section-num">F</span>
-              <h2>Risk management</h2>
-            </div>
-            <RiskSection />
-          </section>
-
-          <section id="testing" className="learn-section">
-            <div className="learn-section-heading">
-              <span className="learn-section-num">G</span>
-              <h2>Testing a strategy</h2>
-            </div>
-            <TestingSection onNavigate={onNavigate} />
-          </section>
+                {gateOpen && !learn.isCertified(tier.id) && <TierGate tier={tier} learn={learn} />}
+              </div>
+            );
+          })}
         </div>
       </div>
+
+      {learn.toast && (
+        <RewardToast earned={learn.toast} onClose={learn.dismissToast} />
+      )}
     </div>
   );
 }

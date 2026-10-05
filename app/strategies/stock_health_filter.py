@@ -19,7 +19,6 @@ from app.utils.StockData import StockData
 
 
 # -------- Stock Health Filter Strategy Class --------
-# -------- Stock Health Filter Strategy Class --------
 class StockHealthFilterStrategy(Strategy):
     def __init__(self):
         super().__init__()

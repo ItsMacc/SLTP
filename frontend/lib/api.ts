@@ -86,6 +86,26 @@ export function invalidatePortfolio(): void {
 }
 
 /**
+ * Wipes every trace of the current user from this browser.
+ *
+ * Called after account deletion (and on sign-out) so a stale cached badge
+ * set, theme or portfolio snapshot can't outlive the account it belonged to.
+ * Storage access can throw in private mode, so each store is guarded
+ * independently — a failure here must never block the sign-out that follows.
+ */
+export function clearLocalUserData(): void {
+  invalidatePortfolio();
+  try {
+    localStorage.removeItem('sltp_learn_progress'); // earned badges + progress
+    localStorage.removeItem('st_user_name');
+    localStorage.removeItem('st_user_theme');
+  } catch { /* private mode */ }
+  try {
+    sessionStorage.clear();
+  } catch { /* private mode */ }
+}
+
+/**
  * Fetches portfolio status, reusing a fresh cache entry when possible.
  * `force` bypasses the freshness check but still shares an in-flight request.
  */

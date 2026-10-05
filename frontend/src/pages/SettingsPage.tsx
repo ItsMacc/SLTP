@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
+import { clearLocalUserData } from '../../lib/api';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
@@ -129,22 +130,40 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
     setDeleteError(null);
 
     try {
-      // Delete the user's profile row. The RLS policy
-      // "Users can delete their own profile." authorizes this request.
-      // `.select('id')` verifies the row was actually removed so a success
-      // message is never shown when nothing was deleted.
-      const { data: deletedRows, error: rowError } = await supabase
-        .from('users')
-        .delete()
-        .eq('id', userId)
-        .select('id');
-
-      if (rowError) throw rowError;
-      if (!deletedRows || deletedRows.length === 0) {
-        throw new Error(
-          'Your profile could not be deleted. Check that the "Users can delete their own profile." RLS policy exists on the users table, then try again.',
-        );
+      // Deleting only the public profile row left the Turso mirror and — far
+      // worse — the Supabase auth user intact, so the same email could sign
+      // straight back in to a re-provisioned account. The server owns the
+      // whole cascade (Turso portfolios + users, the Supabase profile row,
+      // and finally the auth credential) because it is the only place with
+      // the service-role key needed to delete an auth user.
+      //
+      // This must run BEFORE sign-out: the request is authorised by the very
+      // access token that deleting the auth user destroys.
+      const token = (await supabase.auth.getSession()).data.session?.access_token;
+      if (!token) {
+        throw new Error('Your session expired. Please sign in again to delete your account.');
       }
+
+      const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+      const res = await fetch(`${apiBase}/api/user/account`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) {
+        let detail = `Request failed (${res.status}).`;
+        try {
+          const body = await res.json();
+          if (body?.detail) detail = body.detail;
+        } catch {
+          /* non-JSON error body: keep the status-code message */
+        }
+        throw new Error(detail);
+      }
+
+      // The account is gone server-side. Drop every local trace of it so a
+      // stale cached badge set can't survive the sign-out.
+      clearLocalUserData();
 
       setDeleteModalOpen(false);
       setMessage({ type: 'success', text: 'Your account has been deleted. Redirecting...' });

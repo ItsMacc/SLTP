@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { loginSchema, signUpSchema } from '../../lib/authSchema';
+import { seedNewAccount } from '../../lib/learnApi';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import './AuthCard.css';
@@ -106,7 +107,7 @@ export function AuthCard({ initialMode = 'login', onSuccess }: AuthCardProps) {
           name: fetchedName || userEmail,
         });
       } else {
-        const { error: authError } = await supabase.auth.signUp({
+        const { data: signUpData, error: authError } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -117,6 +118,17 @@ export function AuthCard({ initialMode = 'login', onSuccess }: AuthCardProps) {
         });
 
         if (authError) throw authError;
+
+        // Generate this new account's badge set: a locked row for every
+        // badge and trophy, plus an empty progress row. The auth.users
+        // trigger already does this server-side; this call is idempotent and
+        // covers the case where the browser is the only thing that ran.
+        // Deliberately signup-only — never a backfill for existing accounts.
+        const newUserId = signUpData.user?.id;
+        if (newUserId) {
+          // Best-effort: a failed seed must not block account creation.
+          await seedNewAccount(newUserId).catch(() => ({ ok: false }));
+        }
 
         setSuccessMsg('Account created successfully! Please check your email to verify your account before logging in.');
       }
