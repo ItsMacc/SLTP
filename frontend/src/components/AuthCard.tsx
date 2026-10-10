@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { loginSchema, signUpSchema } from '../../lib/authSchema';
 import { seedNewAccount } from '../../lib/learnApi';
+import { provisionAccount } from '../../lib/api';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import './AuthCard.css';
@@ -128,6 +129,15 @@ export function AuthCard({ initialMode = 'login', onSuccess }: AuthCardProps) {
         if (newUserId) {
           // Best-effort: a failed seed must not block account creation.
           await seedNewAccount(newUserId).catch(() => ({ ok: false }));
+        }
+
+        // Populate Turso + Supabase with the shared defaults straight away.
+        // Supabase only returns a session here when email confirmation is
+        // OFF; with confirmation on there is nothing to authorise with yet,
+        // and the first login provisions instead (see App.syncUser).
+        const signupToken = signUpData.session?.access_token;
+        if (signupToken) {
+          await provisionAccount(signupToken, fullNameInput.trim());
         }
 
         setSuccessMsg('Account created successfully! Please check your email to verify your account before logging in.');

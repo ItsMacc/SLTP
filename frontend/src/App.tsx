@@ -15,7 +15,7 @@ import DocsPage from './pages/DocsPage';
 import LearnPage from './pages/LearnPage';
 import ErrorToast from './ui/ErrorToast';
 import { supabase } from '../lib/supabase';
-import { invalidatePortfolio } from '../lib/api';
+import { invalidatePortfolio, provisionAccount } from '../lib/api';
 import './index.css';
 
 export interface UserProfile {
@@ -66,18 +66,12 @@ export default function App() {
       applyAndStoreUserSettings(settings, name);
       setUser({ id: userId, email, name, settings });
 
-      // Ensure the user exists in Turso with default values (idempotent,
-      // safe on every login — only creates rows the first time).
+      // Ensure the user exists in BOTH stores with the shared defaults
+      // (Turso users row + Supabase profile). Idempotent, so safe every login.
       try {
         const { data: { session } } = await supabase.auth.getSession();
         const token = session?.access_token;
-        if (token) {
-          await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/user/provision`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ name }),
-          });
-        }
+        if (token) await provisionAccount(token, name);
       } catch {
         // Provisioning is best-effort; never block the UI on it
       }

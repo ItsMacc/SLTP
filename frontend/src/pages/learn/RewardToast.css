@@ -1,4 +1,4 @@
-/* RewardToast.css — bottom-right unlock notification.
+/* RewardToast.css - bottom-right unlock notification.
    Mirrors ErrorToast.css conventions (rem atoms, %/vw layout widths),
    but anchored bottom-right so it never covers the error slot. */
 
@@ -19,6 +19,12 @@
   padding: var(--space-sm) var(--space-md);
   animation: rewardToastIn 0.28s cubic-bezier(0.16, 1, 0.3, 1);
 }
+
+/* Badge (default) keeps the accent rail; milestones get their own colour so
+   an award that is not a shelf badge never reads as one. */
+.reward-toast.is-badge { border-left-color: var(--accent); }
+.reward-toast.is-milestone { border-left-color: #a78bfa; }
+.reward-toast.is-milestone .reward-toast-icon { background: rgba(167, 139, 250, 0.15); color: #a78bfa; }
 
 .reward-toast.is-bronze { border-left-color: #b45309; }
 .reward-toast.is-silver { border-left-color: #94a3b8; }

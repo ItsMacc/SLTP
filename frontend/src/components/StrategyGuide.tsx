@@ -1,5 +1,7 @@
 // StrategyGuide.tsx — Long-form strategy guide chapters
 
+import { GlossaryText } from './GlossaryText'
+import { STRATEGY_GLOSSARY } from '../../lib/glossary'
 import './StrategyGuide.css'
 
 export default function StrategyGuide() {
@@ -16,7 +18,7 @@ export default function StrategyGuide() {
         <article className="stg-chapter" data-num="01">
           <h3 className="stg-chapter-title">The core concept</h3>
           <p className="stg-copy">
-            A strategy is an automated, rule-based framework for market participation.
+            A <GlossaryText text="strategy is an automated, rule-based framework for market participation." glossary={STRATEGY_GLOSSARY} />
             Rather than relying on intuition or emotional reactions during periods of volatility,
             a strategy operates on explicit rules that dictate <strong>what to buy, what to sell,
             and precisely when to execute</strong>.
@@ -33,7 +35,7 @@ export default function StrategyGuide() {
           <h3 className="stg-chapter-title">Defining the trading universe</h3>
           <p className="stg-copy">
             Before execution rules can trigger, the strategy requires a predefined pool of assets.
-            This selection is called the <strong>universe</strong>. A universe defines the specific
+            This selection is called the <strong><GlossaryText text="universe" glossary={STRATEGY_GLOSSARY} /></strong>. A universe defines the specific
             set of equities, ETFs, or instruments the strategy is permitted to trade. If an asset
             falls outside this list, the system ignores it regardless of short-term momentum.
           </p>
@@ -82,9 +84,9 @@ export default function StrategyGuide() {
         <article className="stg-chapter" data-num="04">
           <h3 className="stg-chapter-title">Simulating history: The backtest</h3>
           <p className="stg-copy">
-            A backtest evaluates how a strategy would have performed historically. The algorithm runs
+            A <GlossaryText text="backtest" glossary={STRATEGY_GLOSSARY} /> evaluates how a strategy would have performed historically. The algorithm runs
             chronologically through past market data, applying its rules strictly on information available
-            at each specific point in time to prevent forward-looking bias. Every trade, fee, and
+            at each specific point in time to prevent <GlossaryText text="forward-looking bias" glossary={STRATEGY_GLOSSARY} />. Every trade, fee, and
             execution price is recorded.
           </p>
           <p className="stg-copy">
@@ -104,7 +106,7 @@ export default function StrategyGuide() {
             Most financial platforms plot performance using raw dollar balances (e.g., watching a $10,000 portfolio move to $12,500). While this reflects true cash value, comparing two strategies initialized with different starting amounts can obscure their actual efficiency.
           </p>
           <p className="stg-copy">
-            To eliminate capital size bias, backtests normalize initial portfolio equity to an index value of <strong>100</strong> (representing 100% of initial balance). Indexing converts absolute dollars into proportional growth: an ending index of 110 indicates a 10% gain, while an ending value of 92 represents an 8% loss.
+            To eliminate capital size bias, backtests normalize initial portfolio equity to an index value of <strong><GlossaryText text="base 100" glossary={STRATEGY_GLOSSARY} /></strong> (representing 100% of initial balance). Indexing converts absolute dollars into proportional growth: an ending index of 110 indicates a 10% gain, while an ending value of 92 represents an 8% loss.
           </p>
           <div className="stg-example">
             Indexed evaluation:
@@ -128,7 +130,7 @@ export default function StrategyGuide() {
             grew from a $110 base, the annualized rate of return must account for compounding.
           </p>
           <p className="stg-copy">
-            The <strong>Compound Annual Growth Rate (CAGR)</strong> normalizes performance into a constant
+            The <strong><GlossaryText text="Compound Annual Growth Rate (CAGR)" glossary={STRATEGY_GLOSSARY} /></strong> normalizes performance into a constant
             annual growth rate. It provides the standard metric for comparing returns across different assets
             and time horizons.
           </p>
@@ -164,8 +166,8 @@ export default function StrategyGuide() {
           <h3 className="stg-chapter-title">Evaluating risk-adjusted return: Sharpe Ratio</h3>
           <p className="stg-copy">
             Two strategies may achieve identical 15% annual returns while experiencing drastically different trajectory
-            smoothness. One may ascend steadily, while the other endures sharp drawdown periods. The <strong>Sharpe ratio</strong> measures
-            excess return relative to overall portfolio volatility.
+            smoothness. One may ascend steadily, while the other endures sharp <GlossaryText text="drawdown" glossary={STRATEGY_GLOSSARY} /> periods. The <strong><GlossaryText text="Sharpe ratio" glossary={STRATEGY_GLOSSARY} /></strong> measures
+            excess return relative to overall portfolio <GlossaryText text="volatility" glossary={STRATEGY_GLOSSARY} />.
           </p>
           <p className="stg-copy">
             In risk metrics, volatility represents uncertainty. A high Sharpe ratio indicates strong returns relative
@@ -186,7 +188,7 @@ export default function StrategyGuide() {
         <article className="stg-chapter" data-num="08">
           <h3 className="stg-chapter-title">Statistical confidence: PSR</h3>
           <p className="stg-copy">
-            A backtest reflects a single historical path. The <strong>Probabilistic Sharpe Ratio (PSR)</strong> addresses
+            A backtest reflects a single historical path. The <strong><GlossaryText text="Probabilistic Sharpe Ratio (PSR)" glossary={STRATEGY_GLOSSARY} /></strong> addresses
             whether a strategy's observed performance reflects a true statistical edge or simply favorable historical timing.
           </p>
           <p className="stg-copy">

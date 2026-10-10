@@ -1,9 +1,9 @@
-// LongShortSection.tsx — Tier II module A: long vs. short, told as two
+// LongShortSection.tsx - Tier II module A: long vs. short, told as two
 // mirror stories with a live trade simulator.
 //
 // Teaching model (per course design):
-//   LONG  — you buy FIRST, hoping the price rises, then sell for profit.
-//   SHORT — you sell FIRST at today's price (a borrowed share you owe back,
+//   LONG  - you buy FIRST, hoping the price rises, then sell for profit.
+//   SHORT - you sell FIRST at today's price (a borrowed share you owe back,
 //           sort of like a loan), then buy it back cheaper and keep the gap.
 //
 // SLTP strategies are long-only; this module teaches shorting so the
@@ -11,6 +11,7 @@
 
 import { useState } from 'react';
 import { ArrowRight, Check, ChevronRight, Lightbulb, TrendingDown, TrendingUp } from 'lucide-react';
+import { Objective } from './parts';
 
 interface Props {
   onComplete?: () => void;
@@ -53,6 +54,12 @@ export default function LongShortSection({ onComplete, onCredentials }: Props) {
 
   return (
     <div>
+      <Objective>
+        By the end of this module you will be able to explain what it means to go
+        long and what it means to go short, describe how a short works when you do
+        not own the share, and say why going short carries the greater risk.
+      </Objective>
+
       {/* ---------- Step 0: the long side ---------- */}
       {step === 0 && (
         <div className="learn-story-step">
@@ -63,7 +70,7 @@ export default function LongShortSection({ onComplete, onCredentials }: Props) {
             Almost everything you have learned so far is one side of the trade:
             <strong> you buy first</strong>. You pay $100 today because you believe the
             stock will be worth more later. Nothing is borrowed, nothing is owed. Your
-            risk is bounded — the worst case is the company going to zero, and you would
+            risk is bounded, the worst case is the company going to zero, and you would
             lose your $100.
           </p>
           <div className="learn-factrow">
@@ -100,7 +107,7 @@ export default function LongShortSection({ onComplete, onCredentials }: Props) {
             buy something and hope it rises?
           </p>
           <p>
-            You do the steps in reverse order. You <strong>sell first</strong> — but you
+            You do the steps in reverse order. You <strong>sell first</strong>, but you
             do not own any shares. So you borrow one. Conceptually, you hand a share to
             someone who wants to buy right now and collect their $100. Now
             <strong> you owe that share back</strong>, sort of like a loan of stock.
@@ -121,14 +128,14 @@ export default function LongShortSection({ onComplete, onCredentials }: Props) {
           </div>
           <Narrator icon={TrendingDown}>
             You have not made or lost anything yet. You are holding $100 of someone
-            else's money and a debt of one share that must be returned —
+            else's money and a debt of one share that must be returned
             <strong> the shares, not the cash, are what you owe back</strong>.
           </Narrator>
           <Continue onClick={() => advance(2)} label="Watch the price drop" />
         </div>
       )}
 
-      {/* ---------- Step 2: cover — the price drops to $90 ---------- */}
+      {/* ---------- Step 2: cover, the price drops to $90 ---------- */}
       {step === 2 && (
         <div className="learn-story-step">
           <h4 className="learn-story-title">
@@ -193,7 +200,7 @@ export default function LongShortSection({ onComplete, onCredentials }: Props) {
           {shortProfit < 0 && (
             <Narrator icon={TrendingUp}>
               The price went <strong>up</strong> to ${exitPrice} instead. You still owe
-              the share, so you had to buy it back for <strong>${exitPrice}</strong> —
+              the share, so you had to buy it back for <strong>${exitPrice}</strong>
               losing <strong>${Math.abs(shortProfit)}</strong>. Notice the cruel
               symmetry: you sold at $100 and the bill had no ceiling. This is why SLTP
               strategies never short: they only ever buy first.
@@ -240,7 +247,7 @@ export default function LongShortSection({ onComplete, onCredentials }: Props) {
           </ul>
           <Narrator>
             SLTP strategies are long-only: every signal buys first and sells later. You
-            will rarely short anything here — but knowing the mechanism explains a lot of
+            will rarely short anything here, but knowing the mechanism explains a lot of
             market language, like why a stock that keeps climbing can inflict unlimited
             pain on short sellers and trigger a <strong>short squeeze</strong>.
           </Narrator>
@@ -251,7 +258,7 @@ export default function LongShortSection({ onComplete, onCredentials }: Props) {
             />
           ) : (
             <p className="learn-quiz-right">
-              <Check size={14} /> Module complete — progress saved to your account.
+              <Check size={14} /> Module complete, progress saved to your account.
               <button
                 type="button"
                 className="learn-continue learn-module-next"

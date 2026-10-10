@@ -1,4 +1,4 @@
-// LearnPage.tsx — "Absolute beginner" course: plain-language, interactive
+// LearnPage.tsx - "Absolute beginner" course: plain-language, interactive
 // lessons that teach stocks, price movement, order execution, candles,
 // strategies, risk and testing from zero.
 // Layout mirrors DocsPage: sticky sidebar TOC on the left, content on the right.
@@ -8,11 +8,15 @@ import {
   Sparkles, Users, CircleDollarSign, Lightbulb, AlertTriangle, Receipt, Lock, Trophy,
 } from 'lucide-react';
 import { GlossaryText } from '../components/GlossaryText';
-import { type GlossaryTerm } from '../types/strategy';
+import { LEARN_GLOSSARY } from '../learn/learnGlossary';
 import { useLearn } from '../learn/useLearn';
 import { TIERS } from '../learn/curriculum';
 import { badgeFor } from '../learn/badges';
 import LongShortSection from './learn/LongShortSection';
+import { OrderBookSection, SpreadsSection } from './learn/Tier2Sections';
+import { IndicatorsSection } from './learn/IndicatorsSection';
+import { AllocationSection, MetricsSection } from './learn/Tier5Sections';
+import { Objective, Recap } from './learn/parts';
 import RewardToast from './learn/RewardToast';
 import { BadgeShelf, TierBanner, TierGate, TierNav } from './learn/LearnShell';
 import { useActiveSection } from '../learn/useActiveSection';
@@ -28,92 +32,10 @@ const INTRO_SECTIONS = [
   { id: 'credentials', label: 'Your badges', num: '★' },
 ];
 
-/** Scrolls a module back to its own heading — story steps change in place. */
+/** Scrolls a module back to its own heading - story steps change in place. */
 function scrollToSectionTop(id: string) {
   document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
-
-/* ============================================================
-   Glossary (beginner terms, same tooltip component as the guide)
-   ============================================================ */
-
-const LEARN_GLOSSARY: Record<string, string | GlossaryTerm> = {
-  stock: {
-    definition: 'A share of ownership in a company. If the company does well, the value of your share tends to grow.',
-    example: 'Buying one share of Apple (AAPL) makes you a tiny part-owner of Apple.',
-  },
-  'stock market': {
-    definition: 'A place where shares of companies are bought and sold, like a permanent marketplace for ownership slices.',
-    example: 'The New York Stock Exchange lists thousands of companies that anyone can buy a piece of.',
-  },
-  shares: {
-    definition: 'Tiny equal slices of a company. A company splits its ownership into shares so many people can each buy a piece.',
-  },
-  share: {
-    definition: 'One tiny equal slice of a company. Owning a share means owning that slice of the company and its future profits.',
-  },
-  profit: {
-    definition: 'The money a company has left over after paying all of its costs. Profit belongs to the owners.',
-  },
-  'moving average': {
-    definition: 'The average price of a stock over the last several days, drawn as a smooth line to filter out daily noise.',
-  },
-  'technical analysis': {
-    definition: 'Studying a stock\'s price action, the open, high, low and close of past days, to find patterns worth acting on.',
-  },
-  'financial analysis': {
-    definition: 'Studying a company itself: what it does, how much it earns, its debt and its yearly profit, to judge whether the business is worth owning.',
-  },
-  'stop-loss': {
-    definition: 'A preset rule that sells a holding when its price falls to a set level, limiting how much you can lose on it.',
-    example: 'A stop-loss set 10% below your buy price automatically sells if the stock drops 10%.',
-  },
-  'take-profit': {
-    definition: 'A preset rule that sells a holding once it reaches a target gain, locking in the profit.',
-    example: 'A take-profit set 20% above your buy price automatically sells after a 20% rise.',
-  },
-  strategy: {
-    definition: 'A fixed set of rules that decides what to buy, when to sell, and when to re-check the holdings.',
-    example: 'A rule like "hold the 10 healthiest stocks, re-check weekly" is a strategy.',
-  },
-  backtest: {
-    definition: "Running a strategy's rules over past market data to see how it would have performed, without risking real money.",
-    example: 'Backtesting a strategy on 10 years of data shows its returns and the worst losing streak it would have caused.',
-  },
-  'index fund': {
-    definition: 'A fund that simply holds everything in a market index instead of picking winners.',
-    example: 'An S&P 500 index fund owns the same 500 companies as the index, no more and no less.',
-  },
-  broker: {
-    definition: 'A licensed service that places orders on the exchange for you. The app you buy stocks through works with a broker behind the scenes.',
-    example: 'When you press Buy in a trading app, that app sends your order to the market through its broker.',
-  },
-  commission: {
-    definition: 'A small fee a broker charges for handling a trade. Many brokers today charge none, but the term still matters.',
-  },
-  'market order': {
-    definition: 'An order that says "buy or sell right now at whatever the current price is." Fast, but the final price is not guaranteed.',
-  },
-  'limit order': {
-    definition: 'An order that says "buy or sell, but only at my price or better." If the price never reaches yours, the trade never happens.',
-    example: 'A limit order to buy at $97 waits until the price drops to $97 or lower.',
-  },
-  'stop-limit order': {
-    definition: 'A stop-loss you place in advance with a price attached. When the stock touches your trigger price, the broker tries to sell at that price or better.',
-  },
-  slippage: {
-    definition: 'The small difference between the price you expected and the price you actually got, which happens when the market moves while your order is in flight.',
-  },
-  'candlestick chart': {
-    definition: 'A chart where each day is drawn as a single candle showing four numbers: open, high, low and close. It packs a full day of price action into one shape.',
-  },
-  'position size': {
-    definition: 'How much money you put into a single trade. Position sizing is the set of rules that decides that amount.',
-  },
-  'risk-reward ratio': {
-    definition: 'How much a trade stands to gain compared to what it stands to lose, before entering. A 2:1 ratio risks $1 to potentially make $2.',
-  },
-};
 
 // ---------- small building blocks ----------
 
@@ -143,40 +65,83 @@ function Money({ value }: { value: number }) {
   );
 }
 
-// Marks a module complete, earning its badge. Rendering it hides the button,
-// and the next module in the tier is revealed underneath.
-function ModuleComplete({ sectionId, learn, nextId }: {
+// Marks a module complete, earning its badge.
+//
+// Two states, both deliberately more than a bare button:
+//   PENDING   - a card that shows which badge is on offer and asks for the
+//               claim, so finishing feels like collecting something.
+//   DONE      - a celebratory confirmation with the badge stamped in, plus
+//               the jump to the next module (or the tier gate).
+function ModuleComplete({ sectionId, learn, nextId, gateId }: {
   sectionId: string;
   learn: ReturnType<typeof useLearn>;
   nextId?: string;
+  /** Set on a tier's last module: the CTA points at the validation gate. */
+  gateId?: string;
 }) {
-  if (learn.isSectionDone(sectionId)) {
+  const badge = badgeFor(sectionId);
+  const BadgeIcon = badge.icon;
+  const done = learn.isSectionDone(sectionId);
+
+  if (done) {
     return (
-      <div className="learn-module-done">
-        <p className="learn-quiz-right">
-          <Check size={14} /> Module complete — badge earned
-        </p>
+      <div className="learn-claim is-claimed">
+        <span className="learn-claim-badge is-earned">
+          <BadgeIcon size={22} />
+        </span>
+        <div className="learn-claim-body">
+          <p className="learn-claim-kicker"><Check size={13} /> Module complete</p>
+          <p className="learn-claim-name">{badge.name} added to your badge case</p>
+          <p className="learn-claim-note">
+            {nextId
+              ? 'The next module in this tier is now unlocked.'
+              : gateId
+                ? 'Every module in this tier is done, your validation gate is open.'
+                : 'This was the last module of the tier.'}
+          </p>
+        </div>
         {nextId && !learn.isSectionDone(nextId) && (
           <button
             type="button"
-            className="learn-continue learn-module-next"
+            className="learn-continue learn-claim-next"
             onClick={() => scrollToSectionTop(nextId)}
           >
-            Next module unlocked
+            Next module
+            <ArrowRight size={15} />
+          </button>
+        )}
+        {!nextId && gateId && (
+          <button
+            type="button"
+            className="learn-continue learn-claim-next"
+            onClick={() => scrollToSectionTop(gateId)}
+          >
+            Take the gate
             <ArrowRight size={15} />
           </button>
         )}
       </div>
     );
   }
+
   return (
     <button
       type="button"
-      className="learn-continue learn-module-mark"
+      className="learn-claim learn-claim-pending"
       onClick={() => learn.completeSection(sectionId)}
     >
-      Mark module complete
-      <Check size={15} />
+      <span className="learn-claim-badge">
+        <BadgeIcon size={22} />
+      </span>
+      <span className="learn-claim-body">
+        <span className="learn-claim-kicker">Finish this module</span>
+        <span className="learn-claim-name">Claim the “{badge.name}” badge</span>
+        <span className="learn-claim-note">Marks the module done and unlocks what comes next.</span>
+      </span>
+      <span className="learn-claim-cta">
+        Mark complete
+        <Check size={15} />
+      </span>
     </button>
   );
 }
@@ -243,6 +208,9 @@ function StockSection() {
 
   return (
     <div className={`learn-story ${step >= 1 ? 'has-valuation' : ''}`}>
+      <Objective>
+        By the end of this module you will be able to explain what a share is, how a company is divided into shares, and why owning part of a company means owning part of its future profits.
+      </Objective>
       {step >= 1 && <ValuationChip worth={companyWorth} stakePct={stakePct} />}
 
       {/* Step 0: starting the company */}
@@ -736,6 +704,9 @@ function PricesSection() {
 
   return (
     <div>
+      <Objective>
+        By the end of this module you will be able to say what makes a share price rise or fall, and understand that every price you see is the result of a buyer and a seller meeting.
+      </Objective>
       <p>
         In the story, your company's shares sold for $3 each. On a real
         <GlossaryText text=" stock market" glossary={LEARN_GLOSSARY} />, that price changes
@@ -824,6 +795,9 @@ function PricesSection() {
 function ExecutionSection() {
   return (
     <div>
+      <Objective>
+        By the end of this module you will be able to name the three order types, say what each one guarantees and what it does not, and know which one to use when you want to buy right now.
+      </Objective>
       <p>
         In the story, Alice walked up and bought 1 share for $3, and that was that. Real
         trading has a few more moving parts, and they all have names. Learning them now
@@ -954,6 +928,9 @@ function CandlesSection() {
 
   return (
     <div>
+      <Objective>
+        By the end of this module you will be able to read a candlestick chart, say what each of the four daily prices means, and know what the green and red colours are telling you.
+      </Objective>
       <p>
         Before the math can mean anything, you need to be able to read the raw material
         every strategy works with: the price chart. And the most common kind of price chart
@@ -1049,35 +1026,13 @@ function CandlesSection() {
 // ============================================================
 
 function MathSection() {
-  // Small illustrative series for the two-school cards: a price with a
-  // smooth trend line, and four years of climbing revenue.
-  const miniPrice = useMemo(() => {
-    const out: number[] = [];
-    let v = 60;
-    for (let i = 0; i < 30; i++) {
-      v += Math.sin(i * 0.7) * 2 + 0.9;
-      out.push(v);
-    }
-    return out;
-  }, []);
-  const miniAvg = useMemo(() => miniPrice.map((_, i) => {
-    if (i < 6) return null;
-    return miniPrice.slice(i - 5, i + 1).reduce((a, b) => a + b, 0) / 6;
-  }), [miniPrice]);
-  const miniBars = [38, 50, 61, 76];
-
-  const toMiniPoints = (arr: (number | null)[], width: number, height: number) => {
-    const vals = arr.filter((v): v is number => v !== null);
-    const min = Math.min(...vals);
-    const max = Math.max(...vals);
-    return arr
-      .map((p, i) => (p === null ? null : `${((i / (arr.length - 1)) * width).toFixed(1)},${(height - ((p - min) / (max - min)) * (height - 10) - 5).toFixed(1)}`))
-      .filter(Boolean)
-      .join(' ');
-  };
-
   return (
     <div>
+      <Objective>
+        By the end of this module you will be able to name the two schools every
+        strategy is built from, read four years of a company’s books without an
+        accountant, and state the three jobs any strategy must do.
+      </Objective>
       <p>
         You can now read a chart and judge single days. The next question is the big one:
         how does anyone decide what to buy? Not by feeling. By writing rules down. And
@@ -1097,63 +1052,46 @@ function MathSection() {
           Almost every <strong>trading</strong> strategy, the kind that buys and sells
           over days or weeks, is built on it.
         </p>
-        <div className="learn-minichart">
-          <svg viewBox="0 0 260 100" role="img" aria-label="Technical analysis: a price pattern">
-            <polyline points={toMiniPoints(miniPrice, 260, 95)} className="chart-line raw" />
-            <polyline points={toMiniPoints(miniAvg, 260, 95)} className="chart-line avg" />
-          </svg>
-          <span className="learn-minichart-caption">A pattern in price action: the wiggly line and its smoother underlying direction.</span>
-        </div>
       </div>
 
       <div className="learn-school">
         <p className="learn-school-name">B. Financial analysis: reading the business</p>
         <p>
-          The second way ignores the day-to-day price and studies the company itself:
-          what the company does, why it exists, how much it earns, how much debt it
-          carries, and how much profit it brings in every year. If those numbers are
-          strong and growing, the business is worth owning, and the share price tends to
-          follow the business over the long run. This is
-          <GlossaryText text=" financial analysis" glossary={LEARN_GLOSSARY} />, and
-          investing ideas root from it. It is the approach behind
-          <strong> investing</strong> strategies, the kind that hold for years.
+          The second way ignores the day-to-day price and studies the company itself.
+          Every company publishes the same basic story once a year: how much money came
+          in, what it cost to run the business, what was left over, and how much the
+          company owes. Reading those numbers to decide whether the business is worth
+          owning is <GlossaryText text="financial analysis" glossary={LEARN_GLOSSARY} />
+          the approach behind <strong>investing</strong> strategies, the kind held for
+          years rather than days.
         </p>
-        <ul className="learn-movelist">
-          <li>
-            <strong>What they do</strong>: the company's business and motive. Simple
-            questions with real consequences: does the product have demand, and can the
-            company defend it?
-          </li>
-          <li>
-            <strong>Earnings</strong> is what remains after all costs are paid. This is
-            the company's actual profit.
-          </li>
-          <li>
-            <strong>Debt</strong> is money the company owes. Some debt is normal, but
-            heavy debt makes a company fragile when times get hard.
-          </li>
-          <li>
-            <strong>Profit every year</strong>: is it growing, shrinking, or
-            disappearing? Yearly profit is what belongs to the owners, so its trend is
-            what long-term investors watch most.
-          </li>
-        </ul>
-        <div className="learn-minichart">
-          <svg viewBox="0 0 260 100" role="img" aria-label="Financial analysis: rising yearly profit">
-            {miniBars.map((v, i) => (
-              <rect
-                key={i}
-                x={i * 52 + 14}
-                y={95 - v}
-                width={28}
-                height={v}
-                rx={3}
-                className="learn-bar"
-              />
-            ))}
-          </svg>
-          <span className="learn-minichart-caption">Profit climbing year after year: the kind of picture a financial analyst looks for.</span>
+        <div className="learn-rules">
+          <div className="learn-rule">
+            <span className="learn-rule-num">1</span>
+            <p><strong>What does the company actually sell?</strong> Does anyone want it, and can the company stop competitors from taking the customers? A great product nobody wants is still a failing business.</p>
+          </div>
+          <div className="learn-rule">
+            <span className="learn-rule-num">2</span>
+            <p><strong>How much of every dollar does it keep?</strong> Money that comes in is <strong>revenue</strong>. What remains after every cost is paid is <strong>profit</strong>, also called <strong>earnings</strong>. The share of revenue that survives is the <strong>profit margin</strong>, the single number analysts quote most.</p>
+          </div>
+          <div className="learn-rule">
+            <span className="learn-rule-num">3</span>
+            <p><strong>How much does it owe?</strong> <strong>Debt</strong> is money the company must repay. Some debt is normal and useful; heavy debt turns a bad year into a crisis, because lenders get paid whether the company thrives or not.</p>
+          </div>
+          <div className="learn-rule">
+            <span className="learn-rule-num">4</span>
+            <p><strong>Which direction are those numbers heading?</strong> One good year proves little. A profit climbing steadily for four straight years is the picture long-term investors look for, and the share price tends to follow the business over time.</p>
+          </div>
         </div>
+        <p>
+          Two honest caveats, because this course would rather be fair than
+          convincing. First, financial analysis explains the long run but not the next
+          month: a wonderful business can still see its share price fall for reasons
+          that have nothing to do with it. Second, numbers describe the past, they are
+          evidence about a business, not a prophecy about its future. Used carefully,
+          they are still the best snapshot of what you are actually buying when you buy
+          a share.
+        </p>
       </div>
 
       <p>
@@ -1182,6 +1120,12 @@ function MathSection() {
         walks you through jobs 2 and 3 yourself, with real numbers. Every strategy on
         SLTP shows its rules openly, so the idea can be judged before it is trusted.
       </p>
+      <Recap points={[
+        <>The two schools: <strong>technical analysis</strong> reads price action, <strong>financial analysis</strong> reads the business.</>,
+        <>Revenue is money in; <strong>profit</strong> (earnings) is what survives costs; <strong>margin</strong> is the share kept per dollar.</>,
+        <>Rising revenue can hide falling profit, always read the three together.</>,
+        <>Every strategy does the same three jobs: when to buy, how much, and where to exit.</>,
+      ]} />
     </div>
   );
 }
@@ -1215,6 +1159,9 @@ function RiskSection() {
 
   return (
     <div>
+      <Objective>
+        By the end of this module you will be able to set a stop-loss and a take-profit, explain why the stop must sit below your entry price, and calculate a position size that keeps any single mistake affordable.
+      </Objective>
       <p>
         The rules so far decide <em>what</em> to buy. None of them answer the question
         that separates surviving traders from finished ones: <strong>when do you get
@@ -1444,9 +1391,14 @@ function RiskSection() {
 // Section G: testing a strategy
 // ============================================================
 
-function TestingSection({ onNavigate }: { onNavigate?: (tab: string) => void }) {
+function TestingSection() {
   return (
     <div>
+      <Objective>
+        By the end you will be able to describe what a <GlossaryText text="backtest" glossary={LEARN_GLOSSARY} /> is,
+        explain the one rule that keeps it honest, and say why it is evidence
+        rather than proof.
+      </Objective>
       <p>
         Here is the question that matters before you risk a single dollar: <strong>would
         these rules have actually worked?</strong> The person selling a strategy will always
@@ -1544,33 +1496,14 @@ function TestingSection({ onNavigate }: { onNavigate?: (tab: string) => void }) 
         beat hoping every single time.
       </p>
 
-      <div className="learn-nextsteps">
-        <p className="learn-nextsteps-title">Where to go from here</p>
-        <button
-          type="button"
-          className="learn-nextcard"
-          onClick={() => onNavigate?.('performance')}
-        >
-          <span className="learn-nextcard-icon"><TrendingUp size={17} /></span>
-          <span className="learn-nextcard-body">
-            <strong>Performance</strong>
-            <small>Watch real strategies replay decades of market history, stock by stock.</small>
-          </span>
-          <ArrowRight size={16} />
-        </button>
-        <button
-          type="button"
-          className="learn-nextcard"
-          onClick={() => onNavigate?.('strategies')}
-        >
-          <span className="learn-nextcard-icon"><FlaskConical size={17} /></span>
-          <span className="learn-nextcard-body">
-            <strong>Strategies</strong>
-            <small>Read the actual rules behind each strategy, in plain language.</small>
-          </span>
-          <ArrowRight size={16} />
-        </button>
-      </div>
+
+      <Recap points={[
+        <>A <GlossaryText text="backtest" glossary={LEARN_GLOSSARY} /> replays rules against real past prices, one day at a time.</>,
+        <>The honesty rule: the simulation may only see prices from that day and earlier.</>,
+        <>Compare against a plain <GlossaryText text="index fund" glossary={LEARN_GLOSSARY} />, if it cannot beat that, the rules earn nothing.</>,
+        <>Evidence, not prophecy. It shows what the rules did, never what they will do.</>,
+      ]} />
+
     </div>
   );
 }
@@ -1595,7 +1528,7 @@ export default function LearnPage({ onNavigate }: LearnPageProps) {
 
   // Passing a tier's pop quiz removes that quiz from the page (it has done its
   // job) and mounts the next tier. Left alone, the document suddenly gets
-  // shorter and the scroll offset ends up pointing at unrelated content — the
+  // shorter and the scroll offset ends up pointing at unrelated content - the
   // "weird jump". Instead, send the learner to the tier they just unlocked.
   const certifiedCount = learn.progress.certifications.length;
   const prevCertifiedCount = useRef(certifiedCount);
@@ -1604,7 +1537,7 @@ export default function LearnPage({ onNavigate }: LearnPageProps) {
     prevCertifiedCount.current = certifiedCount;
     if (gained <= 0) return;
     // `certifiedCount` is now how many tiers are DONE, so the tier that just
-    // opened is the one at that index — not the one before it. On the last
+    // opened is the one at that index - not the one before it. On the last
     // tier there is nothing left to open, so send the learner to the badge
     // case where the final trophy is on display.
     const next = TIERS[certifiedCount];
@@ -1635,7 +1568,12 @@ export default function LearnPage({ onNavigate }: LearnPageProps) {
         );
       case 'math': return <MathSection />;
       case 'risk': return <RiskSection />;
-      case 'testing': return <TestingSection onNavigate={onNavigate} />;
+      case 'testing': return <TestingSection />;
+      case 't2-spreads': return <SpreadsSection />;
+      case 't2-orderbook': return <OrderBookSection />;
+      case 't3-indicators': return <IndicatorsSection />;
+      case 't5-metrics': return <MetricsSection />;
+      case 't5-allocation': return <AllocationSection />;
       default: return null;
     }
   };
@@ -1647,7 +1585,7 @@ export default function LearnPage({ onNavigate }: LearnPageProps) {
         <h1 className="learn-title">The stock market, from zero.</h1>
         <p className="learn-sub">
           Five tiers, unlocked one at a time. Each tier opens with a single module, and the
-          next one appears only when you finish the last — so there is always exactly one
+          next one appears only when you finish the last, so there is always exactly one
           thing to do. Complete a module, collect its badge; pass a tier's pop quiz, take
           the trophy.
         </p>
@@ -1691,9 +1629,9 @@ export default function LearnPage({ onNavigate }: LearnPageProps) {
                       <strong>{tier.title}</strong>
                       <small>
                         {status === 'locked'
-                          ? 'Locked — finish the tier above'
+                          ? 'Locked, finish the tier above'
                           : status === 'certified'
-                            ? `Certified — ${tier.certification}`
+                            ? `Certified, ${tier.certification}`
                             : tier.objective}
                       </small>
                     </span>
@@ -1744,7 +1682,12 @@ export default function LearnPage({ onNavigate }: LearnPageProps) {
                       </div>
                       {moduleFor(s.id)}
                       {s.id !== 'long-short' && (
-                        <ModuleComplete sectionId={s.id} learn={learn} nextId={next?.id} />
+                        <ModuleComplete
+                          sectionId={s.id}
+                          learn={learn}
+                          nextId={next?.id}
+                          gateId={!next && gateOpen && !learn.isCertified(tier.id) ? `gate-${tier.id}` : undefined}
+                        />
                       )}
                     </section>
                   );
@@ -1754,6 +1697,43 @@ export default function LearnPage({ onNavigate }: LearnPageProps) {
               </div>
             );
           })}
+
+          <section id="next-steps" className="learn-section">
+            <div className="learn-section-heading">
+              <span className="learn-section-num">→</span>
+              <h2>Where to go from here</h2>
+            </div>
+            <p>
+              You now know what a strategy is, how one is built, how it is tested,
+              and how risk is sized. The rest of SLTP is where you put that to use.
+            </p>
+            <div className="learn-nextsteps">
+              <button
+                type="button"
+                className="learn-nextcard"
+                onClick={() => onNavigate?.('performance')}
+              >
+                <span className="learn-nextcard-icon"><TrendingUp size={17} /></span>
+                <span className="learn-nextcard-body">
+                  <strong>Performance</strong>
+                  <small>Watch real strategies replay decades of market history, stock by stock.</small>
+                </span>
+                <ArrowRight size={16} />
+              </button>
+              <button
+                type="button"
+                className="learn-nextcard"
+                onClick={() => onNavigate?.('strategies')}
+              >
+                <span className="learn-nextcard-icon"><FlaskConical size={17} /></span>
+                <span className="learn-nextcard-body">
+                  <strong>Strategies</strong>
+                  <small>Read the actual rules behind each strategy, in plain language.</small>
+                </span>
+                <ArrowRight size={16} />
+              </button>
+            </div>
+          </section>
         </div>
       </div>
 

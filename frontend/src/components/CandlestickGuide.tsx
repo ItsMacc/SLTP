@@ -1,5 +1,7 @@
 // CandlestickGuide.tsx — Candlestick pattern guide
 
+import { GlossaryText } from './GlossaryText'
+import { STRATEGY_GLOSSARY } from '../../lib/glossary'
 import './CandlestickGuide.css'
 
 interface CandleDiagramProps {
@@ -63,7 +65,8 @@ export default function CandlestickGuide() {
               Every stock has a unique shortcut code called a ticker, such as AAPL for Apple or TSLA for Tesla. When you search for a ticker, the chart populates with its historical price action, displayed using candles where each individual candle represents a single trading day.
             </p>
             <p className="guide-copy">
-              Instead of looking at rows of text data, a single candle summarizes an entire day of market activity into one visual block containing four vital metrics.
+              Instead of looking at rows of text data, a single candle summarizes an entire day of market activity into one visual block containing four vital metrics. Reading them builds the habit of watching
+              the <GlossaryText text="volatility" glossary={STRATEGY_GLOSSARY} /> that each session produced.
             </p>
           </div>
 
@@ -105,7 +108,7 @@ export default function CandlestickGuide() {
           <div className="guide-intro-block is-spaced">
             <h3 className="guide-heading">Decoding Timeframes</h3>
             <p className="guide-copy">
-              You can toggle between different horizons using the timeframe buttons (1Y, 2Y, 5Y, ALL). Choosing a shorter window zooms in on recent sessions to inspect daily volatility, while longer selections reveal multi-year structural trends and broader market cycles.
+              You can toggle between different horizons using the timeframe buttons (1Y, 2Y, 5Y, ALL). Choosing a shorter window zooms in on recent sessions to inspect daily volatility, while longer selections reveal multi-year structural trends and broader market cycles. The span you inspect is your <GlossaryText text="horizon" glossary={STRATEGY_GLOSSARY} />, and it changes what the same chart is telling you.
             </p>
           </div>
         </div>
@@ -124,7 +127,7 @@ export default function CandlestickGuide() {
                 <strong>Zoom out before zooming in:</strong> Start on 5Y or ALL to get the big picture, then switch to 1Y once you know which period to inspect closely.
               </li>
               <li>
-                <strong>Past price isn't a promise:</strong> A chart shows what already happened, not what happens next. Treat it as context for research, not a guarantee of future performance.
+                <strong>Past price isn't a promise:</strong> A chart shows what already happened, not what happens next. Treat it as context for research, not a guarantee of future performance — the discipline the course calls <GlossaryText text="backtest" glossary={STRATEGY_GLOSSARY} />.
               </li>
               <li>
                 <strong>.TO Symbols</strong> Some symbols end with .TO, which indicates they are listed on the Toronto Stock Exchange. For example, SHOP.TO is Shopify's Canadian listing. This helps diffrentiate which exchange a stock belongs to, as well as the currency it trades in (CAD vs USD).

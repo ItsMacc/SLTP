@@ -96,13 +96,48 @@ export function invalidatePortfolio(): void {
 export function clearLocalUserData(): void {
   invalidatePortfolio();
   try {
-    localStorage.removeItem('sltp_learn_progress'); // earned badges + progress
+    // Earned badges + progress, per user (see progress.ts) — remove every
+    // learn cache, not just one account's.
+    for (const k of Object.keys(localStorage)) {
+      if (k.startsWith(LEARN_CACHE_PREFIX)) localStorage.removeItem(k);
+    }
+    // The unscoped key that predates per-account namespacing. It matches no
+    // prefix (the prefix carries a trailing dot), so without this it would
+    // sit in localStorage forever holding a previous account's badges.
+    localStorage.removeItem('sltp_learn_progress');
     localStorage.removeItem('st_user_name');
     localStorage.removeItem('st_user_theme');
   } catch { /* private mode */ }
   try {
     sessionStorage.clear();
   } catch { /* private mode */ }
+}
+
+// Shared with learn/progress.ts — the learn cache is namespaced per account.
+const LEARN_CACHE_PREFIX = 'sltp_learn_progress.';
+
+/**
+ * Asks the API to provision this account in BOTH stores.
+ *
+ * The server seeds the Turso users row and the Supabase profile row from the
+ * shared defaults, and is idempotent, so this is safe on every login. Called
+ * after signup too when Supabase hands back a session immediately — with email
+ * confirmation on there is no session yet, and the first login covers it.
+ *
+ * Never throws: provisioning is best-effort and must not block the UI.
+ */
+export async function provisionAccount(token: string, name?: string | null): Promise<boolean> {
+  try {
+    const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+    const res = await fetch(`${base}/api/user/provision`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ name: name ?? null }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
 }
 
 /**

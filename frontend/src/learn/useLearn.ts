@@ -1,4 +1,4 @@
-// useLearn.ts — One hook that joins curriculum (what exists) with
+// useLearn.ts - One hook that joins curriculum (what exists) with
 // progress (what's done): load/save, section completion, milestone
 // evaluation, and the certification gate.
 //
@@ -21,7 +21,7 @@ export type TierStatus = 'locked' | 'open' | 'certified';
 
 /** A reward the learner just earned, for the toast popup. */
 export interface Earned {
-  kind: 'badge' | 'trophy';
+  kind: 'badge' | 'trophy' | 'milestone';
   name: string;
   detail: string;
   metal?: string;
@@ -98,6 +98,13 @@ export function useLearn() {
     for (const tier of TIERS) {
       for (const m of tier.milestones) {
         if (m.upcoming || milestones.includes(m.id)) continue;
+        // Only milestones tied to the section just completed may fire. A
+        // milestone unlocks because its LAST required module finished, so it
+        // always includes sectionId. Scanning every milestone instead meant
+        // any already-complete-but-unrecorded milestone (state that fell out
+        // of sync) would pop on a completely unrelated module - badges
+        // "triggered no matter what".
+        if (!m.sections.includes(sectionId)) continue;
         if (m.sections.every((s) => sections.includes(s))) {
           milestones.push(m.id);
           freshMilestones.push(m.name);
@@ -120,7 +127,9 @@ export function useLearn() {
     }];
     for (const name of freshMilestones) {
       // Milestones share the module's badge row; no separate catalog entry.
-      awards.push({ kind: 'badge', name, detail: 'milestone unlocked', awardId: badgeId });
+      // They are announced as their own kind so a milestone never reads as a
+      // "badge" that then fails to appear in the badge shelf.
+      awards.push({ kind: 'milestone', name, detail: `for finishing “${labelForSection(sectionId)}”`, awardId: badgeId });
     }
     announce(awards);
   }, [progress, commit, announce]);
@@ -167,7 +176,7 @@ export function useLearn() {
       kind: 'trophy',
       name: `${trophy.label} Trophy`,
       metal: trophy.metal,
-      detail: `tier certified — ${tier.certification}`,
+      detail: `tier certified, ${tier.certification}`,
       awardId: trophyId,
     }]);
   }, [progress, commit, announce]);
@@ -181,7 +190,7 @@ export function useLearn() {
     return Math.round((real.filter((id) => progress.sections.includes(id)).length / real.length) * 100);
   }, [progress.sections]);
 
-  /** Every section completed so far, in curriculum order — drives the badge shelf. */
+  /** Every section completed so far, in curriculum order - drives the badge shelf. */
   const earnedSectionIds = orderedCompleted(progress.sections);
   const earnedBadges = earnedSectionIds.map((id) => ({ id, ...badgeFor(id) }));
   const earnedTrophies = TIERS.map((tier, i) => ({ tier, ...trophyFor(i) }))

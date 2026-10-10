@@ -1,4 +1,4 @@
-// LearnCredentials.tsx — The Formative Validation Gate quiz that certifies a
+// LearnCredentials.tsx - The Formative Validation Gate quiz that certifies a
 // tier. Rendered at the END of each tier's modules, not on its own page.
 
 import { useState } from 'react';
@@ -9,7 +9,7 @@ import { scoreGate, type useLearn } from '../../learn/useLearn';
 type LearnApi = ReturnType<typeof useLearn>;
 
 /* ============================================================
-   Formative Validation Gate — short quiz, all correct to pass
+   Formative Validation Gate: short quiz, all correct to pass
    ============================================================ */
 export function GateQuiz({ tier, learn }: { tier: Tier; learn: LearnApi }) {
   const [answers, setAnswers] = useState<(number | null)[]>(tier.gate.map(() => null));
@@ -48,7 +48,7 @@ export function GateQuiz({ tier, learn }: { tier: Tier; learn: LearnApi }) {
     return (
       <div className="learn-gate learn-gate-locked">
         <p className="learn-gate-title">
-          <Lock size={15} /> Validation gate locked — {done}/{total} modules complete
+          <Lock size={15} /> Validation gate locked: {done}/{total} modules complete
         </p>
         <p className="learn-gate-note">
           Finish every module in this tier to open the certification quiz.
@@ -60,10 +60,10 @@ export function GateQuiz({ tier, learn }: { tier: Tier; learn: LearnApi }) {
   return (
     <div className="learn-gate">
       <p className="learn-gate-title">
-        <Sparkles size={16} /> Formative validation gate — {tier.certification}
+        <Sparkles size={16} /> Formative validation gate: {tier.certification}
       </p>
       <p className="learn-gate-note">
-        Answer every question correctly to earn the tier certification. Retries allowed —
+        Answer every question correctly to earn the tier certification. Retries allowed:
         the point is comprehension, not memorization.
       </p>
 
@@ -115,14 +115,14 @@ export function GateQuiz({ tier, learn }: { tier: Tier; learn: LearnApi }) {
         <div className="learn-gate-result">
           {passed ? (
             <p className="learn-quiz-right">
-              <Check size={14} /> {correct}/{tier.gate.length} — certification earned:{' '}
+              <Check size={14} /> {correct}/{tier.gate.length}, certification earned:{' '}
               <strong>{tier.certification}</strong>
             </p>
           ) : (
             <>
               <p className="learn-quiz-wrong">
                 {correct}/{tier.gate.length} correct. Re-read the explanations above and
-                try again — every question must be right.
+                try again. Every question must be right.
               </p>
               <button type="button" className="learn-continue" onClick={retry}>
                 Try again

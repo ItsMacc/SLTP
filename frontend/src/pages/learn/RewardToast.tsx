@@ -1,8 +1,8 @@
-// RewardToast.tsx — Bottom-right unlock popup, the celebratory twin of
+// RewardToast.tsx - Bottom-right unlock popup, the celebratory twin of
 // ErrorToast. Fires whenever a badge or trophy is earned, then auto-dismisses.
 
 import { useEffect } from 'react';
-import { Award, Sparkles, X } from 'lucide-react';
+import { Award, Sparkles, Star, X } from 'lucide-react';
 import type { Earned } from '../../learn/useLearn';
 import './RewardToast.css';
 
@@ -18,15 +18,18 @@ export default function RewardToast({ earned, onClose, autoDismissMs = 6000 }: R
     return () => clearTimeout(timer);
   }, [earned, onClose, autoDismissMs]);
 
-  const Icon = earned.kind === 'trophy' ? Sparkles : Award;
+  const Icon = earned.kind === 'trophy' ? Sparkles : earned.kind === 'milestone' ? Star : Award;
+  const kicker = earned.kind === 'trophy'
+    ? 'Trophy unlocked'
+    : earned.kind === 'milestone'
+      ? 'Milestone reached'
+      : 'Badge earned';
 
   return (
-    <div className={`reward-toast is-${earned.metal ?? 'badge'}`} role="status" aria-live="polite">
+    <div className={`reward-toast is-${earned.metal ?? earned.kind}`} role="status" aria-live="polite">
       <span className="reward-toast-icon"><Icon size={18} /></span>
       <div className="reward-toast-body">
-        <p className="reward-toast-kicker">
-          {earned.kind === 'trophy' ? 'Trophy unlocked' : 'Badge earned'}
-        </p>
+        <p className="reward-toast-kicker">{kicker}</p>
         <p className="reward-toast-name">{earned.name}</p>
         <p className="reward-toast-detail">{earned.detail}</p>
       </div>

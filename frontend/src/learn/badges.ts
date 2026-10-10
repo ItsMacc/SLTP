@@ -1,9 +1,9 @@
-// badges.ts — Visual rewards for learning progress.
+// badges.ts - Visual rewards for learning progress.
 //
 // Two kinds of reward:
-//   BADGES   — one per module (section), earned the moment that module is
+//   BADGES   - one per module (section), earned the moment that module is
 //              marked complete. Shown as a grid of icons on the shelf.
-//   TROPHIES — one per tier, earned by passing that tier's validation gate.
+//   TROPHIES - one per tier, earned by passing that tier's validation gate.
 //              Bronze → Diamond, in tier order.
 //
 // Progress itself lives in Supabase (see progress.ts); this file is pure
@@ -30,24 +30,24 @@ export const TIER_TROPHY: TrophyMetal[] = ['bronze', 'silver', 'gold', 'emerald'
 
 /** Section id → the badge awarded for completing it. */
 export const SECTION_BADGES: Record<string, { name: string; icon: LucideIcon }> = {
-  // Tier I — market mechanics
+  // Tier I - market mechanics
   stocks: { name: 'Founder’s Stake', icon: Building2 },
   prices: { name: 'Demand Reader', icon: TrendingUp },
   orders: { name: 'Order Router', icon: Receipt },
   candles: { name: 'Candle Spotter', icon: ChartCandlestick },
-  // Tier II — microstructure
+  // Tier II - microstructure
   'long-short': { name: 'Both Sides', icon: ArrowLeftRight },
   't2-spreads': { name: 'Spread Whisperer', icon: Layers },
   't2-orderbook': { name: 'Book Diver', icon: BookOpen },
-  // Tier III — signals
+  // Tier III - signals
   math: { name: 'Rule Architect', icon: Binary },
   't3-indicators': { name: 'Trend Tracker', icon: Activity },
   't3-oscillators': { name: 'Momentum Meter', icon: Gauge },
-  // Tier IV — validation
+  // Tier IV - validation
   testing: { name: 'Skeptic', icon: FlaskConical },
   't4-sandbox': { name: 'Overfit Buster', icon: ShieldAlert },
   't4-audit': { name: 'Bias Auditor', icon: ShieldCheck },
-  // Tier V — portfolio
+  // Tier V - portfolio
   risk: { name: 'Risk Warden', icon: ShieldCheck },
   't5-metrics': { name: 'Ratio Reader', icon: Activity },
   't5-allocation': { name: 'Allocator', icon: Scale },

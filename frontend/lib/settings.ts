@@ -1,32 +1,10 @@
-import { supabase } from './supabase'
+// settings.ts — Shared settings types.
+//
+// NOTE: this file used to also hold getSettings()/saveSettings() helpers that
+// queried a Supabase `user_settings` table. Nothing imported them, and no such
+// table exists in the project (the REST API returns 404 for it), so they were
+// dead code pointing at a broken dependency. Settings are actually read and
+// written through the `users` row — see SettingsPage and app/security.py.
+// Only the timeframe type below is genuinely consumed.
 
-export type RiskProfile = 'low' | 'medium' | 'High'
 export type PerformanceTimeframe = '1y' | '2y' | '5y' | 'all'
-export type Theme = 'light' | 'dark'
-
-export interface UserSettings {
-  user_id: string
-  full_name: string
-  risk_profile: RiskProfile
-  default_timeframe: PerformanceTimeframe
-  theme: Theme
-  email_updates: boolean
-  weekly_summary: boolean
-}
-
-type SettingsInput = Omit<UserSettings, 'user_id'>
-
-export const getSettings = (userId: string) =>
-  supabase
-    .from('user_settings')
-    .select('user_id, full_name, risk_profile, default_timeframe, theme, email_updates, weekly_summary')
-    .eq('user_id', userId)
-    .maybeSingle<UserSettings>()
-
-export const saveSettings = (userId: string, settings: SettingsInput) =>
-  supabase
-    .from('user_settings')
-    .upsert({ user_id: userId, ...settings }, { onConflict: 'user_id' })
-
-
-

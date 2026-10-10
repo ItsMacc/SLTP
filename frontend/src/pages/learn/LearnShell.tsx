@@ -1,4 +1,4 @@
-// LearnShell — the page body of the course: a tier sidebar that reveals one
+// LearnShell - the page body of the course: a tier sidebar that reveals one
 // module at a time, the badge/trophy shelf, and the tier-grouped content
 // column. Split out of LearnPage.tsx only because it is long; it is rendered
 // by LearnPage and shares its helpers.
@@ -15,7 +15,7 @@ import { GateQuiz } from './LearnCredentials';
 type LearnApi = ReturnType<typeof useLearn>;
 
 // ============================================================
-// Badge shelf — every badge and trophy earned so far
+// Badge shelf - every badge and trophy earned so far
 // ============================================================
 export function BadgeShelf({ learn }: { learn: LearnApi }) {
   const earned = learn.earnedBadges;
@@ -30,7 +30,7 @@ export function BadgeShelf({ learn }: { learn: LearnApi }) {
           <p className="learn-shelf-title">Badge case</p>
           <p className="learn-shelf-sub">
             {earned.length} badge{earned.length === 1 ? '' : 's'} · {trophies.length} trophy
-            {trophies.length === 1 ? '' : 'ies'} — saved to your account.
+            {trophies.length === 1 ? '' : 'ies'}, saved to your account.
           </p>
         </div>
         <span className="learn-shelf-count">{earned.length}</span>
@@ -58,13 +58,13 @@ export function BadgeShelf({ learn }: { learn: LearnApi }) {
       <p className="learn-shelf-subhead">Tier trophies</p>
       <ul className="learn-trophyrow">
         {trophies.map(({ tier, label, icon: Icon, metal }) => (
-          <li key={tier.id} className={`learn-trophy is-earned is-${metal}`} title={`${label} Trophy — ${tier.certification}`}>
+          <li key={tier.id} className={`learn-trophy is-earned is-${metal}`} title={`${label} Trophy, ${tier.certification}`}>
             <span className="learn-trophy-icon"><Icon size={22} /></span>
             <span className="learn-trophy-label">{label}</span>
           </li>
         ))}
         {lockedTrophies.map(({ tier, label, icon: Icon, metal }) => (
-          <li key={tier.id} className={`learn-trophy is-locked is-${metal}`} title={`Locked — certify Tier ${tier.roman} to earn this`}>
+          <li key={tier.id} className={`learn-trophy is-locked is-${metal}`} title={`Locked, certify Tier ${tier.roman} to earn this`}>
             <span className="learn-trophy-icon"><Icon size={22} /></span>
             <span className="learn-trophy-label">{label}</span>
           </li>
@@ -75,7 +75,7 @@ export function BadgeShelf({ learn }: { learn: LearnApi }) {
 }
 
 // ============================================================
-// Sidebar — tiers on the left, revealed modules nested underneath
+// Sidebar - tiers on the left, revealed modules nested underneath
 // ============================================================
 export function TierNav({ learn, activeId, onJump }: {
   learn: LearnApi;

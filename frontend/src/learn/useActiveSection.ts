@@ -1,4 +1,4 @@
-// useActiveSection.ts — Tracks which course landmark is currently on screen
+// useActiveSection.ts - Tracks which course landmark is currently on screen
 // so the sidebar can highlight it.
 //
 // A scroll listener is used instead of an IntersectionObserver because short
@@ -15,7 +15,7 @@ export function useActiveSection(ids: string[]): string {
     // Measuring every anchor on every scroll event forces a React render per
     // scroll frame, which reads as stutter while the page moves. Coalesce to
     // one measurement per animation frame, and only commit when the answer
-    // actually changes — most scroll frames land on the same section.
+    // actually changes - most scroll frames land on the same section.
     let frame = 0;
 
     const measure = () => {

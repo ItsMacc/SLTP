@@ -1,9 +1,9 @@
-// curriculum.ts — Five-tier quant-literacy curriculum: tiers, modules,
+// curriculum.ts - Five-tier quant-literacy curriculum: tiers, modules,
 // competency milestones (badges), tier certifications (trophies), and the
 // formative validation gates that separate them.
 //
 // Progress against this curriculum is stored in Supabase (auth
-// user_metadata) — see progress.ts. Turso stays out of learning state.
+// user_metadata) - see progress.ts. Turso stays out of learning state.
 
 export interface GateQuestion {
   q: string;
@@ -34,12 +34,12 @@ export interface Tier {
   certification: string; // the Tier Certification (trophy) name
   sections: TierSection[];
   milestones: Milestone[];
-  gate: GateQuestion[]; // Formative Validation Gate — pass to certify the tier
+  gate: GateQuestion[]; // Formative Validation Gate, pass to certify the tier
 }
 
 export const TIERS: Tier[] = [
   // ---------------------------------------------------------------
-  // Tier I — Foundational Market Mechanics & Price Action
+  // Tier I - Foundational Market Mechanics & Price Action
   // ---------------------------------------------------------------
   {
     id: 'tier1',
@@ -80,15 +80,15 @@ export const TIERS: Tier[] = [
         q: 'You want to buy only at $97 or better, and you\'re willing to wait. Which order?',
         options: ['Market order', 'Limit order', 'Stop-limit order', 'Market-on-close order'],
         answer: 1,
-        explain: 'A limit order trades only at your price or better — control over price, at the cost of no guarantee it fills.',
+        explain: 'A limit order trades only at your price or better: control over price, at the cost of no guarantee it fills.',
       },
       {
         q: 'A candle has open $100, high $106, low $98, close $103. It should be drawn:',
         options: [
-          'Green — the close finished above the open',
-          'Red — the close finished below the open',
-          'Green — the high was above the open',
-          'Red — the low dipped below the open',
+          'Green: the close finished above the open',
+          'Red: the close finished below the open',
+          'Green: the high was above the open',
+          'Red: the low dipped below the open',
         ],
         answer: 0,
         explain: 'Green means the close ended higher than the open: $103 > $100. The wick reaches to the high and low, but the body is open-to-close.',
@@ -97,7 +97,7 @@ export const TIERS: Tier[] = [
   },
 
   // ---------------------------------------------------------------
-  // Tier II — Market Microstructure & Order Dynamics
+  // Tier II - Market Microstructure & Order Dynamics
   // ---------------------------------------------------------------
   {
     id: 'tier2',
@@ -108,12 +108,12 @@ export const TIERS: Tier[] = [
     certification: 'Market Microstructure Analyst',
     sections: [
       { id: 'long-short', num: 'A', label: 'Long vs. short: betting both ways', content: true },
-      { id: 't2-spreads', num: 'B', label: 'Bid-ask spreads & liquidity', content: false },
-      { id: 't2-orderbook', num: 'C', label: 'Order books & slippage', content: false },
+      { id: 't2-spreads', num: 'B', label: 'Bid-ask spreads & liquidity', content: true },
+      { id: 't2-orderbook', num: 'C', label: 'Order books & slippage', content: true },
     ],
     milestones: [
       { id: 't2-longshort', name: 'Order Mechanics Credential', sections: ['long-short'] },
-      { id: 't2-liquidity', name: 'Liquidity Analysis Badge', sections: ['t2-spreads'], upcoming: true },
+      { id: 't2-liquidity', name: 'Liquidity Analysis Badge', sections: ['t2-spreads', 't2-orderbook'] },
     ],
     gate: [
       {
@@ -131,13 +131,13 @@ export const TIERS: Tier[] = [
           'One the exchange gives you for free',
         ],
         answer: 1,
-        explain: 'You borrow a share, sell it, and owe the lender one share back — like a loan. Returning it is non-negotiable.',
+        explain: 'You borrow a share, sell it, and owe the lender one share back, like a loan. Returning it is non-negotiable.',
       },
       {
         q: 'The unlimited-risk side of a trade is:',
         options: [
-          'Going long — a stock can only fall to $0',
-          'Going short — a stock can keep rising with no ceiling',
+          'Going long, a stock can only fall to $0',
+          'Going short, a stock can keep rising with no ceiling',
           'Both sides are equally limited',
           'Neither side has risk',
         ],
@@ -148,7 +148,7 @@ export const TIERS: Tier[] = [
   },
 
   // ---------------------------------------------------------------
-  // Tier III — Technical Indicators & Signal Generation
+  // Tier III - Technical Indicators & Signal Generation
   // ---------------------------------------------------------------
   {
     id: 'tier3',
@@ -159,12 +159,11 @@ export const TIERS: Tier[] = [
     certification: 'Algorithmic Signal Architect',
     sections: [
       { id: 'math', num: 'A', label: 'How strategies are made', content: true },
-      { id: 't3-indicators', num: 'B', label: 'Trend indicators: SMA & EMA', content: false },
-      { id: 't3-oscillators', num: 'C', label: 'RSI & ATR: momentum and range', content: false },
+      { id: 't3-indicators', num: 'B', label: 'Trend indicators: SMA & EMA', content: true },
     ],
     milestones: [
       { id: 't3-rules', name: 'Signal Logic Badge', sections: ['math'] },
-      { id: 't3-calibration', name: 'Indicator Calibration Credential', sections: ['t3-indicators'], upcoming: true },
+      { id: 't3-calibration', name: 'Indicator Calibration Credential', sections: ['t3-indicators'] },
     ],
     gate: [
       {
@@ -176,7 +175,7 @@ export const TIERS: Tier[] = [
           'Set the exits (stop-loss and take-profit)',
         ],
         answer: 2,
-        explain: 'The three jobs are: when to buy, how much, and where to exit. No strategy — human or computer — knows tomorrow\'s price.',
+        explain: 'The three jobs are: when to buy, how much, and where to exit. No strategy, human or computer, knows tomorrow\'s price.',
       },
       {
         q: 'A strategy that trades on patterns in open/high/low/close prices is applying:',
@@ -193,7 +192,7 @@ export const TIERS: Tier[] = [
         q: 'Why apply rules by computer instead of by feel?',
         options: [
           'Computers predict the market better',
-          'Computers never miss a trade — they apply the same rules every day without fear, excitement or fatigue',
+          'Computers never miss a trade; they apply the same rules every day without fear, excitement or fatigue',
           'Computers pay no commissions',
           'Human traders always lose money',
         ],
@@ -204,7 +203,7 @@ export const TIERS: Tier[] = [
   },
 
   // ---------------------------------------------------------------
-  // Tier IV — Quantitative Validation & Backtesting
+  // Tier IV - Quantitative Validation & Backtesting
   // ---------------------------------------------------------------
   {
     id: 'tier4',
@@ -215,25 +214,22 @@ export const TIERS: Tier[] = [
     certification: 'Quantitative Validation Specialist',
     sections: [
       { id: 'testing', num: 'A', label: 'Testing a strategy', content: true },
-      { id: 't4-sandbox', num: 'B', label: 'Overfitting sandbox', content: false },
-      { id: 't4-audit', num: 'C', label: 'Bias-detection audit', content: false },
     ],
     milestones: [
       { id: 't4-integrity', name: 'Backtest Integrity Credential', sections: ['testing'] },
-      { id: 't4-bias', name: 'Bias Mitigation Badge', sections: ['t4-audit'], upcoming: true },
     ],
     gate: [
       {
         q: 'You tune a strategy\'s stops and targets until it looks perfect on past data, and it then flops live. That failure is called:',
         options: ['Look-ahead bias', 'Overfitting', 'Survivorship bias', 'Slippage'],
         answer: 1,
-        explain: 'The rules memorized one slice of history instead of learning anything transferable — classic overfitting.',
+        explain: 'The rules memorized one slice of history instead of learning anything transferable, classic overfitting.',
       },
       {
         q: 'A backtest buys at today\'s close using a signal computed from today\'s close. That is:',
         options: [
           'Perfectly valid',
-          'Look-ahead bias — nobody knew the close while the market was still open',
+          'Look-ahead bias, nobody knew the close while the market was still open',
           'Overfitting',
           'Good practice for accuracy',
         ],
@@ -250,7 +246,7 @@ export const TIERS: Tier[] = [
   },
 
   // ---------------------------------------------------------------
-  // Tier V — Execution & Portfolio Construction
+  // Tier V - Execution & Portfolio Construction
   // ---------------------------------------------------------------
   {
     id: 'tier5',
@@ -261,19 +257,19 @@ export const TIERS: Tier[] = [
     certification: 'Systematic Portfolio Strategist',
     sections: [
       { id: 'risk', num: 'A', label: 'Risk management', content: true },
-      { id: 't5-metrics', num: 'B', label: 'Sharpe, Sortino & drawdown', content: false },
-      { id: 't5-allocation', num: 'C', label: 'Position sizing & allocation', content: false },
+      { id: 't5-metrics', num: 'B', label: 'Sharpe, Sortino & drawdown', content: true },
+      { id: 't5-allocation', num: 'C', label: 'Position sizing & allocation', content: true },
     ],
     milestones: [
       { id: 't5-risk', name: 'Risk-Adjusted Performance Credential', sections: ['risk'] },
-      { id: 't5-portfolio', name: 'Portfolio Architecture Badge', sections: ['t5-allocation'], upcoming: true },
+      { id: 't5-portfolio', name: 'Portfolio Architecture Badge', sections: ['t5-allocation'] },
     ],
     gate: [
       {
         q: 'Entry $100, stop-loss $92, take-profit $116. Your risk-reward ratio is:',
         options: ['1:1', '1:2', '1:1.5', '2:1'],
         answer: 1,
-        explain: 'Risk $8 to make $16 — every dollar of loss is backed by two dollars of potential gain: 1:2.',
+        explain: 'Risk $8 to make $16, every dollar of loss is backed by two dollars of potential gain: 1:2.',
       },
       {
         q: 'With a $10,000 account risking 2% per trade and a stop $8 below entry, how many shares?',
@@ -290,7 +286,7 @@ export const TIERS: Tier[] = [
           'Converts every trade into a profit',
         ],
         answer: 1,
-        explain: 'The stop must sit BELOW entry — it marks where the trade is declared failed, not where it merely paused.',
+        explain: 'The stop must sit BELOW entry, it marks where the trade is declared failed, not where it merely paused.',
       },
     ],
   },

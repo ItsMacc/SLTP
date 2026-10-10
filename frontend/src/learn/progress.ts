@@ -1,9 +1,9 @@
-// progress.ts — Learning progress: completed sections, earned milestones,
+// progress.ts - Learning progress: completed sections, earned milestones,
 // tier certifications, and the ids of every badge/trophy actually earned.
 //
 // Stored in Supabase (see migrations/supabase_learn.sql):
-//   learn_progress — sections / milestones / certifications
-//   user_awards    — one row per badge & trophy, stamped with earned_at
+//   learn_progress - sections / milestones / certifications
+//   user_awards    - one row per badge & trophy, stamped with earned_at
 //                    when it is won
 // Turso stays out of learning state.
 //
@@ -19,12 +19,22 @@ export interface LearnProgress {
   sections: string[]; // completed section ids
   milestones: string[]; // earned milestone ids
   certifications: string[]; // certified tier ids
-  /** Catalog ids of awards earned — see learnApi for the id format. */
+  /** Catalog ids of awards earned - see learnApi for the id format. */
   awards: string[]; // `badge:stocks`, `trophy:tier1`, ...
 }
 
 const EMPTY: LearnProgress = { sections: [], milestones: [], certifications: [], awards: [] };
-const LS_KEY = 'sltp_learn_progress';
+
+// The cache is namespaced per account id. A single shared key meant signing in
+// as a second account on the same browser could adopt the first account's
+// badges - exactly what must NOT happen, since Supabase is authoritative for
+// each user and the local copy is only a fallback.
+const CACHE_PREFIX = 'sltp_learn_progress.';
+
+/** 'anon' while signed out, so offline work still caches under one key. */
+function cacheKey(userId?: string | null): string {
+  return `${CACHE_PREFIX}${userId ?? 'anon'}`;
+}
 
 const normalize = (raw: unknown): LearnProgress => {
   if (!raw || typeof raw !== 'object') return { ...EMPTY };
@@ -38,8 +48,15 @@ const normalize = (raw: unknown): LearnProgress => {
   };
 };
 
-const cache = (p: LearnProgress) => {
-  try { localStorage.setItem(LS_KEY, JSON.stringify(p)); } catch { /* private mode */ }
+const cache = (p: LearnProgress, userId?: string | null) => {
+  try { localStorage.setItem(cacheKey(userId), JSON.stringify(p)); } catch { /* private mode */ }
+};
+
+const readCache = (userId?: string | null): LearnProgress | null => {
+  try {
+    const raw = localStorage.getItem(cacheKey(userId));
+    return raw ? normalize(JSON.parse(raw)) : null;
+  } catch { /* corrupt/unavailable */ return null; }
 };
 
 /**
@@ -50,11 +67,13 @@ const cache = (p: LearnProgress) => {
  * offline (and cached locally) is never lost the moment you sign back in.
  */
 export async function loadProgress(): Promise<LearnProgress> {
-  let local: LearnProgress | null = null;
+  let userId: string | null = null;
   try {
-    const raw = localStorage.getItem(LS_KEY);
-    if (raw) local = normalize(JSON.parse(raw));
-  } catch { /* corrupt/unavailable */ }
+    const { data: { user } } = await supabase.auth.getUser();
+    userId = user?.id ?? null;
+  } catch { /* offline: treat as signed out */ }
+
+  const local = readCache(userId);
 
   try {
     const { data: { user } } = await supabase.auth.getUser();
@@ -64,7 +83,7 @@ export async function loadProgress(): Promise<LearnProgress> {
         // RLS hides other users' rows, so an empty remote read is ambiguous:
         // it means either "brand-new account, nothing done yet" or "no row
         // yet". If Supabase has no progression at all, the local copy is the
-        // better answer — otherwise signing in would wipe modules finished
+        // better answer - otherwise signing in would wipe modules finished
         // while signed out.
         const remoteIsEmpty =
           !remote.sections.length && !remote.milestones.length && !remote.certifications.length;
@@ -79,7 +98,7 @@ export async function loadProgress(): Promise<LearnProgress> {
               // not yet synced.
               awards: Array.from(new Set([...remote.awards, ...(local?.awards ?? [])])),
             };
-        cache(merged);
+        cache(merged, userId);
         return merged;
       }
     }
@@ -97,9 +116,10 @@ export async function loadProgress(): Promise<LearnProgress> {
  */
 export async function saveProgress(p: LearnProgress, justEarned: string[] = []): Promise<void> {
   const clean = normalize(p);
-  cache(clean);
   try {
     const { data: { user } } = await supabase.auth.getUser();
+    const userId = user?.id ?? null;
+    cache(clean, userId);
     if (!user) return; // offline / signed out: local copy survives
     await saveLearnState(
       user.id,

@@ -1,4 +1,4 @@
-/* LearnPage.css — Beginner course: docs-style layout plus interactive
+/* LearnPage.css - Beginner course: docs-style layout plus interactive
    story widgets (slider, year ticker, quiz, scenario chart, rules cards). */
 
 .learn-page {
@@ -49,10 +49,25 @@
 .learn-toc {
   position: sticky;
   top: 88px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  /* Cap the rail to the viewport and let it scroll internally. Without this,
+     expanding every tier makes the nav taller than the screen and the lower
+     tiers become unreachable. */
+  max-height: calc(100vh - 88px - 24px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 6px;
+  /* Slim scrollbar so it does not eat the 220px rail. */
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
 }
+
+.learn-toc::-webkit-scrollbar { width: 6px; }
+.learn-toc::-webkit-scrollbar-track { background: transparent; }
+.learn-toc::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 3px;
+}
+.learn-toc::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
 @media (max-width: 900px) {
   .learn-layout { grid-template-columns: 1fr; }
@@ -63,6 +78,8 @@
     gap: 6px;
     padding-bottom: 4px;
     border-bottom: 1px solid var(--border-subtle);
+    max-height: none;
+    overflow: visible;
   }
   .learn-toc-heading { width: 100%; margin-bottom: 2px; }
   .learn-toc-link {
@@ -2042,4 +2059,722 @@
   .learn-herostats { gap: 1.5rem; }
   .learn-tierbanner, .learn-tiergate { padding: 18px; }
   .learn-tierbanner-head { flex-wrap: wrap; }
+}
+
+/* ============================================================
+   Tier II–V module frame: objective, activity, recap
+   (shared parts.tsx building blocks)
+   ============================================================ */
+
+.learn-objective {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  border: 1px dashed color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: 10px;
+  padding: 13px 16px;
+  margin: 0 0 18px;
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+}
+
+.learn-objective-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 5px;
+  padding: 4px 8px;
+  margin-top: 2px;
+}
+
+.learn-objective p {
+  margin: 0 !important;
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: var(--text-primary) !important;
+  max-width: none !important;
+}
+
+/* ---------- QuickCheck activity ---------- */
+.learn-check {
+  border: 1px solid var(--border-subtle);
+  border-left: 3px solid var(--accent);
+  border-radius: 12px;
+  padding: 18px;
+  margin: 18px 0;
+  background: var(--bg-surface);
+  animation: learn-rise 0.35s ease;
+}
+
+.learn-check.is-right { border-left-color: var(--success); }
+.learn-check.is-wrong { border-left-color: var(--error); }
+
+.learn-check-title {
+  font-family: var(--font-mono) !important;
+  font-size: 0.7rem !important;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent) !important;
+  margin: 0 0 8px !important;
+}
+
+.learn-check-prompt {
+  margin: 0 0 14px !important;
+  font-size: 0.94rem !important;
+  color: var(--text-primary) !important;
+  max-width: none !important;
+  line-height: 1.6 !important;
+}
+
+.learn-check-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.learn-check-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  text-align: left;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--text-primary);
+  background: var(--bg-canvas);
+  border: 1px solid var(--border-subtle);
+  border-radius: 9px;
+  padding: 11px 14px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.12s ease;
+}
+
+.learn-check-option:hover:not(:disabled) {
+  border-color: var(--accent);
+  transform: translateX(2px);
+}
+
+.learn-check-option:disabled { cursor: default; opacity: 0.75; }
+
+.learn-check-option.is-answer {
+  border-color: var(--success);
+  background: color-mix(in srgb, var(--success) 9%, transparent);
+  opacity: 1;
+}
+
+.learn-check-option.is-picked-wrong {
+  border-color: var(--error);
+  background: color-mix(in srgb, var(--error) 9%, transparent);
+  opacity: 1;
+}
+
+.learn-check-letter {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--accent);
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  padding: 1px 6px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.learn-check-feedback { margin-top: 14px; }
+.learn-check-feedback .learn-quiz-right,
+.learn-check-feedback .learn-quiz-wrong { margin: 0 0 6px !important; }
+
+.learn-check-explain {
+  margin: 0 0 10px !important;
+  font-size: 0.88rem !important;
+  line-height: 1.65 !important;
+  color: var(--text-muted) !important;
+  max-width: none !important;
+}
+
+.learn-check-again {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  background: none;
+  border: 1px solid var(--border-subtle);
+  border-radius: 7px;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.learn-check-again:hover { color: var(--accent); border-color: var(--accent); }
+
+/* ---------- Recap card (titled variant used by parts.tsx) ---------- */
+/* Deliberately NOT .learn-recap: that class is an existing plain <ul> whose
+   `li::before` already draws a tick. Reusing it doubled the checkmarks. */
+.learn-recapcard {
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 16px 18px;
+  margin: 20px 0 4px;
+  background: var(--bg-surface);
+}
+
+.learn-recapcard-title {
+  font-family: var(--font-mono) !important;
+  font-size: 0.7rem !important;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent) !important;
+  margin: 0 0 10px !important;
+}
+
+.learn-recapcard ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.learn-recapcard li {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--text-primary);
+}
+
+.learn-recapcard-tick {
+  display: inline-flex;
+  color: var(--accent);
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+/* ---------- Module claim card (pending + celebrated states) ---------- */
+.learn-claim {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  text-align: left;
+  margin-top: 22px;
+  padding: 16px 18px;
+  border-radius: 14px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+}
+
+.learn-claim-pending {
+  cursor: pointer;
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  background:
+    linear-gradient(0deg,
+      color-mix(in srgb, var(--accent) 5%, transparent),
+      color-mix(in srgb, var(--accent) 5%, transparent)),
+    var(--bg-surface);
+  transition: border-color 0.16s ease, transform 0.14s ease, box-shadow 0.16s ease;
+}
+
+.learn-claim-pending:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px -14px color-mix(in srgb, var(--accent) 65%, transparent);
+}
+
+.learn-claim-pending:active { transform: translateY(0); }
+
+.learn-claim.is-claimed {
+  border-color: color-mix(in srgb, var(--success) 45%, transparent);
+  background:
+    linear-gradient(0deg,
+      color-mix(in srgb, var(--success) 7%, transparent),
+      color-mix(in srgb, var(--success) 7%, transparent)),
+    var(--bg-surface);
+  animation: learn-rise 0.4s ease;
+}
+
+.learn-claim-badge {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 50px;
+  height: 50px;
+  border-radius: 13px;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.learn-claim.is-claimed .learn-claim-badge {
+  color: var(--success);
+  background: color-mix(in srgb, var(--success) 14%, transparent);
+  border-color: color-mix(in srgb, var(--success) 45%, transparent);
+  animation: badgePop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.learn-claim-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.learn-claim-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0 !important;
+  font-family: var(--font-mono);
+  font-size: 0.64rem !important;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent) !important;
+}
+
+.learn-claim.is-claimed .learn-claim-kicker { color: var(--success) !important; }
+
+.learn-claim-name {
+  margin: 0 !important;
+  font-family: var(--font-heading);
+  font-size: 1.04rem;
+  line-height: 1.3;
+  color: var(--text-primary) !important;
+  max-width: none !important;
+}
+
+.learn-claim-note {
+  margin: 0 !important;
+  font-size: 0.84rem !important;
+  line-height: 1.5 !important;
+  color: var(--text-muted) !important;
+  max-width: none !important;
+}
+
+.learn-claim-cta {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--bg-canvas);
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 9px;
+  padding: 11px 18px;
+  transition: filter 0.15s ease;
+}
+
+.learn-claim-pending:hover .learn-claim-cta { filter: brightness(1.08); }
+
+.learn-claim-next { flex-shrink: 0; margin-top: 0 !important; }
+
+@media (max-width: 640px) {
+  .learn-claim { flex-wrap: wrap; }
+  .learn-claim-cta, .learn-claim-next { width: 100%; justify-content: center; }
+}
+
+/* ============================================================
+   Financial analysis instrument (Tier III module A)
+   ============================================================ */
+
+.learn-fin {
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
+  padding: 20px;
+  margin: 18px 0;
+  background: var(--bg-surface);
+}
+
+.learn-fin-title {
+  font-family: var(--font-heading) !important;
+  font-size: 1.04rem !important;
+  color: var(--text-primary) !important;
+  margin: 0 0 4px !important;
+  max-width: none !important;
+}
+
+.learn-fin-hint {
+  font-size: 0.86rem !important;
+  color: var(--text-muted) !important;
+  margin: 0 0 14px !important;
+  max-width: none !important;
+  line-height: 1.6 !important;
+}
+
+.learn-fin .learn-ordertypes { margin: 0 0 14px; }
+
+.learn-ordertype.is-active {
+  color: var(--bg-canvas);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.learn-fin-chartbox { margin: 0; }
+
+.learn-fin-chart {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.learn-fin-grid {
+  stroke: var(--border-subtle);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+}
+
+.learn-fin-axisline { stroke: var(--border-strong); stroke-width: 1; }
+
+.learn-fin-axis {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  fill: var(--text-muted);
+}
+
+.learn-fin-total {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  fill: var(--text-primary);
+}
+
+.learn-fin-inbar {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  fill: var(--bg-canvas);
+}
+
+.learn-fin-yearlabel {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  fill: var(--text-muted);
+}
+
+.learn-fin-costs { fill: var(--border-strong); opacity: 0.55; }
+.learn-fin-profit { fill: var(--accent); opacity: 0.9; }
+
+.learn-fin-group { transition: opacity 0.18s ease; }
+.learn-fin-group:not(.is-selected) { opacity: 0.55; }
+.learn-fin-group:hover { opacity: 0.9; }
+.learn-fin-group.is-selected { opacity: 1; }
+
+.learn-fin-group.is-selected .learn-fin-yearlabel { fill: var(--accent); font-weight: 700; }
+
+.learn-fin-key {
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+.learn-fin-key-costs { background: var(--border-strong); opacity: 0.7; }
+.learn-fin-key-profit { background: var(--accent); }
+
+/* ---------- Spread visualiser (Tier II module B) ---------- */
+.learn-spreadviz {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  margin: 6px 0 4px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.learn-spread-side {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 14px 10px;
+  background: var(--bg-canvas);
+}
+
+.learn-spread-side.is-bid { border-right: 1px solid var(--border-subtle); }
+.learn-spread-side.is-ask { border-left: 1px solid var(--border-subtle); }
+
+.learn-spread-tag {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.learn-spread-price {
+  font-family: var(--font-mono);
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.learn-spread-side.is-bid .learn-spread-price { color: var(--success); }
+.learn-spread-side.is-ask .learn-spread-price { color: var(--error); }
+
+.learn-spread-role { font-size: 0.72rem; color: var(--text-muted); }
+
+.learn-spread-gap {
+  flex: 1;
+  min-width: 56px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 10px 6px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-left: 1px dashed color-mix(in srgb, var(--accent) 45%, transparent);
+  border-right: 1px dashed color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.learn-spread-amount {
+  font-family: var(--font-mono);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.learn-spread-caption {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  color: var(--accent);
+  text-align: center;
+}
+
+/* ---------- Order book ladder (Tier II module C) ---------- */
+.learn-book {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin: 4px 0 6px;
+}
+
+@media (max-width: 640px) { .learn-book { grid-template-columns: 1fr; } }
+
+.learn-book-col {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.learn-book-head {
+  font-family: var(--font-mono) !important;
+  font-size: 0.64rem !important;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted) !important;
+  margin: 0 0 3px !important;
+}
+
+.learn-book-level {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 7px;
+  background: var(--bg-canvas);
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+
+.learn-book-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  transition: width 0.25s ease;
+}
+
+.learn-book-fill.is-ask { background: color-mix(in srgb, var(--error) 26%, transparent); }
+.learn-book-fill.is-bid { background: color-mix(in srgb, var(--success) 22%, transparent); }
+
+.learn-book-level.is-consumed { border-color: var(--accent); }
+
+.learn-book-price {
+  position: relative;
+  font-weight: 600;
+  color: var(--text-primary);
+  min-width: 54px;
+}
+
+.learn-book-level.is-ask .learn-book-price { color: var(--error); }
+.learn-book-level.is-bid .learn-book-price { color: var(--success); }
+
+.learn-book-shares {
+  position: relative;
+  flex: 1;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-align: right;
+}
+
+.learn-book-bar {
+  position: relative;
+  height: 7px;
+  border-radius: 4px;
+  background: var(--border-strong);
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
+/* ---------- RSI gauge (Tier III module C) ---------- */
+.learn-rsigauge { margin: 8px 0 6px; }
+
+.learn-rsitrack {
+  position: relative;
+  display: flex;
+  height: 26px;
+  border-radius: 7px;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+}
+
+.learn-rsi-zone.is-oversold { background: color-mix(in srgb, var(--success) 26%, transparent); }
+.learn-rsi-zone.is-neutral { background: color-mix(in srgb, var(--border-strong) 45%, transparent); }
+.learn-rsi-zone.is-overbought { background: color-mix(in srgb, var(--error) 26%, transparent); }
+
+.learn-rsimarker {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 3px;
+  background: var(--accent);
+  border-radius: 2px;
+  transform: translateX(-50%);
+  transition: left 0.22s ease;
+}
+
+.learn-rsimarker em {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-style: normal;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--bg-surface);
+  border: 1px solid var(--accent);
+  border-radius: 5px;
+  padding: 1px 6px;
+}
+
+.learn-rsiscale {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  color: var(--text-muted);
+}
+
+/* ---------- Overfitting fit bars (Tier IV module B) ---------- */
+.learn-fitbars { display: flex; flex-direction: column; gap: 12px; margin: 6px 0 4px; }
+
+.learn-fitbar { display: flex; flex-direction: column; gap: 5px; }
+
+.learn-fitbar-label {
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.learn-fitbar-track {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 30px;
+  background: var(--bg-canvas);
+  border: 1px solid var(--border-subtle);
+  border-radius: 7px;
+  overflow: hidden;
+}
+
+.learn-fitbar-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  transition: width 0.2s ease;
+}
+
+.learn-fitbar-fill.is-in { background: color-mix(in srgb, var(--accent) 34%, transparent); }
+.learn-fitbar-fill.is-out { background: color-mix(in srgb, var(--success) 30%, transparent); }
+.learn-fitbar-fill.is-out.is-bad { background: color-mix(in srgb, var(--error) 34%, transparent); }
+
+.learn-fitbar-val {
+  position: relative;
+  margin-left: auto;
+  padding: 0 12px;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* ---------- Bias audit (Tier IV module C) ---------- */
+.learn-audit { display: flex; flex-direction: column; gap: 16px; margin: 16px 0; }
+
+.learn-auditcase {
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 16px;
+  background: var(--bg-surface);
+}
+
+.learn-auditcase-story {
+  margin: 0 0 12px !important;
+  font-size: 0.9rem !important;
+  line-height: 1.65 !important;
+  color: var(--text-primary) !important;
+  max-width: none !important;
+}
+
+.learn-auditscore {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: 12px;
+  padding: 15px 18px;
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+.learn-auditscore > svg { color: var(--accent); flex-shrink: 0; }
+.learn-auditscore > span { flex: 1; min-width: 200px; font-size: 0.9rem; color: var(--text-primary); }
+
+/* ---------- Allocation dots (Tier V module C) ---------- */
+.learn-dots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 10px 0 4px;
+  padding: 12px;
+  background: var(--bg-canvas);
+  border: 1px solid var(--border-subtle);
+  border-radius: 9px;
+}
+
+.learn-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0.7;
 }
