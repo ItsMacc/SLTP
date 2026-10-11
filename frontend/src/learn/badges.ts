@@ -11,8 +11,9 @@
 
 import {
   Activity, ArrowLeftRight, Award, Binary, BookOpen, Building2, ChartCandlestick,
-  FlaskConical, Gauge, Gem, Layers, Medal, Receipt, Scale, ShieldAlert,
-  ShieldCheck, Sparkles, TrendingUp, Trophy, type LucideIcon,
+  ClipboardList, Compass, FlaskConical, Gauge, Gem, Layers, LineChart, Medal,
+  Receipt, Scale, ShieldAlert, ShieldCheck, Sparkles, TrendingUp, Trophy,
+  type LucideIcon,
 } from 'lucide-react';
 
 export type TrophyMetal = 'bronze' | 'silver' | 'gold' | 'emerald' | 'diamond';
@@ -40,11 +41,14 @@ export const SECTION_BADGES: Record<string, { name: string; icon: LucideIcon }> 
   't2-spreads': { name: 'Spread Whisperer', icon: Layers },
   't2-orderbook': { name: 'Book Diver', icon: BookOpen },
   // Tier III - signals
+  't3-style': { name: 'Style Scout', icon: Compass },
+  't3-index': { name: 'Benchmark Reader', icon: LineChart },
   math: { name: 'Rule Architect', icon: Binary },
   't3-indicators': { name: 'Trend Tracker', icon: Activity },
   't3-oscillators': { name: 'Momentum Meter', icon: Gauge },
   // Tier IV - validation
   testing: { name: 'Skeptic', icon: FlaskConical },
+  't4-walkthrough': { name: 'Report Reader', icon: ClipboardList },
   't4-sandbox': { name: 'Overfit Buster', icon: ShieldAlert },
   't4-audit': { name: 'Bias Auditor', icon: ShieldCheck },
   // Tier V - portfolio

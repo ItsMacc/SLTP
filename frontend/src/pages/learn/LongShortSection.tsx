@@ -70,7 +70,7 @@ export default function LongShortSection({ onComplete, onCredentials }: Props) {
             Almost everything you have learned so far is one side of the trade:
             <strong> you buy first</strong>. You pay $100 today because you believe the
             stock will be worth more later. Nothing is borrowed, nothing is owed. Your
-            risk is bounded, the worst case is the company going to zero, and you would
+            risk is bounded: the worst case is the company going to zero, and you would
             lose your $100.
           </p>
           <div className="learn-factrow">
@@ -89,7 +89,7 @@ export default function LongShortSection({ onComplete, onCredentials }: Props) {
           </div>
           <Narrator icon={TrendingUp}>
             Buy first, sell later at a higher price. That is a <strong>long</strong> position,
-            and it is how every strategy on SLTP works. You are betting the price goes UP.
+            and it is how every strategy on SLTP works. You are betting the price goes up.
           </Narrator>
           <Continue onClick={() => advance(1)} label="Now the other side" />
         </div>
@@ -110,7 +110,7 @@ export default function LongShortSection({ onComplete, onCredentials }: Props) {
             You do the steps in reverse order. You <strong>sell first</strong>, but you
             do not own any shares. So you borrow one. Conceptually, you hand a share to
             someone who wants to buy right now and collect their $100. Now
-            <strong> you owe that share back</strong>, sort of like a loan of stock.
+            <strong> you owe that share back</strong>, like any loan.
           </p>
           <div className="learn-factrow">
             <div className="learn-fact">
@@ -127,9 +127,9 @@ export default function LongShortSection({ onComplete, onCredentials }: Props) {
             </div>
           </div>
           <Narrator icon={TrendingDown}>
-            You have not made or lost anything yet. You are holding $100 of someone
-            else's money and a debt of one share that must be returned
-            <strong> the shares, not the cash, are what you owe back</strong>.
+            You have not made or lost anything yet. You are holding $100 in cash
+            and carrying a debt of one share.{' '}
+            <strong>The shares, not the cash, are what you owe back</strong>.
           </Narrator>
           <Continue onClick={() => advance(2)} label="Watch the price drop" />
         </div>
@@ -200,10 +200,10 @@ export default function LongShortSection({ onComplete, onCredentials }: Props) {
           {shortProfit < 0 && (
             <Narrator icon={TrendingUp}>
               The price went <strong>up</strong> to ${exitPrice} instead. You still owe
-              the share, so you had to buy it back for <strong>${exitPrice}</strong>
-              losing <strong>${Math.abs(shortProfit)}</strong>. Notice the cruel
-              symmetry: you sold at $100 and the bill had no ceiling. This is why SLTP
-              strategies never short: they only ever buy first.
+              the share, so you had to buy it back for <strong>${exitPrice}</strong>,
+              losing <strong>${Math.abs(shortProfit)}</strong>. Notice the asymmetry:
+              a short's profit is capped at $100, but its loss has no ceiling. This is
+              why SLTP strategies never short: they only ever buy first.
             </Narrator>
           )}
           <Continue onClick={() => advance(3)} label="Compare both sides" />
@@ -249,7 +249,7 @@ export default function LongShortSection({ onComplete, onCredentials }: Props) {
             SLTP strategies are long-only: every signal buys first and sells later. You
             will rarely short anything here, but knowing the mechanism explains a lot of
             market language, like why a stock that keeps climbing can inflict unlimited
-            pain on short sellers and trigger a <strong>short squeeze</strong>.
+            losses on short sellers and trigger a <strong>short squeeze</strong>.
           </Narrator>
           {!ack ? (
             <Continue

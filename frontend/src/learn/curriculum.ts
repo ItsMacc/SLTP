@@ -158,10 +158,13 @@ export const TIERS: Tier[] = [
       'Bridge raw price action to objective mathematical rules, moving from subjective chart reading to programmatic logic.',
     certification: 'Algorithmic Signal Architect',
     sections: [
-      { id: 'math', num: 'A', label: 'How strategies are made', content: true },
-      { id: 't3-indicators', num: 'B', label: 'Trend indicators: SMA & EMA', content: true },
+      { id: 't3-style', num: 'A', label: 'Trading vs. investing', content: true },
+      { id: 't3-index', num: 'B', label: 'Indexes & benchmarks', content: true },
+      { id: 'math', num: 'C', label: 'How strategies are made', content: true },
+      { id: 't3-indicators', num: 'D', label: 'Trend indicators: SMA & EMA', content: true },
     ],
     milestones: [
+      { id: 't3-foundations', name: 'Market Perspective Badge', sections: ['t3-style', 't3-index'] },
       { id: 't3-rules', name: 'Signal Logic Badge', sections: ['math'] },
       { id: 't3-calibration', name: 'Indicator Calibration Credential', sections: ['t3-indicators'] },
     ],
@@ -214,9 +217,11 @@ export const TIERS: Tier[] = [
     certification: 'Quantitative Validation Specialist',
     sections: [
       { id: 'testing', num: 'A', label: 'Testing a strategy', content: true },
+      { id: 't4-walkthrough', num: 'B', label: 'Reading a real backtest', content: true },
     ],
     milestones: [
       { id: 't4-integrity', name: 'Backtest Integrity Credential', sections: ['testing'] },
+      { id: 't4-evidence', name: 'Evidence Reader Badge', sections: ['t4-walkthrough'] },
     ],
     gate: [
       {

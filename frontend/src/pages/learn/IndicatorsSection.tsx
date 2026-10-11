@@ -74,9 +74,9 @@ export function IndicatorsSection() {
   const gap = lastAvg !== null ? +(last - lastAvg).toFixed(2) : null;
 
   const character =
-    window <= 8 ? 'Fast and twitchy. It follows the price closely, but it also reacts to noise.'
-      : window <= 20 ? 'Balanced. Smooth enough to ignore daily jitter, quick enough to catch a real turn.'
-        : 'Smooth and slow. It ignores almost all noise, but it will be late telling you the trend changed.';
+    window <= 8 ? 'Fast. It follows the price closely and reacts to nearly every bit of noise.'
+      : window <= 20 ? 'Balanced. Smooth enough to filter daily noise, quick enough to catch a real turn.'
+        : 'Smooth and slow. It filters almost all noise, but it is late to report a change in trend.';
 
   return (
     <div>
@@ -95,7 +95,7 @@ export function IndicatorsSection() {
       <p>
         If the last ten closes were 100, 102, 99, 101, 103, 100, 104, 102, 101, 105,
         your 10 day average sits at 101.7. Tomorrow it drops the oldest number and
-        adds the newest, so the line moves. That is the entire idea.
+        adds the newest, so the line moves. That is the whole idea.
       </p>
 
       <div className="learn-rules">
@@ -211,7 +211,7 @@ export function IndicatorsSection() {
       </Narrator>
 
       <p>
-        One thing worth being honest about: the moving average is late by design.
+        One thing worth being clear about: the moving average is late by design.
         It needs several days before it can confirm anything, so you will always
         enter after the move has started. That is the price of not guessing, and
         it is the whole trade: you give up the first part of the move to avoid
@@ -221,12 +221,12 @@ export function IndicatorsSection() {
       <p>
         <strong>There are many more technical indicators</strong>: momentum gauges,
         range measures, volume measures, band widths. But every one of them is the
-        same maths you just did, run over the same five numbers a data feed gives
-        you for each day. Those are <strong>OHLCV</strong>: the{' '}
+        same arithmetic you just did, run over the same five numbers a data feed
+        gives you for each day. Those are <strong>OHLCV</strong>: the{' '}
         <strong>O</strong>pen, the <strong>H</strong>igh, the <strong>L</strong>ow,
-        the <strong>C</strong>lose, and the <strong>V</strong>olume. Learn to
+        the        <strong>C</strong>lose, and the <strong>V</strong>olume. Learn to
         average, sum, compare and take ratios of those five columns and you can
-        read any indicator chart anyone shows you.
+        read any indicator chart you are shown.
       </p>
 
       <Recap points={[

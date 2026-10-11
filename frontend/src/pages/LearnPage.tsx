@@ -14,9 +14,12 @@ import { TIERS } from '../learn/curriculum';
 import { badgeFor } from '../learn/badges';
 import LongShortSection from './learn/LongShortSection';
 import { OrderBookSection, SpreadsSection } from './learn/Tier2Sections';
+import { IndexSection, TradingVsInvestingSection } from './learn/Tier3Basics';
 import { IndicatorsSection } from './learn/IndicatorsSection';
+import { BacktestWalkthroughSection } from './learn/BacktestWalkthrough';
 import { AllocationSection, MetricsSection } from './learn/Tier5Sections';
-import { Objective, Recap } from './learn/parts';
+import { Objective, Recap, SectionQuiz } from './learn/parts';
+import { MODULE_QUIZZES } from '../learn/moduleQuizzes';
 import RewardToast from './learn/RewardToast';
 import { BadgeShelf, TierBanner, TierGate, TierNav } from './learn/LearnShell';
 import { useActiveSection } from '../learn/useActiveSection';
@@ -1030,13 +1033,14 @@ function MathSection() {
     <div>
       <Objective>
         By the end of this module you will be able to name the two schools every
-        strategy is built from, read four years of a company’s books without an
-        accountant, and state the three jobs any strategy must do.
+        strategy is built from, summarise a company’s finances from four numbers,
+        and state the three jobs any strategy must do.
       </Objective>
       <p>
-        You can now read a chart and judge single days. The next question is the big one:
-        how does anyone decide what to buy? Not by feeling. By writing rules down. And
-        those rules come from one of two places, sometimes both.
+        You can now read a chart and judge single days. The next question is the
+        most important one: how does anyone decide what to buy? Not by feeling. By
+        writing rules down. And those rules come from one of two places, sometimes
+        both.
       </p>
 
       <div className="learn-school">
@@ -1164,9 +1168,9 @@ function RiskSection() {
       </Objective>
       <p>
         The rules so far decide <em>what</em> to buy. None of them answer the question
-        that separates surviving traders from finished ones: <strong>when do you get
-        out, and how much do you bet?</strong> The best way to understand this is to make
-        the decisions yourself, with real numbers.
+        that separates traders who survive from those who do not: <strong>when do you get
+        out, and how much do you bet?</strong> The clearest way to understand this is to
+        make the decisions yourself, with real numbers.
       </p>
       <Narrator>
         The setup: you bought 1 share of a stock at <Money value={entry} />. It is a
@@ -1571,7 +1575,10 @@ export default function LearnPage({ onNavigate }: LearnPageProps) {
       case 'testing': return <TestingSection />;
       case 't2-spreads': return <SpreadsSection />;
       case 't2-orderbook': return <OrderBookSection />;
+      case 't3-style': return <TradingVsInvestingSection />;
+      case 't3-index': return <IndexSection />;
       case 't3-indicators': return <IndicatorsSection />;
+      case 't4-walkthrough': return <BacktestWalkthroughSection />;
       case 't5-metrics': return <MetricsSection />;
       case 't5-allocation': return <AllocationSection />;
       default: return null;
@@ -1581,13 +1588,14 @@ export default function LearnPage({ onNavigate }: LearnPageProps) {
   return (
     <div className="learn-page">
       <div className="learn-hero">
-        <p className="learn-kicker">Absolute beginner? No worries. Start here.</p>
+        <p className="learn-kicker">New to the stock market? Start here.</p>
         <h1 className="learn-title">The stock market, from zero.</h1>
         <p className="learn-sub">
           Five tiers, unlocked one at a time. Each tier opens with a single module, and the
           next one appears only when you finish the last, so there is always exactly one
-          thing to do. Complete a module, collect its badge; pass a tier's pop quiz, take
-          the trophy.
+          thing to do. Finish a module to claim its badge, and pass a tier's quiz to earn
+          its certificate. Every module also ends with an optional quiz if you want to
+          check yourself.
         </p>
         <div className="learn-herostats">
           <div className="learn-herostat">
@@ -1650,7 +1658,7 @@ export default function LearnPage({ onNavigate }: LearnPageProps) {
             </div>
             <p>
               Everything you have earned, saved to your account. Badges come from finishing
-              a module; trophies come from passing a tier's pop quiz.
+              a module; trophies come from passing a tier's quiz.
             </p>
             <BadgeShelf learn={learn} />
           </section>
@@ -1681,6 +1689,7 @@ export default function LearnPage({ onNavigate }: LearnPageProps) {
                         </div>
                       </div>
                       {moduleFor(s.id)}
+                      <SectionQuiz questions={MODULE_QUIZZES[s.id] ?? []} />
                       {s.id !== 'long-short' && (
                         <ModuleComplete
                           sectionId={s.id}

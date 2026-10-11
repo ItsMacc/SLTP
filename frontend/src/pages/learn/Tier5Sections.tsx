@@ -48,12 +48,12 @@ export function MetricsSection() {
     .join(' ');
 
   const verdict = sharpe >= 1.5
-    ? 'Genuinely efficient. High return relative to the ride.'
+    ? 'Efficient: a strong return for the ride it takes.'
     : sharpe >= 0.8
-      ? 'Solid. The return is worth the roughness.'
+      ? 'Reasonable: the return is worth the roughness.'
       : sharpe >= 0.4
-        ? 'The same return could have been earned with far less pain.'
-        : 'Return is being bought with risk rather than skill.';
+        ? 'The same return could have been earned with far less disruption.'
+        : 'The return is being bought with risk rather than earned with skill.';
 
   return (
     <div>
@@ -72,7 +72,7 @@ export function MetricsSection() {
       <div className="learn-rules">
         <div className="learn-rule">
           <span className="learn-rule-num">1</span>
-          <p><strong>Return.</strong> The yearly growth your money earned. Necessary, but the least informative number on its own.</p>
+          <p><strong>Return.</strong> The yearly growth your money earned. Necessary, but the least informative number on its own. Two strategies with equal returns can still be very different investments.</p>
         </div>
         <div className="learn-rule">
           <span className="learn-rule-num">2</span>
@@ -111,8 +111,8 @@ export function MetricsSection() {
             aria-label="Strategy B volatility percentage"
           />
           <div className="learn-slider-scale">
-            <span>2 percent, a staircase</span>
-            <span>40 percent, a rollercoaster</span>
+            <span>2 percent, nearly a straight line</span>
+            <span>40 percent, a wild ride</span>
           </div>
         </div>
 
@@ -129,8 +129,8 @@ export function MetricsSection() {
           </svg>
           <span className="learn-minichart-caption">
             Five years of the same 12 percent annual return, drawn with the
-            volatility you picked. The end point barely moves. The ride does all
-            the work.
+            volatility you picked. The end point barely moves. The path to it is
+            the only thing that changes.
           </span>
         </div>
 
@@ -168,14 +168,14 @@ export function MetricsSection() {
       <p>
         This is why the Performance page ranks systems{' '}
         <GlossaryText text="risk-adjusted" glossary={G} /> rather than by raw
-        return. Two identical 12 percent returns, one earned calmly and one earned
-        while being thrown around, are not the same investment, and a table that
-        cannot tell them apart is not measuring what matters.
+        return. Two identical 12 percent returns, one earned steadily and one
+        earned through violent swings, are not the same investment, and a table
+        that cannot tell them apart is not measuring what matters.
       </p>
 
       <Recap points={[
         <>Raw return is not a verdict. <GlossaryText text="Risk-adjusted" glossary={G} /> performance is.</>,
-        <><GlossaryText text="Sharpe ratio" glossary={G} /> is return divided by volatility: what you earn per unit of pain.</>,
+        <><GlossaryText text="Sharpe ratio" glossary={G} /> is return divided by volatility: what you earn per unit of risk.</>,
         <><GlossaryText text="Drawdown" glossary={G} /> is peak to trough. Max drawdown is the worst you would have endured.</>,
         <>Sortino counts only downside movement, so it rewards steady climbers.</>,
       ]} />
@@ -276,9 +276,9 @@ export function AllocationSection() {
 
       <Narrator icon={PieChart}>
         Notice that the bankruptcy did not get smaller. You lost the whole of
-        that one company every single time. What changed is how much of your life
-        was sitting in it. This is why the phrase is &ldquo;do not put all your
-        eggs in one basket&rdquo;, and it is the same idea behind{' '}
+        that one company every single time. What changed is how much of your
+        account was sitting in it. This is why the phrase is &ldquo;do not put all
+        your eggs in one basket&rdquo;, and it is the same idea behind{' '}
         <GlossaryText text=" diversification" glossary={G} />.
       </Narrator>
 
@@ -286,21 +286,22 @@ export function AllocationSection() {
         Say you pick three companies with <Money value={STARTING} decimals={0} />.
         Each one gets about $333. When one fails you lose $333 and you are left
         with $667 and a running account. Nothing dramatic happened, and that is
-        the point. A single bad outcome stops being the thing that decides
+        the point. A single bad outcome stops being the event that decides
         whether you are still in the game.
       </p>
       <p>
         The cost is real, and it is worth naming honestly. With 20 companies your
         best idea moves your account 5 percent when it doubles, instead of 100
         percent. You are trading upside for survival. If your plan is to still be
-        trading next year, that is a good trade. If your plan is to make your one
-        great pick carry the year, it is not.
+        trading next year, that is a good trade. If the plan depends on one great
+        pick carrying the year, it is not.
       </p>
       <p>
         One last thing. Twenty companies only helps if they are not really the same
-        bet. Twenty technology stocks are one position wearing twenty costumes.
-        Real diversification means different sectors and different kinds of risk,
-        so one bad month for the whole sector cannot take everything at once.
+        bet. Twenty technology stocks still tend to fall together, which makes
+        them closer to one position than twenty. Real diversification means
+        different sectors and different kinds of risk, so one bad month for a
+        single industry cannot take everything at once.
       </p>
 
       <Recap points={[

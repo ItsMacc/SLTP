@@ -77,9 +77,9 @@ export function SpreadsSection() {
 
       <p>
         Module A showed both sides of a trade. This module is about what the trip
-        itself costs. Ask any broker what a trade costs and you will hear
-        “commission: zero.” True, and misleading. There is a second fee, built
-        into the price, that nobody quotes you.
+        itself costs. Brokers advertise zero commission, which is true but
+        incomplete. There is a second cost, built into the price itself, that
+        nobody itemises.
       </p>
       <p>
         Every stock carries <strong>two</strong> prices at any moment, not one:
@@ -175,11 +175,11 @@ export function SpreadsSection() {
         available gets to set the price.
       </p>
       <p>
-        The lesson for a long-term investor is mild. A few cents rarely matters
+        The lesson for a long-term investor is mild. A few cents rarely matter
         if you hold for years. The lesson for anyone trading frequently is
-        brutal: a 30-cent spread crossed on every entry and exit quietly eats
-        returns that the backtest never charged for. Later tiers will show that
-        fees are the first thing an honest <GlossaryText text="backtest" glossary={G} /> includes.
+        severe: a 30-cent spread crossed on every entry and exit eats into
+        returns that a backtest may never have charged for. Later tiers show
+        that costs are the first thing an honest <GlossaryText text="backtest" glossary={G} /> includes.
       </p>
 
 
@@ -270,13 +270,13 @@ export function OrderBookSection() {
 
       <p>
         The spread you just met has a home: the <GlossaryText text="order book" glossary={G} />.
-        It is the live, public list of every resting order waiting to be filled. The
+        It is the live, public list of every resting order waiting to be filled:
         all the bids stacked on one side, all the asks stacked on the other,
         each level showing a price and how many shares wait there.
       </p>
       <p>
-        Here is the part beginners never suspect: the quoted ask is only the
-        <em> first</em> slice. Someone offering 100 shares at $8.72 will happily
+        One detail is easy to miss: the quoted ask is only the{' '}
+        <em>first</em> slice. Someone offering 100 shares at $8.72 will happily
         sell you 100 and no more. Want 500? The market must keep climbing its
         ladder to find the rest, and every extra rung costs more.
       </p>
@@ -381,7 +381,7 @@ export function OrderBookSection() {
 
       <p>
         This is the mechanical root of <GlossaryText text="slippage" glossary={G} />, the term
-        every performance table quietly carries. A strategy that trades often in
+        every performance table carries. A strategy that trades often in
         thin names accumulates slippage on every fill, and a backtest that
         assumes it always gets the quoted price is overstating results before the
         first real trade settles.

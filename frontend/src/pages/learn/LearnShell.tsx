@@ -227,12 +227,12 @@ export function TierBanner({ tier, learn, index, id }: {
   );
 }
 
-/** End-of-tier pop quiz, rendered right after the tier's last module. */
+/** End-of-tier certification quiz, rendered right after the tier's last module. */
 export function TierGate({ tier, learn }: { tier: Tier; learn: LearnApi }) {
   return (
     <div className="learn-tiergate">
       <p className="learn-tiergate-kicker">
-        <Sparkles size={14} /> Tier {tier.roman} pop quiz
+        <Sparkles size={14} /> Tier {tier.roman} certification quiz
       </p>
       <div id={`gate-${tier.id}`}>
         <GateQuiz tier={tier} learn={learn} />
