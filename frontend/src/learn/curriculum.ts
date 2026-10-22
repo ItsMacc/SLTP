@@ -1,4 +1,4 @@
-// curriculum.ts - Five-tier quant-literacy curriculum: tiers, modules,
+// curriculum.ts — Five-tier quant-literacy curriculum: tiers, modules,
 // competency milestones (badges), tier certifications (trophies), and the
 // formative validation gates that separate them.
 //
@@ -46,7 +46,7 @@ export const TIERS: Tier[] = [
     roman: 'I',
     title: 'Foundational Market Mechanics & Price Action',
     objective:
-      'Establish baseline mental models of how value is represented, traded, and visualized over time.',
+      'Cover the basics: what a share is, why its price moves, how a trade happens, and how to read a price chart.',
     certification: 'Foundational Market Practitioner',
     sections: [
       { id: 'stocks', num: 'A', label: 'Understanding stocks', content: true },
@@ -104,7 +104,7 @@ export const TIERS: Tier[] = [
     roman: 'II',
     title: 'Market Microstructure & Order Dynamics',
     objective:
-      'Demystify execution friction: how bid-ask spreads, liquidity, slippage and short selling shape what you actually pay.',
+      'Show what trading actually costs: the spread you cross, the liquidity behind it, the slippage it causes, and how a short works.',
     certification: 'Market Microstructure Analyst',
     sections: [
       { id: 'long-short', num: 'A', label: 'Long vs. short: betting both ways', content: true },
@@ -155,7 +155,7 @@ export const TIERS: Tier[] = [
     roman: 'III',
     title: 'Technical Indicators & Signal Generation',
     objective:
-      'Bridge raw price action to objective mathematical rules, moving from subjective chart reading to programmatic logic.',
+      'Turn price reading into written rules: what a strategy decides, which indicators it uses, and how a computer applies them.',
     certification: 'Algorithmic Signal Architect',
     sections: [
       { id: 't3-style', num: 'A', label: 'Trading vs. investing', content: true },
@@ -213,7 +213,7 @@ export const TIERS: Tier[] = [
     roman: 'IV',
     title: 'Quantitative Validation & Backtesting',
     objective:
-      'Instill methodological skepticism toward historical performance data and teach rigorous validation standards.',
+      'Show how to test a strategy without fooling yourself, and how to read a backtest for the mistakes that flatter it.',
     certification: 'Quantitative Validation Specialist',
     sections: [
       { id: 'testing', num: 'A', label: 'Testing a strategy', content: true },
@@ -258,7 +258,7 @@ export const TIERS: Tier[] = [
     roman: 'V',
     title: 'Execution & Portfolio Construction',
     objective:
-      'Equip users with institutional vocabulary and metrics necessary to evaluate automated systems independently.',
+      'Understand the vocabulary and the metrics needed to judge a strategy on its own terms.',
     certification: 'Systematic Portfolio Strategist',
     sections: [
       { id: 'risk', num: 'A', label: 'Risk management', content: true },

@@ -7,7 +7,7 @@ import TradeResults, { type TradeRecord } from './TradeResults'
 import DatePicker from '../ui/DatePicker'
 import ErrorToast from '../ui/ErrorToast'
 import StrategyGuide from './StrategyGuide'
-import { Loader } from '../ui/Loader'
+import { LoaderRow, LoaderScreen } from '../ui/Loader'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 
@@ -68,6 +68,8 @@ const formatMetricValue = (val: any): string => {
 
 export default function StrategyChart() {
   const [strategies, setStrategies] = useState<StrategyOption[]>([])
+  // The strategy library is read from the store on mount.
+  const [strategiesLoading, setStrategiesLoading] = useState(true)
   const [selectedStrategy, setSelectedStrategy] = useState<string>('')
   const [startDate, setStartDate] = useState<string>('')
   const [endDate, setEndDate] = useState<string>('')
@@ -104,6 +106,9 @@ export default function StrategyChart() {
             { id: 'stock-health-filter', name: 'Stock Health Filter' },
           ])
         }
+      })
+      .finally(() => {
+        if (!cancelled) setStrategiesLoading(false)
       })
 
     return () => {
@@ -369,20 +374,37 @@ export default function StrategyChart() {
             placeholder="Select end date"
           />
 
-          <button type="submit" className="run-strategy-btn" disabled={loading}>
+          <button type="submit" className="run-strategy-btn" disabled={loading || strategiesLoading}>
             {loading ? 'Running...' : 'Run Analysis'}
           </button>
         </form>
+
+        {/* The strategy library is read on mount: the stock line says it is
+            still on its way. */}
+        {strategiesLoading && (
+          <p className="strategy-loading">
+            <LoaderRow label="Loading the strategy library…" />
+          </p>
+        )}
       </div>
 
       {loading && (
-        <Loader
+        <LoaderScreen
           label={`Running ${strategies.find((s) => s.id === selectedStrategy)?.name || 'strategy'}…`}
           sub="Simulating the backtest engine over your date range — this can take a moment."
         />
       )}
 
-      {!loading && !error && !backtestResult && (
+      {/* While the library is still being read there is nothing to run yet, so
+          the results area carries the loading screen. */}
+      {!loading && !error && !backtestResult && strategiesLoading && (
+        <LoaderScreen
+          label="Loading strategies…"
+          sub="Fetching the list of published strategies from the server."
+        />
+      )}
+
+      {!loading && !error && !backtestResult && !strategiesLoading && (
         <div className="empty-state">
           <p className="empty-state-title">No Strategy Selected</p>
           <p className="empty-state-body">

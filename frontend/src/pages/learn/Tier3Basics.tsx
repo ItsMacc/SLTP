@@ -1,4 +1,4 @@
-// Tier3Basics.tsx - Tier III modules A and B: the groundwork before rules.
+// Tier3Basics.tsx — Tier III modules A and B: the groundwork before rules.
 //
 // Module A (trading vs. investing): two different ways to profit from shares,
 //   judged on different time horizons. Sets expectations for what this

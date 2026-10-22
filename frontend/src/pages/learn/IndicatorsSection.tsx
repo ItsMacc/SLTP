@@ -1,4 +1,4 @@
-// IndicatorsSection.tsx - Tier III module B: trend indicators.
+// IndicatorsSection.tsx — Tier III module B: trend indicators.
 //
 // One idea, shown properly: a moving average is an averaging window dragged
 // along price. The slider shows the only real decision you make with it, the

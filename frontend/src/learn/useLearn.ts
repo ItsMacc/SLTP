@@ -1,4 +1,4 @@
-// useLearn.ts - One hook that joins curriculum (what exists) with
+// useLearn.ts — One hook that joins curriculum (what exists) with
 // progress (what's done): load/save, section completion, milestone
 // evaluation, and the certification gate.
 //
@@ -32,6 +32,12 @@ export interface Earned {
 export function useLearn() {
   const [progress, setProgress] = useState<LearnProgress>({ sections: [], milestones: [], certifications: [], awards: [] });
   const [loading, setLoading] = useState(true);
+  // True while a progress write is still in flight, so the page can show the
+  // stock loader instead of pretending the badge is already stored.
+  const [saving, setSaving] = useState(false);
+  // How many writes are still open: two badges earned in a row must not
+  // clear the flag while the first write is still running.
+  const pendingWrites = useRef(0);
   // Awards raised by this session, shown one at a time by the toast host.
   // The backlog lives in a ref and is drained by dismissToast, so showing the
   // next award is driven by the click that closed the previous one.
@@ -78,7 +84,12 @@ export function useLearn() {
    */
   const commit = useCallback((next: LearnProgress, justEarned: string[] = []) => {
     setProgress(next);
-    void saveProgress(next, justEarned);
+    pendingWrites.current += 1;
+    setSaving(true);
+    void saveProgress(next, justEarned).finally(() => {
+      pendingWrites.current -= 1;
+      if (pendingWrites.current <= 0) setSaving(false);
+    });
   }, []);
 
   /** Tier unlocks when it's first, or the tier above it is certified. */
@@ -198,6 +209,7 @@ export function useLearn() {
 
   return {
     loading,
+    saving,
     progress,
     toast,
     dismissToast,

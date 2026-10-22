@@ -1,3 +1,5 @@
+// supabase.ts — The browser Supabase client. The anon key is public by
+// design; row-level security in Supabase is what protects the data.
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://jqyqfkrzwimxuzugyuiw.supabase.co';

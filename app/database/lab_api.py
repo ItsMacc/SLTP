@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.auth import get_current_user
 from app.database import turso
@@ -42,14 +42,14 @@ def _clean_name(value: str, label: str) -> str:
 
 
 class CreateWorkspaceIn(BaseModel):
-    workspace_name: str
-    project_name: str
-    template: str = "blank"
+    workspace_name: str = Field(description="Name of the workspace that will hold the project.")
+    project_name: str = Field(description="Name of the first project inside the workspace.")
+    template: str = Field(default="blank", description="Project template to start from.")
 
 
 class CreateProjectIn(BaseModel):
-    name: str
-    template: str = "blank"
+    name: str = Field(description="Name of the new project.")
+    template: str = Field(default="blank", description="Project template to start from.")
 
 
 # -------- Files --------
@@ -220,19 +220,19 @@ async def _owned_project(project_id: str, user_id: str) -> dict[str, Any]:
 
 
 class CreateFileIn(BaseModel):
-    name: str
+    name: str = Field(description="File name, including its extension.")
 
 
 class SaveFileIn(BaseModel):
-    content: str
+    content: str = Field(description="Full text of the file as it should be stored.")
 
 
 class CreateFolderIn(BaseModel):
-    name: str
+    name: str = Field(description="Name of the new folder.")
 
 
 class NameIn(BaseModel):
-    name: str
+    name: str = Field(description="New name for the file or folder.")
 
 
 @router.get("/api/lab/workspaces")
@@ -565,15 +565,15 @@ IMPORT_MAX_TOTAL_BYTES = 2_000_000
 
 
 class ImportFileIn(BaseModel):
-    path: str
-    content: str
+    path: str = Field(description="Path of the file relative to the imported folder.")
+    content: str = Field(description="Full text of the imported file.")
 
 
 class ImportIn(BaseModel):
-    files: list[ImportFileIn] = []
+    files: list[ImportFileIn] = Field(default=[], description="Files to import.")
     # The folders the browser walked, relative to the picked folder. A file is
     # only imported when the folder it lives in is in this list.
-    folders: list[str] = []
+    folders: list[str] = Field(default=[], description="Folder paths, relative to the picked folder, to import.")
 
 
 @router.post("/api/lab/projects/{project_id}/import")

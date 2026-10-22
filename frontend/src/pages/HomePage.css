@@ -31,7 +31,7 @@
    HERO
    ============================================================ */
 
-.home-hero {
+.home-hero-wrapper {
   margin-bottom: var(--space-md);
 }
 
@@ -70,34 +70,10 @@
 .home-hero-copy > *:nth-child(3) { animation-delay: 0.23s; }
 .home-hero-copy > *:nth-child(4) { animation-delay: 0.32s; }
 
-.home-eyebrow {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  color: var(--accent);
-}
-
-.home-hero-title {
-  font-family: var(--font-heading);
-  font-weight: 400;
-  line-height: 1.15;
-  letter-spacing: -0.02em;
-  color: var(--text-primary);
-  margin: 0;
-}
-
-.home-hero-title em {
+/* Eyebrow, title and description come from the shared hero contract
+   in index.css; only the italic accent in the headline is page-specific. */
+.home-hero-copy .page-hero-title em {
   font-style: italic;
-}
-
-.home-hero-lede {
-  max-width: min(38rem, 100%);
-  font-size: var(--text-base);
-  line-height: 1.7;
-  color: var(--text-muted);
-  margin: 0;
 }
 
 .home-hero-actions {
@@ -110,13 +86,13 @@
 .home-beginner-link {
   display: inline-flex;
   align-items: baseline;
-  gap: 7px;
+  gap: calc(var(--space-sm) * 0.875);
   background: none;
   border: none;
   cursor: pointer;
   font-size: 0.92rem;
   color: var(--text-muted);
-  padding: 6px 4px;
+  padding: var(--space-xs) var(--space-2xs);
   transition: color 0.15s ease;
 }
 
@@ -131,7 +107,7 @@
   transition: transform 0.15s ease;
 }
 
-.home-beginner-link:hover { color: var(--text); }
+.home-beginner-link:hover { color: var(--text-primary); }
 .home-beginner-link:hover svg { transform: translateX(3px); }
 
 .home-btn-icon {

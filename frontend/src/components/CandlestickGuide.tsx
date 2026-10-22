@@ -60,13 +60,17 @@ export default function CandlestickGuide() {
       <div className="guide-layout-grid">
         <div className="guide-main-column">
           <div className="guide-intro-block">
-            <h2 className="guide-heading">Beginner Guide: Understanding the Chart</h2>
+            <h2 className="guide-heading">Reading the chart</h2>
             <p className="guide-copy">
-              Every stock has a unique shortcut code called a ticker, such as AAPL for Apple or TSLA for Tesla. When you search for a ticker, the chart populates with its historical price action, displayed using candles where each individual candle represents a single trading day.
+              Every listed company has a short code, called a ticker: AAPL for Apple,
+              TSLA for Tesla. Search for one and the chart fills with its price
+              history, drawn as candles. Each candle stands for a single trading day.
             </p>
             <p className="guide-copy">
-              Instead of looking at rows of text data, a single candle summarizes an entire day of market activity into one visual block containing four vital metrics. Reading them builds the habit of watching
-              the <GlossaryText text="volatility" glossary={STRATEGY_GLOSSARY} /> that each session produced.
+              A candle compresses a whole session into one shape holding four numbers.
+              Once you know how to read those four, the chart stops being decoration
+              and starts telling you how much the
+              <GlossaryText text="volatility" glossary={STRATEGY_GLOSSARY} /> of each day was.
             </p>
           </div>
 
@@ -74,63 +78,80 @@ export default function CandlestickGuide() {
             <li>
               <span className="guide-step-index">1</span>
               <div>
-                <p className="guide-step-title">Open Price</p>
-                <p className="guide-step-body">The initial price at which shares began trading when the market opened for the day.</p>
+                <p className="guide-step-title">Open price</p>
+                <p className="guide-step-body">The first price traded when the session began.</p>
               </div>
             </li>
             <li>
               <span className="guide-step-index">2</span>
               <div>
-                <p className="guide-step-title">High and Low Extremes</p>
+                <p className="guide-step-title">High and low</p>
                 <p className="guide-step-body">
-                  The absolute peak and lowest pricing points touched during the trading session, visualized via the thin vertical wicks.
+                  The highest and lowest prices reached during the session. The thin
+                  vertical lines, called wicks, mark them.
                 </p>
               </div>
             </li>
             <li>
               <span className="guide-step-index">3</span>
               <div>
-                <p className="guide-step-title">Close Price</p>
-                <p className="guide-step-body">The final transaction price registered when the market closed for the session.</p>
+                <p className="guide-step-title">Close price</p>
+                <p className="guide-step-body">The last price traded when the session ended.</p>
               </div>
             </li>
             <li>
               <span className="guide-step-index">4</span>
               <div>
-                <p className="guide-step-title">Volume Activity</p>
+                <p className="guide-step-title">Volume</p>
                 <p className="guide-step-body">
-                  The vertical bars aligned underneath the main chart. Taller bars indicate heavy trading activity and heightened market interest.
+                  The bars below the chart. Taller bars mean more shares changed hands,
+                  which usually means more people were paying attention.
                 </p>
               </div>
             </li>
           </ol>
 
           <div className="guide-intro-block is-spaced">
-            <h3 className="guide-heading">Decoding Timeframes</h3>
+            <h3 className="guide-heading">Choosing a timeframe</h3>
             <p className="guide-copy">
-              You can toggle between different horizons using the timeframe buttons (1Y, 2Y, 5Y, ALL). Choosing a shorter window zooms in on recent sessions to inspect daily volatility, while longer selections reveal multi-year structural trends and broader market cycles. The span you inspect is your <GlossaryText text="horizon" glossary={STRATEGY_GLOSSARY} />, and it changes what the same chart is telling you.
+              The timeframe buttons (1Y, 2Y, 5Y, ALL) decide how much history the
+              chart shows. A short window makes daily movement easy to see. A long
+              window reveals the larger trend and the cycle the stock sits inside. The
+              span you choose is your <GlossaryText text="horizon" glossary={STRATEGY_GLOSSARY} />, and it changes
+              what the same chart appears to be saying.
             </p>
           </div>
         </div>
 
         <aside className="guide-sidebar-column">
           <div className="guide-sidebar-card">
-            <h3 className="guide-sidebar-title">Quick Reference &amp; Tips</h3>
+            <h3 className="guide-sidebar-title">Quick reference</h3>
             <ul className="guide-sidebar-list">
               <li>
-                <strong>Body vs wick:</strong> The thick block is the body, representing the range between open and close. The thin lines above and below are wicks, showing how far price wandered before settling back.
+                <strong>Body and wick:</strong> The thick block is the body, covering the
+                range between open and close. The thin lines above and below are wicks,
+                showing how far the price wandered before settling.
               </li>
               <li>
-                <strong>Size shows conviction:</strong> A tall body means buyers or sellers were firmly in control all day. A tiny body means the day was a tug-of-war that ended close to where it started.
+                <strong>Size shows conviction:</strong> A tall body means buyers or
+                sellers controlled the session. A small body means the day was a
+                contest that ended near where it started.
               </li>
               <li>
-                <strong>Zoom out before zooming in:</strong> Start on 5Y or ALL to get the big picture, then switch to 1Y once you know which period to inspect closely.
+                <strong>Zoom out before zooming in:</strong> Start on 5Y or ALL to see
+                the shape of the stock, then switch to 1Y for the detail.
               </li>
               <li>
-                <strong>Past price isn't a promise:</strong> A chart shows what already happened, not what happens next. Treat it as context for research, not a guarantee of future performance — the discipline the course calls <GlossaryText text="backtest" glossary={STRATEGY_GLOSSARY} />.
+                <strong>A chart is a record, not a forecast:</strong> It shows what
+                already happened. Use it to research, not to predict, and check any
+                conclusion against a
+                <GlossaryText text="backtest" glossary={STRATEGY_GLOSSARY} /> before you act on it.
               </li>
               <li>
-                <strong>.TO Symbols</strong> Some symbols end with .TO, which indicates they are listed on the Toronto Stock Exchange. For example, SHOP.TO is Shopify's Canadian listing. This helps diffrentiate which exchange a stock belongs to, as well as the currency it trades in (CAD vs USD).
+                <strong>Symbols ending in .TO:</strong> These are listings on the Toronto
+                Stock Exchange, quoted in Canadian dollars. SHOP.TO, for instance, is
+                Shopify's Canadian listing, and it is a different security from SHOP
+                on a U.S. exchange.
               </li>
             </ul>
           </div>
@@ -140,13 +161,15 @@ export default function CandlestickGuide() {
       <div className="guide-examples is-spaced">
         <article className="guide-example">
           <h3 className="guide-example-title">
-            <span className="dot dot-bull" /> Green Candle (Price Increased)
+            <span className="dot dot-bull" /> Green candle (price rose)
           </h3>
           <p className="guide-copy">
-            Suppose a stock opened at $180, climbed up to $187, dipped to $179, and closed at $185. Because the closing price ended higher than the opening value, the candle turns green.
+            A stock opens at $180, trades up to $187, falls back to $179, and closes at
+            $185. Because it closed above where it opened, the candle is green.
           </p>
           <p className="guide-copy">
-            This pattern highlights bullish momentum, showing that buyers ultimately pushed valuations higher over the course of the day.
+            Green means buyers had the upper hand by the end of the session, even
+            though the path there included a dip.
           </p>
           <div className="guide-diagram-wrap">
             <CandleDiagram variant="bull" openPrice={180} highPrice={187} lowPrice={179} closePrice={185} />
@@ -155,13 +178,15 @@ export default function CandlestickGuide() {
 
         <article className="guide-example">
           <h3 className="guide-example-title">
-            <span className="dot dot-bear" /> Red Candle (Price Decreased)
+            <span className="dot dot-bear" /> Red candle (price fell)
           </h3>
           <p className="guide-copy">
-            Conversely, if a stock opened at $185, spiked to $187, dropped to a low of $176, and closed at $180, the closing value sits lower than the start, turning the candle red.
+            A stock opens at $185, reaches $187, drops to $176, and closes at $180. It
+            closed below where it opened, so the candle is red.
           </p>
           <p className="guide-copy">
-            This indicates downward selling pressure, meaning sellers dominated the session and drove prices down from the open.
+            Red means sellers had the upper hand by the close, and the day ended
+            below where it started.
           </p>
           <div className="guide-diagram-wrap">
             <CandleDiagram variant="bear" openPrice={185} highPrice={187} lowPrice={176} closePrice={180} />

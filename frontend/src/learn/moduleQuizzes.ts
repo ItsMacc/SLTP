@@ -1,4 +1,4 @@
-// moduleQuizzes.ts - Optional end-of-module quizzes.
+// moduleQuizzes.ts — Optional end-of-module quizzes.
 //
 // One short quiz per module, revealed only when the learner clicks
 // "Take the quiz". These are practice checks: answering them never affects

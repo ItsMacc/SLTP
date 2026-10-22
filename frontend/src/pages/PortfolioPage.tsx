@@ -11,7 +11,7 @@ import {
   type PortfolioStatus,
 } from '../../lib/api';
 import PortfolioOnboarding from './PortfolioOnboarding';
-import { Loader } from '../ui/Loader';
+import { LoaderInline, LoaderScreen } from '../ui/Loader';
 import './PortfolioPage.css';
 
 interface PortfolioPageProps {
@@ -25,6 +25,9 @@ export default function PortfolioPage({ defaultName, settings }: PortfolioPagePr
   // previous result immediately instead of flashing a spinner.
   const [status, setStatus] = useState<PortfolioStatus | null>(() => peekPortfolio());
   const [loading, setLoading] = useState(() => peekPortfolio() === null);
+  // A background revalidation keeps the old copy on screen; the stock line
+  // says it is still reading from the store.
+  const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   /**
@@ -37,6 +40,8 @@ export default function PortfolioPage({ defaultName, settings }: PortfolioPagePr
     if (!background) {
       setLoading(true);
       setLoadError(null);
+    } else {
+      setRefreshing(true);
     }
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -50,6 +55,7 @@ export default function PortfolioPage({ defaultName, settings }: PortfolioPagePr
       }
     } finally {
       if (!background) setLoading(false);
+      else setRefreshing(false);
     }
   }, []);
 
@@ -81,7 +87,10 @@ export default function PortfolioPage({ defaultName, settings }: PortfolioPagePr
   if (loading && !status) {
     return (
       <div className="pf-page">
-        <Loader label="Loading your portfolio…" />
+        <LoaderScreen
+          label="Loading your portfolio…"
+          sub="Reading your portfolio from the account store."
+        />
       </div>
     );
   }
@@ -124,6 +133,11 @@ export default function PortfolioPage({ defaultName, settings }: PortfolioPagePr
           <span className="pf-header-kicker">Portfolio</span>
           <h1 className="pf-header-title">{status.name}</h1>
         </div>
+        {refreshing && (
+          <span className="pf-header-refresh" role="status">
+            <LoaderInline size={14} /> Refreshing…
+          </span>
+        )}
       </header>
 
       <section className="pf-summary-grid">

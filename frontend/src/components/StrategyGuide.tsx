@@ -7,140 +7,155 @@ import './StrategyGuide.css'
 export default function StrategyGuide() {
   return (
     <section className="stg-guide">
-      <h2 className="stg-title">Beginner Guide: Understanding Strategies</h2>
+      <h2 className="stg-title">Reading the performance panel</h2>
       <p className="stg-deck">
-        Every performance metric in the dashboard is detailed below in clear language,
-        complete with practical examples and industry benchmarks. Read sequentially to
-        build a comprehensive framework for evaluating systematic strategies.
+        A backtest produces more numbers than anyone can hold in their head at once.
+        This guide walks through each one, what it measures, and how to read it next
+        to a strategy's own results.
       </p>
 
       <div className="stg-flow">
         <article className="stg-chapter" data-num="01">
-          <h3 className="stg-chapter-title">The core concept</h3>
+          <h3 className="stg-chapter-title">What a strategy actually is</h3>
           <p className="stg-copy">
-            A <GlossaryText text="strategy is an automated, rule-based framework for market participation." glossary={STRATEGY_GLOSSARY} />
-            Rather than relying on intuition or emotional reactions during periods of volatility,
-            a strategy operates on explicit rules that dictate <strong>what to buy, what to sell,
-            and precisely when to execute</strong>.
+            A <GlossaryText text="strategy is a set of rules that decides what to buy, when to sell, and when to look again." glossary={STRATEGY_GLOSSARY} />
+            Nothing more. A rule might be as blunt as <em>hold the ten healthiest stocks
+            and review them every Monday</em>, or as precise as a price crossing a moving
+            average on rising volume.
           </p>
           <p className="stg-copy">
-            The primary advantage of a systematic strategy is discipline. Human decision-making
-            is frequently compromised by fear during downturns or exuberance during rallies. A
-            rule-based system removes discretionary bias, applying identical criteria across
-            every market cycle.
+            The point of writing the rules down is that the computer then follows them
+            without hesitation. People are good at reasoning and bad at consistency:
+            fear shows up in a drawdown, and excitement shows up in a rally. A rule set
+            removes that. It applies the same test on a quiet Tuesday in March as it
+            does on the day the market falls eight percent.
           </p>
         </article>
 
         <article className="stg-chapter" data-num="02">
-          <h3 className="stg-chapter-title">Defining the trading universe</h3>
+          <h3 className="stg-chapter-title">The universe</h3>
           <p className="stg-copy">
-            Before execution rules can trigger, the strategy requires a predefined pool of assets.
-            This selection is called the <strong><GlossaryText text="universe" glossary={STRATEGY_GLOSSARY} /></strong>. A universe defines the specific
-            set of equities, ETFs, or instruments the strategy is permitted to trade. If an asset
-            falls outside this list, the system ignores it regardless of short-term momentum.
+            Before any rule can fire, a strategy needs a defined set of assets to work
+            with. That set is its <strong><GlossaryText text="universe" glossary={STRATEGY_GLOSSARY} /></strong>. It might be
+            the 25 most liquid stocks on an exchange, or every share in a broad index.
+            Anything outside the universe is invisible to the strategy, no matter how
+            tempting the price action looks.
           </p>
           <p className="stg-copy">
-            Universes range from focused groups, such as mega-cap technology equities, to broad
-            market indices. Because performance depends directly on asset selection and liquidity,
-            backtest metrics should always be evaluated against the specific universe tested.
+            The universe is not a detail to skip. A strategy that works on a hand-picked
+            list of large, liquid companies is being judged on a much easier problem
+            than one working across the whole market. When you compare results, check
+            that both runs were allowed to trade the same things.
           </p>
         </article>
 
         <div className="stg-chapter" data-num="03">
-          <h3 className="stg-chapter-title">Investment horizons: Investing vs. Trading</h3>
+          <h3 className="stg-chapter-title">Investing and trading are different jobs</h3>
           <p className="stg-copy">
-            Strategies generally fall into two distinct execution models. Understanding which
-            framework a strategy uses informs how you evaluate risk, return, and transaction costs.
+            Strategies on SLTP are sorted into two families. Knowing which one you are
+            looking at tells you how to judge its risk, its costs, and its timeline.
           </p>
           <div className="stg-duo">
             <div className="stg-duo-card is-invest">
               <p className="stg-duo-tag">Long-Term Horizon</p>
               <h4 className="stg-duo-title">Investing</h4>
               <p className="stg-duo-copy">
-                Operating on multi-year horizons, investing focuses on capital growth driven by
-                business fundamentals. Short-term price volatility is treated as noise rather than a
-                signal. Lower turnover minimizes transaction costs and tax drag, prioritizing
-                systematic capital compounding over market timing.
+                Held for years at a time, usually because the business itself is
+                expected to grow. Day-to-day price swings are treated as noise. Trading
+                rarely happens, so fees and taxes stay small and the return has room
+                to compound.
               </p>
             </div>
             <div className="stg-duo-card is-trade">
               <p className="stg-duo-tag">Short-Term Execution</p>
               <h4 className="stg-duo-title">Trading</h4>
               <p className="stg-duo-copy">
-                Operating across days, hours, or minutes, trading seeks to profit directly from
-                short-term price movements. This model demands active oversight and strict
-                risk parameters. Higher trade frequency means execution costs and slippage exert a
-                significantly greater impact on net performance.
+                Held for days, hours, or minutes, aiming to profit from movement
+                rather than from a company's growth. More decisions means more
+                attention, and costs matter more: fees and slippage take a larger bite
+                out of a smaller profit.
               </p>
             </div>
           </div>
           <p className="stg-copy">
-            Neither approach is inherently superior; they address different capital objectives.
-            Investing evaluates long-term value creation, while trading seeks to capture transitory
-            price inefficiencies.
+            Neither is the better one. Investing is built for accumulation over a long
+            horizon. Trading is built for reacting to price. A strategy is only
+            reasonable if its approach matches the goal you have in mind.
           </p>
         </div>
 
         <article className="stg-chapter" data-num="04">
-          <h3 className="stg-chapter-title">Simulating history: The backtest</h3>
+          <h3 className="stg-chapter-title">What a backtest does</h3>
           <p className="stg-copy">
-            A <GlossaryText text="backtest" glossary={STRATEGY_GLOSSARY} /> evaluates how a strategy would have performed historically. The algorithm runs
-            chronologically through past market data, applying its rules strictly on information available
-            at each specific point in time to prevent <GlossaryText text="forward-looking bias" glossary={STRATEGY_GLOSSARY} />. Every trade, fee, and
-            execution price is recorded.
+            A <GlossaryText text="backtest" glossary={STRATEGY_GLOSSARY} /> replays a strategy over recorded
+            market history. The engine walks forward one trading day at a time and
+            applies the rules using only the information that existed on that day,
+            which is what keeps <GlossaryText text="forward-looking bias" glossary={STRATEGY_GLOSSARY} /> out of the
+            result. Every order, fill, and fee is written down as it happens.
           </p>
           <p className="stg-copy">
-            The resulting performance curve illustrates how the account balance evolved over time.
-            Although historical performance does not guarantee future results, backtesting provides an
-            objective measure of a strategy's baseline behavior and risk parameters.
+            The output is an equity curve: the account balance after every session.
+            A backtest cannot promise what happens next, but it does show how a set of
+            rules behaved under real conditions, including the drawdowns, the losing
+            streaks, and the costs nobody remembers to include in a chart.
           </p>
           <p className="stg-copy">
-            Strategies that demonstrate consistent performance across diverse market environments offer
-            greater reliability than those optimized for a single favorable market phase.
+            A strategy that holds up across a bull market, a crash, and a sideways
+            stretch tells you more than one that only works in a single favourable
+            year. Look for that consistency before you look at the headline return.
           </p>
         </article>
 
         <article className="stg-chapter" data-num="05">
-          <h3 className="stg-chapter-title">Standardizing account metrics: Base 100</h3>
+          <h3 className="stg-chapter-title">Why the chart starts at 100</h3>
           <p className="stg-copy">
-            Most financial platforms plot performance using raw dollar balances (e.g., watching a $10,000 portfolio move to $12,500). While this reflects true cash value, comparing two strategies initialized with different starting amounts can obscure their actual efficiency.
+            Some tools plot the raw balance, so a $10,000 account that ends at $12,500
+            looks better than a $1,000 account that ends at $1,250, even though both
+            grew by exactly the same 25 percent. Comparing balances like that compares
+            account size, not performance.
           </p>
           <p className="stg-copy">
-            To eliminate capital size bias, backtests normalize initial portfolio equity to an index value of <strong><GlossaryText text="base 100" glossary={STRATEGY_GLOSSARY} /></strong> (representing 100% of initial balance). Indexing converts absolute dollars into proportional growth: an ending index of 110 indicates a 10% gain, while an ending value of 92 represents an 8% loss.
+            To avoid it, backtests are usually plotted as an index. The starting balance
+            is set to <strong><GlossaryText text="base 100" glossary={STRATEGY_GLOSSARY} /></strong> and every later
+            value is expressed as a percentage of it. An ending value of 110 means a
+            ten percent gain; 92 means an eight percent loss.
           </p>
           <div className="stg-example">
-            Indexed evaluation:
-            - A $2,000 account ending at an index value of 110 yields $2,200 (+10%).
-            - A $500,000 account ending at an index value of 110 yields $550,000 (+10%).
-            Indexing isolates pure strategic return from account size.
+            Indexed comparison:
+            - A $2,000 account ending at an index value of 110 grew to $2,200 (+10%).
+            - A $500,000 account ending at an index value of 110 grew to $550,000 (+10%).
+            The index shows the same rate of return for both.
           </div>
           <div className="stg-sign">
             <p>
-              <strong>An ending value above 100 indicates net profitability.</strong> Values below
-              100 reflect a net loss, while exactly 100 represents break-even performance.
+              <strong>Read the ending value first.</strong> Above 100 means the rules
+              made money over the period. Below 100 means they lost it. Exactly 100
+              means they broke even.
             </p>
           </div>
         </article>
 
         <article className="stg-chapter" data-num="06">
-          <h3 className="stg-chapter-title">Measuring annual growth: CAGR</h3>
+          <h3 className="stg-chapter-title">CAGR: the yearly pace</h3>
           <p className="stg-copy">
-            Simple return calculations can distort actual growth over multi-year periods. If a $100 allocation
-            grows to $110 in Year 1 and reaches $130 by Year 2, the total return is 30%. However, because Year 2
-            grew from a $110 base, the annualized rate of return must account for compounding.
+            A single total return hides how long it took. $100 growing to $110 and then
+            to $130 is a thirty percent total return, but the second year started from
+            $110, not $100. Dividing the total by the number of years would therefore
+            overstate the pace.
           </p>
           <p className="stg-copy">
-            The <strong><GlossaryText text="Compound Annual Growth Rate (CAGR)" glossary={STRATEGY_GLOSSARY} /></strong> normalizes performance into a constant
-            annual growth rate. It provides the standard metric for comparing returns across different assets
-            and time horizons.
+            The <strong><GlossaryText text="Compound Annual Growth Rate (CAGR)" glossary={STRATEGY_GLOSSARY} /></strong> is the
+            constant yearly rate that would take the starting value to the ending
+            value, with compounding included. It is the standard way to compare a
+            five-year result with a fifteen-year one.
           </p>
           <div className="stg-example">
             Initial Capital: 100 | Year 1: 110 | Year 2: 130
             Total Return: 30.0%
-            CAGR: ~14.0% annualized (100 × 1.14 × 1.14 ≈ 130)
+            CAGR: ~14.0% per year (100 × 1.14 × 1.14 ≈ 130)
           </div>
           <p className="stg-copy">
-            Below is a sample illustration of continuous compounding at a 10% CAGR over a 10-year horizon:
+            Here is the same 10 percent yearly rate, compounded, over ten years:
           </p>
           <div className="stg-example">
             Year 1:  110.0 | Year 6:  177.2
@@ -151,266 +166,310 @@ export default function StrategyGuide() {
             Total 10-Year Growth: +159.4%
           </div>
           <p className="stg-copy">
-            Over a 20-year horizon at 10% CAGR, the initial 100 expands to approximately 672.7. The non-linear
-            acceleration in later years highlights the impact of long-term compounding.
+            Push that to twenty years and the starting 100 becomes roughly 672.7. The
+            later years carry the most of the growth, which is the practical argument
+            for starting early and staying invested.
           </p>
           <div className="stg-sign">
             <p>
-              <strong>A CAGR above 10% over a multi-year backtest reflects strong compound growth potential.</strong> Short-term
-              CAGR readings (under one year) should be interpreted cautiously as they may be skewed by brief market trends.
+              <strong>A CAGR above 10 percent over a multi-year backtest is a strong
+              result.</strong> Read shorter periods carefully. A one-year CAGR often
+              reflects a trend that was already running when the test began.
             </p>
           </div>
         </article>
 
         <article className="stg-chapter" data-num="07">
-          <h3 className="stg-chapter-title">Evaluating risk-adjusted return: Sharpe Ratio</h3>
+          <h3 className="stg-chapter-title">Sharpe ratio: return for the wobble</h3>
           <p className="stg-copy">
-            Two strategies may achieve identical 15% annual returns while experiencing drastically different trajectory
-            smoothness. One may ascend steadily, while the other endures sharp <GlossaryText text="drawdown" glossary={STRATEGY_GLOSSARY} /> periods. The <strong><GlossaryText text="Sharpe ratio" glossary={STRATEGY_GLOSSARY} /></strong> measures
-            excess return relative to overall portfolio <GlossaryText text="volatility" glossary={STRATEGY_GLOSSARY} />.
+            Two strategies can both return fifteen percent a year and be very
+            different investments. One might climb steadily. The other might do the
+            same work while dropping twenty percent on the way. The <strong><GlossaryText text="Sharpe ratio" glossary={STRATEGY_GLOSSARY} /></strong> separates
+            them by measuring return against total <GlossaryText text="volatility" glossary={STRATEGY_GLOSSARY} />: the amount
+            the account moved up and down, not just downward.
           </p>
           <p className="stg-copy">
-            In risk metrics, volatility represents uncertainty. A high Sharpe ratio indicates strong returns relative
-            to the fluctuations experienced, while a low ratio indicates excessive volatility for the return generated.
+            In risk terms, volatility is uncertainty. A high Sharpe ratio means the
+            return was large relative to the movement that came with it. A low ratio
+            means the account took a lot of shaking for what it earned.
           </p>
           <p className="stg-copy">
-            In simplified backtest environments without risk-free rate adjustments, a Sharpe ratio of 1.0 serves as a standard baseline
-            for acceptable risk-adjusted performance.
+            Backtests on this platform are run without a risk-free rate adjustment, so
+            a Sharpe ratio of 1.0 is the practical baseline to compare against.
           </p>
           <div className="stg-sign">
             <p>
-              <strong>A Sharpe ratio above 1.0 indicates viable risk-adjusted performance.</strong> Ratios between 1.0 and 2.0
-              are solid, 2.0 to 3.0 are strong, and above 3.0 represents outstanding equity curve efficiency.
+              <strong>Above 1.0 is acceptable, 1.0 to 2.0 is solid, and above 2.0 is
+              strong.</strong> The number matters less on its own than next to the
+              drawdown figures, which tell you how deep the bad stretches went.
             </p>
           </div>
         </article>
 
         <article className="stg-chapter" data-num="08">
-          <h3 className="stg-chapter-title">Statistical confidence: PSR</h3>
+          <h3 className="stg-chapter-title">PSR: how much of this is luck</h3>
           <p className="stg-copy">
-            A backtest reflects a single historical path. The <strong><GlossaryText text="Probabilistic Sharpe Ratio (PSR)" glossary={STRATEGY_GLOSSARY} /></strong> addresses
-            whether a strategy's observed performance reflects a true statistical edge or simply favorable historical timing.
+            A backtest is one path through history, and history does not repeat
+            exactly. The <strong><GlossaryText text="Probabilistic Sharpe Ratio (PSR)" glossary={STRATEGY_GLOSSARY} /></strong> estimates
+            how likely it is that the strategy's true Sharpe ratio is above 1.0, once
+            the length of the test and the shape of its returns are taken into account.
           </p>
           <p className="stg-copy">
-            Expressed as a percentage, PSR estimates the probability that the strategy’s true operational Sharpe ratio exceeds
-            the threshold benchmark of 1.0. It incorporates backtest duration and non-normal return distributions (skewness and kurtosis).
+            Reported as a percentage, it answers a question the other numbers cannot:
+            did the rules produce this result, or did the market simply hand us a
+            favourable stretch of history? Longer tests and smoother return
+            distributions push the figure up; a short test with wild swings pushes it
+            down.
           </p>
           <div className="stg-example">
-            50% PSR: High uncertainty; performance is statistically indistinguishable from random noise.
-            70% PSR: Moderate confidence in strategy persistence.
-            90% PSR: High statistical confidence that the edge will persist out-of-sample.
+            50% PSR: the result is not distinguishable from luck.
+            70% PSR: reasonable confidence that the edge is real.
+            90% PSR: strong statistical support for the result holding up.
           </div>
           <div className="stg-sign">
             <p>
-              <strong>A PSR above 50% indicates positive statistical confidence.</strong> Higher values confirm that observed performance
-              is driven by strategy mechanics rather than backtest duration artifacts.
+              <strong>Above 50% means there is a positive statistical case.</strong>
+              The higher the number, the harder it is to explain the result as an
+              accident of timing.
             </p>
           </div>
         </article>
 
         <article className="stg-chapter" data-num="09">
-          <h3 className="stg-chapter-title">Focusing on downside risk: Sortino Ratio</h3>
+          <h3 className="stg-chapter-title">Sortino ratio: only the bad moves count</h3>
           <p className="stg-copy">
-            The <strong>Sortino ratio</strong> isolates downside volatility from overall volatility. While the Sharpe ratio penalizes
-            both upward and downward price swings equally, the Sortino ratio only penalizes negative variance.
+            The <strong>Sortino ratio</strong> is a variation on the Sharpe ratio that
+            penalises only downward movement. Upward movement is treated as
+            reward, not risk, which is a more useful framing for a strategy whose
+            gains tend to arrive in jumps.
           </p>
           <p className="stg-copy">
-            This distinction is valuable for growth strategies that experience frequent upward jumps. A high Sortino ratio paired with
-            a moderate Sharpe ratio indicates that total volatility is heavily driven by upside moves rather than painful portfolio drops.
+            This matters when a strategy's volatility is mostly upside. A high Sortino
+            alongside an ordinary Sharpe says the account moves a lot, but most of
+            that movement is upward, and the painful drops are the smaller part.
           </p>
           <div className="stg-sign">
             <p>
-              <strong>A Sortino ratio above 1.0 confirms sufficient return relative to downside risk.</strong> Values above 2.0
-              indicate excellent downside protection during portfolio contractions.
+              <strong>Above 1.0 means the return covers the downside risk taken.</strong>
+              Above 2.0 indicates the account rarely gave back much of what it had
+              made.
             </p>
           </div>
         </article>
 
         <article className="stg-chapter" data-num="10">
-          <h3 className="stg-chapter-title">Trade metrics: Win rate and Expectancy</h3>
+          <h3 className="stg-chapter-title">Win rate and expectancy</h3>
           <p className="stg-copy">
-            Evaluating execution metrics requires analyzing individual trade outputs:
+            The trade log gives the per-trade picture:
           </p>
           <ul className="stg-list">
-            <li><strong>Win rate:</strong> The percentage of closed positions that yielded positive net returns.</li>
-            <li><strong>Loss rate:</strong> The percentage of closed positions that resulted in net losses.</li>
-            <li><strong>Average win:</strong> The mean return percentage across all profitable trades.</li>
-            <li><strong>Average loss:</strong> The mean loss percentage across all unprofitable trades.</li>
+            <li><strong>Win rate:</strong> The share of closed positions that finished with a net gain.</li>
+            <li><strong>Loss rate:</strong> The share of closed positions that finished with a net loss.</li>
+            <li><strong>Average win:</strong> The mean gain across the profitable trades.</li>
+            <li><strong>Average loss:</strong> The mean loss across the losing trades.</li>
             <li>
-              <strong>Expectancy:</strong> The expected net return per trade over a statistically significant series.
+              <strong>Expectancy:</strong> The expected net result of one trade, averaged across
+              the whole sample.
             </li>
           </ul>
           <p className="stg-copy">
-            A positive expectancy confirms an operational trading edge. Win rate alone can be misleading; a system with a 90% win rate
-            can still lose capital if its average loss significantly exceeds its average win.
+            Expectancy is the number that matters, and win rate on its own can be
+            misleading. A system that wins nine times out of ten but loses ten times
+            what it wins is losing money. What counts is the gap between the average
+            win and the average loss, weighted by how often each one happens.
           </p>
           <div className="stg-sign">
             <p>
-              <strong>An expectancy greater than 0 confirms profitability over repeated executions.</strong> Always assess win rate
-              in conjunction with average gain and loss magnitude.
+              <strong>Expectancy above zero means the rules make money over
+              repetitions.</strong> Always read it next to the average win and loss.
             </p>
           </div>
         </article>
 
         <article className="stg-chapter" data-num="11">
-          <h3 className="stg-chapter-title">Measuring peak-to-trough decline: Max Drawdown</h3>
+          <h3 className="stg-chapter-title">Max drawdown: the worst stretch</h3>
           <p className="stg-copy">
-            Portfolio equity rarely grows linearly. <strong>Max drawdown</strong> measures the single largest percentage decline from a peak
-            equity high-water mark to a subsequent trough before a new peak is achieved.
+            Account balances rarely rise in a straight line. <strong>Max drawdown</strong>
+            is the largest percentage fall from a peak balance to the lowest point
+            before the account got back above that peak. It answers the question a
+            return figure cannot: how bad did it get while you were holding it?
           </p>
           <div className="stg-example">
             Peak Portfolio Value: 100
             Trough Value: 90
-            Max Drawdown: 10.0% peak-to-trough contraction.
+            Max Drawdown: 10.0% peak-to-trough fall.
           </div>
           <p className="stg-copy">
-            Drawdown thresholds serve as standard risk indicators: declines under 10% represent low variance, 10% to 20% represent moderate equity swings,
-            and contractions above 20% indicate high exposure to capital impairment.
+            The rough bands most people work with: under 10 percent is a shallow dip,
+            10 to 20 percent is a real test of nerve, and anything above 20 percent
+            is the kind of fall that makes people sell at the bottom.
           </p>
           <div className="stg-sign">
             <p>
-              <strong>Max drawdown defines peak equity risk.</strong> Select strategies whose historical drawdown profiles align with your institutional or personal risk tolerance.
+              <strong>Max drawdown sets the size of the position you can hold.</strong>
+              A strategy with a thirty percent historical drawdown needs a position
+              small enough that you can sit through it without acting.
             </p>
           </div>
         </article>
 
         <article className="stg-chapter" data-num="12">
-          <h3 className="stg-chapter-title">Duration of decline: Drawdown Recovery</h3>
+          <h3 className="stg-chapter-title">Drawdown recovery: how long it took</h3>
           <p className="stg-copy">
-            In addition to drawdown magnitude, duration is critical. <strong>Drawdown recovery</strong> tracks the number of trading days required for
-            portfolio equity to recover from a peak-to-trough drop and reclaim a new high-water mark.
+            Depth is only half the story. <strong>Drawdown recovery</strong> measures
+            the number of trading days it took for the account to climb back to the
+            level it had before the fall. A ten percent drop that takes six months to
+            recover is a different experience from a ten percent drop recovered in two
+            weeks, even though the percentages match.
           </p>
           <div className="stg-example">
-            Equity drop from 100 to 90 requires 20 trading days to reach 101.
-            Recovery Duration: 20 days.
+            Equity drop from 100 to 90, then back up to 101.
+            Recovery Duration: 20 trading days.
           </div>
           <div className="stg-sign">
             <p>
-              <strong>Short recovery periods indicate resilient capital restoration.</strong> Extended recovery durations stretching across months highlight prolonged periods of equity stagnation.
+              <strong>A short recovery is a healthier sign than a deep one.</strong>
+              Recovery times that stretch into many months describe a strategy that
+              spends a long time flat.
             </p>
           </div>
         </article>
 
         <article className="stg-chapter" data-num="13">
-          <h3 className="stg-chapter-title">Trade execution parameters</h3>
+          <h3 className="stg-chapter-title">Reading the trade log</h3>
           <p className="stg-copy">
-            Detailed trade logs track positions across four fundamental pricing levels:
+            Each row in the trade table records four prices:
           </p>
           <ul className="stg-list">
             <li>
-              <strong>Entry price:</strong> The execution price at position initiation.
+              <strong>Entry price:</strong> The price the position was opened at.
             </li>
             <li>
-              <strong>Exit price:</strong> The execution price when closing the position.
+              <strong>Exit price:</strong> The price the position was closed at.
             </li>
             <li>
-              <strong>Stop loss:</strong> An automated risk ceiling set below entry that triggers an exit to mitigate downside capital loss.
+              <strong>Stop loss:</strong> The level set below entry that closes the position
+              automatically, limiting the loss.
             </li>
             <li>
-              <strong>Take profit:</strong> A target price level set above entry that automatically locks in target gains.
+              <strong>Take profit:</strong> The level set above entry that closes the position
+              automatically, locking in a gain.
             </li>
           </ul>
           <p className="stg-copy">
-            Pre-defining stop-loss and take-profit thresholds ensures objective execution, eliminating discretionary errors during live market movement.
-          </p>
-          <p className="stg-copy">
-            The trade table also includes <strong>allocated size</strong>, indicating the fraction of total account equity committed to an individual trade.
+            Setting the stop and the target in advance means the exit is decided while
+            nobody is watching a position move in the wrong direction. The table also
+            records <strong>allocated size</strong>, the share of the account committed to
+            each trade.
           </p>
         </article>
 
         <article className="stg-chapter" data-num="14">
-          <h3 className="stg-chapter-title">Benchmark comparison: Buy and Hold</h3>
+          <h3 className="stg-chapter-title">The benchmark: simply holding</h3>
           <p className="stg-copy">
-            Active strategies must demonstrate value relative to a passive baseline. A <strong>buy and hold</strong> benchmark allocates capital fully on day one
-            and maintains position exposure through the entire backtest period without tactical adjustment.
+            A strategy has to earn its keep against the easiest alternative: buying
+            and holding. The <strong>buy and hold</strong> benchmark puts the whole
+            account to work on day one and leaves it there for the length of the
+            test, with no trades and no decisions.
           </p>
           <p className="stg-copy">
-            Because passive holding incurs minimal turnover costs, beating a buy-and-hold benchmark after accounting for execution fees is the primary validation requirement for active quantitative strategies.
+            Holding costs almost nothing in fees, so the comparison is demanding. If a
+            strategy cannot beat it after costs, the extra machinery is not earning
+            its keep.
           </p>
           <div className="stg-sign">
             <p>
-              <strong>If active strategy return exceeds the passive benchmark return, the tactical complexity is justified.</strong> Lower relative returns indicate that passive index tracking would have provided superior net efficiency.
+              <strong>Beating buy and hold is the minimum bar, not the finish
+              line.</strong> Where an active strategy falls short, an index fund would
+              have produced a better result with less work.
             </p>
           </div>
         </article>
 
         <article className="stg-chapter" data-num="15">
-          <h3 className="stg-chapter-title">Capital allocation: Unrealized Cash</h3>
+          <h3 className="stg-chapter-title">Unrealized cash</h3>
           <p className="stg-copy">
-            The dashboard reports <strong>unrealized cash</strong> (the unallocated portion of total account capital not deployed in active positions).
-            Cash reserves vary as the strategy filters for valid trade entries.
+            <strong>Unrealized cash</strong> is the part of the account that is not
+            currently in a position. It changes as the strategy opens and closes
+            positions, and it is worth watching because a large idle balance is
+            money that is not being put to work.
           </p>
           <p className="stg-copy">
-            Persistently high cash allocations indicate strict entry parameters, which may reduce capital efficiency during broad market rallies.
+            Holding cash is sometimes deliberate, and a strategy with strict entry
+            rules will often sit in cash for a while. But when the account is mostly
+            idle through a rising market, that idle time is part of the reason the
+            result trails the benchmark.
           </p>
         </article>
       </div>
 
       <div className="stg-section-gap">
-        <span className="stg-kicker">Performance Standards</span>
-        <h3 className="stg-title">Target Threshold Summary</h3>
+        <span className="stg-kicker">Reference</span>
+        <h3 className="stg-title">Target values</h3>
         <p className="stg-deck">
-          Reference key strategy metrics against standard industry evaluation targets.
+          The figures below are the usual yardsticks for reading a strategy's metrics.
+          They are guides rather than rules, and a strategy that misses one of them
+          can still be worth using for a different purpose.
         </p>
         <div className="stg-scorecard-wrap">
           <table className="stg-scorecard">
             <thead>
               <tr>
                 <th>Metric</th>
-                <th>Analytical Focus</th>
-                <th>Target Range</th>
+                <th>What it measures</th>
+                <th>Target</th>
               </tr>
             </thead>
             <tbody>
               <tr>
                 <td>Ending value</td>
-                <td>Total strategy return output</td>
+                <td>Total return over the whole run</td>
                 <td>Above 100</td>
               </tr>
               <tr>
                 <td>CAGR</td>
-                <td>Annualized compound growth rate</td>
+                <td>Annualised compound growth rate</td>
                 <td>Above 10% (multi-year)</td>
               </tr>
               <tr>
                 <td>Sharpe</td>
-                <td>Total volatility risk-adjusted return</td>
-                <td>&gt; 1.0 (Optimal &gt; 2.0)</td>
+                <td>Return per unit of total volatility</td>
+                <td>&gt; 1.0 (strong above 2.0)</td>
               </tr>
               <tr>
                 <td>Sortino</td>
-                <td>Downside volatility risk-adjusted return</td>
-                <td>&gt; 1.0 (Optimal &gt; 2.0)</td>
+                <td>Return per unit of downside volatility</td>
+                <td>&gt; 1.0 (strong above 2.0)</td>
               </tr>
               <tr>
                 <td>PSR</td>
-                <td>Statistical persistence probability</td>
-                <td>&gt; 50% (Optimal &gt; 70%)</td>
+                <td>Statistical confidence that the result is not luck</td>
+                <td>&gt; 50% (strong above 70%)</td>
               </tr>
               <tr>
                 <td>Expectancy</td>
-                <td>Expected profit yield per trade</td>
+                <td>Expected profit per trade</td>
                 <td>Above 0.0</td>
               </tr>
               <tr>
                 <td>Win rate / loss rate</td>
-                <td>Trade execution profitability distribution</td>
-                <td>Evaluated alongside average win/loss</td>
+                <td>How the trades split between gains and losses</td>
+                <td>Read alongside average win and loss</td>
               </tr>
               <tr>
                 <td>Max drawdown</td>
-                <td>Peak-to-trough capital decline</td>
-                <td>&lt; 10% Low, &gt; 20% High</td>
+                <td>Largest peak-to-trough fall</td>
+                <td>&lt; 10% low, &gt; 20% high</td>
               </tr>
               <tr>
                 <td>Drawdown recovery</td>
-                <td>Time required to reclaim high-water mark</td>
-                <td>Shorter duration preferred</td>
+                <td>Trading days needed to regain the peak</td>
+                <td>Shorter is better</td>
               </tr>
               <tr>
                 <td>Unrealized cash</td>
-                <td>Undeployed capital percentage</td>
-                <td>Contextual to execution style</td>
+                <td>Share of the account sitting idle</td>
+                <td>Depends on the trading style</td>
               </tr>
             </tbody>
           </table>
@@ -420,16 +479,17 @@ export default function StrategyGuide() {
       <div className="stg-section-gap">
         <div className="stg-2col">
           <div>
-            <span className="stg-tag">Quantitative Insights</span>
-            <h3 className="stg-title">Core Principles</h3>
+            <span className="stg-tag">Worth keeping in mind</span>
+            <h3 className="stg-title">Five ideas that decide most results</h3>
             <div className="stg-fact">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M12 2L12 2L5 12L19 12L12 22Z M2 12L12 12L22 12L12 2Z" />
               </svg>
               <div className="stg-fact-body">
-                <span className="stg-tag">Benchmark Superiority</span>
+                <span className="stg-tag">The benchmark is the standard</span>
                 <p className="stg-fact-copy">
-                  Passive index tracking represents the baseline standard. Tactical strategies must deliver positive net alpha after accounting for execution costs and slippage.
+                  Holding an index costs almost nothing to maintain. Any strategy that
+                  trades has to earn back its fees before its cleverness counts.
                 </p>
               </div>
             </div>
@@ -438,9 +498,10 @@ export default function StrategyGuide() {
                 <path d="M12 2L12 2L5 12L19 12L12 22Z M2 12L12 12L22 12L12 2Z" />
               </svg>
               <div className="stg-fact-body">
-                <span className="stg-tag">Asymmetric Drawdown Impact</span>
+                <span className="stg-tag">Losses are not symmetrical</span>
                 <p className="stg-fact-copy">
-                  A 30% loss requires a 42.8% gain to recover to break-even. Mitigating downside drawdown impact is essential for sustainable long-term compounding.
+                  A 30 percent loss takes a 42.8 percent gain to undo. Keeping drawdowns
+                  shallow matters more than chasing extra return.
                 </p>
               </div>
             </div>
@@ -449,9 +510,10 @@ export default function StrategyGuide() {
                 <path d="M12 2L12 2L5 12L19 12L12 22Z M2 12L12 12L22 12L12 2Z" />
               </svg>
               <div className="stg-fact-body">
-                <span className="stg-tag">Transaction Friction</span>
+                <span className="stg-tag">Costs scale with frequency</span>
                 <p className="stg-fact-copy">
-                  Execution costs, spread friction, and slippage compound with trade frequency. Backtests must incorporate realistic fee structures to avoid performance inflation.
+                  Fees, spreads, and slippage grow with the number of trades. A
+                  backtest that leaves them out flatters the strategy.
                 </p>
               </div>
             </div>
@@ -460,9 +522,10 @@ export default function StrategyGuide() {
                 <path d="M12 2L12 2L5 12L19 12L12 22Z M2 12L12 12L22 12L12 2Z" />
               </svg>
               <div className="stg-fact-body">
-                <span className="stg-tag">Compounding Horizon</span>
+                <span className="stg-tag">Time does the heavy lifting</span>
                 <p className="stg-fact-copy">
-                  Time horizon significantly influences net outcomes under exponential compounding. Maintaining consistent compound rates over longer time frames generates expanding capital returns.
+                  Under compounding, the same rate over ten extra years changes the
+                  outcome more than any single year being better than another.
                 </p>
               </div>
             </div>
@@ -471,34 +534,44 @@ export default function StrategyGuide() {
                 <path d="M12 2L12 2L5 12L19 12L12 22Z M2 12L12 12L22 12L12 2Z" />
               </svg>
               <div className="stg-fact-body">
-                <span className="stg-tag">Systematic Position Sizing</span>
+                <span className="stg-tag">Sizing decides survival</span>
                 <p className="stg-fact-copy">
-                  Capital allocation per trade is as critical as entry generation. Quantitative frameworks adjust sizing relative to trade expectancy and prevailing volatility.
+                  How much goes into each trade matters as much as which trade to take.
+                  A good entry with an oversized position is still a bad outcome.
                 </p>
               </div>
             </div>
           </div>
 
           <div>
-            <span className="stg-tag">Analysis Guidelines</span>
-            <h3 className="stg-title">Evaluation Framework</h3>
+            <span className="stg-tag">How to read a backtest</span>
+            <h3 className="stg-title">A working checklist</h3>
             <div className="stg-notes">
-              <h4 className="stg-notes-heading">How professionals evaluate backtests</h4>
+              <h4 className="stg-notes-heading">Questions worth asking of any result</h4>
               <ul className="stg-notes-list">
                 <li>
-                  <strong>Prioritize consistency over peak returns:</strong> A 12% CAGR across diverse market regimes is superior to a 25% CAGR dependent on a single favorable market trend.
+                  <strong>Consistency first:</strong> A twelve percent yearly return across
+                  different kinds of market beats a twenty-five percent return that
+                  depends on one lucky stretch.
                 </li>
                 <li>
-                  <strong>Account for market regimes:</strong> Assess performance across varying market cycles, including bull trends, bear corrections, and sideways consolidation periods.
+                  <strong>Look across market types:</strong> Check the bull runs, the
+                  corrections, and the flat sideways periods separately. A strategy
+                  that only appears in bull runs is not a strategy, it is a bet.
                 </li>
                 <li>
-                  <strong>Align strategy parameters with goals:</strong> Establish whether the core objective is long-term asset accumulation or tactical short-term capture before judging risk metrics.
+                  <strong>Match the style to the goal:</strong> Decide first whether you
+                  are building a position over years or trading over weeks, then
+                  judge the metrics that follow from that choice.
                 </li>
                 <li>
-                  <strong>Recognize tactical rebalancing:</strong> Periodic portfolio adjustments to maintain risk allocations represent systematic discipline, not unnecessary friction.
+                  <strong>Rebalancing is not a cost by itself:</strong> Adjusting a
+                  portfolio to stay inside risk limits is the strategy working as
+                  designed.
                 </li>
                 <li>
-                  <strong>Evaluate against baseline metrics:</strong> Confirm that active strategy returns exceed benchmark performance on a risk-adjusted basis after fees.
+                  <strong>Compare on a risk basis:</strong> Check that the return holds up
+                  after fees and after the drawdowns, not just on the headline number.
                 </li>
               </ul>
             </div>
@@ -507,22 +580,26 @@ export default function StrategyGuide() {
       </div>
 
       <div className="stg-ritual stg-section-gap">
-        <h3 className="stg-ritual-heading">Standardized Strategy Checklist</h3>
+        <h3 className="stg-ritual-heading">Before you judge a strategy</h3>
         <p className="stg-ritual-deck">
-          Systematically audit backtest results using this evaluation sequence before allocating capital.
+          Run through these eight checks before deciding whether a strategy deserves
+          a place in your research.
         </p>
         <ol className="stg-ritual-list">
-          <li><strong>Ending value &gt; 100:</strong> Confirms positive net capital return.</li>
-          <li><strong>CAGR &gt; 10%:</strong> Confirms sufficient annualized return over multi-year backtests.</li>
-          <li><strong>Sharpe & Sortino &gt; 1.0:</strong> Demonstrates acceptable return per unit of volatility.</li>
-          <li><strong>PSR &gt; 50%:</strong> Indicates statistical confidence in persistent strategy performance.</li>
-          <li><strong>Max drawdown within risk parameters:</strong> Verifies capital drops remain tolerable.</li>
-          <li><strong>Drawdown recovery period controlled:</strong> Confirms efficient recovery timeline back to high-water mark.</li>
-          <li><strong>Positive expectancy:</strong> Validates positive expected value across repeated position entries.</li>
-          <li><strong>Outperforms passive benchmark:</strong> Confirms active tactical management beats passive indexing.</li>
+          <li><strong>Ending value above 100:</strong> The rules made money over the period.</li>
+          <li><strong>CAGR above 10 percent:</strong> The yearly pace is worth having, over a multi-year test.</li>
+          <li><strong>Sharpe and Sortino above 1.0:</strong> The return covers the movement that came with it.</li>
+          <li><strong>PSR above 50 percent:</strong> There is a statistical case that the result is not chance.</li>
+          <li><strong>Max drawdown you can sit through:</strong> The worst historical fall stays inside your tolerance.</li>
+          <li><strong>Recovery time is reasonable:</strong> The account gets back to its high-water mark in a period you can wait out.</li>
+          <li><strong>Expectancy is positive:</strong> Each trade has positive expected value on its own.</li>
+          <li><strong>It beats the benchmark:</strong> The active management is worth more than simply holding.</li>
         </ol>
         <p className="stg-ritual-outro">
-          Strategies satisfying all baseline parameters qualify for further out-of-sample testing or live paper trading. Strategies failing key criteria require parameter refinement or structural reassessment.
+          A strategy that clears all eight is worth taking further, first on data it
+          has not seen and then in a paper portfolio. One that misses several needs
+          different parameters or a different design before it is worth more of your
+          attention.
         </p>
       </div>
 
@@ -533,12 +610,17 @@ export default function StrategyGuide() {
           <line x1="12" y1="16.5" x2="12" y2="16.5" />
         </svg>
         <div className="stg-disclaimer-body">
-          <span className="stg-tag">Worth Knowing</span>
+          <span className="stg-tag">Before you rely on any of this</span>
           <p className="stg-disclaimer-copy">
-            Backtested results are hypothetical, built from historical data. They show how a set of rules would have behaved, not how it will behave next. Live markets add slippage, liquidity and conditions that a backtest cannot capture.
+            Every backtest on this page is hypothetical. It was produced from
+            historical data, so it describes how a set of rules would have behaved,
+            not how it will behave. Live markets add slippage, liquidity, and
+            conditions no simulation can reproduce.
           </p>
           <p className="stg-disclaimer-copy">
-            Treat a backtest as the start of your thinking rather than the end of it. Use the signals as a starting point for your own research, size positions so a bad outcome is survivable, and make the final call yourself.
+            Treat a backtest as the start of your thinking, not the end of it. Use the
+            signals as a starting point for your own research, size any position so
+            that being wrong is survivable, and make the final call yourself.
           </p>
         </div>
       </div>

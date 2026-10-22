@@ -33,9 +33,14 @@
   flex-wrap: wrap;
 }
 
+/* The stock line shown while the strategy library is still being read. */
+.strategy-loading {
+  margin: var(--space-sm) 0 0;
+}
+
 .run-strategy-btn {
   background: var(--accent);
-  color: #ffffff;
+  color: var(--text-inverse);
   border: none;
   border-radius: var(--radius-sm);
   font-size: var(--text-sm);
@@ -46,8 +51,10 @@
   transition: opacity 0.2s ease;
 }
 
-.run-strategy-btn:hover {
-  opacity: 0.9;
+/* An accent button takes the accent shade on hover, like every other
+   primary button in the app. */
+.run-strategy-btn:hover:not(:disabled) {
+  background: var(--accent-hover);
 }
 
 .run-strategy-btn:disabled {
@@ -118,7 +125,7 @@
 }
 
 .strategy-title {
-  font-size: var(--text-md);
+  font-size: var(--text-lg);
   font-weight: 600;
   margin: 0;
 }
@@ -182,7 +189,7 @@
   white-space: nowrap;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-3xs);
   z-index: 10;
 }
 
@@ -237,7 +244,7 @@
   padding: var(--space-xs) var(--space-sm);
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-3xs);
   word-break: break-word;
 }
 

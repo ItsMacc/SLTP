@@ -1,6 +1,6 @@
 // SettingsPage.tsx — Account settings, preferences, danger zone
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { clearLocalUserData } from '../../lib/api';
 import Button from '../ui/Button';
@@ -8,6 +8,7 @@ import Input from '../ui/Input';
 import Select from '../ui/Select';
 import Checkbox from '../ui/Checkbox';
 import RadioGroup from '../ui/RadioGroup';
+import { LoaderInline, LoaderOverlay } from '../ui/Loader';
 import './SettingsPage.css';
 
 interface SettingsPageProps {
@@ -52,6 +53,12 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  // The first pass fills the form from the account store, so the page waits
+  // behind the loader. Later passes (after the name changes) refresh in the
+  // background instead, so the form never flashes empty.
+  const [profileLoading, setProfileLoading] = useState(true);
+  const firstLoadRef = useRef(true);
+
   // Account Deletion State
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
@@ -60,41 +67,47 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
 
   useEffect(() => {
     async function loadAndApplySettings() {
-      // Fetch user profile metadata & settings from Supabase
-      const { data, error } = await supabase
-        .from('users')
-        .select('name, created_at, settings')
-        .eq('id', userId)
-        .single();
+      if (firstLoadRef.current) setProfileLoading(true);
+      try {
+        // Fetch user profile metadata & settings from Supabase
+        const { data, error } = await supabase
+          .from('users')
+          .select('name, created_at, settings')
+          .eq('id', userId)
+          .single();
 
-      if (!error && data) {
-        const currentName = data.name || initialName || '';
-        const currentSettings = data.settings || {};
+        if (!error && data) {
+          const currentName = data.name || initialName || '';
+          const currentSettings = data.settings || {};
 
-        setFullName(currentName);
-        
-        if (data.created_at) {
-          setAccountCreated(new Date(data.created_at).toLocaleDateString(undefined, {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-          }));
-        } else {
-          setAccountCreated('Standard Member');
+          setFullName(currentName);
+
+          if (data.created_at) {
+            setAccountCreated(new Date(data.created_at).toLocaleDateString(undefined, {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
+            }));
+          } else {
+            setAccountCreated('Standard Member');
+          }
+
+          if (currentSettings.theme) setTheme(currentSettings.theme);
+          if (currentSettings.defaultTimeframe) setDefaultTimeframe(currentSettings.defaultTimeframe);
+          if (currentSettings.chartStyle) setChartStyle(currentSettings.chartStyle);
+          if (currentSettings.defaultZoom) setDefaultZoom(currentSettings.defaultZoom);
+
+          if (currentSettings.tradeSignals !== undefined) setTradeSignals(currentSettings.tradeSignals);
+          if (currentSettings.securityWarnings !== undefined) setSecurityWarnings(currentSettings.securityWarnings);
+          if (currentSettings.dailySummary !== undefined) setDailySummary(currentSettings.dailySummary);
+          if (currentSettings.priceAlerts !== undefined) setPriceAlerts(currentSettings.priceAlerts);
+          if (currentSettings.autoTrackSignals !== undefined) setAutoTrackSignals(currentSettings.autoTrackSignals);
+
+          applyAndStoreUserSettings(currentSettings, currentName);
         }
-
-        if (currentSettings.theme) setTheme(currentSettings.theme);
-        if (currentSettings.defaultTimeframe) setDefaultTimeframe(currentSettings.defaultTimeframe);
-        if (currentSettings.chartStyle) setChartStyle(currentSettings.chartStyle);
-        if (currentSettings.defaultZoom) setDefaultZoom(currentSettings.defaultZoom);
-        
-        if (currentSettings.tradeSignals !== undefined) setTradeSignals(currentSettings.tradeSignals);
-        if (currentSettings.securityWarnings !== undefined) setSecurityWarnings(currentSettings.securityWarnings);
-        if (currentSettings.dailySummary !== undefined) setDailySummary(currentSettings.dailySummary);
-        if (currentSettings.priceAlerts !== undefined) setPriceAlerts(currentSettings.priceAlerts);
-        if (currentSettings.autoTrackSignals !== undefined) setAutoTrackSignals(currentSettings.autoTrackSignals);
-
-        applyAndStoreUserSettings(currentSettings, currentName);
+      } finally {
+        firstLoadRef.current = false;
+        setProfileLoading(false);
       }
     }
     loadAndApplySettings();
@@ -476,13 +489,18 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
             )}
 
             <div className="st-settings-footer">
-              <Button 
-                variant="primary" 
-                size="md" 
-                onClick={handleSaveChanges} 
+              <Button
+                variant="primary"
+                size="md"
+                onClick={handleSaveChanges}
                 disabled={saving}
               >
-                {saving ? 'Saving...' : 'Save changes'}
+                {saving ? (
+                  <>
+                    <LoaderInline tone="inherit" />
+                    Saving…
+                  </>
+                ) : 'Save changes'}
               </Button>
             </div>
           </div>
@@ -543,11 +561,25 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
                 disabled={deleteConfirmText.trim().toUpperCase() !== 'CONFIRM' || deleting}
                 onClick={handleConfirmDelete}
               >
-                {deleting ? 'Deleting...' : 'Delete permanently'}
+                {deleting ? (
+                  <>
+                    <LoaderInline tone="inherit" />
+                    Deleting…
+                  </>
+                ) : 'Delete permanently'}
               </Button>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Reading the profile and writing it back both go over the network, so
+          the page waits behind the loader instead of looking empty. */}
+      {profileLoading && (
+        <LoaderOverlay label="Loading your settings…" sub="Fetching your profile and preferences." />
+      )}
+      {saving && (
+        <LoaderOverlay label="Saving your settings…" sub="Syncing your preferences to the account store." />
       )}
     </div>
   );

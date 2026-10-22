@@ -1,6 +1,13 @@
-/* RewardToast.css - bottom-right unlock notification.
-   Mirrors ErrorToast.css conventions (rem atoms, %/vw layout widths),
-   but anchored bottom-right so it never covers the error slot. */
+/* ============================================================
+   RewardToast.css — Bottom-right unlock notification
+
+   Mirrors ErrorToast.css conventions (rem atoms, %/vw layout
+   widths), but anchored bottom-right so it never covers the
+   error slot.
+
+   Width conventions: % / vw for layout widths; rem for fixed
+   UI atoms. Breakpoints in rem.
+   ============================================================ */
 
 .reward-toast {
   position: fixed;
@@ -23,14 +30,14 @@
 /* Badge (default) keeps the accent rail; milestones get their own colour so
    an award that is not a shelf badge never reads as one. */
 .reward-toast.is-badge { border-left-color: var(--accent); }
-.reward-toast.is-milestone { border-left-color: #a78bfa; }
-.reward-toast.is-milestone .reward-toast-icon { background: rgba(167, 139, 250, 0.15); color: #a78bfa; }
+.reward-toast.is-milestone { border-left-color: var(--tier-mystery); }
+.reward-toast.is-milestone .reward-toast-icon { background: var(--tier-mystery-muted); color: var(--tier-mystery); }
 
-.reward-toast.is-bronze { border-left-color: #b45309; }
-.reward-toast.is-silver { border-left-color: #94a3b8; }
-.reward-toast.is-gold { border-left-color: #d4a017; }
-.reward-toast.is-emerald { border-left-color: #059669; }
-.reward-toast.is-diamond { border-left-color: #38bdf8; }
+.reward-toast.is-bronze { border-left-color: var(--tier-bronze); }
+.reward-toast.is-silver { border-left-color: var(--tier-silver); }
+.reward-toast.is-gold { border-left-color: var(--tier-gold); }
+.reward-toast.is-emerald { border-left-color: var(--tier-emerald); }
+.reward-toast.is-diamond { border-left-color: var(--tier-diamond); }
 
 @keyframes rewardToastIn {
   from {
@@ -54,11 +61,11 @@
   color: var(--accent);
 }
 
-.reward-toast.is-bronze .reward-toast-icon { background: rgba(180, 83, 9, 0.14); color: #b45309; }
-.reward-toast.is-silver .reward-toast-icon { background: rgba(148, 163, 184, 0.18); color: #64748b; }
-.reward-toast.is-gold .reward-toast-icon { background: rgba(212, 160, 23, 0.16); color: #b45309; }
-.reward-toast.is-emerald .reward-toast-icon { background: rgba(5, 150, 105, 0.14); color: #059669; }
-.reward-toast.is-diamond .reward-toast-icon { background: rgba(56, 189, 248, 0.16); color: #0284c7; }
+.reward-toast.is-bronze .reward-toast-icon { background: var(--tier-bronze-muted); color: var(--tier-bronze); }
+.reward-toast.is-silver .reward-toast-icon { background: var(--tier-silver-muted); color: var(--tier-silver); }
+.reward-toast.is-gold .reward-toast-icon { background: var(--tier-gold-muted); color: var(--tier-gold); }
+.reward-toast.is-emerald .reward-toast-icon { background: var(--tier-emerald-muted); color: var(--tier-emerald); }
+.reward-toast.is-diamond .reward-toast-icon { background: var(--tier-diamond-muted); color: var(--tier-diamond); }
 
 .reward-toast-body {
   flex: 1;
@@ -75,7 +82,7 @@
 }
 
 .reward-toast-name {
-  margin: 2px 0 2px;
+  margin: var(--space-3xs) 0 var(--space-3xs);
   font-family: var(--font-heading);
   font-size: 1.1rem;
   line-height: 1.2;

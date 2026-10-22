@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import Button from './Button';
 import Input from './Input';
+import { LoaderInline } from './Loader';
 import './ConfirmDeleteDialog.css';
 
 interface ConfirmDeleteDialogProps {
@@ -73,7 +74,12 @@ export default function ConfirmDeleteDialog({
             Cancel
           </Button>
           <Button variant="primary" size="md" className="confirm-delete-danger" disabled={!ready} onClick={submit}>
-            {busy ? 'Deleting…' : confirmLabel}
+            {busy ? (
+              <>
+                <LoaderInline tone="inherit" />
+                Deleting…
+              </>
+            ) : confirmLabel}
           </Button>
         </div>
       </div>

@@ -1,3 +1,4 @@
+// strategy.ts — Shared shapes for strategy metadata, metrics and deep-dive copy.
 export type StrategyCategory = 'TRADING' | 'INVESTING';
 
 export interface CoreMetrics {

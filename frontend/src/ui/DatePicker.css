@@ -29,7 +29,7 @@
   border-radius: var(--radius-sm);
   padding: 0 var(--space-sm) 0 var(--space-xs);
   font-size: var(--text-base);
-  height: 42px; /* exact px keeps the input row visually identical */
+  height: 2.625rem; /* ≈42px — keeps the input row visually identical */
   min-width: min(12rem, 100%); /* ≈190px, shrinks on narrow screens */
   display: flex;
   align-items: center;
@@ -157,7 +157,7 @@
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 2px; /* hairline grid — px keeps day cells flush */
+  gap: var(--space-3xs); /* hairline grid — px keeps day cells flush */
 }
 
 .cal-day-btn {
@@ -185,12 +185,12 @@
 
 .cal-day-btn.selected {
   background-color: var(--accent);
-  color: #ffffff;
+  color: var(--text-inverse);
   font-weight: 600;
 }
 
 .cal-day-btn.selected:hover {
-  opacity: 0.9;
+  background-color: var(--accent-hover);
 }
 
 /* ---------- Mobile: let the calendar use the full screen width ---------- */

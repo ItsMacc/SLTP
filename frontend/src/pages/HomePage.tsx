@@ -1,3 +1,4 @@
+// HomePage.tsx — Landing page: hero, platform module grid, audience paths.
 import { useEffect, type CSSProperties, type ComponentType } from 'react';
 import {
   FlaskConical,
@@ -65,10 +66,10 @@ const MODULES: ModuleData[] = [
     id: 'strategies',
     nav: 'strategies',
     index: '03',
-    kicker: 'Model library',
+    kicker: 'Strategy library',
     title: 'Strategies',
     description:
-      'Read how each model works, from the idea behind it to its rebalancing rules, and see how it performed against buy and hold.',
+      'Read how each strategy works, from the reasoning behind it to its rebalancing rules, and see how it performed against buy and hold.',
     icon: Layers,
     cta: 'Browse strategies',
   },
@@ -79,7 +80,7 @@ const MODULES: ModuleData[] = [
     kicker: 'Track record',
     title: 'Performance',
     description:
-      'Follow how each model behaves in real market conditions, with drawdown, CAGR and risk-adjusted returns kept in plain sight.',
+      'Follow how each strategy behaves in real market conditions, with drawdown, CAGR and risk-adjusted returns kept in plain sight.',
     icon: LineChart,
     cta: 'View performance',
   },
@@ -128,16 +129,16 @@ export default function HomePage({ onNavigate, onOpenGuide }: HomePageProps) {
   return (
     <div className="home-page">
       {/* ================= HERO ================= */}
-      <section className="home-hero page-hero-band is-full-bleed is-dot-grid">
+      <section className="home-hero-wrapper page-hero-band is-full-bleed is-dot-grid">
         <div className="home-hero-inner page-hero-inner">
           <div className="home-hero-copy">
-            <span className="home-eyebrow">Research platform for the stock market</span>
-            <h1 className="home-hero-title">
+            <span className="page-hero-eyebrow">Research platform for the stock market</span>
+            <h1 className="page-hero-title">
               Research stocks, test strategies,
               <br />
               <em>and track what you own.</em>
             </h1>
-            <p className="home-hero-lede">
+            <p className="page-hero-description">
               Every strategy on SLTP comes with the rules behind it and its full backtest history,
               so you can see how it works, test your own ideas, and decide what to follow.
             </p>
@@ -166,7 +167,7 @@ export default function HomePage({ onNavigate, onOpenGuide }: HomePageProps) {
       <section className="home-section">
         <div className="home-section-head home-reveal" style={revealDelay(0)}>
           <span className="home-section-label">The platform</span>
-          <h2 className="home-section-title">What each part of SLTP is for.</h2>
+          <h2 className="home-section-title">What each part of SLTP does</h2>
           <p className="home-section-lede">
             Follow a model or build your own, keep track of what you hold, and check the record
             before you act.

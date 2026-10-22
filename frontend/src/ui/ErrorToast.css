@@ -38,7 +38,7 @@
 .error-toast-icon {
   flex: none;
   color: var(--error);
-  margin-top: 2px;
+  margin-top: var(--space-3xs);
 }
 
 .error-toast-text {

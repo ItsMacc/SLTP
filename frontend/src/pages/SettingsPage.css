@@ -188,13 +188,13 @@
 }
 
 .st-settings-alert--success {
-  background-color: rgba(5, 150, 105, 0.12);
+  background-color: var(--success-muted);
   color: var(--success);
   border: 1px solid var(--success);
 }
 
 .st-settings-alert--error {
-  background-color: rgba(220, 38, 38, 0.12);
+  background-color: var(--error-muted);
   color: var(--error);
   border: 1px solid var(--error);
 }
@@ -219,7 +219,7 @@
   align-items: center;
   justify-content: center;
   padding: 1rem;
-  background: rgba(0, 0, 0, 0.45);
+  background: var(--overlay);
   backdrop-filter: blur(2px);
 }
 

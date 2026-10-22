@@ -6,11 +6,17 @@ import { seedNewAccount } from '../../lib/learnApi';
 import { provisionAccount } from '../../lib/api';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
+import { LoaderInline, LoaderOverlay } from '../ui/Loader';
 import './AuthCard.css';
 
 interface AuthCardProps {
   initialMode?: 'login' | 'signup';
-  onSuccess: (userProfile: { id?: string; email: string; name: string }) => void;
+  /**
+   * Called once the credentials check out. It may be async: the card keeps
+   * its loader up until the promise settles, so the sign-in covers the
+   * account write in Turso as well as the sign-in itself.
+   */
+  onSuccess: (userProfile: { id?: string; email: string; name: string }) => void | Promise<void>;
 }
 
 export function AuthCard({ initialMode = 'login', onSuccess }: AuthCardProps) {
@@ -102,7 +108,7 @@ export function AuthCard({ initialMode = 'login', onSuccess }: AuthCardProps) {
           });
         }
 
-        onSuccess({
+        await onSuccess({
           id: userId,
           email: userEmail,
           name: fetchedName || userEmail,
@@ -140,7 +146,7 @@ export function AuthCard({ initialMode = 'login', onSuccess }: AuthCardProps) {
           await provisionAccount(signupToken, fullNameInput.trim());
         }
 
-        setSuccessMsg('Account created successfully! Please check your email to verify your account before logging in.');
+        setSuccessMsg('Account created. Check your email to confirm the address, then sign in.');
       }
     } catch (err: any) {
       setErrors({ email: err.message || 'An authentication error occurred' });
@@ -178,9 +184,11 @@ export function AuthCard({ initialMode = 'login', onSuccess }: AuthCardProps) {
           </button>
         </div>
 
-        <h2 className="st-auth__title">{isLogin ? 'Welcome Back' : 'Create Account'}</h2>
+        <h2 className="st-auth__title">{isLogin ? 'Sign in' : 'Create an account'}</h2>
         <p className="st-auth__subtitle">
-          {isLogin ? 'Sign in to access your portfolio' : 'Get started with your trading account'}
+          {isLogin
+            ? 'Your portfolio, your projects and your course progress are saved to your account.'
+            : 'An account keeps your portfolio, your Lab projects and your course progress.'}
         </p>
 
         {successMsg && <div className="st-auth__success">{successMsg}</div>}
@@ -256,7 +264,12 @@ export function AuthCard({ initialMode = 'login', onSuccess }: AuthCardProps) {
 
           <div className="st-auth__submit-container">
             <Button type="submit" variant="primary" size="md" disabled={loading}>
-              {loading ? 'Processing...' : isLogin ? 'Sign In' : 'Sign Up'}
+              {loading ? (
+                <>
+                  <LoaderInline tone="inherit" />
+                  {isLogin ? 'Signing in…' : 'Creating account…'}
+                </>
+              ) : isLogin ? 'Sign In' : 'Sign Up'}
             </Button>
           </div>
         </form>
@@ -276,6 +289,15 @@ export function AuthCard({ initialMode = 'login', onSuccess }: AuthCardProps) {
           </button>
         </div>
       </div>
+
+      {/* Signing in and signing up both write to the account store, so the
+          whole page is held still while it happens. */}
+      {loading && (
+        <LoaderOverlay
+          label={isLogin ? 'Signing in…' : 'Creating your account…'}
+          sub="Checking your credentials and writing your account to the store."
+        />
+      )}
     </div>
   );
 }

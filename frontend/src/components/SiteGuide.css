@@ -333,10 +333,51 @@
   transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
-.tsg-tour-card-btn:hover {
+.tsg-tour-card-btn:hover:not(:disabled) {
   background: var(--accent);
   border-color: var(--accent);
-  color: var(--text-inverse, #fff);
+  color: var(--text-inverse);
+}
+
+/* A tour of a page that needs an account: the card stays readable, the
+   button is dead, and the reason shows up on hover. */
+.tsg-tour-card.is-locked {
+  position: relative;
+  border-style: dashed;
+}
+
+.tsg-tour-card-btn.is-disabled {
+  color: var(--text-muted);
+  background: transparent;
+  border-style: dashed;
+  border-color: var(--border-strong);
+  cursor: not-allowed;
+}
+
+.tsg-tour-lock-hint {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 0.5rem);
+  z-index: 30;
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg);
+  padding: 0.55rem 0.7rem;
+  opacity: 0;
+  transform: translateY(0.25rem);
+  pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.tsg-tour-card.is-locked:hover .tsg-tour-lock-hint,
+.tsg-tour-card.is-locked:focus-within .tsg-tour-lock-hint {
+  opacity: 1;
+  transform: none;
 }
 
 .tsg-tour-card-soon {
@@ -407,9 +448,12 @@
   transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
 }
 
+/* The plain footer button is the surface kind, so it takes the same off-black
+   shade the other surface buttons use on hover - not the accent shade. */
 .tsg-nav-btn:hover:not(:disabled) {
   color: var(--text-primary);
   border-color: var(--border-strong);
+  background: var(--bg-surface-hover);
 }
 
 .tsg-nav-btn:disabled {
@@ -418,7 +462,7 @@
 }
 
 .tsg-nav-btn.is-primary {
-  color: var(--text-inverse, #fff);
+  color: var(--text-inverse);
   background: var(--accent);
   border-color: var(--accent);
   min-width: 7rem;
@@ -427,7 +471,7 @@
 .tsg-nav-btn.is-primary:hover:not(:disabled) {
   background: var(--accent-hover);
   border-color: var(--accent-hover);
-  color: var(--text-inverse, #fff);
+  color: var(--text-inverse);
 }
 
 .tsg-counter {
@@ -443,7 +487,9 @@
 
 /* The bundled driver.css is imported in main.tsx alongside this file. */
 
-.tsg-driver-popover {
+/* driver.css ships a white popover of its own, so the class is doubled up
+   here to win on specificity whatever order the two stylesheets land in. */
+.driver-popover.tsg-driver-popover {
   background: var(--bg-surface);
   color: var(--text-primary);
   border: 1px solid var(--border-subtle);
@@ -474,7 +520,7 @@
 .tsg-driver-popover .driver-popover-next-btn,
 .tsg-driver-popover .driver-popover-done-btn {
   background: var(--accent);
-  color: var(--text-inverse, #fff);
+  color: var(--text-inverse);
   border: none;
   border-radius: var(--radius-sm);
   font-family: var(--font-sans);
@@ -483,7 +529,9 @@
 }
 
 .tsg-driver-popover .driver-popover-next-btn:hover,
-.tsg-driver-popover .driver-popover-done-btn:hover {
+.tsg-driver-popover .driver-popover-next-btn:focus,
+.tsg-driver-popover .driver-popover-done-btn:hover,
+.tsg-driver-popover .driver-popover-done-btn:focus {
   background: var(--accent-hover);
 }
 
@@ -496,17 +544,58 @@
   text-shadow: none;
 }
 
-.tsg-driver-popover .driver-popover-prev-btn:hover {
+/* driver.css paints its footer buttons white and lightens that white on
+   hover. Left alone, the Back button turns into a white slab under white
+   text in dark mode, so the hover gets the off-black surface shade the
+   other plain buttons use. */
+.tsg-driver-popover .driver-popover-prev-btn:hover,
+.tsg-driver-popover .driver-popover-prev-btn:focus {
   color: var(--text-primary);
   border-color: var(--border-strong);
+  background: var(--bg-surface-hover);
 }
 
 .tsg-driver-popover .driver-popover-close-btn {
   color: var(--text-muted);
 }
 
-.tsg-driver-popover .driver-popover-arrow-side-bottom.driver-popover-arrow {
+/* driver.js darkens the close mark on hover; keep it in the theme's colours. */
+.tsg-driver-popover .driver-popover-close-btn:hover,
+.tsg-driver-popover .driver-popover-close-btn:focus {
+  color: var(--text-primary);
+}
+
+/* The arrow is painted in the popover's own fill so it disappears into the
+   edge it points from. driver.js leaves three of the four borders
+   transparent so only the visible triangle is coloured; those transparent
+   edges are repeated here, because a shorthand `border-color` would turn
+   the arrow into a square. */
+.tsg-driver-popover .driver-popover-arrow {
   border-color: var(--bg-surface);
+}
+
+.tsg-driver-popover .driver-popover-arrow-side-left {
+  border-top-color: transparent;
+  border-bottom-color: transparent;
+  border-right-color: transparent;
+}
+
+.tsg-driver-popover .driver-popover-arrow-side-right {
+  border-top-color: transparent;
+  border-bottom-color: transparent;
+  border-left-color: transparent;
+}
+
+.tsg-driver-popover .driver-popover-arrow-side-top {
+  border-bottom-color: transparent;
+  border-left-color: transparent;
+  border-right-color: transparent;
+}
+
+.tsg-driver-popover .driver-popover-arrow-side-bottom {
+  border-top-color: transparent;
+  border-left-color: transparent;
+  border-right-color: transparent;
 }
 
 /* ---------- Reduced motion ---------- */

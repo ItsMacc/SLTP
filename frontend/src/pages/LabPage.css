@@ -23,43 +23,18 @@
 }
 
 /* Mobile-first: single column hero with full-bleed band on desktop */
-.lab-hero-top {
+.lab-hero-copy {
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
   max-width: min(42rem, 100%); /* ≈672px reading measure */
 }
 
-.lab-hero-subtitle {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-xs);
-  color: var(--accent);
-  font-family: var(--font-mono);
-  font-size: var(--text-sm);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
 /* A long statement reads better a size down from the display scale */
-.lab-hero-title {
-  font-family: var(--font-heading);
-  color: var(--text-primary);
-  font-weight: 400;
-  line-height: 1.15;
-  margin: 0;
+.lab-hero-copy .page-hero-title {
   max-width: min(58rem, 100%); /* ≈928px */
 }
 
-.lab-hero-description {
-  color: var(--text-muted);
-  font-size: var(--text-base);
-  line-height: 1.7;
-  margin: 0;
-  max-width: min(38rem, 100%);
-}
-
-.lab-hero-description code,
 .lab-card-text code {
   font-family: var(--font-mono);
   font-size: 0.9em;
@@ -240,7 +215,7 @@
   background-color: var(--accent-muted);
   color: var(--accent);
   border-radius: 2px;
-  padding: 0 1px;
+  padding: 0 var(--space-3xs);
 }
 
 .lab-visually-hidden {
@@ -296,8 +271,12 @@
   padding: var(--space-md);
 }
 
+/* Opening a project swaps the whole page for the editor, so the fallback is
+   the centred loading screen rather than a line of text. */
 .lab-opening {
-  padding: var(--space-xl) var(--gutter);
+  display: flex;
+  justify-content: center;
+  padding: var(--space-2xl) var(--gutter);
 }
 /* ---------- Workspaces panel ---------- */
 
@@ -400,7 +379,7 @@
 .lab-ws-new {
   flex: 0 0 auto;
   white-space: nowrap;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
 }
 
 /* Column headers — same grid as project rows */

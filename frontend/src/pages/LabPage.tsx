@@ -16,6 +16,7 @@ import type { NewProjectInput } from './LabNewProject';
 import Button from '../ui/Button';
 import ConfirmDeleteDialog from '../ui/ConfirmDeleteDialog';
 import SuccessToast from '../ui/SuccessToast';
+import { LoaderScreen } from '../ui/Loader';
 import './LabPage.css';
 
 const LabEditorPage = lazy(() => import('./LabEditorPage'));
@@ -215,7 +216,13 @@ export default function LabPage({ onNavigate }: LabPageProps) {
 
   if (openProject) {
     return (
-      <Suspense fallback={<p className="lab-status lab-opening">Opening project…</p>}>
+      <Suspense
+        fallback={
+          <div className="lab-opening">
+            <LoaderScreen label="Opening project…" sub="Loading the editor." />
+          </div>
+        }
+      >
         <LabEditorPage
           project={openProject.project}
           workspaceName={openProject.workspaceName}
@@ -232,16 +239,16 @@ export default function LabPage({ onNavigate }: LabPageProps) {
     <div className="lab-root">
       <div className="lab-hero-wrapper page-hero-band is-full-bleed is-dot-grid">
         <div className="lab-hero-inner page-hero-inner">
-          <div className="lab-hero-top">
-            <span className="lab-hero-subtitle">The Lab</span>
-            <h1 className="lab-hero-title">
-              Design, backtest, and deploy algorithmic strategies with risk management and zero setup.
+          <div className="lab-hero-copy">
+            <span className="page-hero-eyebrow">The Lab</span>
+            <h1 className="page-hero-title">
+              Write a strategy, then test it against real market history.
             </h1>
           </div>
 
           <div className="lab-hero-docs">
             <p className="lab-hero-docs-text">
-              Explore our documentation and quickstart guides to start building your first strategy
+              The Docs page lists every method you can override, with worked examples you can copy.
             </p>
             <button type="button" className="lab-docs-link" onClick={() => onNavigate?.('docs')}>
               Read the docs <ArrowRight size={14} aria-hidden="true" />
@@ -256,7 +263,7 @@ export default function LabPage({ onNavigate }: LabPageProps) {
             <p className="lab-eyebrow">New project</p>
             <h2 id="lab-new-title" className="lab-section-title">Build a strategy</h2>
             <p className="lab-card-text">
-              Create a strategy in its own editor, backtest it against market history, and refine it without configuring a local environment.
+              Each project opens in its own editor, with the engine classes read-only and your code in workspace/.
             </p>
             <Button variant="primary" size="md" className="lab-full" onClick={() => startWizard()}>
               <Plus size={15} aria-hidden="true" /> New project
@@ -300,7 +307,14 @@ export default function LabPage({ onNavigate }: LabPageProps) {
             </div>
 
             <ul className="lab-ws-list">
-              {loading && <li className="lab-ws-empty">Loading workspaces…</li>}
+              {loading && (
+                <li className="lab-ws-empty">
+                  <LoaderScreen
+                    label="Loading workspaces…"
+                    sub="Reading your workspaces and projects from the account store."
+                  />
+                </li>
+              )}
 
               {!loading && loadError && (
                 <li className="lab-ws-empty">

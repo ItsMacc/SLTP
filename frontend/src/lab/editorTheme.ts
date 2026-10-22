@@ -1,3 +1,4 @@
+// editorTheme.ts — Monaco editor theme, tuned to the light and dark palettes.
 import type { Monaco } from './pyright';
 
 const lightRules = [

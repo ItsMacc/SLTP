@@ -1,4 +1,4 @@
-// BacktestWalkthrough.tsx - Tier IV module B: reading a real backtest.
+// BacktestWalkthrough.tsx — Tier IV module B: reading a real backtest.
 //
 // Module A defined what a backtest is. This one reads a real one, end to end,
 // using the actual Stock Health Filter report from the Strategies page: the

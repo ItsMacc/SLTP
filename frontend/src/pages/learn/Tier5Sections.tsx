@@ -1,4 +1,4 @@
-// Tier5Sections.tsx - Tier V modules B and C.
+// Tier5Sections.tsx — Tier V modules B and C.
 //
 // Module B (metrics): two strategies, same return, different risk. A single
 //   slider moves volatility and the verdict moves with it.

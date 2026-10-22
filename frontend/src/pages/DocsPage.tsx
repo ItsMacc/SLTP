@@ -27,7 +27,7 @@ const SECTIONS = [
   { id: 'recipe-universe', label: 'Recipe: custom universe', num: '07' },
   { id: 'reference', label: 'Engine reference', num: '08' },
   { id: 'api', label: 'API usage', num: '09' },
-  { id: 'gotchas', label: 'Gotchas & checklist', num: '10' },
+  { id: 'gotchas', label: 'Gotchas and checklist', num: '10' },
 ];
 
 // ---------- primitives ----------
@@ -119,15 +119,17 @@ export default function DocsPage(_props: DocsPageProps) {
 
   return (
     <div className="docs-page">
-      <div className="docs-hero page-hero-band is-full-bleed is-dot-grid">
-        <div className="page-hero-inner">
-        <p className="docs-kicker">Documentation</p>
-        <h1 className="docs-title">Write your own strategy.</h1>
-        <p className="docs-sub">
-          SLTP strategies are just two Python classes. You decide when to buy,
-          the engine handles sizing, fills, fees, stop-losses and simulation.
-          Implement two files and everything else is handled for you.
-        </p>
+      <div className="docs-hero-wrapper page-hero-band is-full-bleed is-dot-grid">
+        <div className="docs-hero-inner page-hero-inner">
+          <div className="docs-hero-copy">
+            <span className="page-hero-eyebrow">Documentation</span>
+            <h1 className="page-hero-title">The two classes behind every strategy.</h1>
+            <p className="page-hero-description">
+              One class decides when to buy. The other decides how much to risk on each
+              position and where to cut losses. Position sizing, fills, fees, stop-losses
+              and the simulation are handled for you.
+            </p>
+          </div>
         </div>
       </div>
 
@@ -797,7 +799,7 @@ def on_rebalance(self, current_date: str) -> None:
           <section id="gotchas" className="docs-section">
             <div className="docs-section-heading">
               <span className="docs-section-num">10</span>
-              <h2>Gotchas &amp; checklist</h2>
+              <h2>Gotchas and checklist</h2>
             </div>
             <ul className="docs-checklist">
               <li>Set <code>MIN_BARS_REQUIRED</code> honestly and raise <code>ValueError</code> when history is shorter. The engine treats that as "not yet tradable" and moves on.</li>

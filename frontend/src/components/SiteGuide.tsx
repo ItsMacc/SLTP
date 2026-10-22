@@ -1,4 +1,4 @@
-// SiteGuide.tsx - "See how SLTP works": a full-screen slideshow with a small
+// SiteGuide.tsx — "See how SLTP works": a full-screen slideshow with a small
 // close button in the corner. The tour slide hands control to Driver.js, which
 // opens the real pages and spotlights their elements as an interactive product
 // walkthrough. A final slide points to the always-present page guides.
@@ -12,6 +12,7 @@ import {
   Wallet,
   MousePointerClick,
   LifeBuoy,
+  Lock,
 } from 'lucide-react';
 import { GlossaryText } from './GlossaryText';
 import { type GlossaryTerm } from '../types/strategy';
@@ -21,6 +22,8 @@ export interface SiteGuideProps {
   open: boolean;
   onClose: () => void;
   onNavigate: (tab: string) => void;
+  /** True when somebody is signed in, so pages behind a sign-in can be toured */
+  isSignedIn?: boolean;
 }
 
 /* ============================================================
@@ -38,18 +41,20 @@ const GUIDE_GLOSSARY: Record<string, string | GlossaryTerm> = {
   },
   backtest: {
     definition: 'Running a strategy\u2019s rules over past market data to see how it would have performed, without risking real money.',
-    example: 'Backtesting a strategy on 10 years of data shows its returns and worst losing streak it would have caused.',
+    example:
+      'Backtesting "buy the 10 healthiest stocks, rebalance quarterly" over 20 years shows its returns and its worst losing streak.',
   },
   'stop-loss': {
-    definition: 'A preset rule that sells a holding when its price falls to a set level, limiting how much you can lose on it.',
-    example: 'A stop-loss set 10% below your buy price automatically sells if the stock drops 10%.',
+    definition: 'A preset rule that sells a holding when its price falls to a set level, capping how much you can lose.',
+    example: 'A stop-loss 10% below your buy price sells automatically if the stock drops 10%.',
   },
   'take-profit': {
     definition: 'A preset rule that sells a holding once it reaches a target gain, locking in the profit.',
     example: 'A take-profit set 20% above your buy price automatically sells after a 20% rise.',
   },
   signal: {
-    definition: 'A message from a strategy saying it would buy, sell, or hold a stock, usually with the numbers behind the call.',
+    definition:
+      "The moment a strategy's rules say to act, buy, sell or hold. A signal is the output of the rules, not a guess.",
     example: 'A signal might read: BUY MU, confidence 82%, because price health is accelerating.',
   },
   strategy: {
@@ -61,12 +66,12 @@ const GUIDE_GLOSSARY: Record<string, string | GlossaryTerm> = {
     example: 'An S&P 500 index fund owns the same 500 companies as the index, no more and no less.',
   },
   compounding: {
-    definition: 'Returns earning their own returns over time, which is what makes long investing horizons powerful.',
+    definition: 'Returns earning their own returns over time, which is why holding for years beats acting often.',
     example: '$1,000 growing 7% per year becomes about $2,000 in 10 years and $4,000 in 20, without adding anything.',
   },
   benchmark: {
-    definition: 'A simple baseline used for comparison, so you can tell whether extra effort is adding value.',
-    example: 'If a strategy returns 8% while simply holding the index returned 10%, it failed against its benchmark.',
+    definition: 'A standard the strategy is measured against, so you can tell whether it added anything.',
+    example: 'If a strategy returns 8% and the S&P 500 returned 10%, it underperformed its benchmark.',
   },
   rebalancing: {
     definition: 'Periodically adjusting holdings so a strategy stays true to its rules as prices move.',
@@ -91,14 +96,14 @@ function SlideWelcome() {
       </h1>
       <p className="tsg-lede">
         <GlossaryText
-          text="SLTP is a stock-market research platform that guides users and helps them start investing. The name stands for stop-loss take-profit, the platform provides actionable insights, market analysis, and beginner-friendly tools designed to help investors manage risk and build confidence."
+          text="SLTP is a stock-market research platform. The name stands for stop-loss take-profit, the two rules that decide when a position is cut and when a gain is banked. Here you can look up market data, read and backtest trading strategies, and work through a course that explains what all of it means."
           glossary={GUIDE_GLOSSARY}
         />
       </p>
       <p className="tsg-body">
-        SLTP is a research tool, not a broker. Nothing here places real trades or moves
-        real money. You explore real market data, test ideas against history, and
-        practice with pretend cash until you are ready.
+        SLTP is a research tool, not a broker. Nothing here places a real trade or moves
+        real money. You look at real market data, test ideas against history, and
+        practise with pretend cash.
       </p>
     </div>
   );
@@ -107,44 +112,40 @@ function SlideWelcome() {
 function SlideHowToUse() {
   const uses = [
     {
-      icon: LineChart,
-      title: 'Track performance',
-      body: (
-        <GlossaryText
-          text="Look up any stock or ETF and study its price over 1, 2, 5 or all available years with candlestick charts."
-          glossary={GUIDE_GLOSSARY}
-        />
-      ),
+      icon: LineChart,          title: 'Track performance',
+          body: (
+            <GlossaryText
+              text="Look up any stock or ETF and study its price over 1, 2, 5 or all available years."
+              glossary={GUIDE_GLOSSARY}
+            />
+          ),
     },
     {
-      icon: FlaskConical,
-      title: 'Backtest strategies',
-      body: (
-        <GlossaryText
-          text="Run the built-in strategies against years of real market history and compare each one against its benchmark."
-          glossary={GUIDE_GLOSSARY}
-        />
-      ),
+      icon: FlaskConical,          title: 'Backtest strategies',
+          body: (
+            <GlossaryText
+              text="Run the built-in strategies against years of real market history and compare each one against its benchmark."
+              glossary={GUIDE_GLOSSARY}
+            />
+          ),
     },
     {
-      icon: Code2,
-      title: 'Write your own',
-      body: (
-        <GlossaryText
-          text="More advanced users can write code for their own strategies in the Lab and backtest them the same way."
-          glossary={GUIDE_GLOSSARY}
-        />
-      ),
+      icon: Code2,          title: 'Write your own',
+          body: (
+            <GlossaryText
+              text="Advanced users can write their own strategies in the Lab and backtest them the same way."
+              glossary={GUIDE_GLOSSARY}
+            />
+          ),
     },
     {
-      icon: Wallet,
-      title: 'Track your portfolio',
-      body: (
-        <GlossaryText
-          text="Set up a portfolio, follow the built-in strategies, and receive their signals whenever you want a second opinion."
-          glossary={GUIDE_GLOSSARY}
-        />
-      ),
+      icon: Wallet,          title: 'Track your portfolio',
+          body: (
+            <GlossaryText
+              text="Set up a portfolio, follow the built-in strategies, and receive their signals as a second opinion."
+              glossary={GUIDE_GLOSSARY}
+            />
+          ),
     },
   ];
   return (
@@ -169,12 +170,11 @@ function SlideHowToUse() {
 function SlideInvestingVsTrading() {
   return (
     <div className="tsg-slide-inner">
-      <span className="tsg-kicker">Two minutes of theory</span>
+      <span className="tsg-kicker">One distinction</span>
       <h1 className="tsg-title">Investing vs trading</h1>
       <p className="tsg-lede">
         These two words describe how long you hold an investment. Every strategy on SLTP
-        is labelled one way or the other, and neither is better; they suit different
-        people.
+        is labelled one way or the other.
       </p>
       <div className="tsg-duo">
         <div className="tsg-duo-card">
@@ -209,13 +209,11 @@ function SlideFinal() {
       <h1 className="tsg-title">If you ever need help</h1>
       <span className="tsg-final-icon"><LifeBuoy size={26} strokeWidth={1.75} /></span>
       <p className="tsg-lede">
-        There is always some text at the bottom of every page to help you understand it
-        better. The Performance page has a full candlestick guide, the Strategies page
-        explains how to read a backtest, and more guides are added as the site grows.
+        Each page has a written guide at the bottom. The Performance page explains
+        candlesticks, and the Strategies page explains how to read a backtest.
       </p>
       <p className="tsg-body">
-        When something looks unfamiliar, scroll down. It is probably explained right
-        there.
+        If something is unfamiliar, scroll down. It is usually explained there.
       </p>
     </div>
   );
@@ -236,26 +234,113 @@ interface PageTour {
   blurb: string;
   /** Driver steps for this page, or null while the page is not ready */
   steps: (() => DriveStep[]) | null;
+  /** The page sits behind a sign-in, so the tour needs an account */
+  requiresAuth?: boolean;
+  /** Waits for the page to finish loading before the first step is shown */
+  prepare?: () => Promise<void>;
+  /** Replaces the standard closing popover */
+  closing?: DriveStep;
+}
+
+/* ============================================================
+   Lab helpers
+
+   The Lab reads its workspaces from the server, so the tour has to wait
+   for the list before it knows what it can point at.
+   ============================================================ */
+
+/** Waits for the Lab list to settle, so the tour knows whether there is a
+    project to open. It resolves either way, it never hangs the tour. */
+function waitForLabList(): Promise<void> {
+  return new Promise((resolve) => {
+    const deadline = Date.now() + 4000;
+    const check = () => {
+      const list = document.querySelector('.lab-ws-list');
+      const settled = list && !list.textContent?.includes('Loading');
+      if (settled || Date.now() > deadline) resolve();
+      else window.setTimeout(check, 120);
+    };
+    check();
+  });
+}
+
+/** True when at least one workspace holds a project. */
+function labHasProjects(): boolean {
+  return Array.from(document.querySelectorAll('.lab-ws-badge')).some(
+    (badge) => !badge.textContent?.trim().startsWith('0'),
+  );
+}
+
+/** Opens the first project in the Lab list: expands the first workspace,
+    clicks its first project, then waits for the editor to mount. */
+function openFirstLabProject(instance: Driver): void {
+  const deadline = Date.now() + 8000;
+  let expanded = false;
+  const attempt = () => {
+    /* The editor is already open, so there is nothing left to click. */
+    if (document.querySelector('.lab-explorer')) {
+      instance.moveNext();
+      return;
+    }
+    const open = document.querySelector<HTMLElement>('.lab-ws-strategy-open');
+    if (open) {
+      open.click();
+      waitForLabEditor(instance);
+      return;
+    }
+    if (!expanded) {
+      const toggle = document.querySelector<HTMLElement>('.lab-ws-group .lab-ws-row-main');
+      if (toggle) {
+        toggle.click();
+        expanded = true;
+      }
+    }
+    if (Date.now() > deadline) {
+      instance.moveNext();
+      return;
+    }
+    window.setTimeout(attempt, 250);
+  };
+  window.setTimeout(attempt, 250);
+}
+
+/** Waits for the editor frame, then moves the tour on to it. */
+function waitForLabEditor(instance: Driver): void {
+  const deadline = Date.now() + 10000;
+  const check = () => {
+    if (document.querySelector('.lab-explorer') || Date.now() > deadline) {
+      instance.moveNext();
+      return;
+    }
+    window.setTimeout(check, 200);
+  };
+  window.setTimeout(check, 300);
+}
+
+/** The Docs link in the top bar, so the last step can point at it. */
+function findDocsNav(): Element | null {
+  const links = Array.from(document.querySelectorAll<HTMLElement>('.header-nav .nav-link'));
+  return links.find((link) => link.textContent?.trim() === 'Docs') ?? null;
 }
 
 const PAGE_TOURS: PageTour[] = [
   {
     tab: 'portfolio',
     label: 'Portfolio',
-    blurb: 'Your setup, watchlist, and preferences.',
+    blurb: 'Your settings, watchlist, and preferences.',
     steps: null,
   },
   {
     tab: 'strategies',
     label: 'Strategies',
-    blurb: 'The model library: rules, reasoning, backtests.',
+    blurb: 'The strategy library: rules, reasoning, and backtests.',
     steps: () => [
       {
-        element: '.strategies-hero-top',
+        element: '.strategies-hero-copy',
         popover: {
-          title: 'This is the Strategies page',
+          title: 'Strategies page',
           description:
-            'The model library. Every strategy SLTP offers, with nothing hidden.',
+            'The full strategy library: every strategy SLTP publishes, with its rules and backtests.',
           side: 'bottom',
           align: 'start',
         },
@@ -263,9 +348,9 @@ const PAGE_TOURS: PageTour[] = [
       {
         element: '.strategies-stats-row',
         popover: {
-          title: 'The library at a glance',
+          title: 'Library summary',
           description:
-            'Quick stats about the strategies on offer, before you dive into any single one.',
+            'How many strategies are published, how many periods they were tested over, and what they are compared against.',
           side: 'bottom',
           align: 'start',
         },
@@ -275,7 +360,7 @@ const PAGE_TOURS: PageTour[] = [
         popover: {
           title: 'Strategy cards',
           description:
-            'Each card shows the strategy\u2019s style (investing or trading), how active it is, and how often it rebalances. Click a card to expand it.',
+            'Each card shows the strategy\u2019s style, how active it is, and how often it rebalances. Click to expand.',
           side: 'top',
           align: 'center',
         },
@@ -283,9 +368,9 @@ const PAGE_TOURS: PageTour[] = [
       {
         element: '.strategies-list',
         popover: {
-          title: 'Everything is written out',
+          title: 'The full write-up',
           description:
-            'Expand any card for the hypothesis behind it, the exact rules, and its full backtest against simply buying and holding.',
+            'Expanding a card shows the reasoning behind the strategy, the rules it follows, and its backtest against simply buying and holding.',
           side: 'top',
           align: 'center',
         },
@@ -295,14 +380,14 @@ const PAGE_TOURS: PageTour[] = [
   {
     tab: 'performance',
     label: 'Performance',
-    blurb: 'Research any stock, then run a strategy backtest.',
+    blurb: 'Price charts for any stock, plus the strategy backtest runner.',
     steps: () => [
       {
-        element: '.perf-hero-top',
+        element: '.perf-hero-copy',
         popover: {
-          title: 'This is the Performance page',
+          title: 'Performance page',
           description:
-            'Your research desk. Before buying anything, look at its history here. Let us walk through the pieces.',
+            'Price charts for any stock, and a backtest runner for the built-in strategies.',
           side: 'bottom',
           align: 'start',
         },
@@ -310,9 +395,9 @@ const PAGE_TOURS: PageTour[] = [
       {
         element: '.ticker-search',
         popover: {
-          title: 'Search any ticker',
+          title: 'Search a ticker',
           description:
-            'Type a stock\u2019s short code, like AAPL for Apple. Suggestions appear as you type, so you can only pick real symbols.',
+            'Type a short code such as AAPL. The list filters as you type.',
           side: 'bottom',
           align: 'start',
         },
@@ -320,9 +405,9 @@ const PAGE_TOURS: PageTour[] = [
       {
         element: '.timeframe-group',
         popover: {
-          title: 'Pick your timeframe',
+          title: 'Timeframe',
           description:
-            '1Y, 2Y, 5Y, or all available history. Zoom out first for the big picture, then zoom in on interesting periods.',
+            '1Y, 2Y, 5Y, or all available history. The chart redraws for the span you pick.',
           side: 'bottom',
           align: 'start',
         },
@@ -330,9 +415,9 @@ const PAGE_TOURS: PageTour[] = [
       {
         element: '.perf-chart-wrapper',
         popover: {
-          title: 'The chart',
+          title: 'Price chart',
           description:
-            'Each candle is one trading day: green closed higher than it opened, red closed lower. Search a ticker to bring it to life.',
+            'One candle per trading day. Green means the close was above the open, red means it was below.',
           side: 'top',
           align: 'center',
         },
@@ -340,9 +425,9 @@ const PAGE_TOURS: PageTour[] = [
       {
         element: '.guide',
         popover: {
-          title: 'A guide lives right here',
+          title: 'Chart guide',
           description:
-            'Under the chart sits a long beginner guide explaining candlesticks step by step, with diagrams. Remember this spot.',
+            'A written guide to candlesticks sits under the chart, with diagrams.',
           side: 'top',
           align: 'center',
         },
@@ -352,7 +437,7 @@ const PAGE_TOURS: PageTour[] = [
         popover: {
           title: 'Two modes',
           description:
-            'Everything so far was Stocks mode: one price chart at a time. The other side of this switch runs full backtests of our strategies. We will flip it now.',
+            'Stocks shows one price chart at a time. Strategies runs full backtests. Switching now.',
           side: 'bottom',
           align: 'start',
           onNextClick: (_el, _step, opts) => {
@@ -367,9 +452,9 @@ const PAGE_TOURS: PageTour[] = [
       {
         element: '.strategy-card',
         popover: {
-          title: 'Strategies mode',
+          title: 'Backtest runner',
           description:
-            'This is the backtest runner. Instead of one stock\u2019s price, it replays a full SLTP strategy over real market history and reports how it would have done.',
+            'Replays a chosen strategy over real market history and reports the result.',
           side: 'bottom',
           align: 'start',
           /* The stock-mode elements behind us are unmounted, so Back
@@ -380,9 +465,9 @@ const PAGE_TOURS: PageTour[] = [
       {
         element: '.strategy-controls-bar',
         popover: {
-          title: 'Set up the backtest',
+          title: 'Set up the run',
           description:
-            'Pick one of the built-in strategies, choose a start date (and optionally an end date), then press Run Analysis.',
+            'Choose a strategy and a start date, optionally an end date, then press Run Analysis.',
           side: 'bottom',
           align: 'start',
         },
@@ -390,9 +475,9 @@ const PAGE_TOURS: PageTour[] = [
       {
         element: '.strategy-card .empty-state',
         popover: {
-          title: 'Run it to see results',
+          title: 'Results appear here',
           description:
-            'Right now there is nothing to show. After your first run, this area fills with the strategy\u2019s equity chart plus a Performance Metrics panel comparing it against simply buying and holding.',
+            'After a run, this area shows the equity curve and a metrics panel for the strategy.',
           side: 'top',
           align: 'center',
         },
@@ -403,7 +488,153 @@ const PAGE_TOURS: PageTour[] = [
     tab: 'lab',
     label: 'Lab',
     blurb: 'Write and backtest your own strategies.',
-    steps: null,
+    /* The Lab keeps its files on an account, so the tour needs a sign-in. */
+    requiresAuth: true,
+    prepare: waitForLabList,
+    steps: () => {
+      const home: DriveStep[] = [
+        {
+          element: '.lab-hero-copy',
+          /* The list steps live on the Lab page. Once the tour opens a
+             project the editor takes over, so these steps are skipped
+             instead of pointing at nothing. */
+          skipMissingElement: true,
+          popover: {
+            title: 'The Lab',
+            description:
+              'Where you write and backtest your own strategies. Each project opens in its own editor.',
+            side: 'bottom',
+            align: 'start',
+          },
+        },
+        {
+          element: '.lab-start .lab-card',
+          skipMissingElement: true,
+          popover: {
+            title: 'New project',
+            description:
+              'Create a project: give it a name, pick a workspace, and choose a template.',
+            side: 'right',
+            align: 'start',
+          },
+        },
+        {
+          element: '.lab-ws-toolbar',
+          skipMissingElement: true,
+          popover: {
+            title: 'Workspaces',
+            description:
+              'Your projects are grouped into workspaces. Press / to jump to the search box.',
+            side: 'bottom',
+            align: 'start',
+          },
+        },
+        {
+          element: '.lab-ws-list',
+          skipMissingElement: true,
+          popover: {
+            title: 'Projects',
+            description:
+              'All your projects. Open a workspace, then click a project to open it.',
+            side: 'top',
+            align: 'center',
+          },
+        },
+      ];
+
+      /* Nothing to open yet: send the reader to the project card instead of
+         walking them through an editor that has no project behind it. */
+      if (!labHasProjects()) {
+        home.push({
+          element: '.lab-start .lab-card',
+          popover: {
+            title: 'No projects yet',
+            description:
+              'Create one from the card on the left. The next tour walks through the editor.',
+            side: 'right',
+            align: 'start',
+          },
+        });
+        return home;
+      }
+
+      return [
+        ...home,
+        {
+          element: '.lab-ws-list',
+          skipMissingElement: true,
+          popover: {
+            title: 'Opening a project',
+            description:
+              'Opening one so you can see the editor.',
+            side: 'top',
+            align: 'center',
+            onNextClick: (_element, _step, opts) => {
+              openFirstLabProject(opts.driver);
+            },
+          },
+        },
+        {
+          element: '.lab-explorer',
+          waitForElement: 3000,
+          skipMissingElement: true,
+          popover: {
+            title: 'Project files',
+            description:
+              'core/ holds the strategy classes SLTP provides and cannot be edited. Your own code goes in workspace/.',
+            side: 'right',
+            align: 'start',
+          },
+        },
+        {
+          element: '.lab-explorer-tools',
+          waitForElement: 3000,
+          skipMissingElement: true,
+          popover: {
+            title: 'Add files',
+            description:
+              'Import folder copies Python files from a folder on this computer. The plus button creates a new file.',
+            side: 'bottom',
+            align: 'start',
+          },
+        },
+        {
+          element: '.lab-editor-surface',
+          waitForElement: 3000,
+          skipMissingElement: true,
+          popover: {
+            title: 'Editor',
+            description:
+              'Where you write your code. Pyright checks the file as you type.',
+            side: 'top',
+            align: 'center',
+          },
+        },
+        {
+          element: '.lab-statusbar',
+          waitForElement: 3000,
+          skipMissingElement: true,
+          popover: {
+            title: 'Status bar',
+            description:
+              'On the left, whether Pyright is running and how many errors it found. On the right, the terminal and cursor position.',
+            side: 'top',
+            align: 'center',
+          },
+        },
+      ];
+    },
+    closing: {
+      element: () => findDocsNav() as Element,
+      popover: {
+        title: 'Documentation',
+        description:
+          'The Docs page lists every method you can override, with worked examples. The Docs link is in the top bar.',
+        side: 'bottom',
+        align: 'center',
+        doneBtnText: 'Finish tour',
+      },
+    },
   },
 ];
 
@@ -412,9 +643,9 @@ function closingStep(onDone: () => void): DriveStep {
   return {
     /* No element: a centered popover */
     popover: {
-      title: 'Guides everywhere',
+      title: 'Guides',
       description:
-        'Every page carries beginner help at the bottom, like the candlestick guide on the Performance page. That is the end of this tour.',
+        'Each page has a written guide at the bottom. That is the end of the tour.',
       doneBtnText: 'Finish tour',
       onNextClick: onDone,
     },
@@ -425,10 +656,12 @@ function SlideTour({
   onNavigate,
   onTourActiveChange,
   onFinish,
+  isSignedIn,
 }: {
   onNavigate: (tab: string) => void;
   onTourActiveChange: (active: boolean) => void;
   onFinish: () => void;
+  isSignedIn: boolean;
 }) {
   const [tourActive, setTourActive] = useState(false);
   const [runningLabel, setRunningLabel] = useState<string | null>(null);
@@ -452,33 +685,45 @@ function SlideTour({
       setRunningLabel(tour.label);
       onNavigate(tour.tab);
 
+      const finish = () => {
+        driverRef.current?.destroy();
+        setTourState(false);
+        onFinish();
+      };
+
       /* Give the target page a moment to mount, then spotlight it */
       window.setTimeout(() => {
-        driverRef.current = driver({
-          showProgress: true,
-          allowClose: true,
-          smoothScroll: true,
-          overlayColor: 'black',
-          stagePadding: 6,
-          stageRadius: 10,
-          popoverClass: 'tsg-driver-popover',
-          nextBtnText: 'Next',
-          prevBtnText: 'Back',
-          doneBtnText: 'Finish tour',
-          progressText: '{{current}} of {{total}}',
-          onDestroyed: () => {
-            setTourState(false);
-          },
-        });
-        driverRef.current.setSteps([
-          ...tour.steps!(),
-          closingStep(() => {
-            driverRef.current?.destroy();
-            setTourState(false);
-            onFinish();
-          }),
-        ]);
-        driverRef.current.drive();
+        const build = () => {
+          driverRef.current = driver({
+            showProgress: true,
+            allowClose: true,
+            smoothScroll: true,
+            overlayColor: 'black',
+            stagePadding: 6,
+            stageRadius: 10,
+            popoverClass: 'tsg-driver-popover',
+            nextBtnText: 'Next',
+            prevBtnText: 'Back',
+            doneBtnText: 'Finish tour',
+            progressText: '{{current}} of {{total}}',
+            onDestroyed: () => {
+              setTourState(false);
+            },
+          });
+          driverRef.current.setSteps([
+            ...tour.steps!(),
+            /* A page can bring its own closing popover, but it still has to
+               close the tour when the reader is done. */
+            tour.closing
+              ? { ...tour.closing, popover: { ...tour.closing.popover, onNextClick: finish } }
+              : closingStep(finish),
+          ]);
+          driverRef.current.drive();
+        };
+        /* Some pages load their content, and the tour waits for it so the
+           first step lands on something real. */
+        if (tour.prepare) void tour.prepare().then(build);
+        else build();
       }, 400);
     },
     [onNavigate, onFinish, setTourState],
@@ -497,36 +742,60 @@ function SlideTour({
       <span className="tsg-kicker">Interactive walkthrough</span>
       <h1 className="tsg-title">Tour any page</h1>
       <p className="tsg-lede">
-        Pick a page and we will open it on your screen and walk through it together,
-        one highlighted piece at a time. You can come back and tour another page at
-        any time.
+        Pick a page. It opens, and each part of it is pointed out in turn.
       </p>
       {tourActive ? (
         <p className="tsg-tour-note">
-          {runningLabel} tour running. Use the arrows in the popup, or close it any time.
+          {runningLabel} tour running. Use the arrows in the popup.
         </p>
       ) : (
         <div className="tsg-tour-picker">
-          {PAGE_TOURS.map((tour) => (
-            <div key={tour.tab} className={`tsg-tour-card ${tour.steps ? '' : 'is-unavailable'}`}>
-              <div className="tsg-tour-card-head">
-                <span className="tsg-tour-card-name">{tour.label}</span>
-                {tour.steps ? (
-                  <button
-                    type="button"
-                    className="tsg-tour-card-btn"
-                    onClick={() => startTour(tour)}
-                  >
-                    <MousePointerClick size={13} />
-                    Tour
-                  </button>
-                ) : (
-                  <span className="tsg-tour-card-soon">Coming soon</span>
+          {PAGE_TOURS.map((tour) => {
+            /* A tour of a page that needs an account cannot run for a
+               visitor who is not signed in. */
+            const locked = Boolean(tour.steps) && Boolean(tour.requiresAuth) && !isSignedIn;
+            return (
+              <div
+                key={tour.tab}
+                className={`tsg-tour-card ${tour.steps ? '' : 'is-unavailable'} ${locked ? 'is-locked' : ''}`}
+              >
+                <div className="tsg-tour-card-head">
+                  <span className="tsg-tour-card-name">{tour.label}</span>
+                  {tour.steps ? (
+                    locked ? (
+                      <button
+                        type="button"
+                        className="tsg-tour-card-btn is-disabled"
+                        disabled
+                        aria-describedby={`tsg-tour-lock-${tour.tab}`}
+                      >
+                        <Lock size={13} aria-hidden="true" />
+                        Sign in
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="tsg-tour-card-btn"
+                        onClick={() => startTour(tour)}
+                      >
+                        <MousePointerClick size={13} />
+                        Tour
+                      </button>
+                    )
+                  ) : (
+                    <span className="tsg-tour-card-soon">Coming soon</span>
+                  )}
+                </div>
+                <p className="tsg-tour-card-blurb">{tour.blurb}</p>
+                {locked && (
+                  <p className="tsg-tour-lock-hint" id={`tsg-tour-lock-${tour.tab}`}>
+                    Sign in to tour the {tour.label}. Projects and files are saved to
+                    your account.
+                  </p>
                 )}
               </div>
-              <p className="tsg-tour-card-blurb">{tour.blurb}</p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
@@ -539,7 +808,7 @@ function SlideTour({
 
 const CONTENT_SLIDES = 5; // welcome, how-to, theory, tour, final
 
-export default function SiteGuide({ open, onClose, onNavigate }: SiteGuideProps) {
+export default function SiteGuide({ open, onClose, onNavigate, isSignedIn }: SiteGuideProps) {
   const [index, setIndex] = useState(0);
   const [leaving, setLeaving] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
@@ -616,6 +885,7 @@ export default function SiteGuide({ open, onClose, onNavigate }: SiteGuideProps)
           <SlideTour
             onNavigate={onNavigate}
             onTourActiveChange={setTourOpen}
+            isSignedIn={Boolean(isSignedIn)}
             /* Finishing a tour returns to this picker slide (4 of 5) so
                another page tour can be started right away. */
             onFinish={() => setIndex(3)}

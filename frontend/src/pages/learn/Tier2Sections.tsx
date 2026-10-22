@@ -1,4 +1,4 @@
-// Tier2Sections.tsx - Tier II modules B and C: the real cost of trading.
+// Tier2Sections.tsx — Tier II modules B and C: the real cost of trading.
 //
 // Module B (spreads): every stock has TWO prices at once; the gap between
 //   them is the invisible commission. Interactive: pick a liquidity profile,

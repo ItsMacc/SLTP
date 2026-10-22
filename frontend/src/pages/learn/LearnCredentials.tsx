@@ -1,4 +1,4 @@
-// LearnCredentials.tsx - The Formative Validation Gate quiz that certifies a
+// LearnCredentials.tsx — The Formative Validation Gate quiz that certifies a
 // tier. Rendered at the END of each tier's modules, not on its own page.
 
 import { useState } from 'react';

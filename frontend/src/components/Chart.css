@@ -187,4 +187,4 @@
   .chart-toolbar { flex-direction: column; }
   .chart-toolbar-actions { width: 100%; justify-content: space-between; }
 }
-.chart-line { stroke: var(--accent, #d97706); stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round; }
+.chart-line { stroke: var(--accent); stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round; }

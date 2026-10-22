@@ -1,4 +1,4 @@
-// badges.ts - Visual rewards for learning progress.
+// badges.ts — Visual rewards for learning progress.
 //
 // Two kinds of reward:
 //   BADGES   - one per module (section), earned the moment that module is

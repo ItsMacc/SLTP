@@ -10,7 +10,7 @@ const BuyAndHoldStrategy: StrategyData = {
   id: 'buy-and-hold',
   name: 'Buy and Hold',
   category: 'INVESTING',
-  summary: 'A long-term investment strategy where you buy investments and keep them for years, regardless of short-term price movements.',
+  summary: 'Buy the market and hold it for years. Price swings in between are ignored, and no position is ever sold or replaced.',
   metrics: {
     horizon: '10+ Years',
     activity: 'Low',
@@ -18,37 +18,37 @@ const BuyAndHoldStrategy: StrategyData = {
     rebalance: 'Never',
   },
   idea: {
-    hypothesis: 'Over the long term, the stock market tends to increase in value because growing companies continually make higher profits and innovate. By holding these investments without selling, your money grows untouched while avoiding extra fees, taxes, and bad emotional decisions.',
+    hypothesis: 'Over long periods, markets tend to rise because the companies inside them keep earning more. Holding through the noise captures that growth, keeps fees and taxes low, and removes the temptation to act on a bad month.',
     whyItWorks: [
-      'Captures overall market growth over time without requiring you to predict when to buy or sell.',
-      'Saves money by minimizing transaction costs and capital gains tax from frequent trading.',
-      'Prevents emotional mistakes, such as panic selling during short-term price drops.',
+      'Captures the growth of the market as a whole, with no need to time entries or exits.',
+      'Costs almost nothing to run: no trading fees, and no capital gains tax triggered by selling.',
+      'Removes the decisions that hurt most, such as selling in panic after a sharp drop or buying back in at the top.',
     ],
     whyItDoesnt: [
-      'Exposes your account to full drawdowns during severe economic recessions or market crashes.',
-      'Lacks active trading rules to lock in profits or pivot into cash when prices fall.',
-      'Can take several years to break even after major market downturns.',
+      'Takes the full decline in a bear market, because no rule reduces exposure before prices fall.',
+      'Has no exit rules, so gains are never locked in and no part of the account moves to cash when the market turns.',
+      'Can take years to recover after a major downturn, because nothing reduces the position while prices are falling.',
     ],
   },
-  universeLogic: 'Holds every available asset in the selected market without filtering, ranking, or excluding any options.',
-  rebalanceLogic: 'No automatic buying or selling occurs. Investments remain untouched unless you manually add or withdraw funds.',
+  universeLogic: 'Holds every asset in the selected market. Nothing is filtered out, ranked, or excluded.',
+  rebalanceLogic: 'No automatic buying or selling. The holdings only change when you add or withdraw funds yourself.',
   inDepthSections: [
     {
       id: 'benchmark-role',
-      title: 'Why This Strategy Is The Universal Benchmark',
+      title: 'Why this strategy is the universal benchmark',
       content:
-        'This model serves as the baseline benchmark for every other strategy on the platform. Because it represents simple, unmanaged market exposure with zero market timing or management fees, any active trading strategy must generate a higher risk-adjusted return to justify its added complexity and trading costs.',
+        'This is the baseline every other strategy on the platform is measured against. It is plain, unmanaged market exposure with no timing decisions and no management fees, so an active strategy has to earn a higher risk-adjusted return than this before its extra complexity and trading costs are worth anything.',
     }
   ],
   pros: [
-    'Requires minimal time, effort, and financial knowledge to maintain.',
-    'Highly cost-effective with low transaction costs and maximum tax efficiency.',
-    'Provides a transparent baseline benchmark to measure all active trading performance.',
+    'Needs almost no time, effort, or financial knowledge to maintain.',
+    'Cheap to run: minimal transaction costs and efficient from a tax point of view.',
+    'Gives a transparent baseline for measuring every active strategy on the platform.',
   ],
   cons: [
-    'Offers zero risk management protection during steep market declines.',
-    'Does not include exit rules or profit-taking steps to secure gains during market peaks.',
-    'May cause uncomfortable paper losses during severe market crashes.',
+    'No risk protection at all during a steep market decline.',
+    'No exit rules or profit-taking steps, so gains made during a peak can be given back.',
+    'Expect uncomfortable paper losses in a severe crash, and no rule to soften them.',
   ],
   glossary: {
     portfolio: {
@@ -106,7 +106,7 @@ export const StockHealthFilterStrategy: StrategyData = {
   id: 'stock-health-filter',
   name: 'Stock Health Filter',
   category: 'TRADING',
-  summary: 'A momentum breakout strategy that identifies high-velocity stocks with strong short-term vs. long-term price health.',
+  summary: 'A momentum strategy that waits for heavily traded stocks to break out, using the gap between their short-term and long-term price health as the signal.',
   metrics: {
     horizon: '2+ Years',
     activity: 'Medium',
@@ -114,31 +114,31 @@ export const StockHealthFilterStrategy: StrategyData = {
     rebalance: 'Quarterly',
   },
   idea: {
-    hypothesis: 'Stocks with the highest trading volumes that are structurally healthy and accelerating in price are more likely to continue their momentum than those that are weak or declining. By filtering for high short-term vs. long-term health ratios, we can identify breakout candidates with strong upside potential.',
+    hypothesis: 'Stocks that are heavily traded, structurally sound, and still accelerating tend to keep going, while weak ones tend to keep falling. Ranking by the gap between short-term and long-term price health picks out the candidates whose move has only just started.',
     whyItWorks: [
-      'Catches explosive breakouts by waiting for a stock’s short-term health score to violently jump way above its long-term baseline average.',
-      'Focuses exclusively on heavily traded, high-volume stocks so sudden ratio spikes signal real interest.',
-      'Exploits predictable human behaviour in market psychology during sudden price acceleration phases instead of attempting to guess or predict future market prices.'
+      'Catches breakouts by waiting for a stock’s short-term health score to jump well above its own long-term average, so the move is confirmed rather than guessed.',
+      'Trades only heavily traded stocks, so a sudden change in the ratio reflects real buying interest rather than thin liquidity.',
+      'Rides the behaviour that tends to follow a sharp move in price, instead of trying to predict where prices are going.',
     ],
     whyItDoesnt: [
-      'Risk of getting caught in false breakout traps when market-wide momentum stalls or reverses suddenly.',
-      'By the time a stock’s health ratio spikes, it may already be overextended and due for a pullback.',
-      'In sideways or choppy markets, the strategy may generate many false signals that lead to losses or whipsaw trades.',
+      'Can be caught by false breakouts when momentum stalls across the whole market or reverses sharply.',
+      'By the time the ratio spikes, the stock may already have run too far and be due for a pullback.',
+      'In a choppy, directionless market it produces a lot of false signals, and the losses that follow can come quickly in both directions.',
     ],
   },
-  universeLogic: 'Filters the market universe to include the top 25 most liquid stocks based on average daily trading volume, and their growth rates in the past 3 months.',
-  rebalanceLogic: 'Quarterly rebalancing of the portfolio to remove underperforming assets and replace them with top liquid growth candidates from the universe.',
+  universeLogic: 'The universe is the 25 most liquid stocks, ranked by average daily trading volume and their growth rate over the past three months.',
+  rebalanceLogic: 'Rebalanced every quarter. Positions that have stopped qualifying are sold and replaced with the strongest candidates in the universe.',
 
   inDepthSections: [
     {
       id: 'strategy-overview',
-      title: 'Strategy Overview',
-      content: 'The Stock Health Filter strategy scans market universes for high-momentum breakouts by evaluating short-term vs. long-term price structural "health." Rather than inspecting simple price momentum, it calculates a compound score based on log-linear regression consistency, annualized positive slope growth, and downside volatility frequency. Breakout buys are confirmed when the short-to-long health ratio spikes upward alongside velocity validation.',
+      title: 'Strategy overview',
+      content: 'The strategy scans its universe for breakouts by comparing short-term price health against long-term price health. Rather than looking at how far a price has moved, it builds a compound score from three inputs: how consistent a log-linear trend has been, whether the annualised slope is positive, and how often the price has fallen sharply. A buy is confirmed when the short-term health score jumps above its long-term baseline and trading volume supports the move.',
     },
     {
       id: 'risk-management',
-      title: 'Dynamic Risk Management',
-      content: 'This strategy employs a dynamic risk management framework using Average True Range (ATR) to set stop-loss and take-profit levels. The stop-loss is placed at 4x ATR below the entry price, while the take-profit is set at 2x the calculated risk distance above the entry. This approach allows for flexible position sizing and helps protect capital during volatile market conditions.',
+      title: 'Dynamic risk management',
+      content: 'Stops and targets are set from Average True Range (ATR), which measures how far a stock normally moves in a day. The stop-loss sits four ATR below the entry and the take-profit two ATR above it, so both levels widen when the stock is volatile and tighten when it is calm. Because the levels move with the market, position size can be adjusted to keep the risk per trade constant.',
     },
   ],
 
@@ -146,8 +146,8 @@ export const StockHealthFilterStrategy: StrategyData = {
     {
       id: 'recent-market',
       periodName: 'Recent Market (2024-2026)',
-      expectation: 'The strategy aims to generate superior risk-adjusted returns during steady market conditions, trading off some raw growth for capital preservation.',
-      resultSummary: 'Although the strategy lagged slightly in total returns, it fulfilled its risk objectives by limiting maximum drawdowns compared to the broader benchmark.',
+      expectation: 'In a steady market, the strategy is expected to deliver a better risk-adjusted return, giving up some raw growth to protect the account.',
+      resultSummary: 'The strategy returned slightly less than the benchmark, but it met its risk goal: its worst fall was smaller than the benchmark’s.',
       strategySvg: '/assets/backtests/StockHealthFilter_Recent.svg',
       benchmarkSvg: '/assets/backtests/BuyAndHold_Recent.svg',
       metrics: {
@@ -176,8 +176,8 @@ export const StockHealthFilterStrategy: StrategyData = {
     {
       id: 'bear-market-1',
       periodName: 'Bear Market 1 (January - December 2022)',
-      expectation: 'During sustained market declines, the strategy is designed to protect capital and mitigate severe losses relative to holding broad equity indices.',
-      resultSummary: 'The strategy successfully cushioned downside risk, maintaining a significantly lower peak-to-trough decline than the benchmark throughout the pullback.',
+      expectation: 'In a sustained decline, the strategy is expected to protect the account and lose less than simply holding a broad index.',
+      resultSummary: 'It did. The peak-to-trough fall was much smaller than the benchmark’s across the whole decline.',
       strategySvg: '/assets/backtests/StockHealthFilter_Bear_Market_1.svg',
       benchmarkSvg: '/assets/backtests/BuyAndHold_Bear_Market_1.svg',
       metrics: {
@@ -206,8 +206,8 @@ export const StockHealthFilterStrategy: StrategyData = {
     {
       id: 'bear-market-2',
       periodName: 'Bear Market 2 (2007-2009)',
-      expectation: 'During major structural downturns, the strategy should systematically exit deteriorating positions to minimize severe drawdown exposure.',
-      resultSummary: 'Capital preservation rules performed as intended, cutting overall portfolio losses and peak drawdown depth roughly in half during a historical market crash.',
+      expectation: 'In a major structural downturn, the strategy is expected to exit positions that are deteriorating and limit the damage.',
+      resultSummary: 'The rules worked as intended. Overall losses and the depth of the peak-to-trough fall were roughly half the benchmark’s.',
       strategySvg: '/assets/backtests/StockHealthFilter_Bear_Market_2.svg',
       benchmarkSvg: '/assets/backtests/BuyAndHold_Bear_Market_2.svg',
       metrics: {
@@ -236,8 +236,8 @@ export const StockHealthFilterStrategy: StrategyData = {
     {
       id: 'covid',
       periodName: 'COVID Crash & Recovery (2020-2021)',
-      expectation: 'The strategy seeks to limit drawdowns during sharp market drops while maintaining enough market exposure to capture the subsequent recovery.',
-      resultSummary: 'While downside protection was effective during the initial shock, defensive positioning caused the strategy to lag the benchmark in the rapid market rally that followed.',
+      expectation: 'The strategy is expected to limit the fall during a sharp drop while staying invested enough to catch the recovery.',
+      resultSummary: 'The protection worked in the initial shock, but holding back cost it during the fast rally that followed.',
       strategySvg: '/assets/backtests/StockHealthFilter_COVID.svg',
       benchmarkSvg: '/assets/backtests/BuyAndHold_COVID.svg',
       metrics: {
@@ -266,8 +266,8 @@ export const StockHealthFilterStrategy: StrategyData = {
     {
       id: 'bull-market-1',
       periodName: 'Bull Market 1 (2012-2018)',
-      expectation: 'In extended equity uptrends, the strategy aims to deliver stable compounding while maintaining disciplined risk limits relative to broad holdings.',
-      resultSummary: 'The strategy achieved steady growth, but the benchmark yielded higher overall return metrics given the low-volatility nature of this prolonged upward move.',
+      expectation: 'In a long bull run, the strategy is expected to compound steadily while holding risk limits tighter than a broad index.',
+      resultSummary: 'It grew steadily, but the benchmark returned more, because a long, calm rise rewards simply staying invested.',
       strategySvg: '/assets/backtests/StockHealthFilter_Bull_Market_1.svg',
       benchmarkSvg: '/assets/backtests/BuyAndHold_Bull_Market_1.svg',
       metrics: {
@@ -296,8 +296,8 @@ export const StockHealthFilterStrategy: StrategyData = {
     {
       id: 'bull-market-2',
       periodName: 'Bull Market 2 (2009-2016)',
-      expectation: 'Throughout multi-year expansions, periodic portfolio rebalancing should keep fundamental quality high without heavily drag on total compounding.',
-      resultSummary: 'Continuous risk management led to performance drag relative to a pure buy-and-hold approach, which strongly benefits from uninterrupted market expansion.',
+      expectation: 'Over a multi-year expansion, periodic rebalancing is expected to keep the portfolio’s quality high without slowing the compounding much.',
+      resultSummary: 'The ongoing risk management cost it. An uninterrupted run of rising prices is the one case buy and hold struggles to lose.',
       strategySvg: '/assets/backtests/StockHealthFilter_Bull_Market_2.svg',
       benchmarkSvg: '/assets/backtests/BuyAndHold_Bull_Market_2.svg',
       metrics: {
@@ -326,8 +326,8 @@ export const StockHealthFilterStrategy: StrategyData = {
     {
       id: '10-year-current',
       periodName: '10-Year Current (2016-2026)',
-      expectation: 'Across a ten-year horizon, filtering underperforming assets and limiting large drawdowns should drive higher risk-adjusted efficiency.',
-      resultSummary: 'The strategy delivered stronger risk efficiency over the decade by successfully shielding the portfolio from major market drawdowns.',
+      expectation: 'Over ten years, dropping underperforming holdings and limiting large drawdowns is expected to produce a better risk-adjusted result.',
+      resultSummary: 'It did. The decade produced a stronger risk-adjusted result, mostly because the portfolio was protected from the major drawdowns.',
       strategySvg: '/assets/backtests/StockHealthFilter_10-year_current.svg',
       benchmarkSvg: '/assets/backtests/BuyAndHold_10-year_current.svg',
       metrics: {
@@ -356,8 +356,8 @@ export const StockHealthFilterStrategy: StrategyData = {
     {
       id: '15-year',
       periodName: '15-Year Horizon (2010-2025)',
-      expectation: 'Over multiple full market cycles, rigorous risk controls should protect principal during downturns and smooth long-term equity compounding.',
-      resultSummary: 'The strategy demonstrated significant downside protection by holding peak-to-trough drawdowns to half that of the benchmark over 15 years.',
+      expectation: 'Across several full market cycles, strict risk controls are expected to protect the account in downturns and steady the long-term compounding.',
+      resultSummary: 'The protection held up. Over 15 years the peak-to-trough fall stayed at about half the benchmark’s.',
       strategySvg: '/assets/backtests/StockHealthFilter_15-year.svg',
       benchmarkSvg: '/assets/backtests/BuyAndHold_15-year.svg',
       metrics: {
@@ -386,15 +386,15 @@ export const StockHealthFilterStrategy: StrategyData = {
   ],
 
   pros: [
-    'Systematically selects assets with strong trend consistency and minimal downside noise.',
-    'Protects capital against major drops using dynamic ATR-based volatility stops.',
-    'Automates portfolio cleanup by pruning underperformers during quarterly rebalance cycles.',
+    'Picks assets with a consistent trend and little downside movement.',
+    'Uses volatility-scaled stops, so major drops are cut before they get large.',
+    'Cleans the portfolio itself, dropping holdings that stop qualifying every quarter.',
   ],
 
   cons: [
-    'Whipsaw risk during sideways market conditions can trigger false spike entries.',
-    'Requires a warm-up period and reliable daily volume data for universe ranking.',
-    'Can temporarily miss rapid turnarounds in oversold, beaten-down stocks.',
+    'In sideways markets it can enter on a false signal and be reversed out quickly.',
+    'Needs time to gather history and dependable daily volume data before it can rank its universe.',
+    'Can miss a sharp turnaround in a stock that has been falling for a long time.',
   ],
 
   glossary: {
@@ -412,7 +412,7 @@ export const StockHealthFilterStrategy: StrategyData = {
     },
     'whipsaw trades': {
       definition: 'Losing trades caused when a security’s price abruptly changes direction right after a trader enters a position, triggering false signals.',
-      example: 'Buying a sudden price spike only for the stock to crash immediately afterward is a classic whipsaw trade.',
+      example: 'Buying a sudden price spike only for the stock to fall straight back is a classic whipsaw trade.',
     },
     'downside volatility': {
       definition: 'Price fluctuations that specifically represent sudden downward drops or losses in an investment value, ignoring upward swings.',
@@ -424,7 +424,7 @@ export const StockHealthFilterStrategy: StrategyData = {
     },
     'liquid stocks': {
       definition: 'Stocks that can be easily bought or sold in large quantities without causing a major shift in their market price.',
-      example: 'Apple or Microsoft shares can be traded instantly in millions of volumes, making them highly liquid stocks.',
+      example: 'Apple or Microsoft shares can be traded in large quantities without moving the price much, which is what makes them liquid.',
     },
     'log-linear regression': {
       definition: 'A statistical method used to evaluate exponential or percentage growth rates over time by fitting a straight line to logarithmic price data.',
@@ -537,28 +537,28 @@ export const StrategiesPage: React.FC = () => {
       {/* Edge-to-Edge Hero Banner */}
       <div className="strategies-hero-wrapper page-hero-band is-full-bleed is-dot-grid">
         <div className="strategies-hero-inner page-hero-inner">
-          <div className="strategies-hero-top">
-            <span className="strategies-subtitle">Strategy Library</span>
-            <h1 className="strategies-title">Quantitative Strategies</h1>
-            <p className="strategies-description">
-              Remove the guesswork from your investing with a clear, rules-based approach. Take a look at our performance benchmarks and models below to see how they manage risk and make decisions.
+          <div className="strategies-hero-copy">
+            <span className="page-hero-eyebrow">Strategy library</span>
+            <h1 className="page-hero-title">Quantitative strategies</h1>
+            <p className="page-hero-description">
+              Every strategy here is a written set of rules: what it buys, when it sells, and how
+              much it puts at risk. Expand a card to read the reasoning behind those rules and to
+              see the strategy backtested against simply buying and holding.
             </p>
-          </div>
-
-          <div className="strategies-stats-row">
-            <div className="strategy-stat-card">
-              <span className="strategy-stat-label">Available Models</span>
-              <span className="strategy-stat-value">2 Strategies</span>
+          </div>            <div className="strategies-stats-row">
+              <div className="strategy-stat-card">
+                <span className="strategy-stat-label">Strategies</span>
+                <span className="strategy-stat-value">2 published</span>
+              </div>
+              <div className="strategy-stat-card">
+                <span className="strategy-stat-label">Backtest periods</span>
+                <span className="strategy-stat-value">8 market regimes</span>
+              </div>
+              <div className="strategy-stat-card">
+                <span className="strategy-stat-label">Compared against</span>
+                <span className="strategy-stat-value">Buy and hold</span>
+              </div>
             </div>
-            <div className="strategy-stat-card">
-              <span className="strategy-stat-label">Backtest Data</span>
-              <span className="strategy-stat-value">Multi-Timeframe Comparisons</span>
-            </div>
-            <div className="strategy-stat-card">
-              <span className="strategy-stat-label">Evaluation Metrics</span>
-              <span className="strategy-stat-value">Benchmark</span>
-            </div>
-          </div>
         </div>
       </div>
 

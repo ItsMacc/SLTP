@@ -1,4 +1,4 @@
-// LongShortSection.tsx - Tier II module A: long vs. short, told as two
+// LongShortSection.tsx — Tier II module A: long vs. short, told as two
 // mirror stories with a live trade simulator.
 //
 // Teaching model (per course design):

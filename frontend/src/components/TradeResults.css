@@ -83,12 +83,12 @@
 }
 
 .trade-badge.is-take-profit {
-  background-color: rgba(5, 150, 105, 0.12);
+  background-color: var(--success-muted);
   color: var(--success);
 }
 
 .trade-badge.is-stop-loss {
-  background-color: rgba(220, 38, 38, 0.12);
+  background-color: var(--error-muted);
   color: var(--error);
 }
 

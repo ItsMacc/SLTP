@@ -8,6 +8,7 @@
 import { useEffect } from 'react';
 import { FileCode, FolderInput, TriangleAlert } from 'lucide-react';
 import Button from '../ui/Button';
+import { LoaderInline } from '../ui/Loader';
 import type { FolderFileMap } from './fileReader';
 import './ImportFolderDialog.css';
 
@@ -100,7 +101,12 @@ export default function ImportFolderDialog({
             onClick={onConfirm}
             disabled={busy || paths.length === 0}
           >
-            {busy ? 'Importing…' : `Import ${paths.length} ${paths.length === 1 ? 'file' : 'files'}`}
+            {busy ? (
+              <>
+                <LoaderInline tone="inherit" />
+                Importing…
+              </>
+            ) : `Import ${paths.length} ${paths.length === 1 ? 'file' : 'files'}`}
           </Button>
         </div>
       </div>

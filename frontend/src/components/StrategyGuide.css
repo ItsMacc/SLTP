@@ -314,7 +314,7 @@
 .stg-fact svg {
   flex: none;
   color: var(--accent);
-  margin-top: 2px;
+  margin-top: var(--space-3xs);
 }
 
 .stg-fact-body {
@@ -446,7 +446,7 @@
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   flex: none;
-  margin-top: 2px;
+  margin-top: var(--space-3xs);
 }
 
 .stg-ritual-list li strong {
@@ -478,7 +478,7 @@
 .stg-disclaimer svg {
   flex: none;
   color: var(--error);
-  margin-top: 2px;
+  margin-top: var(--space-3xs);
 }
 
 .stg-disclaimer-body {

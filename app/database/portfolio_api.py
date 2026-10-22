@@ -11,7 +11,7 @@ import os
 import requests
 from dotenv import load_dotenv
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Any
 
 from app.auth import get_current_user
@@ -39,10 +39,10 @@ NOTIFICATION_KEYS = {
 
 
 class CompleteSetupIn(BaseModel):
-    name: str
-    starting_cash: float
-    base_currency: str = "USD"
-    preferences: dict[str, Any] = {}
+    name: str = Field(description="Display name for the account.")
+    starting_cash: float = Field(description="Cash the portfolio starts with, in the base currency.")
+    base_currency: str = Field(default="USD", description="Currency every portfolio value is reported in.")
+    preferences: dict[str, Any] = Field(default={}, description="Investor preferences collected during setup.")
 
 
 def _mirror_to_supabase(user_id: str, preferences: dict[str, Any]) -> None:
@@ -131,7 +131,7 @@ async def portfolio_status(user: dict[str, Any] = Depends(get_current_user)) -> 
 
 
 class SyncSettingsIn(BaseModel):
-    settings: dict[str, Any]
+    settings: dict[str, Any] = Field(description="The user's settings, as stored in Supabase.")
 
 
 @router.post("/api/user/sync-settings")

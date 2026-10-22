@@ -1,4 +1,4 @@
-// LearnPage.tsx - "Absolute beginner" course: plain-language, interactive
+// LearnPage.tsx — "Absolute beginner" course: plain-language, interactive
 // lessons that teach stocks, price movement, order execution, candles,
 // strategies, risk and testing from zero.
 // Layout mirrors DocsPage: sticky sidebar TOC on the left, content on the right.
@@ -23,6 +23,7 @@ import { MODULE_QUIZZES } from '../learn/moduleQuizzes';
 import RewardToast from './learn/RewardToast';
 import { BadgeShelf, TierBanner, TierGate, TierNav } from './learn/LearnShell';
 import { useActiveSection } from '../learn/useActiveSection';
+import { LoaderScreen } from '../ui/Loader';
 import './LearnPage.css';
 
 interface LearnPageProps {
@@ -1566,10 +1567,10 @@ export default function LearnPage({ onNavigate }: LearnPageProps) {
     <div className="learn-page">
       <div className="learn-hero-wrapper page-hero-band is-full-bleed is-dot-grid">
         <div className="learn-hero-inner page-hero-inner">
-        <div className="learn-hero-top">
-          <span className="learn-hero-subtitle">New to the stock market? Start here.</span>
-          <h1 className="learn-hero-title">The stock market, from zero.</h1>
-          <p className="learn-hero-description">
+        <div className="learn-hero-copy">
+          <span className="page-hero-eyebrow">New to the stock market? Start here.</span>
+          <h1 className="page-hero-title">The stock market, from zero.</h1>
+          <p className="page-hero-description">
           Five tiers, unlocked one at a time. Each tier opens with a single module, and the
           next one appears only when you finish the last, so there is always exactly one
           thing to do. Finish a module to claim its badge, and pass a tier's quiz to earn
@@ -1577,19 +1578,29 @@ export default function LearnPage({ onNavigate }: LearnPageProps) {
           check yourself.
           </p>
         </div>
-        <div className="learn-herostats">
-          <div className="learn-herostat">
-            <span className="learn-herostat-value">{learn.earnedBadges.length}</span>
-            <span className="learn-herostat-label">badges</span>
-          </div>
-          <div className="learn-herostat">
-            <span className="learn-herostat-value">{learn.earnedTrophies.length}</span>
-            <span className="learn-herostat-label">trophies</span>
-          </div>
-          <div className="learn-herostat">
-            <span className="learn-herostat-value">{learn.progress.certifications.length}/5</span>
-            <span className="learn-herostat-label">tiers</span>
-          </div>
+        <div className="learn-hero-stats">
+          {learn.loading ? (
+            <LoaderScreen
+              compact
+              label="Loading your progress…"
+              sub="Reading your badges and tiers from the account store."
+            />
+          ) : (
+            <>
+              <div className="learn-hero-stat">
+                <span className="learn-hero-stat-value">{learn.earnedBadges.length}</span>
+                <span className="learn-hero-stat-label">badges</span>
+              </div>
+              <div className="learn-hero-stat">
+                <span className="learn-hero-stat-value">{learn.earnedTrophies.length}</span>
+                <span className="learn-hero-stat-label">trophies</span>
+              </div>
+              <div className="learn-hero-stat">
+                <span className="learn-hero-stat-value">{learn.progress.certifications.length}/5</span>
+                <span className="learn-hero-stat-label">tiers</span>
+              </div>
+            </>
+          )}
         </div>
         </div>
       </div>

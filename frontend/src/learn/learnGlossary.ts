@@ -1,4 +1,4 @@
-// learnGlossary.ts - The beginner course's inline term map.
+// learnGlossary.ts — The beginner course's inline term map.
 //
 // Moved out of LearnPage.tsx so every Tier II–V module file can share it
 // without a circular import.
@@ -43,8 +43,8 @@ export const LEARN_GLOSSARY: Record<string, string | GlossaryTerm> = {
     definition: 'Studying a company itself: what it does, how much it earns, its debt and its yearly profit, to judge whether the business is worth owning.',
   },
   'stop-loss': {
-    definition: 'A preset rule that sells a holding when its price falls to a set level, limiting how much you can lose on it.',
-    example: 'A stop-loss set 10% below your buy price automatically sells if the stock drops 10%.',
+    definition: 'A preset rule that sells a holding when its price falls to a set level, capping how much you can lose.',
+    example: 'A stop-loss 10% below your buy price sells automatically if the stock drops 10%.',
   },
   'take-profit': {
     definition: 'A preset rule that sells a holding once it reaches a target gain, locking in the profit.',
@@ -55,8 +55,10 @@ export const LEARN_GLOSSARY: Record<string, string | GlossaryTerm> = {
     example: 'A rule like "hold the 10 healthiest stocks, re-check weekly" is a strategy.',
   },
   backtest: {
-    definition: "Running a strategy's rules over past market data to see how it would have performed, without risking real money.",
-    example: 'Backtesting a strategy on 10 years of data shows its returns and the worst losing streak it would have caused.',
+    definition:
+      'Running a strategy\u2019s rules over past market data to see how it would have performed, without risking real money.',
+    example:
+      'Backtesting "buy the 10 healthiest stocks, rebalance quarterly" over 20 years shows its returns and its worst losing streak.',
   },
   'index fund': {
     definition: 'A fund that simply holds everything in a market index instead of picking winners.',
@@ -80,7 +82,8 @@ export const LEARN_GLOSSARY: Record<string, string | GlossaryTerm> = {
     definition: 'A stop-loss you place in advance with a price attached. When the stock touches your trigger price, the broker tries to sell at that price or better.',
   },
   slippage: {
-    definition: 'The small difference between the price you expected and the price you actually got, which happens when the market moves while your order is in flight.',
+    definition:
+      'The gap between the price you expected and the price you actually got, which happens when the market moves while your order is in flight.',
   },
   'candlestick chart': {
     definition: 'A chart where each day is drawn as a single candle showing four numbers: open, high, low and close. It packs a full day of price action into one shape.',
@@ -144,6 +147,7 @@ export const LEARN_GLOSSARY: Record<string, string | GlossaryTerm> = {
   signal: {
     definition:
       'The moment a strategy\'s rules say to act, buy, sell or hold. A signal is the output of the rules, not a guess.',
+    example: 'A signal might read: BUY MU, confidence 82%, because price health is accelerating.',
   },
 
   // ---------------- Tier IV - validation ----------------
@@ -183,7 +187,7 @@ export const LEARN_GLOSSARY: Record<string, string | GlossaryTerm> = {
   },
   'win rate': {
     definition:
-      'The share of trades finished profitable. Useful only alongside how much the winners gained versus the losers lost.',
+      'The share of trades that finished profitable. Useful only alongside how much the winners gained versus the losers lost.',
   },
   diversification: {
     definition:

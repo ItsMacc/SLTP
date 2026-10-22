@@ -25,34 +25,11 @@
   width: 100%;
 }
 
-.perf-hero-top {
+.perf-hero-copy {
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
   max-width: min(58rem, 100%); /* ≈928px reading measure */
-}
-
-.perf-hero-title {
-  font-family: var(--font-heading);
-  color: var(--text-primary);
-  font-weight: 400;
-  line-height: 1.15;
-  margin: 0;
-}
-
-.perf-hero-subtitle {
-  color: var(--accent);
-  font-family: var(--font-mono);
-  font-size: var(--text-sm);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.perf-hero-description {
-  color: var(--text-muted);
-  font-size: var(--text-lg);
-  line-height: 1.7;
-  margin: 0;
 }
 
 .perf-hero-actions {
@@ -197,6 +174,12 @@
 .ticker-suggestions li button:hover {
   background: var(--accent-muted);
   color: var(--accent);
+}
+
+/* The ticker list is still being read: the stock line says so in place of
+   the suggestions. */
+.ticker-suggestion-loading {
+  padding: var(--space-xs) var(--space-sm);
 }
 
 .timeframe-group {

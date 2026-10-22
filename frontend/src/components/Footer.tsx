@@ -8,14 +8,15 @@ interface FooterProps {
   onLegalPage: (page: LegalPageKind) => void;
 }
 
+/* Mirrors the Header nav so the two never offer different destinations. */
 const navLinks = [
   { id: 'home', label: 'Home' },
   { id: 'learn', label: 'Learn' },
-  
   { id: 'portfolio', label: 'Portfolio' },
   { id: 'strategies', label: 'Strategies' },
   { id: 'performance', label: 'Performance' },
   { id: 'lab', label: 'Lab' },
+  { id: 'docs', label: 'Docs' },
 ];
 
 export default function Footer({ activeTab, onNavigate, onLegalPage }: FooterProps) {

@@ -59,6 +59,7 @@ import { pickLocalFolder, type FolderFileMap } from '../lab/fileReader';
 import ImportFolderDialog from '../lab/ImportFolderDialog';
 import Button from '../ui/Button';
 import SuccessToast from '../ui/SuccessToast';
+import { LoaderInline, LoaderOverlay, LoaderScreen } from '../ui/Loader';
 import './LabEditorPage.css';
 
 const FILE_NAME_RE = /^(?:[A-Za-z0-9_-]{1,50}\/)*[A-Za-z0-9_-]{1,50}\.py$/;
@@ -190,7 +191,11 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
   const [importError, setImportError] = useState<string | null>(null);
   const [renaming, setRenaming] = useState< { from: string; value: string } | null>(null);
   const deletingRef = useRef(false);
+  // The file or folder currently being removed from the project store.
+  const [deletingTarget, setDeletingTarget] = useState<string | null>(null);
   const [fileBusy, setFileBusy] = useState(false);
+  // The file currently being written to the project store, if any.
+  const [savingFile, setSavingFile] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const dismissToast = useCallback(() => setToast(null), []);
 
@@ -289,6 +294,7 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
     if (!file || !isDirty(file)) return;
     const draft = file.draft;
     setActionError(null);
+    setSavingFile(name);
     try {
       const token = await getToken();
       if (!token) throw new Error('Your session has expired. Please sign in again.');
@@ -300,6 +306,8 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
       }));
     } catch (err) {
       setActionError(err instanceof Error ? err.message : `Could not save ${name}.`);
+    } finally {
+      setSavingFile((current) => (current === name ? null : current));
     }
   };
 
@@ -467,6 +475,7 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
     // The engine package is not ours to delete.
     if (isCorePath(name) || deletingRef.current) return;
     deletingRef.current = true;
+    setDeletingTarget(name);
     setActionError(null);
     const beforeFiles = files;
     const prefix = `${name}/`;
@@ -493,6 +502,7 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
       }));
       setActionError(err instanceof Error ? err.message : `Could not delete ${name}.`);
     } finally {
+      setDeletingTarget((current) => (current === name ? null : current));
       deletingRef.current = false;
     }
   };
@@ -641,6 +651,7 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
   const deleteFile = async (name: string) => {
     if (deletingRef.current) return;
     deletingRef.current = true;
+    setDeletingTarget(name);
     setActionError(null);
     const beforeFiles = files;
     try {
@@ -666,6 +677,7 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
       }));
       setActionError(err instanceof Error ? err.message : `Could not delete ${name}.`);
     } finally {
+      setDeletingTarget((current) => (current === name ? null : current));
       deletingRef.current = false;
     }
   };
@@ -684,6 +696,20 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
     [tree],
   );
   const rootFiles = useMemo(() => files.filter((file) => !file.name.includes('/')), [files]);
+
+  // Writes to the project store take a moment, so they get the stock loader
+  // over the whole editor rather than a quiet button state.
+  const writeBusy = creating || fileBusy || importBusy;
+  const writeLabel = creating
+    ? 'Creating your file…'
+    : fileBusy
+      ? 'Renaming your file…'
+      : 'Importing your files…';
+  const writeSub = creating
+    ? 'Adding the file to your project.'
+    : fileBusy
+      ? 'Updating the name in the project store.'
+      : 'Copying the folder into your project.';
 
   const toggleFolder = (path: string, open: boolean) => {
     setExpandedFolders((previous) => {
@@ -752,7 +778,9 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
               title="Delete"
               onClick={() => { void deleteFile(file.name); }}
             >
-              <Trash2 size={13} aria-hidden="true" />
+              {deletingTarget === file.name
+                ? <LoaderInline size={13} tone="inherit" />
+                : <Trash2 size={13} aria-hidden="true" />}
             </button>
           </span>
         )}
@@ -791,7 +819,9 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
                 title="Delete folder and contents"
                 onClick={() => { void deleteFolder(path); }}
               >
-                <Trash2 size={12} aria-hidden="true" />
+                {deletingTarget === path
+                  ? <LoaderInline size={12} tone="inherit" />
+                  : <Trash2 size={12} aria-hidden="true" />}
               </button>
             )}
           </div>
@@ -820,10 +850,24 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
         </div>
         <div className="lab-editor-actions">
           <span
-            className={`lab-editor-status lab-desktop-only ${dirtyCount > 0 ? 'is-dirty' : ''}`}
+            className={`lab-editor-status lab-desktop-only ${dirtyCount > 0 ? 'is-dirty' : ''} ${savingFile || deletingTarget ? 'is-busy' : ''}`}
             aria-live="polite"
           >
-            {dirtyCount > 0 ? `${dirtyCount} unsaved ${dirtyCount === 1 ? 'change' : 'changes'}` : 'All changes saved'}
+            {savingFile ? (
+              <>
+                <LoaderInline size={14} />
+                Saving…
+              </>
+            ) : deletingTarget ? (
+              <>
+                <LoaderInline size={14} />
+                Deleting…
+              </>
+            ) : dirtyCount > 0 ? (
+              `${dirtyCount} unsaved ${dirtyCount === 1 ? 'change' : 'changes'}`
+            ) : (
+              'All changes saved'
+            )}
           </span>
           <Button
             variant="secondary"
@@ -833,7 +877,16 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
             onClick={() => active && void saveFile(active)}
             title="Save (Ctrl+S)"
           >
-            <Save size={14} aria-hidden="true" /> Save
+            {savingFile ? (
+              <>
+                <LoaderInline tone="inherit" />
+                Saving…
+              </>
+            ) : (
+              <>
+                <Save size={14} aria-hidden="true" /> Save
+              </>
+            )}
           </Button>
           <Button
             variant="primary"
@@ -871,7 +924,9 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
                   disabled={readingFolder}
                   onClick={() => { void handleImport(); }}
                 >
-                  <FolderInput size={14} aria-hidden="true" />
+                  {readingFolder
+                    ? <LoaderInline size={14} tone="inherit" />
+                    : <FolderInput size={14} aria-hidden="true" />}
                 </button>
                 <button
                   type="button"
@@ -961,7 +1016,14 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
             </div>
 
             <div className="lab-editor-surface">
-              {loading && <p className="lab-editor-placeholder">Loading files…</p>}
+              {loading && (
+                <div className="lab-editor-placeholder lab-editor-loading">
+                  <LoaderScreen
+                    label="Loading files…"
+                    sub="Reading the project files from the account store."
+                  />
+                </div>
+              )}
               {!loading && !activeFile && (
                 <p className="lab-editor-placeholder">Open a file from the explorer to start editing.</p>
               )}
@@ -973,7 +1035,15 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
                   value={activeFile.draft}
                   theme={editorTheme === 'vs-dark' ? 'sltp-dark' : 'sltp-light'}
                   onMount={handleMount}
-                  loading={<p className="lab-editor-placeholder">Starting editor…</p>}
+                  loading={
+                    <div className="lab-editor-monaco-loading">
+                      <LoaderScreen
+                        label="Starting the editor…"
+                        sub="Warming up the code editor."
+                        compact
+                      />
+                    </div>
+                  }
                   options={{
                     readOnly: activeFile.locked,
                     minimap: { enabled: false },
@@ -1034,6 +1104,10 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
       )}
 
       {toast && <SuccessToast message={toast} onClose={dismissToast} />}
+
+      {writeBusy && (
+        <LoaderOverlay label={writeLabel} sub={writeSub} />
+      )}
     </div>
   );
 }

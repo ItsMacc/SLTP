@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import CandlestickGuide from '../components/CandlestickGuide'
 import Chart, { type Bar } from '../components/Chart'
 import StrategyChart from '../components/StrategyChart'
-import { Loader } from '../ui/Loader'
+import { LoaderRow, LoaderScreen } from '../ui/Loader'
 import './PerformancePage.css'
 import type { PerformanceTimeframe } from '../../lib/settings'
 
@@ -27,6 +27,8 @@ interface PerformancePageProps {
 export default function PerformancePage({ initialSettings }: PerformancePageProps) {
   const [mode, setMode] = useState<Mode>('stocks')
   const [allTickers, setAllTickers] = useState<string[]>([])
+  // The ticker list is read from the market-data store on mount.
+  const [tickersLoading, setTickersLoading] = useState(true)
   const [query, setQuery] = useState('')
   const [suggestionsOpen, setSuggestionsOpen] = useState(false)
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null)
@@ -60,6 +62,9 @@ export default function PerformancePage({ initialSettings }: PerformancePageProp
       })
       .catch(() => {
         if (!cancelled) setAllTickers([])
+      })
+      .finally(() => {
+        if (!cancelled) setTickersLoading(false)
       })
     return () => {
       cancelled = true
@@ -137,13 +142,14 @@ export default function PerformancePage({ initialSettings }: PerformancePageProp
       {/* Edge-to-Edge Hero Banner */}
       <div className="perf-hero-wrapper page-hero-band is-full-bleed is-dot-grid">
         <div className="perf-hero-inner page-hero-inner">
-          <div className="perf-hero-top">
-            <span className="perf-hero-subtitle">Performance Analytics</span>
-            <h1 className="perf-hero-title">Market Performance &amp; Strategy Backtests</h1>
-            <p className="perf-hero-description">
-              Analyze deep historical price action across equities with full candlestick granularity, 
-              or inspect backtested performance metrics for our quantitative strategy models. Track asset 
-              trends, evaluate volatility bounds, and measure historical returns to validate capital allocation decisions.
+          <div className="perf-hero-copy">
+            <span className="page-hero-eyebrow">Research</span>
+            <h1 className="page-hero-title">Price history and strategy backtests</h1>
+            <p className="page-hero-description">
+              Study any stock's price history on a candlestick chart, or replay a built-in
+              strategy across real market history and read the resulting metrics next to a
+              buy-and-hold benchmark. The market data is real; the results are hypothetical.
+              Nothing on this page places a trade.
             </p>
           </div>
 
@@ -189,7 +195,14 @@ export default function PerformancePage({ initialSettings }: PerformancePageProp
                   className="ticker-search-input"
                   aria-autocomplete="list"
                 />
-                {suggestionsOpen && suggestions.length > 0 && (
+                {suggestionsOpen && tickersLoading && (
+                  <ul className="ticker-suggestions">
+                    <li className="ticker-suggestion-loading">
+                      <LoaderRow label="Loading tickers…" />
+                    </li>
+                  </ul>
+                )}
+                {suggestionsOpen && !tickersLoading && suggestions.length > 0 && (
                   <ul className="ticker-suggestions">
                     {suggestions.map((symbol) => (
                       <li key={symbol}>
@@ -222,7 +235,14 @@ export default function PerformancePage({ initialSettings }: PerformancePageProp
               </div>
             )}
 
-            {loading && <Loader label={`Loading ${selectedTicker}…`} sub="Fetching price history from the database." />}
+            {/* Price history can take a moment, so the chart area turns into
+                the waiting screen until the candles are in. */}
+            {loading && (
+              <LoaderScreen
+                label={`Loading ${selectedTicker}…`}
+                sub="Fetching price history from the database."
+              />
+            )}
             {!loading && error && <p className="status-text is-error">{error}</p>}
 
             {!loading && !error && stockData && (

@@ -150,7 +150,7 @@
 }
 
 .st-dropdown__item--danger:hover {
-  background: rgba(220, 38, 38, 0.08);
+  background: var(--error-muted);
 }
 
 .st-dropdown__divider {

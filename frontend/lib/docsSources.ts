@@ -1,9 +1,16 @@
 // docsSources.ts — Curated read-only excerpts of the SLTP engine, shown on the Docs page.
 //
 // These are bundled as strings so the Docs page controls exactly what is exposed.
-// When the engine changes (core/strategy/strategy.py, core/portfolio/portfolio_manager.py,
-// backtester.py, core/utils), update the matching constant here. Keep excerpts faithful
-// to the source.
+// They mirror the repo files, with the `app.` imports rewritten to the `core.`
+// package the Lab presents to users:
+//
+//   core/strategy/strategy.py            <-  app/strategies/strategy.py
+//   core/portfolio/portfolio_manager.py  <-  app/portfolio/portfolio_manager.py
+//   core/utils/StockData.py              <-  app/utils/StockData.py
+//   core/utils/StrategyDecision.py       <-  app/utils/StrategyDecision.py
+//
+// When the engine changes, update the matching constant here so the excerpt
+// stays faithful to the source.
 export const BASE_STRATEGY_SOURCE = `# core/strategy/strategy.py
 import talib as ta
 from core.portfolio.portfolio_manager import PortfolioManager

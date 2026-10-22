@@ -4,6 +4,7 @@ import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import RadioGroup from '../ui/RadioGroup';
+import { LoaderInline, LoaderOverlay } from '../ui/Loader';
 import { completeSetup } from '../../lib/api';
 import './PortfolioOnboarding.css';
 
@@ -243,11 +244,22 @@ export default function PortfolioOnboarding({ defaultName, onDone }: PortfolioOn
             </Button>
           ) : (
             <Button variant="primary" size="md" onClick={handleFinish} disabled={submitting}>
-              {submitting ? 'Setting up...' : 'Create portfolio'}
+              {submitting ? (
+                <>
+                  <LoaderInline tone="inherit" />
+                  Setting up…
+                </>
+              ) : 'Create portfolio'}
             </Button>
           )}
         </div>
       </div>
+
+      {/* The portfolio is written to Turso before the wizard closes, which
+          takes a moment, so the whole step waits behind the loader. */}
+      {submitting && (
+        <LoaderOverlay label="Creating your portfolio…" sub="Writing your setup to the account store." />
+      )}
     </div>
   );
 }

@@ -109,6 +109,16 @@
   background-color: var(--accent);
 }
 
+/* While a write is in flight the stock line says it all, so the status dot
+   steps out of the way. */
+.lab-editor-status.is-busy::before {
+  display: none;
+}
+
+.lab-editor-status .loader-inline {
+  margin-right: 0;
+}
+
 .lab-editor-error {
   margin: 0;
 }
@@ -116,8 +126,26 @@
 .lab-editor-placeholder {
   margin: 0;
   padding: var(--space-lg);
-  color: #8b8b8b;
+  color: var(--ide-muted);
   font-size: 0.875rem;
+}
+
+/* The editor has its own palette, so the loading screen is centred in the
+   surface rather than sitting in the top-left corner with the other copy. */
+.lab-editor-loading {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-xl) var(--space-lg);
+}
+
+/* Monaco's own fallback, while the editor chunk loads: the same centred
+   waiting screen the rest of the app uses, centred in the editor surface. */
+.lab-editor-monaco-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: var(--space-lg);
 }
 
 /* ---------- IDE frame ---------- */
@@ -136,6 +164,8 @@
   --ide-error: #f48771;
   --ide-warn: #cca700;
   --ide-command: #4fc1ff;
+  --ide-on-accent: #ffffff;
+  --ide-accent-soft: rgba(255, 255, 255, 0.14);
 
   display: flex;
   flex-direction: column;
@@ -168,8 +198,8 @@
 
 @media (min-width: 48rem) {
   .lab-explorer {
-    flex: 0 0 var(--sidebar-width, 232px);
-    width: var(--sidebar-width, 232px);
+    flex: 0 0 var(--sidebar-width, 14.5rem); /* ≈232px default */
+    width: var(--sidebar-width, 14.5rem);
   }
 }
 
@@ -474,7 +504,7 @@
 
 .lab-file-item.is-active {
   background-color: var(--ide-active);
-  color: #ffffff;
+  color: var(--ide-text);
 }
 
 .lab-file-item svg {
@@ -496,14 +526,14 @@
   font-size: 0.625rem;
   border: 1px solid var(--ide-active);
   border-radius: 3px;
-  padding: 0 4px;
+  padding: 0 var(--space-2xs);
 }
 
 /* Rename and delete appear on hover or focus, to keep the list calm. */
 .lab-file-actions {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--space-3xs);
   opacity: 0.72;
   transition: opacity 0.15s ease;
 }
@@ -587,7 +617,7 @@
 
 .lab-tab.is-active {
   background-color: var(--ide-bg);
-  color: #ffffff;
+  color: var(--ide-text);
   box-shadow: inset 0 1px 0 var(--ide-accent);
 }
 
@@ -752,7 +782,7 @@
   height: 1.5rem;
   padding: 0 var(--space-xs);
   background-color: var(--ide-accent);
-  color: #ffffff;
+  color: var(--ide-on-accent);
   font-size: 0.6875rem;
 }
 
@@ -777,7 +807,7 @@
 }
 
 .lab-statusbar-item.is-failed {
-  color: #ffd7d7;
+  color: var(--ide-on-accent);
 }
 
 .lab-statusbar-button {
@@ -790,7 +820,7 @@
 }
 
 .lab-statusbar-button:hover {
-  background-color: rgba(255, 255, 255, 0.14);
+  background-color: var(--ide-accent-soft);
 }
 
 .lab-statusbar-button.has-errors {
@@ -884,7 +914,7 @@
   }
 
   :root:not([data-theme="dark"]) .lab-statusbar-button:hover {
-    background-color: rgba(59, 55, 63, 0.1);
+    background-color: var(--ide-accent-soft);
   }
 
   :root:not([data-theme="dark"]) .lab-editor-placeholder {
@@ -907,6 +937,8 @@
   --ide-error: #b91c1c;
   --ide-warn: #a16207;
   --ide-command: #4338ca;
+  --ide-on-accent: #3b373f;
+  --ide-accent-soft: rgba(59, 55, 63, 0.1);
 }
 
 :root[data-theme="light"] .lab-file-item.is-active,
@@ -924,73 +956,9 @@
 }
 
 :root[data-theme="light"] .lab-statusbar-button:hover {
-  background-color: rgba(59, 55, 63, 0.1);
+  background-color: var(--ide-accent-soft);
 }
 
 :root[data-theme="light"] .lab-editor-placeholder {
   color: var(--ide-muted);
-}
-
-/* Use the same appearance as the site setting for the entire IDE frame. */
-:root[data-theme="light"] .lab-ide {
-  --ide-bg: #ffffff;
-  --ide-side: #f7f5f0;
-  --ide-tabs: #eeece7;
-  --ide-panel: #f7f5f0;
-  --ide-border: #ded8cc;
-  --ide-hover: #ece9e2;
-  --ide-active: #e3e0d9;
-  --ide-text: #3b373f;
-  --ide-muted: #736d7a;
-  --ide-accent: #4f46e5;
-  --ide-ok: #047857;
-  --ide-error: #b91c1c;
-  --ide-warn: #a16207;
-  --ide-command: #4338ca;
-}
-
-:root[data-theme="light"] .lab-file-item.is-active,
-:root[data-theme="light"] .lab-tab.is-active {
-  color: var(--ide-text);
-}
-
-:root[data-theme="light"] .lab-statusbar {
-  background-color: var(--ide-tabs);
-  color: var(--ide-text);
-}
-
-:root[data-theme="light"] .lab-statusbar-item.is-failed {
-  color: var(--ide-error);
-}
-
-:root[data-theme="light"] .lab-statusbar-button:hover {
-  background-color: rgba(59, 55, 63, 0.1);
-}
-
-:root[data-theme="light"] .lab-editor-placeholder {
-  color: var(--ide-muted);
-}
-
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme="dark"]) .lab-file-item.is-active,
-  :root:not([data-theme="dark"]) .lab-tab.is-active {
-    color: var(--ide-text);
-  }
-
-  :root:not([data-theme="dark"]) .lab-statusbar {
-    background-color: var(--ide-tabs);
-    color: var(--ide-text);
-  }
-
-  :root:not([data-theme="dark"]) .lab-statusbar-item.is-failed {
-    color: var(--ide-error);
-  }
-
-  :root:not([data-theme="dark"]) .lab-statusbar-button:hover {
-    background-color: rgba(59, 55, 63, 0.1);
-  }
-
-  :root:not([data-theme="dark"]) .lab-editor-placeholder {
-    color: var(--ide-muted);
-  }
 }

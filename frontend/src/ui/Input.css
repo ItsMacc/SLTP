@@ -79,7 +79,7 @@
 }
 
 .input-container.has-error .input-field:focus {
-  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+  box-shadow: 0 0 0 3px rgba(var(--error-rgb), 0.15);
 }
 
 .input-error-text {

@@ -1,4 +1,4 @@
-// useActiveSection.ts - Tracks which course landmark is currently on screen
+// useActiveSection.ts — Tracks which course landmark is currently on screen
 // so the sidebar can highlight it.
 //
 // A scroll listener is used instead of an IntersectionObserver because short

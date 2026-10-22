@@ -10,6 +10,7 @@ import {
 import { TIERS, type Tier } from '../../learn/curriculum';
 import { trophyFor } from '../../learn/badges';
 import type { useLearn } from '../../learn/useLearn';
+import { LoaderInline } from '../../ui/Loader';
 import { GateQuiz } from './LearnCredentials';
 
 type LearnApi = ReturnType<typeof useLearn>;
@@ -32,6 +33,13 @@ export function BadgeShelf({ learn }: { learn: LearnApi }) {
             {earned.length} badge{earned.length === 1 ? '' : 's'} · {trophies.length} trophy
             {trophies.length === 1 ? '' : 'ies'}, saved to your account.
           </p>
+          {/* The badge lands on screen at once, but the write to the account
+              store takes a moment: the stock line says it is still going. */}
+          {learn.saving && (
+            <p className="learn-shelf-saving" role="status">
+              <LoaderInline size={14} /> Saving your progress…
+            </p>
+          )}
         </div>
         <span className="learn-shelf-count">{earned.length}</span>
       </div>

@@ -1,3 +1,4 @@
+// authSchema.ts — Shared zod schemas for the sign-in and sign-up forms.
 import { z } from 'zod';
 
 export const loginSchema = z.object({

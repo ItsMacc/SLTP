@@ -1,4 +1,4 @@
-// progress.ts - Learning progress: completed sections, earned milestones,
+// progress.ts — Learning progress: completed sections, earned milestones,
 // tier certifications, and the ids of every badge/trophy actually earned.
 //
 // Stored in Supabase (see migrations/supabase_learn.sql):

@@ -44,6 +44,41 @@
   --success: #059669;
   --error: #dc2626;
 
+  /* RGB triples for the three semantic colours. Needed wherever an
+     alpha other than the token's own is required — e.g. a 0.25
+     accent border on a 0.08 accent fill. Kept in sync with the
+     hex values above; dark-mode overrides follow their accent. */
+  --accent-rgb: 79, 70, 229;
+  --success-rgb: 5, 150, 105;
+  --error-rgb: 220, 38, 38;
+
+  /* Tinted fills for the two semantic states. The base colours are
+     identical in both themes, so these hold their alpha everywhere. */
+  --success-muted: rgba(5, 150, 105, 0.12);
+  --error-muted: rgba(220, 38, 38, 0.12);
+
+  /* Dimming scrim behind modals and dialogs */
+  --overlay: rgba(0, 0, 0, 0.45);
+
+  /* Focus ring colour, shared by every control that draws its own outline */
+  --focus-ring: var(--accent);
+
+  /* Award tiers on the Learn shelf and the reward toast. Each tier is a
+     name for a colour, not a themeable role, so the values are literal
+     on purpose; only the light and dark variants differ. */
+  --tier-bronze: #b45309;
+  --tier-bronze-muted: rgba(180, 83, 9, 0.1);
+  --tier-silver: #64748b;
+  --tier-silver-muted: rgba(148, 163, 184, 0.12);
+  --tier-gold: #ca8a04;
+  --tier-gold-muted: rgba(202, 138, 4, 0.12);
+  --tier-emerald: #059669;
+  --tier-emerald-muted: rgba(5, 150, 105, 0.12);
+  --tier-diamond: #0284c7;
+  --tier-diamond-muted: rgba(56, 189, 248, 0.12);
+  --tier-mystery: #7c3aed;
+  --tier-mystery-muted: rgba(124, 58, 237, 0.12);
+
   /* Spacing scale */
   --space-3xs: 0.125rem;
   --space-2xs: 0.25rem;
@@ -104,6 +139,21 @@
     --success: #059669;
     --error: #dc2626;
 
+    --accent-rgb: 217, 119, 6;
+
+    --tier-bronze: #d08a3c;
+    --tier-bronze-muted: rgba(208, 138, 60, 0.14);
+    --tier-silver: #94a3b8;
+    --tier-silver-muted: rgba(148, 163, 184, 0.16);
+    --tier-gold: #eab308;
+    --tier-gold-muted: rgba(234, 179, 8, 0.14);
+    --tier-emerald: #10b981;
+    --tier-emerald-muted: rgba(16, 185, 129, 0.14);
+    --tier-diamond: #38bdf8;
+    --tier-diamond-muted: rgba(56, 189, 248, 0.14);
+    --tier-mystery: #a78bfa;
+    --tier-mystery-muted: rgba(167, 139, 250, 0.14);
+
     --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
     --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.6);
     --shadow-lg: 0 12px 32px -4px rgba(0, 0, 0, 0.8);
@@ -127,6 +177,21 @@
 
   --success: #059669;
   --error: #dc2626;
+
+  --accent-rgb: 217, 119, 6;
+
+  --tier-bronze: #d08a3c;
+  --tier-bronze-muted: rgba(208, 138, 60, 0.14);
+  --tier-silver: #94a3b8;
+  --tier-silver-muted: rgba(148, 163, 184, 0.16);
+  --tier-gold: #eab308;
+  --tier-gold-muted: rgba(234, 179, 8, 0.14);
+  --tier-emerald: #10b981;
+  --tier-emerald-muted: rgba(16, 185, 129, 0.14);
+  --tier-diamond: #38bdf8;
+  --tier-diamond-muted: rgba(56, 189, 248, 0.14);
+  --tier-mystery: #a78bfa;
+  --tier-mystery-muted: rgba(167, 139, 250, 0.14);
 
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.6);
@@ -215,9 +280,41 @@ h1, h2, h3, h4, h5, h6 {
   gap: var(--space-xl);
 }
 
-.page-hero-band :is(.home-hero-title, .learn-hero-title, .strategies-title, .perf-hero-title, .docs-title, .lab-hero-title) {
+/* ---------- Shared hero typography ----------
+   Every page hero is built from the same three parts, in the same order:
+   an eyebrow (the small mono label), a title, and a description. They use
+   these shared classes so a change here lands on all six heroes at once
+   instead of drifting page by page.
+
+   Page CSS keeps only the deltas that are genuinely page-specific — the
+   copy column's measure, extra hero elements, and the odd override —
+   and scopes them to the page wrapper (e.g. `.home-hero .page-hero-title`). */
+.page-hero-eyebrow {
+  margin: 0;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.page-hero-title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-weight: 400;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
   font-size: clamp(1.9rem, 3.2vw, 3rem);
   line-height: 1.15;
+}
+
+.page-hero-description {
+  margin: 0;
+  max-width: min(38rem, 100%); /* shared hero reading measure */
+  color: var(--text-muted);
+  font-size: var(--text-lg);
+  line-height: 1.7;
 }
 
 /* Faint dot grid that fades out toward the bottom edge. Used by the hero
@@ -258,11 +355,53 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
+/* ---------- Motion guard ----------
+   One global switch for the whole app. Every animated component in src/
+   is covered here rather than repeating the same block in each file.
+   Transforms are reset, not just the animation, so nothing is left
+   offset when the animation is switched off. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .page-transition,
+  .home-reveal,
+  .learn-story-step,
+  .learn-beat,
+  .learn-substep,
+  .learn-check,
+  .learn-badge,
+  .learn-claim {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .home-reveal {
+    transition: none !important;
+  }
+}
+
 /* ---------- App shell ---------- */
 .app-shell {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+}
+
+/* Boot screen: shown while the session check runs, before the shell exists. */
+.app-boot {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-canvas);
 }
 
 .app-main {

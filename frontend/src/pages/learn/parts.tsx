@@ -1,4 +1,4 @@
-// parts.tsx - Shared building blocks for the lesson modules.
+// parts.tsx — Shared building blocks for the lesson modules.
 //
 // Every module follows the same teaching frame so the course reads as one
 // course, not a pile of unrelated pages:

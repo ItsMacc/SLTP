@@ -1,4 +1,4 @@
-// RewardToast.tsx - Bottom-right unlock popup, the celebratory twin of
+// RewardToast.tsx — Bottom-right unlock popup, the celebratory twin of
 // ErrorToast. Fires whenever a badge or trophy is earned, then auto-dismisses.
 
 import { useEffect } from 'react';

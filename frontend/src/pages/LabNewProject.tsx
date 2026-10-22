@@ -6,6 +6,7 @@ import { LAB_TEMPLATES, getTemplate, type LabTemplateId } from '../lab/templates
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
+import { LoaderInline, LoaderOverlay } from '../ui/Loader';
 import './LabNewProject.css';
 
 const NAME_MAX = 60;
@@ -281,7 +282,12 @@ export default function LabNewProject({ workspaces, initialTemplate, initialTarg
           </Button>
           {isLast ? (
             <Button variant="primary" size="md" onClick={() => void submit()} disabled={submitting}>
-              {submitting ? 'Creating…' : 'Create project'}
+              {submitting ? (
+                <>
+                  <LoaderInline tone="inherit" />
+                  Creating…
+                </>
+              ) : 'Create project'}
             </Button>
           ) : (
             <Button variant="primary" size="md" onClick={next}>
@@ -290,6 +296,13 @@ export default function LabNewProject({ workspaces, initialTemplate, initialTarg
           )}
         </footer>
       </div>
+
+      {/* Creating a project writes the workspace and its first file to Turso,
+          which takes a couple of seconds, so the wizard waits behind the
+          loader until the write lands. */}
+      {submitting && (
+        <LoaderOverlay label="Creating your project…" sub="Saving your files to the project store." />
+      )}
     </div>
   );
 }

@@ -2,11 +2,15 @@
    Loader.css — Shared animated loader + dimming overlay
    ============================================================ */
 
+/* The overlay dims the whole viewport while a write is in flight. It sits
+   above the modal layers (1000-1100) so a save started from inside a dialog
+   still reads as "the app is busy", and below the toasts (1200) so a
+   confirmation can still be seen while the overlay fades. */
 .loader-overlay {
   position: fixed;
   inset: 0;
-  z-index: 90;
-  background: rgba(0, 0, 0, 0.5);
+  z-index: 1150;
+  background: var(--overlay);
   backdrop-filter: blur(2px);
   display: flex;
   align-items: center;
@@ -22,18 +26,28 @@
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-lg);
 }
 
 .loader-chart {
   overflow: hidden;
 }
 
-/* The line draws itself, then fades — climbing, dipping, restarting. */
+/* The line draws itself, then fades — climbing, dipping, restarting.
+
+   The stroke lives here rather than on the element, so the waiting symbol is
+   always the theme's accent colour: bronze in dark mode, indigo in light
+   mode. A line that sits on an accent fill opts out with .is-inherit and
+   takes the button's own text colour instead. */
 .loader-line {
+  stroke: var(--accent);
   stroke-dasharray: 160;
   stroke-dashoffset: 160;
   animation: loader-draw 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.loader-line.is-inherit {
+  stroke: currentColor;
 }
 
 @keyframes loader-draw {
@@ -55,4 +69,60 @@
   max-width: 16rem;
   text-align: center;
   line-height: 1.5;
+}
+
+/* ---------- Waiting screen ----------
+   The centred treatment every long wait uses: the stock line in the middle
+   of the space the content is going to take. A page that is working says so
+   instead of showing an empty shell. */
+.loader-screen {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-height: 14rem;
+  padding: var(--space-2xl) var(--space-lg);
+}
+
+/* A slot that is only a stat row or a card wide does not need the full
+   height, but it still centres the symbol in what it has. */
+.loader-screen.is-compact {
+  min-height: 0;
+  padding: var(--space-md) 0;
+}
+
+/* ---------- Inline variant ----------
+   The same line, sized to sit inside a button next to a label. It inherits
+   the surrounding text colour, so it works on the filled and the plain
+   button variants alike. */
+
+.loader-inline {
+  display: inline-block;
+  flex: none;
+  vertical-align: middle;
+  overflow: visible;
+  margin-right: 0.45em;
+}
+
+/* A small symbol has less room to read, so it cycles a little faster. */
+.loader-inline .loader-line {
+  animation-duration: 1.1s;
+}
+
+/* ---------- Row variant ----------
+   The line beside a short label, for a panel or a list that is filling. */
+
+.loader-row {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: var(--text-sm);
+}
+
+.loader-row .loader-inline {
+  margin-right: 0;
+}
+
+.loader-row-label {
+  color: var(--text-muted);
 }
