@@ -2,7 +2,7 @@
 // lessons that teach stocks, price movement, order execution, candles,
 // strategies, risk and testing from zero.
 // Layout mirrors DocsPage: sticky sidebar TOC on the left, content on the right.
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ArrowRight, Check, ChevronRight, Building2, TrendingUp, Calculator, FlaskConical,
   Sparkles, Users, CircleDollarSign, Lightbulb, AlertTriangle, Receipt, Lock, Trophy,
@@ -1530,29 +1530,6 @@ export default function LearnPage({ onNavigate }: LearnPageProps) {
 
   const activeId = useActiveSection(anchorIds);
 
-  // Passing a tier's pop quiz removes that quiz from the page (it has done its
-  // job) and mounts the next tier. Left alone, the document suddenly gets
-  // shorter and the scroll offset ends up pointing at unrelated content - the
-  // "weird jump". Instead, send the learner to the tier they just unlocked.
-  const certifiedCount = learn.progress.certifications.length;
-  const prevCertifiedCount = useRef(certifiedCount);
-  useEffect(() => {
-    const gained = certifiedCount - prevCertifiedCount.current;
-    prevCertifiedCount.current = certifiedCount;
-    if (gained <= 0) return;
-    // `certifiedCount` is now how many tiers are DONE, so the tier that just
-    // opened is the one at that index - not the one before it. On the last
-    // tier there is nothing left to open, so send the learner to the badge
-    // case where the final trophy is on display.
-    const next = TIERS[certifiedCount];
-    const targetId = next ? `tier-${next.id}` : 'credentials';
-    // Two frames: one for React to commit the removal, one for the browser
-    // to lay out the shortened document before we measure.
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }));
-  }, [certifiedCount]);
-
   const jump = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
@@ -1587,16 +1564,19 @@ export default function LearnPage({ onNavigate }: LearnPageProps) {
 
   return (
     <div className="learn-page">
-      <div className="learn-hero">
-        <p className="learn-kicker">New to the stock market? Start here.</p>
-        <h1 className="learn-title">The stock market, from zero.</h1>
-        <p className="learn-sub">
+      <div className="learn-hero-wrapper page-hero-band is-full-bleed is-dot-grid">
+        <div className="learn-hero-inner page-hero-inner">
+        <div className="learn-hero-top">
+          <span className="learn-hero-subtitle">New to the stock market? Start here.</span>
+          <h1 className="learn-hero-title">The stock market, from zero.</h1>
+          <p className="learn-hero-description">
           Five tiers, unlocked one at a time. Each tier opens with a single module, and the
           next one appears only when you finish the last, so there is always exactly one
           thing to do. Finish a module to claim its badge, and pass a tier's quiz to earn
           its certificate. Every module also ends with an optional quiz if you want to
           check yourself.
-        </p>
+          </p>
+        </div>
         <div className="learn-herostats">
           <div className="learn-herostat">
             <span className="learn-herostat-value">{learn.earnedBadges.length}</span>
@@ -1610,6 +1590,7 @@ export default function LearnPage({ onNavigate }: LearnPageProps) {
             <span className="learn-herostat-value">{learn.progress.certifications.length}/5</span>
             <span className="learn-herostat-label">tiers</span>
           </div>
+        </div>
         </div>
       </div>
 

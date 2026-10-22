@@ -135,8 +135,8 @@ export default function PerformancePage({ initialSettings }: PerformancePageProp
   return (
     <div className="perf-page">
       {/* Edge-to-Edge Hero Banner */}
-      <div className="perf-hero-wrapper is-full-bleed">
-        <div className="perf-hero-inner">
+      <div className="perf-hero-wrapper page-hero-band is-full-bleed is-dot-grid">
+        <div className="perf-hero-inner page-hero-inner">
           <div className="perf-hero-top">
             <span className="perf-hero-subtitle">Performance Analytics</span>
             <h1 className="perf-hero-title">Market Performance &amp; Strategy Backtests</h1>

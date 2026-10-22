@@ -128,10 +128,8 @@ export default function HomePage({ onNavigate, onOpenGuide }: HomePageProps) {
   return (
     <div className="home-page">
       {/* ================= HERO ================= */}
-      <section className="home-hero is-full-bleed">
-        <div className="home-hero-grid" aria-hidden="true" />
-
-        <div className="home-hero-inner">
+      <section className="home-hero page-hero-band is-full-bleed is-dot-grid">
+        <div className="home-hero-inner page-hero-inner">
           <div className="home-hero-copy">
             <span className="home-eyebrow">Research platform for the stock market</span>
             <h1 className="home-hero-title">

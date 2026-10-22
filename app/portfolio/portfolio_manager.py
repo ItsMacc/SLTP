@@ -119,7 +119,8 @@ class PortfolioManager:
     def on_signal(self,
                   ticker: str,
                   decision: StrategyDecision
-                  ) -> TradeRecord:
+                  ) -> TradeRecord | None:
+        # Returning None means "no trade for this signal", which the backtester and runner handle
         # Base method placeholder enforcing implementation in subclasses
         raise NotImplementedError("PortfolioManager subclasses must implement on_signal()")
 

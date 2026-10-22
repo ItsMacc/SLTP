@@ -1,0 +1,996 @@
+/* ============================================================
+   LabEditorPage.css — Project editor: theme-aware IDE frame with
+   explorer, tabs, Monaco, a terminal and a status bar.
+
+   Width conventions: fluid % / vw / fr for layout; rem for atoms.
+   ============================================================ */
+
+.lab-editor {
+  width: 100%;
+  max-width: min(96rem, 98vw);
+  margin: 0 auto;
+  padding: var(--space-lg) 0 var(--space-xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+/* ---------- Page header ---------- */
+.lab-editor-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-md);
+  padding-bottom: var(--space-md);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.lab-editor-title {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1 1 12rem;
+}
+
+.lab-editor-workspace {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.lab-editor-project {
+  font-family: var(--font-heading);
+  font-size: var(--text-2xl);
+  color: var(--accent);
+  font-weight: 400;
+  line-height: 1.1;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* One toolbar: every control shares a 2.25rem height so the row lines up. */
+.lab-editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-left: auto;
+}
+
+.lab-editor-actions .lab-editor-btn,
+.lab-editor-back {
+  height: 2.25rem;
+  padding: 0 var(--space-md);
+  gap: var(--space-xs);
+  font-size: var(--text-sm);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.lab-editor-back {
+  padding-left: var(--space-sm);
+  color: var(--text-muted);
+}
+
+.lab-editor-btn svg {
+  flex: 0 0 auto;
+}
+
+.lab-editor-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  height: 2.25rem;
+  padding: 0 var(--space-md);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+
+.lab-editor-status::before {
+  content: '';
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background-color: var(--success);
+}
+
+.lab-editor-status.is-dirty {
+  color: var(--text-primary);
+}
+
+.lab-editor-status.is-dirty::before {
+  background-color: var(--accent);
+}
+
+.lab-editor-error {
+  margin: 0;
+}
+
+.lab-editor-placeholder {
+  margin: 0;
+  padding: var(--space-lg);
+  color: #8b8b8b;
+  font-size: 0.875rem;
+}
+
+/* ---------- IDE frame ---------- */
+.lab-ide {
+  --ide-bg: #1e1e1e;
+  --ide-side: #181818;
+  --ide-tabs: #252526;
+  --ide-panel: #181818;
+  --ide-border: #2b2b2b;
+  --ide-hover: #2a2d2e;
+  --ide-active: #37373d;
+  --ide-text: #cccccc;
+  --ide-muted: #8b8b8b;
+  --ide-accent: #007acc;
+  --ide-ok: #89d185;
+  --ide-error: #f48771;
+  --ide-warn: #cca700;
+  --ide-command: #4fc1ff;
+
+  display: flex;
+  flex-direction: column;
+  height: min(76vh, 52rem);
+  min-height: 30rem;
+  background-color: var(--ide-bg);
+  color: var(--ide-text);
+  border: 1px solid var(--ide-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: 0.8125rem;
+}
+
+.lab-ide-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+}
+
+/* ---------- Explorer ---------- */
+.lab-explorer {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background-color: var(--ide-side);
+}
+
+@media (min-width: 48rem) {
+  .lab-explorer {
+    flex: 0 0 var(--sidebar-width, 232px);
+    width: var(--sidebar-width, 232px);
+  }
+}
+
+.lab-explorer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 3rem;
+  padding: var(--space-xs) var(--space-xs) var(--space-xs) var(--space-md);
+  border-bottom: 1px solid var(--ide-border);
+}
+
+.lab-explorer-heading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3xs);
+  min-width: 0;
+}
+
+.lab-explorer-title {
+  margin: 0;
+  color: var(--ide-muted);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.lab-explorer-count {
+  color: var(--ide-muted);
+  font-size: 0.625rem;
+  line-height: 1.2;
+}
+
+.lab-explorer-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2xs);
+}
+
+.lab-explorer-tools .lab-icon-button {
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 1px solid var(--ide-border);
+  background-color: var(--ide-bg);
+}
+
+.lab-explorer-tools .lab-icon-button:hover,
+.lab-explorer-tools .lab-icon-button[aria-expanded='true'] {
+  border-color: var(--ide-accent);
+  color: var(--ide-accent);
+}
+
+.lab-folder-tree,
+.lab-folder-children {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.lab-folder-tree {
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.lab-folder-group {
+  color: var(--ide-text);
+}
+
+.lab-folder-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-width: 0;
+  min-height: 1.875rem;
+  padding: 0 var(--space-2xs) 0 var(--space-xs);
+  border-radius: var(--radius-sm);
+}
+
+.lab-folder-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ide-muted);
+  cursor: pointer;
+}
+
+.lab-folder-toggle:hover {
+  color: var(--ide-text);
+  background: var(--ide-hover);
+}
+
+.lab-folder-toggle svg {
+  transition: transform 0.12s ease;
+}
+
+.lab-folder-toggle svg.is-expanded {
+  transform: rotate(90deg);
+}
+
+.lab-folder-icon {
+  flex: 0 0 auto;
+  color: var(--ide-accent);
+}
+
+.lab-folder-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.75rem;
+}
+
+.lab-folder-children {
+  position: relative;
+  margin-left: 1.125rem;
+  padding-left: var(--space-sm);
+  border-left: 1px solid var(--ide-border);
+}
+
+.lab-folder-child-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-height: 1.75rem;
+  padding: 0 var(--space-xs);
+  color: var(--ide-muted);
+  font-size: 0.75rem;
+}
+
+.lab-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ide-muted);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.lab-icon-button:hover,
+.lab-icon-button[aria-expanded='true'] {
+  background-color: var(--ide-hover);
+  color: var(--ide-text);
+}
+
+.lab-icon-button-danger:hover {
+  color: var(--ide-error);
+}
+
+.lab-icon-button:focus-visible,
+.lab-tab-label:focus-visible,
+.lab-tab-close:focus-visible,
+.lab-file-item:focus-visible,
+.lab-statusbar-button:focus-visible,
+.lab-terminal-text-button:focus-visible {
+  outline: 2px solid var(--ide-command);
+  outline-offset: -2px;
+}
+
+.lab-new-file {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  padding: var(--space-xs) var(--space-sm);
+  border-bottom: 1px solid var(--ide-border);
+}
+
+.lab-new-file-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--ide-active);
+  border-radius: 4px;
+  background: var(--ide-bg);
+  color: var(--ide-text);
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.8125rem;
+}
+
+.lab-new-file-input:focus {
+  outline: none;
+  border-color: var(--ide-command);
+}
+
+.lab-new-file-hint {
+  margin: 0;
+  color: var(--ide-muted);
+  font-size: 0.6875rem;
+}
+
+.lab-file-tree {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-2xs) 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  flex: 1 1 auto;
+}
+
+.lab-file-row {
+  display: flex;
+  align-items: center;
+  min-height: 1.875rem;
+  padding-right: var(--space-2xs);
+  border-radius: var(--radius-sm);
+}
+
+.lab-file-row > .lab-file-item {
+  padding-left: var(--space-xs);
+  padding-right: var(--space-2xs);
+}
+
+.lab-file-row > .lab-file-actions {
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  padding-left: var(--space-2xs);
+}
+
+.lab-folder-row > .lab-icon-button-danger {
+  flex: 0 0 auto;
+}
+
+.lab-folder-row > .lab-folder-name {
+  line-height: 1.25;
+}
+
+.lab-file-item > svg {
+  display: block;
+  width: 0.875rem;
+  height: 0.875rem;
+  flex: 0 0 0.875rem;
+}
+
+.lab-file-actions .lab-icon-button,
+.lab-folder-row > .lab-icon-button-danger {
+  width: 1.625rem;
+  height: 1.625rem;
+  flex: 0 0 1.625rem;
+}
+
+.lab-file-actions .lab-icon-button svg,
+.lab-folder-row > .lab-icon-button-danger svg {
+  display: block;
+  flex: 0 0 auto;
+}
+
+.lab-explorer-section-label {
+  padding: var(--space-sm) var(--space-md) var(--space-2xs);
+  color: var(--ide-muted);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.lab-file-row:hover {
+  background-color: var(--ide-hover);
+}
+
+.lab-folder-row:hover {
+  background-color: var(--ide-hover);
+}
+
+.lab-folder-row:hover .lab-folder-name,
+.lab-folder-row:hover .lab-folder-icon,
+.lab-folder-row:hover .lab-icon-button-danger {
+  color: var(--ide-text);
+}
+
+.lab-file-item {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.28rem 0.75rem;
+  border: 0;
+  background: transparent;
+  color: var(--ide-text);
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.8125rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lab-file-item.is-active {
+  background-color: var(--ide-active);
+  color: #ffffff;
+}
+
+.lab-file-item svg {
+  flex: 0 0 auto;
+  color: var(--ide-muted);
+}
+
+.lab-file-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lab-file-badge {
+  flex: 0 0 auto;
+  color: var(--ide-muted);
+  font-size: 0.625rem;
+  border: 1px solid var(--ide-active);
+  border-radius: 3px;
+  padding: 0 4px;
+}
+
+/* Rename and delete appear on hover or focus, to keep the list calm. */
+.lab-file-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0.72;
+  transition: opacity 0.15s ease;
+}
+
+.lab-file-row:hover .lab-file-actions,
+.lab-file-row:focus-within .lab-file-actions {
+  opacity: 1;
+}
+
+.lab-dirty-dot {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: var(--ide-text);
+}
+
+/* ---------- Resizer ---------- */
+.lab-ide-resizer {
+  display: none;
+  flex: 0 0 1px;
+  background-color: var(--ide-border);
+  cursor: col-resize;
+  position: relative;
+}
+
+/* Wider invisible hit area so the handle is easy to grab. */
+.lab-ide-resizer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -3px;
+  width: 7px;
+}
+
+@media (min-width: 48rem) {
+  .lab-ide-resizer {
+    display: block;
+  }
+}
+
+.lab-ide-resizer:hover,
+.lab-ide-resizer:focus-visible {
+  background-color: var(--ide-accent);
+  outline: none;
+}
+
+/* ---------- Main column: tabs, editor, terminal ---------- */
+.lab-ide-main {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.lab-tabs {
+  display: flex;
+  overflow-x: auto;
+  background-color: var(--ide-tabs);
+  min-height: 2.25rem;
+  scrollbar-width: thin;
+}
+
+.lab-tab {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  border-right: 1px solid var(--ide-border);
+  color: var(--ide-muted);
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+.lab-tab:hover {
+  color: var(--ide-text);
+}
+
+.lab-tab.is-active {
+  background-color: var(--ide-bg);
+  color: #ffffff;
+  box-shadow: inset 0 1px 0 var(--ide-accent);
+}
+
+.lab-tab-label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.75rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.lab-tab-close {
+  display: flex;
+  align-items: center;
+  padding: 0.25rem;
+  margin-right: 0.35rem;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ide-muted);
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.lab-tab-close:hover {
+  background-color: var(--ide-hover);
+  color: var(--ide-text);
+  opacity: 1;
+}
+
+.lab-editor-surface {
+  flex: 1 1 auto;
+  min-height: 0;
+  position: relative;
+}
+
+/* ---------- Terminal panel ---------- */
+.lab-terminal {
+  flex: 0 0 min(13rem, 34%);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background-color: var(--ide-panel);
+  border-top: 1px solid var(--ide-border);
+}
+
+.lab-terminal-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  height: 2rem;
+  padding: 0 var(--space-xs) 0 var(--space-md);
+  border-bottom: 1px solid var(--ide-border);
+  font-size: 0.6875rem;
+  color: var(--ide-muted);
+}
+
+.lab-terminal-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  height: 100%;
+  padding: 0 var(--space-xs);
+  border-bottom: 1px solid var(--ide-text);
+  color: var(--ide-text);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+}
+
+.lab-terminal-status {
+  color: var(--ide-muted);
+}
+
+.lab-terminal-status.is-passed {
+  color: var(--ide-ok);
+}
+
+.lab-terminal-status.is-failed {
+  color: var(--ide-error);
+}
+
+.lab-terminal-status.is-running {
+  color: var(--ide-warn);
+}
+
+.lab-terminal-hint {
+  color: var(--ide-muted);
+  font-style: italic;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.lab-terminal-spacer {
+  flex: 1 1 auto;
+}
+
+.lab-terminal-text-button {
+  padding: 0.2rem 0.5rem;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ide-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.lab-terminal-text-button:hover {
+  background-color: var(--ide-hover);
+  color: var(--ide-text);
+}
+
+.lab-terminal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-xs) var(--space-md);
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+}
+
+.lab-terminal-empty {
+  margin: 0;
+  color: var(--ide-muted);
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+.lab-terminal-line {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--ide-text);
+}
+
+.lab-terminal-line.is-command {
+  color: var(--ide-command);
+}
+
+.lab-terminal-line.is-stderr {
+  color: var(--ide-error);
+}
+
+.lab-terminal-line.is-info {
+  color: var(--ide-muted);
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: 0.75rem;
+}
+
+/* ---------- Status bar ---------- */
+.lab-statusbar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  height: 1.5rem;
+  padding: 0 var(--space-xs);
+  background-color: var(--ide-accent);
+  color: #ffffff;
+  font-size: 0.6875rem;
+}
+
+.lab-statusbar-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  min-width: 0;
+}
+
+.lab-statusbar-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  height: 1.5rem;
+  padding: 0 0.5rem;
+  white-space: nowrap;
+}
+
+.lab-statusbar-item.is-starting {
+  opacity: 0.85;
+}
+
+.lab-statusbar-item.is-failed {
+  color: #ffd7d7;
+}
+
+.lab-statusbar-button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  border-radius: 3px;
+}
+
+.lab-statusbar-button:hover {
+  background-color: rgba(255, 255, 255, 0.14);
+}
+
+.lab-statusbar-button.has-errors {
+  font-weight: 600;
+}
+
+/* ---------- Mobile: read-only file list, no editor or terminal ---------- */
+.lab-mobile-note {
+  display: none;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+@media (max-width: 47.99rem) {
+  .lab-mobile-note {
+    display: block;
+  }
+
+  .lab-desktop-only {
+    display: none !important;
+  }
+
+  .lab-ide {
+    height: auto;
+    min-height: 0;
+  }
+
+  .lab-ide-body {
+    flex-direction: column;
+  }
+
+  .lab-explorer {
+    width: 100%;
+  }
+
+  .lab-file-tree,
+  .lab-folder-tree {
+    max-height: 16rem;
+  }
+
+  .lab-ide-resizer,
+  .lab-ide-main,
+  .lab-statusbar {
+    display: none;
+  }
+
+  .lab-file-item {
+    pointer-events: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lab-icon-button,
+  .lab-file-actions,
+  .lab-ide-resizer {
+    transition: none;
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .lab-ide {
+    --ide-bg: #ffffff;
+    --ide-side: #f7f5f0;
+    --ide-tabs: #eeece7;
+    --ide-panel: #f7f5f0;
+    --ide-border: #ded8cc;
+    --ide-hover: #ece9e2;
+    --ide-active: #e3e0d9;
+    --ide-text: #3b373f;
+    --ide-muted: #736d7a;
+    --ide-accent: #4f46e5;
+    --ide-ok: #047857;
+    --ide-error: #b91c1c;
+    --ide-warn: #a16207;
+    --ide-command: #4338ca;
+  }
+
+  :root:not([data-theme="dark"]) .lab-file-item.is-active,
+  :root:not([data-theme="dark"]) .lab-tab.is-active {
+    color: var(--ide-text);
+  }
+
+  :root:not([data-theme="dark"]) .lab-statusbar {
+    background-color: var(--ide-tabs);
+    color: var(--ide-text);
+  }
+
+  :root:not([data-theme="dark"]) .lab-statusbar-item.is-failed {
+    color: var(--ide-error);
+  }
+
+  :root:not([data-theme="dark"]) .lab-statusbar-button:hover {
+    background-color: rgba(59, 55, 63, 0.1);
+  }
+
+  :root:not([data-theme="dark"]) .lab-editor-placeholder {
+    color: var(--ide-muted);
+  }
+}
+
+:root[data-theme="light"] .lab-ide {
+  --ide-bg: #ffffff;
+  --ide-side: #f7f5f0;
+  --ide-tabs: #eeece7;
+  --ide-panel: #f7f5f0;
+  --ide-border: #ded8cc;
+  --ide-hover: #ece9e2;
+  --ide-active: #e3e0d9;
+  --ide-text: #3b373f;
+  --ide-muted: #736d7a;
+  --ide-accent: #4f46e5;
+  --ide-ok: #047857;
+  --ide-error: #b91c1c;
+  --ide-warn: #a16207;
+  --ide-command: #4338ca;
+}
+
+:root[data-theme="light"] .lab-file-item.is-active,
+:root[data-theme="light"] .lab-tab.is-active {
+  color: var(--ide-text);
+}
+
+:root[data-theme="light"] .lab-statusbar {
+  background-color: var(--ide-tabs);
+  color: var(--ide-text);
+}
+
+:root[data-theme="light"] .lab-statusbar-item.is-failed {
+  color: var(--ide-error);
+}
+
+:root[data-theme="light"] .lab-statusbar-button:hover {
+  background-color: rgba(59, 55, 63, 0.1);
+}
+
+:root[data-theme="light"] .lab-editor-placeholder {
+  color: var(--ide-muted);
+}
+
+/* Use the same appearance as the site setting for the entire IDE frame. */
+:root[data-theme="light"] .lab-ide {
+  --ide-bg: #ffffff;
+  --ide-side: #f7f5f0;
+  --ide-tabs: #eeece7;
+  --ide-panel: #f7f5f0;
+  --ide-border: #ded8cc;
+  --ide-hover: #ece9e2;
+  --ide-active: #e3e0d9;
+  --ide-text: #3b373f;
+  --ide-muted: #736d7a;
+  --ide-accent: #4f46e5;
+  --ide-ok: #047857;
+  --ide-error: #b91c1c;
+  --ide-warn: #a16207;
+  --ide-command: #4338ca;
+}
+
+:root[data-theme="light"] .lab-file-item.is-active,
+:root[data-theme="light"] .lab-tab.is-active {
+  color: var(--ide-text);
+}
+
+:root[data-theme="light"] .lab-statusbar {
+  background-color: var(--ide-tabs);
+  color: var(--ide-text);
+}
+
+:root[data-theme="light"] .lab-statusbar-item.is-failed {
+  color: var(--ide-error);
+}
+
+:root[data-theme="light"] .lab-statusbar-button:hover {
+  background-color: rgba(59, 55, 63, 0.1);
+}
+
+:root[data-theme="light"] .lab-editor-placeholder {
+  color: var(--ide-muted);
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .lab-file-item.is-active,
+  :root:not([data-theme="dark"]) .lab-tab.is-active {
+    color: var(--ide-text);
+  }
+
+  :root:not([data-theme="dark"]) .lab-statusbar {
+    background-color: var(--ide-tabs);
+    color: var(--ide-text);
+  }
+
+  :root:not([data-theme="dark"]) .lab-statusbar-item.is-failed {
+    color: var(--ide-error);
+  }
+
+  :root:not([data-theme="dark"]) .lab-statusbar-button:hover {
+    background-color: rgba(59, 55, 63, 0.1);
+  }
+
+  :root:not([data-theme="dark"]) .lab-editor-placeholder {
+    color: var(--ide-muted);
+  }
+}

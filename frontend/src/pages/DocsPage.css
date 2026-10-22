@@ -2,43 +2,47 @@
    code viewers with tabs, step blocks, flow diagram, checklist. */
 
 .docs-page {
-  max-width: min(1280px, 90vw);
-  margin: 0 auto;
-  padding: 0 0 96px;
+  width: 100%;
+  padding: var(--space-xl) 0 var(--space-2xl);
 }
 
 /* ---------- Hero ---------- */
 .docs-hero {
-  padding: 64px 0 40px;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 40px;
+  margin-bottom: var(--space-xl);
+}
+
+.docs-hero > .page-hero-inner {
+  gap: var(--space-sm);
 }
 
 .docs-kicker {
   font-family: var(--font-mono);
-  font-size: 0.72rem;
-  letter-spacing: 0.22em;
+  font-size: var(--text-sm);
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--accent);
-  margin: 0 0 14px;
+  margin: 0;
 }
 
 .docs-title {
   font-family: var(--font-heading);
-  font-size: clamp(2rem, 4vw, 3rem);
-  line-height: 1.05;
-  margin: 0 0 16px;
+  line-height: 1.15;
+  margin: 0;
 }
 
 .docs-sub {
-  max-width: 640px;
+  max-width: min(38rem, 100%);
   color: var(--text-muted);
-  line-height: 1.65;
+  font-size: var(--text-base);
+  line-height: 1.7;
   margin: 0;
 }
 
 /* ---------- Layout ---------- */
 .docs-layout {
+  width: 100%;
+  max-width: min(72rem, 95vw); /* ≈1150px, align content beneath hero */
+  margin: 0 auto;
   display: grid;
   grid-template-columns: 220px 1fr;
   gap: 48px;

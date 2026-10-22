@@ -23,6 +23,25 @@
   transform: scale(0.98);
 }
 
+/* Disabled buttons look disabled and ignore hover/press feedback. */
+.btn:disabled,
+.btn:disabled:hover {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+  background-color: transparent;
+}
+
+.btn-primary:disabled,
+.btn-primary:disabled:hover {
+  background-color: var(--accent);
+}
+
+.btn-secondary:disabled,
+.btn-secondary:disabled:hover {
+  background-color: var(--bg-surface);
+}
+
 /* ---------- Sizes ---------- */
 .btn-sm {
   font-size: var(--text-xs);

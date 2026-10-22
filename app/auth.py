@@ -25,6 +25,11 @@ SUPABASE_SERVICE_KEY: str | None = os.environ.get("SUPABASE_SERVICE_ROLE")
 _JWKS_URL = f"{SUPABASE_URL}/auth/v1/.well-known/jwks.json"
 _jwks_client: PyJWKClient | None = None
 
+# Tolerance for clock drift between this host and Supabase's servers, in
+# seconds. PyJWT only accepts `leeway` as a top-level decode argument (the
+# `options` dict key is ignored), so it must be passed explicitly.
+LEEWAY_S = 120
+
 
 # -------- Helper Methods --------
 def _get_jwks_client() -> PyJWKClient:
@@ -45,7 +50,7 @@ def _verify_token(token: str) -> dict[str, Any]:
             signing_key.key,
             algorithms=["RS256", "ES256", "HS256"],
             audience=["authenticated"],
-            options={"leeway": 30},
+            leeway=LEEWAY_S,
         )
     except (jwt.InvalidTokenError, PyJWKClientError, ValueError) as jwks_err:
         last_error = jwks_err
@@ -55,9 +60,9 @@ def _verify_token(token: str) -> dict[str, Any]:
             return jwt.decode(
                 token,
                 SUPABASE_JWT_SECRET,
-                algorithms=["HS256", "RS256", "ES256"],
+                algorithms=["HS256"],
                 audience=["authenticated"],
-                options={"leeway": 30},
+                leeway=LEEWAY_S,
             )
         except jwt.InvalidTokenError as hs_err:
             last_error = hs_err

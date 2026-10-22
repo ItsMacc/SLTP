@@ -13,7 +13,7 @@ import numpy as np
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from app.portfolio.portfolio_manager import TradeRecord, RebalanceFrequency, REBALANCE_SETTINGS
-from app.strategies.base import Strategy
+from app.strategies.strategy import Strategy
 from app.utils.StockData import StockData
 from scipy.stats import skew, kurtosis, norm
 

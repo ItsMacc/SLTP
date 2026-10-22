@@ -11,6 +11,7 @@ import LegalPage, { type LegalPageKind } from './pages/LegalPage';
 import PerformancePage from './pages/PerformancePage';
 import StrategiesPage from './pages/StrategiesPage';
 import PortfolioPage from './pages/PortfolioPage';
+import LabPage from './pages/LabPage';
 import DocsPage from './pages/DocsPage';
 import LearnPage from './pages/LearnPage';
 import ErrorToast from './ui/ErrorToast';
@@ -37,7 +38,8 @@ export default function App() {
   const [guideOpen, setGuideOpen] = useState(false);
 
   const handleTabChange = (tab: string) => {
-    if (AUTH_REQUIRED_TABS.includes(tab) && !user?.id) {
+    const localLabPreview = import.meta.env.DEV && tab === 'lab' && import.meta.env.VITE_LAB_PREVIEW === 'true';
+    if (AUTH_REQUIRED_TABS.includes(tab) && !user?.id && !localLabPreview) {
       setAuthMode('signup');
       setLegalPage(null);
       setAuthNotice('You must be logged in to use these features');
@@ -173,6 +175,8 @@ export default function App() {
               <LearnPage onNavigate={handleTabChange} />
             ) : activeTab === 'portfolio' && user?.id ? (
               <PortfolioPage defaultName={user.name} settings={user.settings} />
+            ) : activeTab === 'lab' && (user?.id || (import.meta.env.DEV && import.meta.env.VITE_LAB_PREVIEW === 'true')) ? (
+              <LabPage onNavigate={handleTabChange} />
             ) : activeTab === 'home' || activeTab === 'guide' ? (
               <HomePage onNavigate={handleTabChange} onOpenGuide={() => setGuideOpen(true)} />
             ) : (

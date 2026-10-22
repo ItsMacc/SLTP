@@ -14,7 +14,7 @@
 # -------- Imports --------
 import numpy as np
 from app.portfolio.stock_health_filter_manager import StockHealthFilterManager
-from app.strategies.base import Strategy, StrategyDecision
+from app.strategies.strategy import Strategy, StrategyDecision
 from app.utils.StockData import StockData
 
 

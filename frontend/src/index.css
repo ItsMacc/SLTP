@@ -194,6 +194,56 @@ h1, h2, h3, h4, h5, h6 {
   margin-right: calc(-1 * var(--gutter));
 }
 
+/* Shared full-bleed hero skin. Pages keep their own content, but use one
+   surface, border, spacing, grid, and inner measure for a consistent shell. */
+.page-hero-band {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--bg-surface) 0%, var(--bg-canvas) 100%);
+  border-top: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+  padding: var(--space-2xl) var(--gutter);
+}
+
+.page-hero-inner {
+  position: relative;
+  width: 100%;
+  max-width: min(72rem, 95vw); /* ≈1150px, shared hero measure */
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+}
+
+.page-hero-band :is(.home-hero-title, .learn-hero-title, .strategies-title, .perf-hero-title, .docs-title, .lab-hero-title) {
+  font-size: clamp(1.9rem, 3.2vw, 3rem);
+  line-height: 1.15;
+}
+
+/* Faint dot grid that fades out toward the bottom edge. Used by the hero
+   bands; the band's own content is lifted above the dots. */
+.is-dot-grid {
+  position: relative;
+  overflow: hidden;
+}
+
+.is-dot-grid::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(var(--border-strong) 1px, transparent 1px);
+  background-size: 1.25rem 1.25rem;
+  opacity: 0.5;
+  mask-image: linear-gradient(180deg, #000 0%, transparent 85%);
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, transparent 85%);
+  pointer-events: none;
+}
+
+.is-dot-grid > * {
+  position: relative;
+  z-index: 1;
+}
+
 @media (min-width: 48rem) {
   #root {
     padding: 0 var(--gutter) var(--space-md) var(--gutter);

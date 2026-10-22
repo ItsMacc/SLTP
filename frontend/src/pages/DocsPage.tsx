@@ -119,7 +119,8 @@ export default function DocsPage(_props: DocsPageProps) {
 
   return (
     <div className="docs-page">
-      <div className="docs-hero">
+      <div className="docs-hero page-hero-band is-full-bleed is-dot-grid">
+        <div className="page-hero-inner">
         <p className="docs-kicker">Documentation</p>
         <h1 className="docs-title">Write your own strategy.</h1>
         <p className="docs-sub">
@@ -127,6 +128,7 @@ export default function DocsPage(_props: DocsPageProps) {
           the engine handles sizing, fills, fees, stop-losses and simulation.
           Implement two files and everything else is handled for you.
         </p>
+        </div>
       </div>
 
       <div className="docs-layout">
@@ -284,6 +286,21 @@ export default function DocsPage(_props: DocsPageProps) {
               <h2>Setting up your classes</h2>
             </div>
             <p>
+              Every project has two packages. <code>core/</code> is the engine, read-only:
+              the base classes and helpers you build on. <code>workspace/</code> is yours:
+              the files you write. You reach the engine through its <code>core.*</code> paths.
+            </p>
+            <CodeBlock source={`core/
+├── portfolio/portfolio_manager.py
+├── strategy/strategy.py
+└── utils/
+    ├── StockData.py
+    └── StrategyDecision.py
+
+workspace/
+├── custom_strategy.py
+└── custom_manager.py`} title="project layout" readOnly={false} />
+            <p>
               Before any of those methods run, both classes need a short
               <code> __init__</code>. This is where you declare what your strategy is and
               how it should behave.
@@ -407,12 +424,13 @@ export default function DocsPage(_props: DocsPageProps) {
               complete, runnable strategy, both files.
             </p>
 
-            <Step n="1" title="The Strategy (sma_crossover.py)">
-              <CodeBlock source={`# sma_crossover.py
+            <Step n="1" title="The Strategy (workspace/sma_crossover.py)">
+              <CodeBlock source={`# workspace/sma_crossover.py
 import numpy as np
-from sma_crossover_manager import SMACrossoverManager
-from base import Strategy, StrategyDecision
-from StockData import StockData
+from workspace.sma_crossover_manager import SMACrossoverManager
+from core.strategy.strategy import Strategy
+from core.utils.StockData import StockData
+from core.utils.StrategyDecision import StrategyDecision
 
 
 class SMACrossoverStrategy(Strategy):
@@ -463,13 +481,15 @@ class SMACrossoverStrategy(Strategy):
                 "close_price": float(close[-1]),
             },
             meta_data={"ticker": ticker, "signal_date": today},
-        )`} title="sma_crossover.py" readOnly={false} />
+        )`} title="workspace/sma_crossover.py" readOnly={false} />
             </Step>
 
-            <Step n="2" title="The Manager (sma_crossover_manager.py)">
-              <CodeBlock source={`# sma_crossover_manager.py
-from portfolio_manager import PortfolioManager, RebalanceFrequency, TradeRecord
-from StrategyDecision import StrategyDecision
+            <Step n="2" title="The Manager (workspace/sma_crossover_manager.py)">
+              <CodeBlock source={`# workspace/sma_crossover_manager.py
+from core.portfolio.portfolio_manager import (
+    PortfolioManager, RebalanceFrequency, TradeRecord, UNIVERSE,
+)
+from core.utils.StrategyDecision import StrategyDecision
 
 
 class SMACrossoverManager(PortfolioManager):
@@ -482,7 +502,7 @@ class SMACrossoverManager(PortfolioManager):
     def initialize_universe(self, current_date: str) -> bool:
         # Static universe: trade the whole tradable list.
         # Swap this for a filtered set if you want fewer names.
-        self.add_tickers(get_all_tickers())
+        self.add_tickers(UNIVERSE)
         return len(self.tickers) > 0
 
     def on_signal(self, ticker: str, decision: StrategyDecision) -> TradeRecord | None:
@@ -513,7 +533,7 @@ class SMACrossoverManager(PortfolioManager):
             stop_loss=stop_loss,
             take_profit=take_profit,
             signal_date=decision.meta_data.get("signal_date", ""),
-        )`} title="sma_crossover_manager.py" readOnly={false} />
+        )`} title="workspace/sma_crossover_manager.py" readOnly={false} />
             </Step>
           </section>
 
@@ -530,12 +550,13 @@ class SMACrossoverManager(PortfolioManager):
               Strategy first.
             </p>
 
-            <Step n="1" title="The Strategy (rsi_dip_buyer.py)">
-              <CodeBlock source={`# rsi_dip_buyer.py
+            <Step n="1" title="The Strategy (workspace/rsi_dip_buyer.py)">
+              <CodeBlock source={`# workspace/rsi_dip_buyer.py
 import numpy as np
-from rsi_dip_buyer_manager import RSIDipBuyerManager
-from base import Strategy, StrategyDecision
-from StockData import StockData
+from workspace.rsi_dip_buyer_manager import RSIDipBuyerManager
+from core.strategy.strategy import Strategy
+from core.utils.StockData import StockData
+from core.utils.StrategyDecision import StrategyDecision
 
 
 class RSIDipBuyerStrategy(Strategy):
@@ -574,13 +595,13 @@ class RSIDipBuyerStrategy(Strategy):
             confidence=confidence,
             metrics={"rsi": round(current_rsi, 2), "close_price": float(close[-1])},
             meta_data={"ticker": ticker, "signal_date": today},
-        )`} title="rsi_dip_buyer.py" readOnly={false} />
+        )`} title="workspace/rsi_dip_buyer.py" readOnly={false} />
             </Step>
 
-            <Step n="2" title="The Manager (rsi_dip_buyer_manager.py)">
-              <CodeBlock source={`# rsi_dip_buyer_manager.py
-from portfolio_manager import PortfolioManager, RebalanceFrequency, TradeRecord
-from StrategyDecision import StrategyDecision
+            <Step n="2" title="The Manager (workspace/rsi_dip_buyer_manager.py)">
+              <CodeBlock source={`# workspace/rsi_dip_buyer_manager.py
+from core.portfolio.portfolio_manager import PortfolioManager, RebalanceFrequency, TradeRecord
+from core.utils.StrategyDecision import StrategyDecision
 
 
 class RSIDipBuyerManager(PortfolioManager):
@@ -618,7 +639,7 @@ class RSIDipBuyerManager(PortfolioManager):
             stop_loss=stop_loss,
             take_profit=take_profit,
             signal_date=decision.meta_data.get("signal_date", ""),
-        )`} title="rsi_dip_buyer_manager.py" readOnly={false} />
+        )`} title="workspace/rsi_dip_buyer_manager.py" readOnly={false} />
             </Step>
           </section>
 
@@ -635,7 +656,11 @@ class RSIDipBuyerManager(PortfolioManager):
               <code> initialize_universe</code> if data is not ready; the engine walks
               forward day by day and retries (up to two months).
             </p>
-            <CodeBlock source={`def initialize_universe(self, current_date: str) -> bool:
+            <CodeBlock source={`# The market-data helpers are engine-side. The project reaches them
+# through the backend path, the same way the core package does.
+from app.database.fetch import get_all_tickers, get_stock_history, get_stock_histories
+
+def initialize_universe(self, current_date: str) -> bool:
     # Example: top 30 names by trailing dollar volume
     n = 30
     candidates = []
@@ -703,11 +728,11 @@ def on_rebalance(self, current_date: str) -> None:
 
             <RefTabs
               tabs={[
-                { label: 'base.py', source: BASE_STRATEGY_SOURCE },
-                { label: 'portfolio_manager.py', source: PORTFOLIO_MANAGER_SOURCE },
+                { label: 'core/strategy/strategy.py', source: BASE_STRATEGY_SOURCE },
+                { label: 'core/portfolio/portfolio_manager.py', source: PORTFOLIO_MANAGER_SOURCE },
                 { label: 'backtester.py', source: BACKTESTER_SOURCE },
-                { label: 'StockData', source: STOCK_DATA_SOURCE },
-                { label: 'StrategyDecision', source: STRATEGY_DECISION_SOURCE },
+                { label: 'core/utils/StockData.py', source: STOCK_DATA_SOURCE },
+                { label: 'core/utils/StrategyDecision.py', source: STRATEGY_DECISION_SOURCE },
               ]}
             />
           </section>

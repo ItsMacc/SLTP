@@ -1,13 +1,14 @@
 // docsSources.ts — Curated read-only excerpts of the SLTP engine, shown on the Docs page.
 //
 // These are bundled as strings so the Docs page controls exactly what is exposed.
-// When the engine changes (base.py, portfolio_manager.py, backtester.py, utils),
-// update the matching constant here. Keep excerpts faithful to the source.
-export const BASE_STRATEGY_SOURCE = `# base.py
+// When the engine changes (core/strategy/strategy.py, core/portfolio/portfolio_manager.py,
+// backtester.py, core/utils), update the matching constant here. Keep excerpts faithful
+// to the source.
+export const BASE_STRATEGY_SOURCE = `# core/strategy/strategy.py
 import talib as ta
-from app.portfolio.portfolio_manager import PortfolioManager
-from app.utils.StockData import StockData
-from app.utils.StrategyDecision import StrategyDecision
+from core.portfolio.portfolio_manager import PortfolioManager
+from core.utils.StockData import StockData
+from core.utils.StrategyDecision import StrategyDecision
 
 
 class Strategy:
@@ -117,13 +118,13 @@ class Strategy:
         # Stochastic RSI (Stochastic formula applied to RSI)
         return ta.STOCHRSI(values, window, fast_k, fast_d)`;
 
-export const PORTFOLIO_MANAGER_SOURCE = `# portfolio_manager.py
+export const PORTFOLIO_MANAGER_SOURCE = `# core/portfolio/portfolio_manager.py
 from dataclasses import dataclass, replace
 from enum import Enum
 from dateutil.relativedelta import relativedelta
 from app.database.fetch import get_stock_histories, get_all_tickers, get_stock_history
-from app.utils.StockData import StockData
-from app.utils.StrategyDecision import StrategyDecision
+from core.utils.StockData import StockData
+from core.utils.StrategyDecision import StrategyDecision
 
 
 @dataclass
@@ -288,7 +289,7 @@ class Backtester:
         # max_drawdown, drawdown_recovery, unrealized_profit, equity
         ...`;
 
-export const STOCK_DATA_SOURCE = `# StockData.py
+export const STOCK_DATA_SOURCE = `# core/utils/StockData.py
 import numpy as np
 from dataclasses import dataclass
 
@@ -303,7 +304,7 @@ class StockData:
     close_price: np.ndarray
     volume: np.ndarray`;
 
-export const STRATEGY_DECISION_SOURCE = `# StrategyDecision.py
+export const STRATEGY_DECISION_SOURCE = `# core/utils/StrategyDecision.py
 from dataclasses import dataclass, field
 from typing import Any
 

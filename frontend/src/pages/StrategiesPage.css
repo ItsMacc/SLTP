@@ -14,37 +14,27 @@
   width: 100%;
 }
 
-/* Edge-to-edge hero banner (breaks out of #root's gutter) */
+/* Hero visuals and shared content measure come from .page-hero-band and .page-hero-inner. */
 .strategies-hero-wrapper {
-  position: relative;
-  background: linear-gradient(180deg, var(--bg-surface) 0%, var(--bg-canvas) 100%);
-  border-bottom: 1px solid var(--border-subtle);
-  border-top: 1px solid var(--border-subtle);
-  padding: var(--space-2xl) var(--gutter);
   margin-bottom: var(--space-md);
 }
 
 .strategies-hero-inner {
-  max-width: min(68.75rem, 95vw); /* ≈1100px, capped to viewport on small screens */
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xl);
+  width: 100%;
 }
 
 .strategies-hero-top {
   display: flex;
   flex-direction: column;
-  gap: var(--space-xs);
-  max-width: min(45rem, 100%); /* ≈720px reading measure, fluid */
+  gap: var(--space-sm);
+  max-width: min(58rem, 100%); /* ≈928px reading measure */
 }
 
 .strategies-title {
   font-family: var(--font-heading);
-  font-size: clamp(2.5rem, 4vw, 3.5rem);
   color: var(--text-primary);
   font-weight: 400;
-  line-height: 1.05;
+  margin: 0;
 }
 
 .strategies-subtitle {
@@ -57,7 +47,7 @@
 
 .strategies-description {
   color: var(--text-muted);
-  font-size: var(--text-base);
+  font-size: var(--text-lg);
   line-height: 1.7;
 }
 

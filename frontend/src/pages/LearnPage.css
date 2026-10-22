@@ -2,43 +2,54 @@
    story widgets (slider, year ticker, quiz, scenario chart, rules cards). */
 
 .learn-page {
-  max-width: min(1280px, 90vw);
-  margin: 0 auto;
-  padding: 0 0 96px;
+  width: 100%;
+  padding: var(--space-xl) 0 96px;
 }
 
-/* ---------- Hero ---------- */
-.learn-hero {
-  padding: 64px 0 40px;
-  border-bottom: 1px solid var(--border-subtle);
-  margin-bottom: 40px;
+/* Hero visuals and shared content measure come from .page-hero-band and .page-hero-inner. */
+.learn-hero-wrapper {
+  margin-bottom: var(--space-xl);
 }
 
-.learn-kicker {
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
+.learn-hero-inner {
+  width: 100%;
+}
+
+.learn-hero-top {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  max-width: min(50rem, 100%); /* ≈800px reading measure */
+}
+
+.learn-hero-subtitle {
   color: var(--accent);
-  margin: 0 0 14px;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
-.learn-title {
+.learn-hero-title {
   font-family: var(--font-heading);
-  font-size: clamp(2rem, 4vw, 3rem);
-  line-height: 1.05;
-  margin: 0 0 16px;
+  color: var(--text-primary);
+  font-weight: 400;
+  line-height: 1.15;
+  margin: 0;
 }
 
-.learn-sub {
-  max-width: 640px;
+.learn-hero-description {
   color: var(--text-muted);
-  line-height: 1.65;
+  font-size: var(--text-lg);
+  line-height: 1.7;
   margin: 0;
 }
 
 /* ---------- Layout ---------- */
 .learn-layout {
+  width: 100%;
+  max-width: min(80rem, 95vw); /* ≈1280px, matches the hero */
+  margin: 0 auto;
   display: grid;
   grid-template-columns: 220px 1fr;
   gap: 48px;
@@ -1611,8 +1622,9 @@
 /* ---------- Hero stats ---------- */
 .learn-herostats {
   display: flex;
-  gap: 2.5rem;
-  margin-top: 28px;
+  gap: var(--space-xl);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--border-subtle);
 }
 
 .learn-herostat {

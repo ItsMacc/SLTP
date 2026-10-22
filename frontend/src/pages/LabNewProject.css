@@ -1,0 +1,385 @@
+/* ============================================================
+   LabNewProject.css — New project onboarding dialog
+
+   Width conventions: the dialog is a fluid min() cap, rem for
+   atoms. Breakpoints in rem.
+   ============================================================ */
+
+.lab-wiz-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-md);
+  background-color: rgba(14, 13, 12, 0.55);
+  backdrop-filter: blur(2px);
+}
+
+.lab-wiz {
+  width: min(46rem, 100%); /* ≈736px */
+  max-height: min(44rem, 92vh); /* ≈704px */
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+
+.lab-wiz-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-lg) var(--space-xl) var(--space-md);
+}
+
+.lab-wiz-heading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+}
+
+.lab-wiz-kicker {
+  margin: 0;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.lab-wiz-title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: var(--text-2xl);
+  font-weight: 400;
+  color: var(--text-primary);
+}
+
+.lab-wiz-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  flex: 0 0 auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.lab-wiz-close:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.lab-wiz-close:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ---------- Step progress ---------- */
+.lab-wiz-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0 var(--space-xl) var(--space-md);
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-xs);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.lab-wiz-stepdot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  padding-top: var(--space-xs);
+  border-top: 2px solid var(--border-subtle);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.lab-wiz-stepdot.is-done {
+  border-top-color: var(--accent-hover);
+  color: var(--text-primary);
+}
+
+.lab-wiz-stepdot.is-current {
+  border-top-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.lab-wiz-stepnum {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.lab-wiz-steplabel {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------- Body ---------- */
+.lab-wiz-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-lg) var(--space-xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.lab-wiz-question {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.lab-wiz-hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+}
+
+.lab-wiz-fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.lab-wiz-fieldset > .lab-wiz-question {
+  margin-bottom: var(--space-xs);
+}
+
+.lab-wiz-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.lab-wiz-indent {
+  padding-left: var(--space-xl);
+  padding-bottom: var(--space-xs);
+}
+
+/* Radio option card */
+.lab-wiz-option {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-canvas);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.lab-wiz-option:hover {
+  border-color: var(--border-strong);
+}
+
+.lab-wiz-option.is-selected {
+  border-color: var(--accent);
+  background-color: var(--accent-muted);
+}
+
+.lab-wiz-option input,
+.lab-wiz-template input {
+  margin-top: 0.2rem;
+  accent-color: var(--accent);
+}
+
+.lab-wiz-option-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+}
+
+.lab-wiz-option-title {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.lab-wiz-option-sub {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+/* ---------- Template cards ---------- */
+.lab-wiz-templates {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-sm);
+}
+
+@media (min-width: 40rem) {
+  .lab-wiz-templates {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.lab-wiz-template {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  column-gap: var(--space-sm);
+  row-gap: var(--space-xs);
+  padding: var(--space-md);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-canvas);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.lab-wiz-template:hover {
+  border-color: var(--border-strong);
+}
+
+.lab-wiz-template.is-selected {
+  border-color: var(--accent);
+  background-color: var(--accent-muted);
+}
+
+.lab-wiz-template > input {
+  grid-row: 1 / span 3;
+}
+
+.lab-wiz-template-head {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  color: var(--text-primary);
+}
+
+.lab-wiz-template-head svg {
+  color: var(--accent);
+}
+
+.lab-wiz-template-name {
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+
+.lab-wiz-template-summary {
+  grid-column: 2;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.lab-wiz-code {
+  grid-column: 2;
+  margin: var(--space-xs) 0 0;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.lab-wiz-code-wide {
+  grid-column: auto;
+}
+
+/* ---------- Review ---------- */
+.lab-wiz-review {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.lab-wiz-review > div {
+  display: grid;
+  grid-template-columns: 9rem minmax(0, 1fr);
+  gap: var(--space-md);
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.lab-wiz-review dt {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.lab-wiz-review dd {
+  margin: 0;
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: var(--text-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  flex-wrap: wrap;
+}
+
+.lab-wiz-tag {
+  padding: 0.1rem 0.5rem;
+  border-radius: var(--radius-full);
+  background-color: var(--accent-muted);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 500;
+}
+
+.lab-wiz-error {
+  margin: 0;
+  color: var(--error);
+  font-size: var(--text-sm);
+}
+
+/* ---------- Footer ---------- */
+.lab-wiz-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-xl) var(--space-lg);
+  border-top: 1px solid var(--border-subtle);
+  background-color: var(--bg-surface-hover);
+}
+
+@media (max-width: 30rem) {
+  .lab-wiz-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .lab-wiz-indent {
+    padding-left: var(--space-md);
+  }
+
+  .lab-wiz-review > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-2xs);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lab-wiz-option,
+  .lab-wiz-template {
+    transition: none;
+  }
+}

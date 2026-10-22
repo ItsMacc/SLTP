@@ -32,39 +32,22 @@
    ============================================================ */
 
 .home-hero {
-  position: relative;
-  overflow: hidden;
-  background: linear-gradient(180deg, var(--bg-surface) 0%, var(--bg-canvas) 100%);
-  border-bottom: 1px solid var(--border-subtle);
-  padding: var(--space-2xl) var(--gutter);
+  margin-bottom: var(--space-md);
 }
 
-/* Faint dotted grid, faded toward the corners */
 .home-hero-grid {
-  position: absolute;
-  inset: 0;
-  background-image: radial-gradient(var(--border-subtle) 1px, transparent 1px);
-  background-size: 1.75rem 1.75rem;
-  opacity: 0.55;
-  -webkit-mask-image: radial-gradient(75% 65% at 68% 8%, #000 0%, transparent 72%);
-  mask-image: radial-gradient(75% 65% at 68% 8%, #000 0%, transparent 72%);
-  pointer-events: none;
+  display: none;
 }
 
 .home-hero-inner {
-  position: relative;
-  max-width: min(68.75rem, 95vw); /* ≈1100px, capped to viewport */
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xl);
+  width: 100%;
 }
 
 .home-hero-copy {
   display: flex;
   flex-direction: column;
-  gap: var(--space-lg);
-  max-width: min(56rem, 100%); /* keeps the headline to two lines */
+  gap: var(--space-sm);
+  max-width: min(58rem, 100%); /* ≈928px shared hero reading measure */
 }
 
 @keyframes homeRise {
@@ -99,8 +82,7 @@
 .home-hero-title {
   font-family: var(--font-heading);
   font-weight: 400;
-  font-size: clamp(2.25rem, 4.2vw, 3.5rem);
-  line-height: 1.08;
+  line-height: 1.15;
   letter-spacing: -0.02em;
   color: var(--text-primary);
   margin: 0;
@@ -111,8 +93,8 @@
 }
 
 .home-hero-lede {
-  max-width: 52ch;
-  font-size: var(--text-lg);
+  max-width: min(38rem, 100%);
+  font-size: var(--text-base);
   line-height: 1.7;
   color: var(--text-muted);
   margin: 0;

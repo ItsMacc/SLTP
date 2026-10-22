@@ -179,6 +179,182 @@ export async function completeSetup(token: string, input: CompleteSetupInput) {
   return res;
 }
 
+export interface LabProject {
+  id: string;
+  name: string;
+  created_at: string;
+  /** Number of files in the project. Present on list reads; 0 right after create. */
+  file_count?: number;
+}
+
+export interface LabWorkspace {
+  id: string;
+  name: string;
+  created_at: string;
+  projects: LabProject[];
+}
+
+export async function listLabWorkspaces(token: string): Promise<LabWorkspace[]> {
+  const data = await authedFetch('/api/lab/workspaces', token);
+  return data.workspaces;
+}
+
+export async function createLabWorkspace(
+  token: string,
+  input: { workspace_name: string; project_name: string; template?: string },
+): Promise<LabWorkspace> {
+  return authedFetch('/api/lab/workspaces', token, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export interface LabFile {
+  name: string;
+  content: string;
+  locked: boolean;
+}
+
+export async function getLabProjectFiles(
+  token: string,
+  projectId: string,
+): Promise<{ project: { id: string; name: string }; files: LabFile[]; folders: string[] }> {
+  return authedFetch(`/api/lab/projects/${projectId}/files`, token);
+}
+
+export async function createLabFolder(token: string, projectId: string, name: string): Promise<{ name: string }> {
+  return authedFetch(`/api/lab/projects/${projectId}/folders`, token, {
+    method: 'POST',
+    body: JSON.stringify({ name }),
+  });
+}
+
+export async function deleteLabFolder(token: string, projectId: string, name: string): Promise<void> {
+  await authedFetch(`/api/lab/projects/${projectId}/folders/${name.split('/').map(encodeURIComponent).join('/')}`, token, {
+    method: 'DELETE',
+  });
+}
+
+export async function createLabFile(token: string, projectId: string, name: string): Promise<LabFile> {
+  return authedFetch(`/api/lab/projects/${projectId}/files`, token, {
+    method: 'POST',
+    body: JSON.stringify({ name }),
+  });
+}
+
+export async function saveLabFile(
+  token: string,
+  projectId: string,
+  name: string,
+  content: string,
+): Promise<void> {
+  await authedFetch(
+    `/api/lab/projects/${projectId}/files/${name.split('/').map(encodeURIComponent).join('/')}`,
+    token,
+    { method: 'PUT', body: JSON.stringify({ content }) },
+  );
+}
+
+export async function renameLabFile(
+  token: string,
+  projectId: string,
+  name: string,
+  newName: string,
+): Promise<{ name: string; previous: string }> {
+  return authedFetch(
+    `/api/lab/projects/${projectId}/files/${name.split('/').map(encodeURIComponent).join('/')}`,
+    token,
+    { method: 'PATCH', body: JSON.stringify({ name: newName }) },
+  );
+}
+
+export async function deleteLabFile(token: string, projectId: string, name: string): Promise<void> {
+  await authedFetch(
+    `/api/lab/projects/${projectId}/files/${name.split('/').map(encodeURIComponent).join('/')}`,
+    token,
+    { method: 'DELETE' },
+  );
+}
+
+export interface LabImportResult {
+  /** The project paths that were written, e.g. "workspace/custom_strategy.py". */
+  imported: string[];
+  /** Files that were left out, and why. */
+  skipped: { path: string; reason: string }[];
+}
+
+// Writes files the browser read from a local folder into the project's workspace.
+// Each path is relative to the picked folder, so "custom_strategy.py" is stored
+// as "workspace/custom_strategy.py". The folders the browser walked are sent
+// along, so the server can tell a real folder from one that was never on disk.
+// Existing files with the same name are replaced.
+export async function importLabFiles(
+  token: string,
+  projectId: string,
+  files: { path: string; content: string }[],
+  folders: string[] = [],
+): Promise<LabImportResult> {
+  return authedFetch(`/api/lab/projects/${projectId}/import`, token, {
+    method: 'POST',
+    body: JSON.stringify({ files, folders }),
+  });
+}
+
+export interface LabDiagnostic {
+  file: string;
+  line: number;
+  column: number;
+  severity: 'error' | 'warning';
+  message: string;
+  code: string | null;
+}
+
+export interface LabCheckResult {
+  ok: boolean;
+  diagnostics: LabDiagnostic[];
+  tool_error: string | null;
+  checked: string[];
+}
+
+// Sends the editor's unsaved drafts; the server overlays them on the stored files and runs mypy.
+export async function checkLabProject(
+  token: string,
+  projectId: string,
+  files: { name: string; content: string }[],
+): Promise<LabCheckResult> {
+  return authedFetch(`/api/lab/projects/${projectId}/check`, token, {
+    method: 'POST',
+    body: JSON.stringify({ files }),
+  });
+}
+
+export async function createLabProject(
+  token: string,
+  workspaceId: string,
+  name: string,
+  template?: string,
+): Promise<LabProject> {
+  return authedFetch(`/api/lab/workspaces/${workspaceId}/projects`, token, {
+    method: 'POST',
+    body: JSON.stringify({ name, template: template ?? 'blank' }),
+  });
+}
+
+export async function renameLabProject(token: string, projectId: string, name: string): Promise<LabProject> {
+  return authedFetch(`/api/lab/projects/${projectId}`, token, {
+    method: 'PATCH',
+    body: JSON.stringify({ name }),
+  });
+}
+
+export async function deleteLabProject(token: string, projectId: string): Promise<void> {
+  await authedFetch(`/api/lab/projects/${projectId}`, token, { method: 'DELETE' });
+}
+
+export async function deleteLabWorkspace(token: string, workspaceId: string): Promise<void> {
+  await authedFetch(`/api/lab/workspaces/${workspaceId}`, token, { method: 'DELETE' });
+}
+
 export async function getAllTickers(): Promise<string[]> {
   const res = await fetch(`${API_BASE}/api/stock/all-tickers`);
   if (!res.ok) return [];

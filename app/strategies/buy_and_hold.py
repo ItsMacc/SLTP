@@ -6,7 +6,7 @@
 
 # -------- Imports --------
 from app.portfolio.buy_and_hold_manager import BuyAndHoldManager
-from app.strategies.base import Strategy, StrategyDecision
+from app.strategies.strategy import Strategy, StrategyDecision
 from app.utils.StockData import StockData
 
 

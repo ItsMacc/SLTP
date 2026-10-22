@@ -1,0 +1,75 @@
+/* ============================================================
+   ConfirmDeleteDialog.css — Modal for typed-CONFIRM deletes.
+   ============================================================ */
+
+.confirm-delete-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.confirm-delete-modal {
+  width: min(28rem, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle, var(--border));
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-lg);
+}
+
+.confirm-delete-title {
+  margin: 0;
+  font-size: var(--text-lg);
+  color: var(--text-primary);
+}
+
+.confirm-delete-text {
+  font-size: var(--text-sm);
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+.confirm-delete-text strong {
+  color: var(--text-primary);
+}
+
+.confirm-delete-label {
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  margin-top: var(--space-xs);
+}
+
+.confirm-delete-code {
+  font-family: var(--font-mono, monospace);
+  color: var(--error);
+}
+
+.confirm-delete-error {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--error);
+}
+
+.confirm-delete-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  margin-top: var(--space-xs);
+}
+
+.confirm-delete-danger {
+  background: var(--error) !important;
+  border-color: var(--error) !important;
+}
+
+.confirm-delete-danger:disabled {
+  opacity: 0.5;
+}

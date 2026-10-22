@@ -535,8 +535,8 @@ export const StrategiesPage: React.FC = () => {
   return (
     <div className="strategies-page page-transition">
       {/* Edge-to-Edge Hero Banner */}
-      <div className="strategies-hero-wrapper is-full-bleed">
-        <div className="strategies-hero-inner">
+      <div className="strategies-hero-wrapper page-hero-band is-full-bleed is-dot-grid">
+        <div className="strategies-hero-inner page-hero-inner">
           <div className="strategies-hero-top">
             <span className="strategies-subtitle">Strategy Library</span>
             <h1 className="strategies-title">Quantitative Strategies</h1>

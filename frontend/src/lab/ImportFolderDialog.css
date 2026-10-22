@@ -1,0 +1,156 @@
+/* ============================================================
+   ImportFolderDialog.css — Preview of the files an import will write.
+   Mirrors ConfirmDeleteDialog.css conventions.
+   ============================================================ */
+
+.import-folder-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.import-folder-modal {
+  width: min(34rem, 100%);
+  max-height: min(34rem, 90vh);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-lg);
+}
+
+.import-folder-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+}
+
+.import-folder-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--radius-sm);
+  background: var(--accent-muted);
+  color: var(--accent);
+}
+
+.import-folder-title {
+  margin: 0;
+  font-size: var(--text-lg);
+  color: var(--text-primary);
+}
+
+.import-folder-sub {
+  margin: var(--space-3xs) 0 0;
+  font-size: var(--text-sm);
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+.import-folder-sub code {
+  font-family: var(--font-mono);
+  font-size: 0.95em;
+  color: var(--text-primary);
+}
+
+.import-folder-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  min-height: 0;
+}
+
+.import-folder-list {
+  margin: 0;
+  padding: var(--space-xs);
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-height: 16rem;
+  overflow-y: auto;
+  background: var(--bg-canvas);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.import-folder-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-2xs) var(--space-xs);
+  color: var(--text-muted);
+}
+
+.import-folder-path {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+.import-folder-skipped {
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface-hover);
+}
+
+.import-folder-skipped-title {
+  margin: 0 0 var(--space-2xs);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.import-folder-skipped-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  max-height: 9rem;
+  overflow-y: auto;
+}
+
+.import-folder-skipped-item {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.import-folder-skipped-item .import-folder-path {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.import-folder-reason {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.import-folder-error {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--error);
+}
+
+.import-folder-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+}

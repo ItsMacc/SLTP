@@ -1,4 +1,4 @@
-# base.py — Base Strategy interface and technical indicator helpers.
+# strategy.py — Base Strategy interface and technical indicator helpers.
 #
 # Every SLTP strategy subclasses Strategy. A strategy decides WHEN to buy;
 # its paired PortfolioManager decides HOW MUCH and where to cut losses.

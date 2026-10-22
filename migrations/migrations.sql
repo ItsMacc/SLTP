@@ -31,6 +31,10 @@
 -- ============================================================
 -- Drop everything (destructive — see the warning at the top)
 -- ============================================================
+DROP TABLE IF EXISTS lab_files;
+DROP TABLE IF EXISTS lab_folders;
+DROP TABLE IF EXISTS lab_projects;
+DROP TABLE IF EXISTS lab_workspaces;
 DROP TABLE IF EXISTS cash_flows;
 DROP TABLE IF EXISTS watchlist_items;
 DROP TABLE IF EXISTS portfolio_snapshots;
@@ -76,7 +80,52 @@ CREATE TABLE IF NOT EXISTS portfolios (
 );
 
 
+-- -------- Lab workspaces (user-owned containers for code projects) --------
+CREATE TABLE IF NOT EXISTS lab_workspaces (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,               -- Supabase auth UID
+  name TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+-- -------- Lab projects (belong to one workspace) --------
+CREATE TABLE IF NOT EXISTS lab_projects (
+  id TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL REFERENCES lab_workspaces(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL,               -- denormalised owner, checked on every query
+  name TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+-- -------- Lab files (belong to one project; name is unique within it) --------
+CREATE TABLE IF NOT EXISTS lab_files (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES lab_projects(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL,
+  name TEXT NOT NULL,                  -- e.g. main.py, utils/helpers.py
+  content TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  UNIQUE (project_id, name)
+);
+
+CREATE TABLE IF NOT EXISTS lab_folders (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES lab_projects(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  UNIQUE (project_id, name)
+);
+
+
 -- ============================================================
 -- Indexes
 -- ============================================================
 CREATE INDEX IF NOT EXISTS idx_portfolios_user ON portfolios(user_id);
+CREATE INDEX IF NOT EXISTS idx_lab_workspaces_user ON lab_workspaces(user_id);
+CREATE INDEX IF NOT EXISTS idx_lab_projects_workspace ON lab_projects(workspace_id);
+CREATE INDEX IF NOT EXISTS idx_lab_files_project ON lab_files(project_id);
+CREATE INDEX IF NOT EXISTS idx_lab_folders_project ON lab_folders(project_id);
