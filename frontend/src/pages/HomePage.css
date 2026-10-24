@@ -110,6 +110,11 @@
 .home-beginner-link:hover { color: var(--text-primary); }
 .home-beginner-link:hover svg { transform: translateX(3px); }
 
+.link-text {
+  display: flex;
+  gap: var(--space-3xs);
+}
+
 .home-btn-icon {
   margin-left: var(--space-2xs);
   transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
