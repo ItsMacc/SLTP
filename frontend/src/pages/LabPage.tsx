@@ -258,6 +258,7 @@ export default function LabPage({ onNavigate }: LabPageProps) {
       </div>
 
       <div className="lab-page">
+        <div className="lab-cards">
         <aside className="lab-start" aria-label="Start">
           <section className="lab-card" aria-labelledby="lab-new-title">
             <p className="lab-eyebrow">New project</p>
@@ -276,8 +277,8 @@ export default function LabPage({ onNavigate }: LabPageProps) {
             <header className="lab-ws-header">
               <h2 id="workspace-title" className="lab-ws-title">Workspaces</h2>
               <span className="lab-ws-meta">
-                {workspaces.length} active workspace{workspaces.length === 1 ? '' : 's'} · {projectCount} project
-                {projectCount === 1 ? '' : 's'}
+                {workspaces.length} active workspace{workspaces.length === 1 ? '' : 's'} · {projectCount} strateg
+                {projectCount === 1 ? 'y' : 'ies'}
               </span>
             </header>
 
@@ -353,7 +354,7 @@ export default function LabPage({ onNavigate }: LabPageProps) {
                         <span className="lab-ws-name"><Highlight text={ws.name} query={q} /></span>
                       </button>
                       <span className="lab-ws-badge">
-                        {ws.projects.length} project{ws.projects.length === 1 ? '' : 's'}
+                        {ws.projects.length} strateg{ws.projects.length === 1 ? 'y' : 'ies'}
                       </span>
                       <Button
                         variant="danger"
@@ -407,6 +408,7 @@ export default function LabPage({ onNavigate }: LabPageProps) {
               })}
             </ul>
           </section>
+        </div>
         </div>
       </div>
 
