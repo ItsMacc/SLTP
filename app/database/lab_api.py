@@ -18,7 +18,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from app.auth import get_current_user
+from app.auth.auth import get_current_user
 from app.database import turso
 from app.database.lab_core import CORE_FILES, CORE_FOLDERS, CORE_ROOT, core_source, is_core_path
 from app.database.lab_templates import source_for
@@ -124,7 +124,7 @@ _LEGACY_IMPORT_REWRITES: tuple[tuple[str, str], ...] = (
     ("from base.portfolio_manager import", "from core.portfolio.portfolio_manager import"),
     ("from base import", "from core.strategy.strategy import"),
     ("from portfolio_manager import", "from core.portfolio.portfolio_manager import"),
-    ("from app.utils.", "from core.utils."),
+    ("from app.engine.utils.", "from core.utils."),
     ("from manager.", "from workspace."),
     ("from strategy.", "from workspace."),
 )

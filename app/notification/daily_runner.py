@@ -34,8 +34,8 @@ REFERENCE_TICKERS = ["SPY", "QQQ", "XEQT.TO"]
 # importing FastAPI at runner startup.
 # -------- Step 1: User Cache --------
 def _strategy_registry() -> dict[str, tuple[type, str]]:
-    from app.strategies.buy_and_hold import BuyAndHold
-    from app.strategies.stock_health_filter import StockHealthFilterStrategy
+    from app.engine.strategy.buy_and_hold import BuyAndHold
+    from app.engine.strategy.stock_health_filter import StockHealthFilterStrategy
 
     return {
         "buy-and-hold": (BuyAndHold, "investing"),
@@ -143,7 +143,7 @@ def _run_strategy_signals(strategy_id: str, latest_date: str) -> list[dict]:
         return []
 
     from app.database.fetch import get_stock_history
-    from app.utils.StockData import StockData
+    from app.engine.utils.StockData import StockData
 
     collected: list[dict] = []
     sliced = StockData("", [], [], [], [], [], [])

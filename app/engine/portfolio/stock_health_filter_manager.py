@@ -11,10 +11,10 @@ import numpy as np
 import talib as ta
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
-from app.portfolio.portfolio_manager import (
+from app.engine.portfolio.portfolio_manager import (
     PortfolioManager, RebalanceFrequency, TradeRecord, UNIVERSE
 )
-from app.utils.StrategyDecision import StrategyDecision
+from app.engine.utils.StrategyDecision import StrategyDecision
 from app.database.fetch import get_stock_histories, get_stock_history
 
 

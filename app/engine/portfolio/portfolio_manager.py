@@ -13,8 +13,8 @@ from enum import Enum
 from dateutil.relativedelta import relativedelta
 from app.database.fetch import get_stock_histories, get_all_tickers
 from app.database.fetch import get_stock_history
-from app.utils.StockData import StockData
-from app.utils.StrategyDecision import StrategyDecision
+from app.engine.utils.StockData import StockData
+from app.engine.utils.StrategyDecision import StrategyDecision
 
 
 # -------- Records, Risk and Rebalance Frequency Enumerations --------

@@ -12,9 +12,9 @@
 import numpy as np
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
-from app.portfolio.portfolio_manager import TradeRecord, RebalanceFrequency, REBALANCE_SETTINGS
-from app.strategies.strategy import Strategy
-from app.utils.StockData import StockData
+from app.engine.portfolio.portfolio_manager import TradeRecord, RebalanceFrequency, REBALANCE_SETTINGS
+from app.engine.strategy.strategy import Strategy
+from app.engine.utils.StockData import StockData
 from scipy.stats import skew, kurtosis, norm
 
 

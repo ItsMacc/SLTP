@@ -23,7 +23,7 @@ from dotenv import load_dotenv
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
-from app.auth import get_current_user
+from app.auth.auth import get_current_user
 from app.notification.email import security_warning_email
 
 load_dotenv()

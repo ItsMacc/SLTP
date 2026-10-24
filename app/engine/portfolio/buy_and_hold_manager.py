@@ -5,10 +5,10 @@
 # stop-loss and no take-profit, so positions are never sold once opened.
 
 # -------- Imports --------
-from app.portfolio.portfolio_manager import (
+from app.engine.portfolio.portfolio_manager import (
     PortfolioManager, RebalanceFrequency, TradeRecord, UNIVERSE
 )
-from app.utils.StrategyDecision import StrategyDecision
+from app.engine.utils.StrategyDecision import StrategyDecision
 from app.database.fetch import get_stock_histories, get_all_tickers
 
 

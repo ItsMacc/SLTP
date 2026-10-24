@@ -13,7 +13,7 @@ from dateutil.relativedelta import relativedelta
 from typing import Any, Dict, List
 from app.database.db import load_sp500, load_tsx60
 from app.database.db_client import get_parquet_dir
-from app.utils.StockData import StockData
+from app.engine.utils.StockData import StockData
 
 # -------- Global Cache --------
 _GLOBAL_CACHE = {

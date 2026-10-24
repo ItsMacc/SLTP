@@ -15,8 +15,8 @@ from typing import Dict, Any, List
 
 # Core Backtester & Strategy Imports
 from app.backtester import Backtester
-from app.strategies.buy_and_hold import BuyAndHold
-from app.strategies.stock_health_filter import StockHealthFilterStrategy
+from app.engine.strategy.buy_and_hold import BuyAndHold
+from app.engine.strategy.stock_health_filter import StockHealthFilterStrategy
 
 # Database Imports
 from app.database.fetch import get_stock_history_json, get_all_tickers as fetch_all_tickers
@@ -25,7 +25,7 @@ from app.database.portfolio_api import router as portfolio_router
 from app.database.account_delete import router as account_delete_router
 from app.database.lab_api import router as lab_router
 from app.database.api_keys import router as api_keys_router
-from app.security import router as security_router
+from app.auth.security import router as security_router
 
 # -------- App Setup --------
 app = FastAPI(title="Stocker Backtesting & Analytics API")

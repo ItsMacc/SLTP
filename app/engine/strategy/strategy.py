@@ -7,9 +7,9 @@
 
 # -------- Imports --------
 import talib as ta
-from app.portfolio.portfolio_manager import PortfolioManager
-from app.utils.StockData import StockData
-from app.utils.StrategyDecision import StrategyDecision
+from app.engine.portfolio.portfolio_manager import PortfolioManager
+from app.engine.utils.StockData import StockData
+from app.engine.utils.StrategyDecision import StrategyDecision
 
 
 # -------- Base Strategy Class --------

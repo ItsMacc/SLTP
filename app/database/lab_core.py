@@ -23,10 +23,10 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 
 # Project path -> the repo file it mirrors.
 CORE_FILES: dict[str, Path] = {
-    "core/portfolio/portfolio_manager.py": _REPO_ROOT / "app" / "portfolio" / "portfolio_manager.py",
-    "core/strategy/strategy.py": _REPO_ROOT / "app" / "strategies" / "strategy.py",
-    "core/utils/StockData.py": _REPO_ROOT / "app" / "utils" / "StockData.py",
-    "core/utils/StrategyDecision.py": _REPO_ROOT / "app" / "utils" / "StrategyDecision.py",
+    "core/portfolio/portfolio_manager.py": _REPO_ROOT / "app" / "engine" / "portfolio" / "portfolio_manager.py",
+    "core/strategy/strategy.py": _REPO_ROOT / "app" / "engine" / "strategy" / "strategy.py",
+    "core/utils/StockData.py": _REPO_ROOT / "app" / "engine" / "utils" / "StockData.py",
+    "core/utils/StrategyDecision.py": _REPO_ROOT / "app" / "engine" / "utils" / "StrategyDecision.py",
 }
 
 # The root of the read-only package. Nothing under it can be written to.
@@ -39,15 +39,15 @@ CORE_FOLDERS: tuple[str, ...] = tuple(sorted({
     for path in CORE_FILES
 }))
 
-# The packages that are mirrored into `core/`. `app.strategies` is singular in
+# The packages that are mirrored into `core/`. `app.engine.strategy` is singular in
 # the mirror, so it is listed on its own.
 _MIRRORED_PACKAGES: tuple[tuple[str, str], ...] = (
-    ("app.portfolio", "core.portfolio"),
-    ("app.strategies", "core.strategy"),
-    ("app.utils", "core.utils"),
+    ("app.engine.portfolio", "core.portfolio"),
+    ("app.engine.strategy", "core.strategy"),
+    ("app.engine.utils", "core.utils"),
 )
 
-# `from app.utils.StockData import StockData` and friends.
+# `from app.engine.utils.StockData import StockData` and friends.
 _FROM_IMPORT_RE = re.compile(r"^(\s*)from\s+(app\.[A-Za-z_][\w.]*)\s+import\b", re.MULTILINE)
 
 

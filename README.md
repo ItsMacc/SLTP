@@ -86,7 +86,7 @@ README.md         — you are here
 | `POST /api/settings` | Sync user settings from Supabase to Turso (daily runner) |
 | `GET /api/users/me` | Return the mirrored user row from Turso |
 
-See `app/main.py` and `app/auth.py` for full route documentation.
+See `app/main.py` and `app/auth/auth.py` for full route documentation.
 
 ---
 
