@@ -1,5 +1,6 @@
 // LegalPage.tsx — Privacy Policy and Terms of Service
 import type { ReactNode } from 'react';
+import Button from '../ui/Button';
 import './LegalPage.css';
 
 export type LegalPageKind = 'privacy' | 'terms';
@@ -568,9 +569,9 @@ export default function LegalPage({ page, onBack }: LegalPageProps) {
   return (
     <div className="st-legal-layout">
       <div className="st-legal-container">
-        <button type="button" className="st-legal-back" onClick={onBack}>
+        <Button variant="link" size="sm" onClick={onBack}>
           <span aria-hidden="true">←</span> Back to SLTP
-        </button>
+        </Button>
 
         <header className="st-legal-header">
           <span className="st-legal-eyebrow">Legal</span>

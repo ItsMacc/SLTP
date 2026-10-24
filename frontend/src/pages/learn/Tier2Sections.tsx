@@ -11,6 +11,7 @@
 // the shared Objective / QuickCheck / Recap frame from parts.tsx.
 
 import { useState } from 'react';
+import Button from '../../ui/Button';
 import { Layers, Waves } from 'lucide-react';
 import { GlossaryText } from '../../components/GlossaryText';
 import { LEARN_GLOSSARY } from '../../learn/learnGlossary';
@@ -115,14 +116,14 @@ export function SpreadsSection() {
         </p>
         <div className="learn-ordertypes">
           {PROFILES.map((prof, i) => (
-            <button
+            <Button
               key={prof.id}
-              type="button"
+              variant="chip"
               className={`learn-ordertype ${i === idx ? 'is-active' : ''}`}
               onClick={() => setIdx(i)}
             >
               {prof.label}
-            </button>
+            </Button>
           ))}
         </div>
 
@@ -290,14 +291,14 @@ export function OrderBookSection() {
         </p>
         <div className="learn-ordertypes">
           {SIZES.map((s, i) => (
-            <button
+            <Button
               key={s.shares}
-              type="button"
+              variant="chip"
               className={`learn-ordertype ${i === sizeIdx ? 'is-active' : ''}`}
               onClick={() => setSizeIdx(i)}
             >
               {s.label}
-            </button>
+            </Button>
           ))}
         </div>
 

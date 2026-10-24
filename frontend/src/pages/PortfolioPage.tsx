@@ -12,6 +12,7 @@ import {
 } from '../../lib/api';
 import PortfolioOnboarding from './PortfolioOnboarding';
 import { LoaderInline, LoaderScreen } from '../ui/Loader';
+import Button from '../ui/Button';
 import './PortfolioPage.css';
 
 interface PortfolioPageProps {
@@ -100,9 +101,9 @@ export default function PortfolioPage({ defaultName, settings }: PortfolioPagePr
       <div className="pf-page">
         <div className="pf-page-placeholder">
           <span className="pf-page-placeholder-text">{loadError || 'Portfolio unavailable.'}</span>
-          <button type="button" className="pf-page-retry" onClick={() => loadStatus({ force: true })}>
+          <Button variant="secondary" size="md" onClick={() => loadStatus({ force: true })}>
             Try again
-          </button>
+          </Button>
         </div>
       </div>
     );

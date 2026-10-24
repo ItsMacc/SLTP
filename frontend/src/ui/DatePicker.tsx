@@ -1,6 +1,7 @@
 // DatePicker.tsx — Date input with calendar popup
 
 import { useState, useRef, useEffect, useLayoutEffect } from 'react'
+import Button from './Button'
 import './DatePicker.css'
 
 interface DatePickerProps {
@@ -173,8 +174,9 @@ export default function DatePicker({
           onChange={handleInputChange}
           placeholder={placeholder}
         />
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="icon"
           className="calendar-toggle-btn"
           onClick={() => setIsOpen((prev) => !prev)}
           aria-label="Toggle calendar"
@@ -185,7 +187,7 @@ export default function DatePicker({
             <line x1="8" y1="2" x2="8" y2="6"></line>
             <line x1="3" y1="10" x2="21" y2="10"></line>
           </svg>
-        </button>
+        </Button>
       </div>
 
       {error && <span className="custom-datepicker-error">{error}</span>}
@@ -201,9 +203,9 @@ export default function DatePicker({
           }}
         >
           <div className="calendar-header">
-            <button type="button" className="cal-nav-btn" onClick={handlePrevMonth}>&lt;</button>
+            <Button variant="ghost" size="icon" onClick={handlePrevMonth}>&lt;</Button>
             <span className="cal-month-title">{MONTH_NAMES[currentMonth]} {currentYear}</span>
-            <button type="button" className="cal-nav-btn" onClick={handleNextMonth}>&gt;</button>
+            <Button variant="ghost" size="icon" onClick={handleNextMonth}>&gt;</Button>
           </div>
 
           <div className="calendar-weekdays">

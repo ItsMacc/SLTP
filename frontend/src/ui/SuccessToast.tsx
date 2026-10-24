@@ -1,6 +1,7 @@
 // SuccessToast.tsx — Fixed-position success notification (mirrors ErrorToast)
 
 import { useEffect } from 'react'
+import Button from './Button'
 import './SuccessToast.css'
 
 interface SuccessToastProps {
@@ -36,14 +37,15 @@ export default function SuccessToast({
         <path d="M8 12.5l2.5 2.5L16 9.5" />
       </svg>
       <p className="success-toast-text">{message}</p>
-      <button
-        type="button"
+      <Button
+        variant="ghost"
+        size="icon"
         className="success-toast-close"
         onClick={onClose}
         aria-label="Dismiss notification"
       >
         &times;
-      </button>
+      </Button>
     </div>
   )
 }

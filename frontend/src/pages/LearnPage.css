@@ -2244,12 +2244,6 @@
 
 .learn-fin .learn-ordertypes { margin: 0 0 calc(var(--space-sm) * 1.75); }
 
-.learn-ordertype.is-active {
-  color: var(--bg-canvas);
-  background: var(--accent);
-  border-color: var(--accent);
-}
-
 .learn-fin-chartbox { margin: 0; }
 
 .learn-fin-chart {

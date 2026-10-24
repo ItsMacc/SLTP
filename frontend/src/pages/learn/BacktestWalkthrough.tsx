@@ -6,6 +6,7 @@
 // the reading skill: what each number means and how to judge the tradeoffs.
 
 import { useState } from 'react';
+import Button from '../../ui/Button';
 import { ClipboardList, LineChart } from 'lucide-react';
 import { GlossaryText } from '../../components/GlossaryText';
 import { LEARN_GLOSSARY } from '../../learn/learnGlossary';
@@ -251,14 +252,14 @@ export function BacktestWalkthroughSection() {
 
         <div className="learn-ordertypes">
           {REPORTS.map((rep, i) => (
-            <button
+            <Button
               key={rep.id}
-              type="button"
+              variant="chip"
               className={`learn-ordertype ${i === idx ? 'is-active' : ''}`}
               onClick={() => setIdx(i)}
             >
               {rep.label}
-            </button>
+            </Button>
           ))}
         </div>
 

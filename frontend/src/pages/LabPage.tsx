@@ -250,9 +250,9 @@ export default function LabPage({ onNavigate }: LabPageProps) {
             <p className="lab-hero-docs-text">
               The Docs page lists every method you can override, with worked examples you can copy.
             </p>
-            <button type="button" className="lab-docs-link" onClick={() => onNavigate?.('docs')}>
+            <Button variant="link" size="sm" onClick={() => onNavigate?.('docs')}>
               Read the docs <ArrowRight size={14} aria-hidden="true" />
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -355,14 +355,15 @@ export default function LabPage({ onNavigate }: LabPageProps) {
                       <span className="lab-ws-badge">
                         {ws.projects.length} project{ws.projects.length === 1 ? '' : 's'}
                       </span>
-                      <button
-                        type="button"
+                      <Button
+                        variant="danger"
+                        size="icon"
                         className="lab-icon-button lab-icon-button-danger"
                         aria-label={`Delete workspace ${ws.name}`}
                         onClick={() => askDelete({ kind: 'workspace', id: ws.id, name: ws.name })}
                       >
                         <Trash2 size={14} aria-hidden="true" />
-                      </button>
+                      </Button>
                     </div>
 
                     {isOpen && (
@@ -387,14 +388,15 @@ export default function LabPage({ onNavigate }: LabPageProps) {
                                 {p.file_count ?? 0} file{(p.file_count ?? 0) === 1 ? '' : 's'}
                               </span>
                               <span className="lab-ws-cell">{formatDate(p.created_at)}</span>
-                              <button
-                                type="button"
+                              <Button
+                                variant="danger"
+                                size="icon"
                                 className="lab-icon-button lab-icon-button-danger"
                                 aria-label={`Delete project ${p.name}`}
                                 onClick={() => askDelete({ kind: 'project', id: p.id, name: p.name })}
                               >
                                 <Trash2 size={14} aria-hidden="true" />
-                              </button>
+                              </Button>
                             </div>
                           </li>
                         ))}

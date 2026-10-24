@@ -153,11 +153,11 @@ export default function HomePage({ onNavigate, onOpenGuide }: HomePageProps) {
                 See how the site works
                 <ArrowRight size={18} className="home-btn-icon" />
               </Button>
-              <button type="button" className="home-beginner-link" onClick={() => onNavigate('learn')}>
-                New to investing?
+              <Button variant="link" size="sm" onClick={() => onNavigate('learn')}>
+                <span>New to investing?</span>
                 <strong>Start from zero</strong>
                 <ArrowRight size={14} />
-              </button>
+              </Button>
             </div>
           </div>
         </div>

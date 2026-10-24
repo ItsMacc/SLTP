@@ -276,8 +276,9 @@ export function AuthCard({ initialMode = 'login', onSuccess }: AuthCardProps) {
 
         <div className="st-auth__footer">
           <span>{isLogin ? "Don't have an account? " : 'Already have an account? '}</span>
-          <button
-            type="button"
+          <Button
+            variant="link"
+            size="md"
             className="st-auth__toggle-btn"
             onClick={() => {
               setIsLogin(!isLogin);
@@ -286,7 +287,7 @@ export function AuthCard({ initialMode = 'login', onSuccess }: AuthCardProps) {
             }}
           >
             {isLogin ? 'Sign Up' : 'Sign In'}
-          </button>
+          </Button>
         </div>
       </div>
 

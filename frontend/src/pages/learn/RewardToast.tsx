@@ -3,6 +3,7 @@
 
 import { useEffect } from 'react';
 import { Award, Sparkles, Star, X } from 'lucide-react';
+import Button from '../../ui/Button';
 import type { Earned } from '../../learn/useLearn';
 import './RewardToast.css';
 
@@ -33,9 +34,9 @@ export default function RewardToast({ earned, onClose, autoDismissMs = 6000 }: R
         <p className="reward-toast-name">{earned.name}</p>
         <p className="reward-toast-detail">{earned.detail}</p>
       </div>
-      <button type="button" className="reward-toast-close" onClick={onClose} aria-label="Dismiss">
+      <Button variant="ghost" size="icon" onClick={onClose} aria-label="Dismiss">
         <X size={14} />
-      </button>
+      </Button>
     </div>
   );
 }

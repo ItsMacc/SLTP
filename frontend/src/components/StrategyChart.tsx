@@ -8,6 +8,7 @@ import DatePicker from '../ui/DatePicker'
 import ErrorToast from '../ui/ErrorToast'
 import StrategyGuide from './StrategyGuide'
 import { LoaderRow, LoaderScreen } from '../ui/Loader'
+import Button from '../ui/Button'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 
@@ -374,9 +375,9 @@ export default function StrategyChart() {
             placeholder="Select end date"
           />
 
-          <button type="submit" className="run-strategy-btn" disabled={loading || strategiesLoading}>
+          <Button type="submit" variant="primary" size="md" disabled={loading || strategiesLoading}>
             {loading ? 'Running...' : 'Run Analysis'}
-          </button>
+          </Button>
         </form>
 
         {/* The strategy library is read on mount: the stock line says it is

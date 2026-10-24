@@ -1,5 +1,6 @@
 // Chart.tsx — Candlestick chart with toolbar and tooltip
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import Button from '../ui/Button'
 import './Chart.css'
 
 export interface Bar {
@@ -238,9 +239,9 @@ export default function Chart({ bars, ticker, chartStyle = 'candles', defaultZoo
               +
             </button>
           </div>
-          <button type="button" onClick={() => setEnd(bars.length)} disabled={atLatest} className="chart-latest-btn">
+          <Button variant="secondary" size="sm" onClick={() => setEnd(bars.length)} disabled={atLatest}>
             Latest
-          </button>
+          </Button>
         </div>
       </div>
 

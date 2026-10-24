@@ -1,5 +1,5 @@
 // Header.tsx — Top nav: brand, links, auth actions, mobile drawer
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Button from '../ui/Button';
 import UserMenu from './UserMenu';
 import './Header.css';
@@ -37,6 +37,31 @@ export default function Header({
   onSettingsClick 
 }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [hidden, setHidden] = useState(false);
+  const [focusWithin, setFocusWithin] = useState(false);
+
+  /* Hide while scrolling down, reveal on any scroll up or at the top.
+     Small threshold so trackpad jitter doesn't flicker the bar. */
+  useEffect(() => {
+    let lastY = window.scrollY;
+    let ticking = false;
+    const update = () => {
+      const y = window.scrollY;
+      const delta = y - lastY;
+      if (y <= 0 || delta < -8) setHidden(false);
+      else if (delta > 8) setHidden(true);
+      if (Math.abs(delta) > 8) lastY = y;
+      ticking = false;
+    };
+    const onScroll = () => {
+      if (!ticking) {
+        ticking = true;
+        requestAnimationFrame(update);
+      }
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   const handleTabClick = (id: string) => {
     onTabChange(id);
@@ -44,7 +69,13 @@ export default function Header({
   };
 
   return (
-    <header className="header-container">
+    <header
+      className={`header-container ${hidden && !mobileMenuOpen && !focusWithin ? 'is-hidden' : ''}`}
+      onFocus={() => setFocusWithin(true)}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFocusWithin(false);
+      }}
+    >
       <div className="header-brand" onClick={() => handleTabClick('home')}>
         <span className="brand-title">SLTP</span>
       </div>

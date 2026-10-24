@@ -1,6 +1,7 @@
 // ErrorToast.tsx — Fixed-position error notification
 
 import { useEffect } from 'react'
+import Button from './Button'
 import './ErrorToast.css'
 
 interface ErrorToastProps {
@@ -37,14 +38,15 @@ export default function ErrorToast({
         <line x1="12" y1="16.5" x2="12" y2="16.5" />
       </svg>
       <p className="error-toast-text">{message}</p>
-      <button
-        type="button"
+      <Button
+        variant="ghost"
+        size="icon"
         className="error-toast-close"
         onClick={onClose}
         aria-label="Dismiss error"
       >
         &times;
-      </button>
+      </Button>
     </div>
   )
 }

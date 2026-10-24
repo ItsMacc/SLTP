@@ -8,6 +8,7 @@
 // same arithmetic over the same OHLCV data.
 
 import { useState } from 'react';
+import Button from '../../ui/Button';
 import { Activity } from 'lucide-react';
 import { GlossaryText } from '../../components/GlossaryText';
 import { LEARN_GLOSSARY } from '../../learn/learnGlossary';
@@ -143,20 +144,20 @@ export function IndicatorsSection() {
         </div>
 
         <div className="learn-ordertypes">
-          <button
-            type="button"
+          <Button
+            variant="chip"
             className={`learn-ordertype ${!useEma ? 'is-active' : ''}`}
             onClick={() => setUseEma(false)}
           >
             SMA, every day equal
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            variant="chip"
             className={`learn-ordertype ${useEma ? 'is-active' : ''}`}
             onClick={() => setUseEma(true)}
           >
             EMA, recent days count more
-          </button>
+          </Button>
         </div>
 
         <div className="learn-chartbox">

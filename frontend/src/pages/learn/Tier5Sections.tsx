@@ -7,6 +7,7 @@
 //   bankruptcy costs each time. That is the whole argument for diversifying.
 
 import { useState } from 'react';
+import Button from '../../ui/Button';
 import { Gauge, PieChart } from 'lucide-react';
 import { GlossaryText } from '../../components/GlossaryText';
 import { LEARN_GLOSSARY } from '../../learn/learnGlossary';
@@ -235,14 +236,14 @@ export function AllocationSection() {
         <p className="learn-fin-title">How many companies?</p>
         <div className="learn-ordertypes">
           {STEPS.map((s, i) => (
-            <button
+            <Button
               key={s}
-              type="button"
+              variant="chip"
               className={`learn-ordertype ${i === idx ? 'is-active' : ''}`}
               onClick={() => setIdx(i)}
             >
               {s} compan{s === 1 ? 'y' : 'ies'}
-            </button>
+            </Button>
           ))}
         </div>
 

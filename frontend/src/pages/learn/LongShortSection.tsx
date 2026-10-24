@@ -11,6 +11,7 @@
 
 import { useState } from 'react';
 import { ArrowRight, Check, ChevronRight, Lightbulb, TrendingDown, TrendingUp } from 'lucide-react';
+import Button from '../../ui/Button';
 import { Objective } from './parts';
 
 interface Props {
@@ -20,10 +21,10 @@ interface Props {
 
 function Continue({ onClick, label = 'Continue' }: { onClick: () => void; label?: string }) {
   return (
-    <button type="button" className="learn-continue" onClick={onClick}>
+    <Button variant="outline" size="sm" onClick={onClick}>
       {label}
       <ChevronRight size={15} />
-    </button>
+    </Button>
   );
 }
 
@@ -259,13 +260,9 @@ export default function LongShortSection({ onComplete, onCredentials }: Props) {
           ) : (
             <p className="learn-quiz-right">
               <Check size={14} /> Module complete, progress saved to your account.
-              <button
-                type="button"
-                className="learn-continue learn-module-next"
-                onClick={() => onCredentials?.()}
-              >
+              <Button variant="outline" size="sm" onClick={() => onCredentials?.()}>
                 See your credentials <ArrowRight size={15} />
-              </button>
+              </Button>
             </p>
           )}
         </div>

@@ -24,6 +24,7 @@ import RewardToast from './learn/RewardToast';
 import { BadgeShelf, TierBanner, TierGate, TierNav } from './learn/LearnShell';
 import { useActiveSection } from '../learn/useActiveSection';
 import { LoaderScreen } from '../ui/Loader';
+import Button from '../ui/Button';
 import './LearnPage.css';
 
 interface LearnPageProps {
@@ -45,10 +46,10 @@ function scrollToSectionTop(id: string) {
 
 function Continue({ onClick, label = 'Continue' }: { onClick: () => void; label?: string }) {
   return (
-    <button type="button" className="learn-continue" onClick={onClick}>
+    <Button variant="outline" size="sm" onClick={onClick}>
       {label}
       <ChevronRight size={15} />
-    </button>
+    </Button>
   );
 }
 
@@ -105,24 +106,16 @@ function ModuleComplete({ sectionId, learn, nextId, gateId }: {
           </p>
         </div>
         {nextId && !learn.isSectionDone(nextId) && (
-          <button
-            type="button"
-            className="learn-continue learn-claim-next"
-            onClick={() => scrollToSectionTop(nextId)}
-          >
+          <Button variant="outline" size="sm" onClick={() => scrollToSectionTop(nextId)}>
             Next module
             <ArrowRight size={15} />
-          </button>
+          </Button>
         )}
         {!nextId && gateId && (
-          <button
-            type="button"
-            className="learn-continue learn-claim-next"
-            onClick={() => scrollToSectionTop(gateId)}
-          >
+          <Button variant="outline" size="sm" onClick={() => scrollToSectionTop(gateId)}>
             Take the gate
             <ArrowRight size={15} />
-          </button>
+          </Button>
         )}
       </div>
     );
@@ -290,9 +283,9 @@ function StockSection() {
           </p>
 
           <div className="learn-yearbox">
-            <button type="button" className="learn-yearbtn" onClick={() => setYears((y) => y + 1)}>
+            <Button variant="secondary" size="sm" className="learn-yearbtn" onClick={() => setYears((y) => y + 1)}>
               + 1 year
-            </button>
+            </Button>
             <div className="learn-yeargrid">
               <div className="learn-fact">
                 <span className="learn-fact-label">Years passed</span>
@@ -444,7 +437,7 @@ function StockSection() {
               onKeyDown={(e) => e.key === 'Enter' && checkShares()}
               aria-label="How many shares"
             />
-            <button type="button" className="learn-quiz-check" onClick={checkShares}>Check</button>
+            <Button variant="primary" size="sm" onClick={checkShares}>Check</Button>
           </div>
           {sharesResult === 'wrong' && (
             <p className="learn-quiz-wrong">
@@ -643,9 +636,9 @@ function StockSection() {
             hands, every day, millions of times. Everything else on this site builds on what
             you just did.
           </Narrator>
-          <button type="button" className="learn-continue" onClick={reset}>
+          <Button variant="outline" size="sm" onClick={reset}>
             Replay the story
-          </button>
+          </Button>
         </div>
       )}
     </div>
@@ -767,9 +760,9 @@ function PricesSection() {
 
         <div className="learn-scenarios">
           {(Object.keys(SCENARIOS) as Scenario[]).map((s) => (
-            <button key={s} type="button" className="learn-scenario" onClick={() => applyScenario(s)}>
+            <Button key={s} variant="chip" className="learn-scenario" onClick={() => applyScenario(s)}>
               {SCENARIOS[s].label}
-            </button>
+            </Button>
           ))}
         </div>
         {caption && <p className="learn-caption">{caption}</p>}
@@ -983,9 +976,9 @@ function CandlesSection() {
           </div>
         </div>
         <div className="learn-ordertypes">
-          <button type="button" className="learn-ordertype" onClick={() => answer('green')}>Green</button>
-          <button type="button" className="learn-ordertype" onClick={() => answer('red')}>Red</button>
-          <button type="button" className="learn-ordertype" onClick={newCandle}>New candle</button>
+          <Button variant="chip" className="learn-ordertype" onClick={() => answer('green')}>Green</Button>
+          <Button variant="chip" className="learn-ordertype" onClick={() => answer('red')}>Red</Button>
+          <Button variant="chip" className="learn-ordertype" onClick={newCandle}>New candle</Button>
         </div>
         {quizResult !== 'none' && (
           <p className="learn-caption learn-caption-strong">
@@ -1383,9 +1376,9 @@ function RiskSection() {
             sure that, over many trades, the wins outweigh the losses by design rather
             than by luck. Change your sliders above and watch every number here respond.
           </p>
-          <button type="button" className="learn-continue" onClick={() => setSubStep(0)}>
+          <Button variant="outline" size="sm" onClick={() => setSubStep(0)}>
             Replay the exercise
-          </button>
+          </Button>
         </div>
       )}
     </div>

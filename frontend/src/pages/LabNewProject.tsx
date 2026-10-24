@@ -133,9 +133,9 @@ export default function LabNewProject({ workspaces, initialTemplate, initialTarg
             <p className="lab-wiz-kicker">New project</p>
             <h2 id="lab-wiz-title" className="lab-wiz-title">Set up your project</h2>
           </div>
-          <button type="button" className="lab-wiz-close" aria-label="Close" onClick={onClose} disabled={submitting}>
+          <Button variant="ghost" size="icon" aria-label="Close" onClick={onClose} disabled={submitting}>
             <X size={16} aria-hidden="true" />
-          </button>
+          </Button>
         </header>
 
         <ol className="lab-wiz-steps" aria-label="Setup progress">

@@ -13,6 +13,7 @@ import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { Check, ChevronRight, Lightbulb, ListChecks, RotateCcw, Target, X } from 'lucide-react';
 import type { QuizQuestion } from '../../learn/moduleQuizzes';
+import Button from '../../ui/Button';
 
 /** Advances a stepped lesson and pulls the reader back to its heading. */
 export function Continue({ onClick, label = 'Continue', sectionId }: {
@@ -22,9 +23,9 @@ export function Continue({ onClick, label = 'Continue', sectionId }: {
   sectionId?: string;
 }) {
   return (
-    <button
-      type="button"
-      className="learn-continue"
+    <Button
+      variant="outline"
+      size="sm"
       onClick={() => {
         onClick();
         if (sectionId) {
@@ -34,7 +35,7 @@ export function Continue({ onClick, label = 'Continue', sectionId }: {
     >
       {label}
       <ChevronRight size={15} />
-    </button>
+    </Button>
   );
 }
 
@@ -103,11 +104,11 @@ export function SectionQuiz({ questions }: { questions: QuizQuestion[] }) {
 
   if (!open) {
     return (
-      <button type="button" className="learn-quizcta" onClick={() => setOpen(true)}>
+      <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>
         <ListChecks size={15} />
         Take the quiz
         <span className="learn-quizcta-note">{questions.length} questions, optional</span>
-      </button>
+      </Button>
     );
   }
 
@@ -117,13 +118,13 @@ export function SectionQuiz({ questions }: { questions: QuizQuestion[] }) {
         <p className="learn-quizcard-title"><ListChecks size={14} /> Module quiz</p>
         <div className="learn-quizcard-actions">
           {answered > 0 && (
-            <button type="button" className="learn-quizcard-link" onClick={() => setPicks({})}>
+            <Button variant="link" size="sm" onClick={() => setPicks({})}>
               <RotateCcw size={12} /> Reset
-            </button>
+            </Button>
           )}
-          <button type="button" className="learn-quizcard-link" onClick={() => setOpen(false)}>
+          <Button variant="link" size="sm" onClick={() => setOpen(false)}>
             <X size={12} /> Hide
-          </button>
+          </Button>
         </div>
       </div>
 

@@ -1,5 +1,6 @@
 // TradeResults.tsx — Executed trades table with pagination
 import { useEffect, useMemo, useState } from 'react'
+import Button from '../ui/Button'
 import './TradeResults.css'
 
 export interface TradeRecord {
@@ -140,25 +141,15 @@ export default function TradeResults({ trades }: TradeResultsProps) {
       </div>
 
       <div className="trade-pagination">
-        <button
-          type="button"
-          className="trade-page-btn"
-          onClick={handlePrev}
-          disabled={currentPage === 1}
-        >
+        <Button variant="secondary" size="sm" onClick={handlePrev} disabled={currentPage === 1} aria-label="Previous page">
           &lt;
-        </button>
+        </Button>
         <span className="trade-page-indicator">
           {currentPage}/{totalPages}
         </span>
-        <button
-          type="button"
-          className="trade-page-btn"
-          onClick={handleNext}
-          disabled={currentPage === totalPages}
-        >
+        <Button variant="secondary" size="sm" onClick={handleNext} disabled={currentPage === totalPages} aria-label="Next page">
           &gt;
-        </button>
+        </Button>
       </div>
     </div>
   )

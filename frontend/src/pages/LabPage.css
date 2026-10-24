@@ -202,7 +202,12 @@
   color: var(--accent);
 }
 
-.lab-icon-button-danger:hover {
+.lab-icon-button-danger {
+  color: var(--error);
+}
+
+.lab-icon-button.lab-icon-button-danger:hover {
+  background-color: var(--error-muted);
   color: var(--error);
 }
 

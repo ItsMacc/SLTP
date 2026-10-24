@@ -15,6 +15,7 @@ import {
   Lock,
 } from 'lucide-react';
 import { GlossaryText } from './GlossaryText';
+import Button from '../ui/Button';
 import { type GlossaryTerm } from '../types/strategy';
 import './SiteGuide.css';
 
@@ -860,9 +861,9 @@ export default function SiteGuide({ open, onClose, onNavigate, isSignedIn }: Sit
       aria-label="How SLTP works"
     >
       {/* Small close button, top corner */}
-      <button type="button" className="tsg-close" onClick={close} aria-label="Close guide">
+      <Button variant="ghost" size="icon" onClick={close} aria-label="Close guide">
         <X size={16} />
-      </button>
+      </Button>
 
       {/* Progress dots */}
       <div className="tsg-progress" aria-hidden="true">
@@ -895,30 +896,25 @@ export default function SiteGuide({ open, onClose, onNavigate, isSignedIn }: Sit
       </div>
 
       <div className="tsg-footer">
-        <button
-          type="button"
-          className="tsg-nav-btn"
-          onClick={() => setIndex((i) => Math.max(0, i - 1))}
-          disabled={isFirst}
-        >
+        <Button variant="secondary" size="md" onClick={() => setIndex((i) => Math.max(0, i - 1))} disabled={isFirst}>
           Back
-        </button>
+        </Button>
         <span className="tsg-counter">{index + 1} / {CONTENT_SLIDES}</span>
         {isLast ? (
-          <button
-            type="button"
-            className="tsg-nav-btn is-primary"
+          <Button
+            variant="primary"
+            size="md"
             onClick={() => {
               close();
               onNavigate('home');
             }}
           >
             Back to Home
-          </button>
+          </Button>
         ) : (
-          <button type="button" className="tsg-nav-btn is-primary" onClick={() => setIndex((i) => i + 1)}>
+          <Button variant="primary" size="md" onClick={() => setIndex((i) => i + 1)}>
             Next
-          </button>
+          </Button>
         )}
       </div>
     </div>

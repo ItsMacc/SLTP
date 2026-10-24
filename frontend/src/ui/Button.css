@@ -58,6 +58,12 @@
   padding: var(--space-md) var(--space-lg);
 }
 
+/* Icon-only: square by padding, so it sizes to its icon. */
+.btn-icon {
+  padding: var(--space-xs);
+  line-height: 0;
+}
+
 /* ---------- Variants ---------- */
 .btn-primary {
   background-color: var(--accent);
@@ -96,4 +102,52 @@
 
 .btn-ghost:hover {
   background-color: var(--bg-surface-hover);
+}
+
+/* Destructive action: error-coloured, for delete icons and the like. */
+.btn-danger {
+  background-color: transparent;
+  color: var(--error);
+}
+
+.btn-danger:hover {
+  background-color: var(--error-muted);
+}
+
+/* Pill toggle for choosing one option from a row. The selected
+   option takes .is-active, which is set by the caller. */
+.btn-chip {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 400;
+  color: var(--text-muted);
+  background-color: transparent;
+  border-color: var(--border-subtle);
+  border-radius: 20px;
+  padding: calc(var(--space-sm) * 0.875) calc(var(--space-sm) * 1.875);
+  transition: all 0.15s ease;
+}
+
+.btn-chip:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+.btn-chip.is-active {
+  color: var(--bg-canvas);
+  background-color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* Text-only action styled as a link: no box, no background. */
+.btn-link {
+  background-color: transparent;
+  color: var(--text-muted);
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.btn-link:hover {
+  color: var(--accent);
 }

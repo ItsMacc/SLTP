@@ -809,17 +809,19 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
         </button>
         {!file.locked && (
           <span className="lab-file-actions lab-desktop-only">
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="icon"
               className="lab-icon-button"
               aria-label={`Rename ${file.name}`}
               title="Rename"
               onClick={() => startRename(file.name)}
             >
               <Pencil size={13} aria-hidden="true" />
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              variant="danger"
+              size="icon"
               className="lab-icon-button lab-icon-button-danger"
               aria-label={`Delete ${file.name}`}
               title="Delete"
@@ -828,7 +830,7 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
               {deletingTarget === file.name
                 ? <LoaderInline size={13} tone="inherit" />
                 : <Trash2 size={13} aria-hidden="true" />}
-            </button>
+            </Button>
           </span>
         )}
       </li>
@@ -859,8 +861,9 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
             {/* The workspace root holds every file the student wrote, so it is
                 not something they can throw away. */}
             {!locked && path !== WORKSPACE_FOLDER && (
-              <button
-                type="button"
+              <Button
+                variant="danger"
+                size="icon"
                 className="lab-icon-button lab-icon-button-danger"
                 aria-label={`Delete folder ${path} and its contents`}
                 title="Delete folder and contents"
@@ -869,7 +872,7 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
                 {deletingTarget === path
                   ? <LoaderInline size={12} tone="inherit" />
                   : <Trash2 size={12} aria-hidden="true" />}
-              </button>
+              </Button>
             )}
           </div>
           <Collapsible.Content asChild>
@@ -963,8 +966,9 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
                 <span className="lab-explorer-count">{files.length} files · {tree.size} folders</span>
               </div>
               <div className="lab-explorer-tools lab-desktop-only">
-                <button
-                  type="button"
+                <Button
+                  variant="ghost"
+                  size="icon"
                   className="lab-icon-button"
                   aria-label="Import a folder from this computer"
                   title="Import folder"
@@ -974,9 +978,10 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
                   {readingFolder
                     ? <LoaderInline size={14} tone="inherit" />
                     : <FolderInput size={14} aria-hidden="true" />}
-                </button>
-                <button
-                  type="button"
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
                   className="lab-icon-button"
                   aria-label="New file"
                   aria-expanded={newFileOpen}
@@ -984,7 +989,7 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
                   onClick={() => setNewFileOpen((open) => !open)}
                 >
                   <Plus size={15} aria-hidden="true" />
-                </button>
+                </Button>
               </div>
             </div>
 
@@ -1210,10 +1215,10 @@ function TerminalPanelView({ lines, onClear, onClose }: TerminalPanelProps) {
         </span>
         <span className="lab-terminal-status">{RUN_LABEL}</span>
         <span className="lab-terminal-spacer" />
-        <button type="button" className="lab-terminal-text-button" onClick={onClear}>Clear</button>
-        <button type="button" className="lab-icon-button" aria-label="Close terminal" title="Close" onClick={onClose}>
+        <Button variant="ghost" size="sm" onClick={onClear}>Clear</Button>
+        <Button variant="ghost" size="icon" className="lab-icon-button" aria-label="Close terminal" title="Close" onClick={onClose}>
           <X size={13} aria-hidden="true" />
-        </button>
+        </Button>
       </header>
       <div className="lab-terminal-body" ref={bodyRef} role="log" aria-live="polite">
         {lines.length === 0 ? (

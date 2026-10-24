@@ -3,6 +3,7 @@
 
 import { useState } from 'react';
 import { Check, Lock, ShieldCheck, Sparkles } from 'lucide-react';
+import Button from '../../ui/Button';
 import type { Tier } from '../../learn/curriculum';
 import { scoreGate, type useLearn } from '../../learn/useLearn';
 
@@ -103,14 +104,9 @@ export function GateQuiz({ tier, learn }: { tier: Tier; learn: LearnApi }) {
       ))}
 
       {!submitted ? (
-        <button
-          type="button"
-          className="learn-continue"
-          disabled={!answered}
-          onClick={submit}
-        >
+        <Button variant="outline" size="sm" disabled={!answered} onClick={submit}>
           {answered ? 'Submit answers' : 'Answer every question to submit'}
-        </button>
+        </Button>
       ) : (
         <div className="learn-gate-result">
           {passed ? (
@@ -124,9 +120,9 @@ export function GateQuiz({ tier, learn }: { tier: Tier; learn: LearnApi }) {
                 {correct}/{tier.gate.length} correct. Re-read the explanations above and
                 try again. Every question must be right.
               </p>
-              <button type="button" className="learn-continue" onClick={retry}>
+              <Button variant="outline" size="sm" onClick={retry}>
                 Try again
-              </button>
+              </Button>
             </>
           )}
         </div>
