@@ -355,6 +355,36 @@ export async function deleteLabWorkspace(token: string, workspaceId: string): Pr
   await authedFetch(`/api/lab/workspaces/${workspaceId}`, token, { method: 'DELETE' });
 }
 
+// ---------- Personal API keys ----------
+
+export interface ApiKeySummary {
+  id: string;
+  name: string;
+  key_prefix: string;
+  created_at: string;
+  last_used_at: string | null;
+}
+
+export interface CreatedApiKey extends ApiKeySummary {
+  key: string;
+}
+
+export async function listApiKeys(token: string): Promise<ApiKeySummary[]> {
+  const data = await authedFetch('/api/user/api-keys', token);
+  return data.keys;
+}
+
+export async function createApiKey(token: string, name: string): Promise<CreatedApiKey> {
+  return authedFetch('/api/user/api-keys', token, {
+    method: 'POST',
+    body: JSON.stringify({ name }),
+  });
+}
+
+export async function revokeApiKey(token: string, keyId: string): Promise<void> {
+  await authedFetch(`/api/user/api-keys/${keyId}`, token, { method: 'DELETE' });
+}
+
 export async function getAllTickers(): Promise<string[]> {
   const res = await fetch(`${API_BASE}/api/stock/all-tickers`);
   if (!res.ok) return [];

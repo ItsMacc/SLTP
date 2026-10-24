@@ -25,6 +25,12 @@ DEFAULT_SETTINGS: dict[str, object] = {
     "defaultTimeframe": "1y",
     "securityWarnings": True,
     "autoTrackSignals": False,
+    "editorFontSize": 14,
+    "editorTabSize": 4,
+    "editorWordWrap": False,
+    "editorMinimap": False,
+    "editorLineNumbers": True,
+    "editorFontLigatures": True,
 }
 
 

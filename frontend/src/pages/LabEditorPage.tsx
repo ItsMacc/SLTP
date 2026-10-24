@@ -138,6 +138,25 @@ interface OutputLine {
 
 type PyrightState = 'starting' | 'active' | 'failed';
 
+/** The Code editor settings saved on the account (Settings → Code editor). */
+interface EditorSettings {
+  fontSize: number;
+  tabSize: number;
+  wordWrap: boolean;
+  minimap: boolean;
+  lineNumbers: boolean;
+  fontLigatures: boolean;
+}
+
+const DEFAULT_EDITOR_SETTINGS: EditorSettings = {
+  fontSize: 14,
+  tabSize: 4,
+  wordWrap: false,
+  minimap: false,
+  lineNumbers: true,
+  fontLigatures: true,
+};
+
 interface LabEditorPageProps {
   project: LabProject;
   workspaceName: string;
@@ -206,9 +225,37 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
     const theme = document.documentElement.getAttribute('data-theme')?.toLowerCase() ?? saved;
     return theme === 'dark' ? 'vs-dark' : 'vs';
   });
+  const [editorSettings, setEditorSettings] = useState<EditorSettings>(DEFAULT_EDITOR_SETTINGS);
   const [markerCounts, setMarkerCounts] = useState({ errors: 0, warnings: 0 });
   // The cursor readout lives in its own component, so moving the cursor does not re-render the page.
   const cursorListenerRef = useRef<((position: { line: number; column: number }) => void) | null>(null);
+
+  // Read the account's saved Code editor settings. Missing keys (accounts that
+  // predate them) fall back to the defaults.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id;
+      if (!userId) return;
+      const { data } = await supabase
+        .from('users')
+        .select('settings')
+        .eq('id', userId)
+        .maybeSingle();
+      const s = (data?.settings ?? {}) as Record<string, unknown>;
+      if (cancelled) return;
+      setEditorSettings({
+        fontSize: typeof s.editorFontSize === 'number' ? s.editorFontSize : DEFAULT_EDITOR_SETTINGS.fontSize,
+        tabSize: typeof s.editorTabSize === 'number' ? s.editorTabSize : DEFAULT_EDITOR_SETTINGS.tabSize,
+        wordWrap: typeof s.editorWordWrap === 'boolean' ? s.editorWordWrap : DEFAULT_EDITOR_SETTINGS.wordWrap,
+        minimap: typeof s.editorMinimap === 'boolean' ? s.editorMinimap : DEFAULT_EDITOR_SETTINGS.minimap,
+        lineNumbers: typeof s.editorLineNumbers === 'boolean' ? s.editorLineNumbers : DEFAULT_EDITOR_SETTINGS.lineNumbers,
+        fontLigatures: typeof s.editorFontLigatures === 'boolean' ? s.editorFontLigatures : DEFAULT_EDITOR_SETTINGS.fontLigatures,
+      });
+    })().catch(() => { /* keep defaults if the settings read fails */ });
+    return () => { cancelled = true; };
+  }, []);
 
   const [terminalOpen, setTerminalOpen] = useState(true);
   const [output, setOutput] = useState<OutputLine[]>([]);
@@ -1033,6 +1080,10 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
                   path={activeFile.name}
                   language="python"
                   value={activeFile.draft}
+                  onChange={(value) => {
+                    const next = value ?? '';
+                    setFiles((prev) => prev.map((f) => (f.name === activeFile.name ? { ...f, draft: next } : f)));
+                  }}
                   theme={editorTheme === 'vs-dark' ? 'sltp-dark' : 'sltp-light'}
                   onMount={handleMount}
                   loading={
@@ -1046,14 +1097,16 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
                   }
                   options={{
                     readOnly: activeFile.locked,
-                    minimap: { enabled: false },
-                    fontSize: 13,
+                    minimap: { enabled: editorSettings.minimap },
+                    fontSize: editorSettings.fontSize,
                     fontFamily: "'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace",
-                    fontLigatures: true,
+                    fontLigatures: editorSettings.fontLigatures,
+                    lineNumbers: editorSettings.lineNumbers ? 'on' : 'off',
+                    wordWrap: editorSettings.wordWrap ? 'on' : 'off',
                     scrollBeyondLastLine: false,
                     smoothScrolling: true,
                     padding: { top: 10 },
-                    tabSize: 4,
+                    tabSize: editorSettings.tabSize,
                     renderLineHighlight: 'line',
                     automaticLayout: true,
                   }}

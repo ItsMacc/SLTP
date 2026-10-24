@@ -24,6 +24,7 @@ from app.database.provision import router as provision_router
 from app.database.portfolio_api import router as portfolio_router
 from app.database.account_delete import router as account_delete_router
 from app.database.lab_api import router as lab_router
+from app.database.api_keys import router as api_keys_router
 from app.security import router as security_router
 
 # -------- App Setup --------
@@ -33,6 +34,7 @@ app.include_router(portfolio_router)
 app.include_router(security_router)
 app.include_router(account_delete_router)
 app.include_router(lab_router)
+app.include_router(api_keys_router)
 
 # Configure CORS for React/Vite Frontend
 app.add_middleware(

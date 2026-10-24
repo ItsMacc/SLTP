@@ -1,6 +1,6 @@
 // SettingsPage.tsx — Account settings, preferences, danger zone
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import { clearLocalUserData } from '../../lib/api';
 import Button from '../ui/Button';
@@ -9,7 +9,16 @@ import Select from '../ui/Select';
 import Checkbox from '../ui/Checkbox';
 import RadioGroup from '../ui/RadioGroup';
 import { LoaderInline, LoaderOverlay } from '../ui/Loader';
+import SuccessToast from '../ui/SuccessToast';
+import ConfirmDeleteDialog from '../ui/ConfirmDeleteDialog';
+import { Check, Copy } from 'lucide-react';
+import { listApiKeys, createApiKey, revokeApiKey, type ApiKeySummary } from '../../lib/api';
 import './SettingsPage.css';
+
+const EDITOR_FONT_SIZE_OPTIONS = Array.from({ length: 11 }, (_, i) => {
+  const px = 10 + i * 2;
+  return { label: `${px} px`, value: px };
+});
 
 interface SettingsPageProps {
   userId: string;
@@ -31,7 +40,21 @@ export function applyAndStoreUserSettings(settings: { theme?: string; [key: stri
 }
 
 export default function SettingsPage({ userId, userEmail, initialName, onProfileUpdated, onAccountDeleted }: SettingsPageProps) {
-  const [activeSubTab, setActiveSubTab] = useState<'profile' | 'preferences' | 'notifications'>('profile');
+  const [activeSubTab, setActiveSubTab] = useState<'profile' | 'preferences' | 'notifications' | 'editor' | 'api'>('profile');
+
+  // API keys State
+  const [apiKeys, setApiKeys] = useState<ApiKeySummary[]>([]);
+  const [apiKeysLoading, setApiKeysLoading] = useState(false);
+  const [newKeyName, setNewKeyName] = useState('');
+  const [creatingKey, setCreatingKey] = useState(false);
+  const [createdKey, setCreatedKey] = useState<string | null>(null);
+  const [keyCopied, setKeyCopied] = useState(false);
+  const [apiKeyError, setApiKeyError] = useState<string | null>(null);
+  const [keyToRevoke, setKeyToRevoke] = useState<ApiKeySummary | null>(null);
+  const [revokingKey, setRevokingKey] = useState(false);
+  const [revokeError, setRevokeError] = useState<string | null>(null);
+  const [keyToast, setKeyToast] = useState<string | null>(null);
+  const dismissKeyToast = useCallback(() => setKeyToast(null), []);
   
   // Profile State
   const [fullName, setFullName] = useState(initialName || '');
@@ -49,6 +72,14 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
   const [dailySummary, setDailySummary] = useState(false);
   const [priceAlerts, setPriceAlerts] = useState(false);
   const [autoTrackSignals, setAutoTrackSignals] = useState(false);
+
+  // Code editor State (applied to the Lab editor)
+  const [editorFontSize, setEditorFontSize] = useState(14);
+  const [editorTabSize, setEditorTabSize] = useState(4);
+  const [editorWordWrap, setEditorWordWrap] = useState(false);
+  const [editorMinimap, setEditorMinimap] = useState(false);
+  const [editorLineNumbers, setEditorLineNumbers] = useState(true);
+  const [editorFontLigatures, setEditorFontLigatures] = useState(true);
 
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -102,6 +133,13 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
           if (currentSettings.dailySummary !== undefined) setDailySummary(currentSettings.dailySummary);
           if (currentSettings.priceAlerts !== undefined) setPriceAlerts(currentSettings.priceAlerts);
           if (currentSettings.autoTrackSignals !== undefined) setAutoTrackSignals(currentSettings.autoTrackSignals);
+
+          if (typeof currentSettings.editorFontSize === 'number') setEditorFontSize(Math.min(30, Math.max(10, Math.round(currentSettings.editorFontSize / 2) * 2)));
+          if (typeof currentSettings.editorTabSize === 'number') setEditorTabSize(currentSettings.editorTabSize);
+          if (currentSettings.editorWordWrap !== undefined) setEditorWordWrap(currentSettings.editorWordWrap);
+          if (currentSettings.editorMinimap !== undefined) setEditorMinimap(currentSettings.editorMinimap);
+          if (currentSettings.editorLineNumbers !== undefined) setEditorLineNumbers(currentSettings.editorLineNumbers);
+          if (currentSettings.editorFontLigatures !== undefined) setEditorFontLigatures(currentSettings.editorFontLigatures);
 
           applyAndStoreUserSettings(currentSettings, currentName);
         }
@@ -188,6 +226,68 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
     }
   };
 
+  const getToken = async (): Promise<string> => {
+    const token = (await supabase.auth.getSession()).data.session?.access_token;
+    if (!token) throw new Error('Your session expired. Please sign in again.');
+    return token;
+  };
+
+  const loadApiKeys = async () => {
+    setApiKeysLoading(true);
+    setApiKeyError(null);
+    try {
+      setApiKeys(await listApiKeys(await getToken()));
+    } catch (err: any) {
+      setApiKeyError(err.message || 'Failed to load API keys.');
+    } finally {
+      setApiKeysLoading(false);
+    }
+  };
+
+  const handleCreateKey = async () => {
+    const name = newKeyName.trim();
+    if (!name || creatingKey) return;
+    setCreatingKey(true);
+    setApiKeyError(null);
+    try {
+      const created = await createApiKey(await getToken(), name);
+      setCreatedKey(created.key);
+      setNewKeyName('');
+      setApiKeys((prev) => [{ id: created.id, name: created.name, key_prefix: created.key_prefix, created_at: created.created_at, last_used_at: null }, ...prev]);
+    } catch (err: any) {
+      setApiKeyError(err.message || 'Failed to create API key.');
+    } finally {
+      setCreatingKey(false);
+    }
+  };
+
+  const handleCopyKey = async () => {
+    if (!createdKey) return;
+    try {
+      await navigator.clipboard.writeText(createdKey);
+      setKeyCopied(true);
+      setKeyToast('API key copied to clipboard');
+    } catch {
+      setApiKeyError('Could not copy automatically. Select the key and copy it manually.');
+    }
+  };
+
+  const handleConfirmRevoke = async () => {
+    if (!keyToRevoke || revokingKey) return;
+    setRevokingKey(true);
+    setRevokeError(null);
+    try {
+      await revokeApiKey(await getToken(), keyToRevoke.id);
+      setApiKeys((prev) => prev.filter((k) => k.id !== keyToRevoke.id));
+      setKeyToast(`API key “${keyToRevoke.name}” deleted`);
+      setKeyToRevoke(null);
+    } catch (err: any) {
+      setRevokeError(err.message || 'Failed to delete API key.');
+    } finally {
+      setRevokingKey(false);
+    }
+  };
+
   const handleSaveChanges = async () => {
     setSaving(true);
     setMessage(null);
@@ -204,6 +304,12 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
         dailySummary,
         priceAlerts,
         autoTrackSignals,
+        editorFontSize,
+        editorTabSize,
+        editorWordWrap,
+        editorMinimap,
+        editorLineNumbers,
+        editorFontLigatures,
       };
 
       const { error } = await supabase
@@ -289,11 +395,29 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
 
             <button
               type="button"
+              className={`st-settings-nav-item ${activeSubTab === 'editor' ? 'is-active' : ''}`}
+              onClick={() => { setActiveSubTab('editor'); setMessage(null); }}
+            >
+              <div className="st-settings-nav-title">Code editor</div>
+              <div className="st-settings-nav-desc">Lab editor appearance</div>
+            </button>
+
+            <button
+              type="button"
               className={`st-settings-nav-item ${activeSubTab === 'notifications' ? 'is-active' : ''}`}
               onClick={() => { setActiveSubTab('notifications'); setMessage(null); }}
             >
               <div className="st-settings-nav-title">Notifications & Alerts</div>
               <div className="st-settings-nav-desc">Manage signal feeds</div>
+            </button>
+
+            <button
+              type="button"
+              className={`st-settings-nav-item ${activeSubTab === 'api' ? 'is-active' : ''}`}
+              onClick={() => { setActiveSubTab('api'); setMessage(null); loadApiKeys(); }}
+            >
+              <div className="st-settings-nav-title">API keys</div>
+              <div className="st-settings-nav-desc">Use the API from your machine</div>
             </button>
           </div>
 
@@ -425,7 +549,7 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
             {activeSubTab === 'notifications' && (
               <div className="st-settings-section">
                 <div className="st-settings-section-heading">
-                  <span className="st-settings-step">03</span>
+                  <span className="st-settings-step">04</span>
                   <h2>Notifications & Alerts</h2>
                 </div>
                 <div className="st-settings-divider" />
@@ -488,7 +612,181 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
               </div>
             )}
 
-            <div className="st-settings-footer">
+            {/* --- 3. Code Editor Section --- */}
+            {activeSubTab === 'editor' && (
+              <div className="st-settings-section">
+                <div className="st-settings-section-heading">
+                  <span className="st-settings-step">03</span>
+                  <h2>Code editor</h2>
+                </div>
+                <div className="st-settings-divider" />
+
+                <div className="st-settings-field">
+                  <label className="st-settings-label">Font size</label>
+                  <Select
+                    value={editorFontSize}
+                    onChange={(val) => setEditorFontSize(Number(val))}
+                    options={EDITOR_FONT_SIZE_OPTIONS}
+                  />
+                  <span className="st-settings-hint">Text size used in the Lab code editor.</span>
+                </div>
+
+                <div className="st-settings-field">
+                  <label className="st-settings-label">Tab size</label>
+                  <RadioGroup
+                    name="editorTabSize"
+                    value={String(editorTabSize)}
+                    onChange={(val) => setEditorTabSize(Number(val))}
+                    options={[
+                      { label: '2 spaces', value: '2' },
+                      { label: '4 spaces', value: '4' },
+                    ]}
+                  />
+                  <span className="st-settings-hint">How many spaces one indent level uses.</span>
+                </div>
+
+                <div className="st-settings-field">
+                  <Checkbox
+                    checked={editorWordWrap}
+                    onChange={(e) => setEditorWordWrap(e.target.checked)}
+                    label="Word wrap"
+                  />
+                  <span className="st-settings-hint is-indented">
+                    Wrap long lines to the width of the editor instead of scrolling sideways.
+                  </span>
+                </div>
+
+                <div className="st-settings-field">
+                  <Checkbox
+                    checked={editorLineNumbers}
+                    onChange={(e) => setEditorLineNumbers(e.target.checked)}
+                    label="Show line numbers"
+                  />
+                  <span className="st-settings-hint is-indented">
+                    Display line numbers in the gutter beside the code.
+                  </span>
+                </div>
+
+                <div className="st-settings-field">
+                  <Checkbox
+                    checked={editorMinimap}
+                    onChange={(e) => setEditorMinimap(e.target.checked)}
+                    label="Show minimap"
+                  />
+                  <span className="st-settings-hint is-indented">
+                    Show a small overview of the whole file on the right edge of the editor.
+                  </span>
+                </div>
+
+                <div className="st-settings-field">
+                  <Checkbox
+                    checked={editorFontLigatures}
+                    onChange={(e) => setEditorFontLigatures(e.target.checked)}
+                    label="Font ligatures"
+                  />
+                  <span className="st-settings-hint is-indented">
+                    Combine symbols such as -&gt; and === into single glyphs in fonts that support them.
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* --- API keys Section --- */}
+            {activeSubTab === 'api' && (
+              <div className="st-settings-section">
+                <div className="st-settings-section-heading">
+                  <span className="st-settings-step">05</span>
+                  <h2>API keys</h2>
+                </div>
+                <div className="st-settings-divider" />
+
+                <div className="st-settings-field">
+                  <label className="st-settings-label" htmlFor="new-api-key-name">Create a key</label>
+                  <div className="st-settings-key-create">
+                    <Input
+                      id="new-api-key-name"
+                      type="text"
+                      value={newKeyName}
+                      onChange={(e) => setNewKeyName(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') handleCreateKey(); }}
+                      placeholder="For example: my laptop"
+                      maxLength={60}
+                      disabled={creatingKey}
+                    />
+                    <Button
+                      variant="primary"
+                      size="md"
+                      onClick={handleCreateKey}
+                      disabled={!newKeyName.trim() || creatingKey}
+                    >
+                      {creatingKey ? <LoaderInline tone="inherit" /> : 'Create key'}
+                    </Button>
+                  </div>
+                  <span className="st-settings-hint">Keys give full access to your account through the API. Treat them like a password.</span>
+                </div>
+
+                {createdKey && (
+                  <div className="st-settings-field st-settings-new-key">
+                    <label className="st-settings-label">Your new key</label>
+                    <div className="st-settings-key-box">
+                      <code className="st-settings-key-value">{createdKey}</code>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleCopyKey}
+                        aria-label="Copy API key"
+                      >
+                        {keyCopied ? <Check size={14} strokeWidth={2} /> : <Copy size={14} strokeWidth={2} />}
+                        {keyCopied ? 'Copied' : 'Copy'}
+                      </Button>
+                    </div>
+                    <span className="st-settings-hint is-warning">Copy it now. You won&apos;t be able to see it again.</span>
+                    <div className="st-settings-new-key-actions">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => { setCreatedKey(null); setKeyCopied(false); }}
+                        disabled={!keyCopied}
+                      >
+                        Done
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {apiKeyError && <div className="st-settings-alert st-settings-alert--error">{apiKeyError}</div>}
+
+                <div className="st-settings-field">
+                  <label className="st-settings-label">Your keys</label>
+                  {apiKeysLoading && <LoaderInline />}
+                  {!apiKeysLoading && apiKeys.length === 0 && (
+                    <span className="st-settings-hint">You have no API keys yet.</span>
+                  )}
+                  {apiKeys.map((key) => (
+                    <div key={key.id} className="st-settings-key-row">
+                      <div>
+                        <div className="st-settings-key-name">{key.name}</div>
+                        <div className="st-settings-hint">
+                          {key.key_prefix}… · created {new Date(key.created_at).toLocaleDateString()}
+                          {' · '}
+                          {key.last_used_at ? `last used ${new Date(key.last_used_at).toLocaleDateString()}` : 'never used'}
+                        </div>
+                      </div>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="st-settings-btn-danger"
+                        onClick={() => { setRevokeError(null); setKeyToRevoke(key); }}
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="st-settings-footer" hidden={activeSubTab === 'api'}>
               <Button
                 variant="primary"
                 size="md"
@@ -572,6 +870,20 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
           </div>
         </div>
       )}
+
+      {keyToRevoke && (
+        <ConfirmDeleteDialog
+          title="Delete this API key?"
+          description={<>Anything using <strong>{keyToRevoke.name}</strong> will stop working right away. This can&apos;t be undone.</>}
+          confirmLabel="Delete key"
+          busy={revokingKey}
+          error={revokeError}
+          onConfirm={handleConfirmRevoke}
+          onCancel={() => { if (!revokingKey) setKeyToRevoke(null); }}
+        />
+      )}
+
+      {keyToast && <SuccessToast message={keyToast} onClose={dismissKeyToast} />}
 
       {/* Reading the profile and writing it back both go over the network, so
           the page waits behind the loader instead of looking empty. */}

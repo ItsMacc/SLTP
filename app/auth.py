@@ -106,6 +106,29 @@ async def get_current_user(authorization: str = Header(default="")) -> dict[str,
 
     token = authorization.removeprefix("Bearer ").strip()
 
+    # Personal API keys (issued in Settings) are checked against Turso.
+    # Imported here because api_keys imports this module.
+    if token.startswith("sltp_"):
+        from app.database.api_keys import user_id_for_api_key
+
+        key_user_id = await user_id_for_api_key(token)
+        if not key_user_id:
+            raise HTTPException(status_code=401, detail="Invalid API key")
+        profile = _fetch_profile(key_user_id)
+        settings = profile.get("settings")
+        if isinstance(settings, str):
+            import json
+            try:
+                settings = json.loads(settings)
+            except ValueError:
+                settings = {}
+        return {
+            "id": key_user_id,
+            "email": profile.get("email"),
+            "name": profile.get("name"),
+            "settings": settings or {},
+        }
+
     try:
         payload = _verify_token(token)
     except jwt.ExpiredSignatureError:
