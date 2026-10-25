@@ -2,7 +2,7 @@
 // QuantConnect-style: sticky sidebar TOC, reference viewers, worked recipes.
 import { useEffect, useState, type ReactNode } from 'react';
 import {
-  Cog, PenLine, FileCode2,
+  ArrowRight, Cog, PenLine, FileCode2,
 } from 'lucide-react';
 import {
   BASE_STRATEGY_SOURCE,
@@ -19,15 +19,15 @@ interface DocsPageProps {
 
 const SECTIONS = [
   { id: 'overview', label: 'Overview', num: '01' },
-  { id: 'methods', label: 'The methods you override', num: '02' },
-  { id: 'setup', label: 'Setting up your classes', num: '03' },
-  { id: 'decision', label: 'Anatomy of a decision', num: '04' },
+  { id: 'methods', label: 'Methods to override', num: '02' },
+  { id: 'setup', label: 'Set up your classes', num: '03' },
+  { id: 'decision', label: 'What a decision holds', num: '04' },
   { id: 'recipe-sma', label: 'Recipe: SMA crossover', num: '05' },
   { id: 'recipe-rsi', label: 'Recipe: RSI dip buyer', num: '06' },
   { id: 'recipe-universe', label: 'Recipe: custom universe', num: '07' },
-  { id: 'reference', label: 'Engine reference', num: '08' },
-  { id: 'api', label: 'API usage', num: '09' },
-  { id: 'gotchas', label: 'Gotchas and checklist', num: '10' },
+  { id: 'reference', label: 'Engine source', num: '08' },
+  { id: 'api', label: 'REST API', num: '09' },
+  { id: 'gotchas', label: 'Pitfalls', num: '10' },
 ];
 
 // ---------- primitives ----------
@@ -123,11 +123,11 @@ export default function DocsPage(_props: DocsPageProps) {
         <div className="docs-hero-inner page-hero-inner">
           <div className="docs-hero-copy">
             <span className="page-hero-eyebrow">Documentation</span>
-            <h1 className="page-hero-title">The two classes behind every strategy.</h1>
+            <h1 className="page-hero-title">Write a strategy in two classes.</h1>
             <p className="page-hero-description">
-              One class decides when to buy. The other decides how much to risk on each
-              position and where to cut losses. Position sizing, fills, fees, stop-losses
-              and the simulation are handled for you.
+              A strategy has a Strategy class that looks at prices and says buy, sell or hold,
+              and a Manager class that decides how much to put into each trade. The engine runs
+              the rest: fills, fees, stop-losses and the day-by-day simulation.
             </p>
           </div>
         </div>
@@ -160,16 +160,16 @@ export default function DocsPage(_props: DocsPageProps) {
               <h2>Overview</h2>
             </div>
             <p>
-              A strategy on SLTP is a pair of classes that answer two different questions.
-              The <strong>Strategy</strong> answers <em>"is now a good time to buy this ticker?"</em>.
-              The <strong>Manager</strong> answers <em>"if I buy, how much do I bet, and where do I cut losses?"</em>.
+              A strategy is two classes that each answer one question. The{' '}
+              <strong>Strategy</strong> asks whether a ticker looks like a buy today. The{' '}
+              <strong>Manager</strong> takes a yes and decides the position size and the stop-loss
+              and take-profit levels.
             </p>
             <p>
-              You never touch order execution, fees, slippage, portfolio accounting or
-              the simulation loop. The engine handles all of it. Your job is purely
-              the decision-making, which keeps your code small and easy to reason about.
+              You don't write order execution, fees, slippage or portfolio bookkeeping. The engine
+              does that. You only write the decisions, so each file stays short.
             </p>
-            <p>Concretely, you override one method per class:</p>
+            <p>In practice you override one method in each class:</p>
             <div className="docs-ref-notes">
               <div className="docs-ref-note">
                 <h5>Strategy — decide</h5>
@@ -186,17 +186,44 @@ export default function DocsPage(_props: DocsPageProps) {
                 </ul>
               </div>
             </div>
+
+            <p>Every trading day, the engine runs the same loop for each ticker:</p>
+
+            <div className="docs-flow" aria-label="What happens each trading day">
+              <div className="docs-flow-step">
+                <FileCode2 size={18} />
+                <div className="docs-flow-text">
+                  <span className="docs-flow-label">1 · Strategy decides</span>
+                  <p>Returns a StrategyDecision: BUY, SELL or HOLD, plus a confidence score.</p>
+                </div>
+                <ArrowRight className="docs-flow-arrow" size={16} />
+              </div>
+              <div className="docs-flow-step">
+                <PenLine size={18} />
+                <div className="docs-flow-text">
+                  <span className="docs-flow-label">2 · Manager sizes</span>
+                  <p>Takes each BUY and returns a TradeRecord with size, stop-loss and take-profit, or None.</p>
+                </div>
+                <ArrowRight className="docs-flow-arrow" size={16} />
+              </div>
+              <div className="docs-flow-step">
+                <Cog size={18} />
+                <div className="docs-flow-text">
+                  <span className="docs-flow-label">3 · Engine fills</span>
+                  <p>Fills the order at the next day's open, then closes it at the stop or the target.</p>
+                </div>
+              </div>
+            </div>
           </section>
 
-          {/* 02 Methods, in english */}
+          {/* 02 Methods */}
           <section id="methods" className="docs-section">
             <div className="docs-section-heading">
               <span className="docs-section-num">02</span>
               <h2>The methods you override</h2>
             </div>
             <p>
-              Here is what each one actually does, in plain terms, assuming you have
-              written some Python but never built a trading system.
+              What each method is for, and what it hands back.
             </p>
 
             <div className="docs-method-card">
@@ -208,15 +235,12 @@ export default function DocsPage(_props: DocsPageProps) {
                 </div>
               </div>
               <p>
-                <code>generate_signal</code> is invoked once per trading day for each ticker
-                in the universe. It receives <code>history</code>, a table of daily prices
-                ending at the current date, and must return a decision object describing
-                whether to buy, sell, or hold. Strategies declare the minimum amount of
-                history they require through <code>MIN_BARS_REQUIRED</code>, and raise a
-                <code> ValueError</code> when the input is shorter; the engine interprets
-                this as "not yet tradable" and continues. The function is expected to be
-                stateless and side-effect free: each call is an independent evaluation of
-                the chart up to that day.
+                The engine calls <code>generate_signal</code> once per trading day for each ticker.
+                It passes <code>history</code>, the daily prices up to and including that day, and
+                you return a <code>StrategyDecision</code> saying BUY, SELL or HOLD. If there aren't
+                enough bars yet, raise <code>ValueError</code>. The backtester catches it, skips that
+                ticker for the day, and moves on. Keep the method free of side effects, because each
+                call should depend only on the prices it's given.
               </p>
             </div>
 
@@ -229,15 +253,12 @@ export default function DocsPage(_props: DocsPageProps) {
                 </div>
               </div>
               <p>
-                <code>on_signal</code> acts as the risk-management layer between signal
-                generation and execution. The Strategy proposes an entry; the Manager
-                validates it against the portfolio state (existing positions, blacklisted
-                tickers, position limits) and, if accepted, converts it into a trade order.
-                The order specifies <code>allocation_size</code>, the fraction of portfolio
-                value to commit, along with <code>stop_loss</code> and <code>take_profit</code>
-                price levels. Returning a <code>TradeRecord</code> queues the buy; returning
-                <code> None</code> declines it. Orders are never executed inline: the engine
-                fills queued buys at the next trading day's open.
+                <code>on_signal</code> gets each BUY from your Strategy. Check it against your
+                current positions and limits. If you want the trade, return a{' '}
+                <code>TradeRecord</code> with <code>allocation_size</code> (a fraction of the
+                portfolio), a <code>stop_loss</code> and a <code>take_profit</code> price. Return{' '}
+                <code>None</code> to skip it. The engine doesn't fill the order on the spot. It fills
+                at the next trading day's open.
               </p>
             </div>
 
@@ -250,14 +271,9 @@ export default function DocsPage(_props: DocsPageProps) {
                 </div>
               </div>
               <p>
-                Most strategies operate on a selected subset of the market rather than the
-                full ticker list. <code>initialize_universe</code> performs that selection
-                once at the start of the run: screen tickers against whatever criteria the
-                strategy defines (liquidity, trend, sector) and load daily data for the
-                tickers that pass. If the underlying data is unavailable for the given
-                date, return <code>False</code> and the engine retries on the following
-                calendar day. Strategies that trade the full tradable list may omit this
-                method entirely.
+                Use this to pick which tickers you trade. Return <code>True</code> once you have a
+                list. If the data isn't ready for that date, return <code>False</code> and the engine
+                tries again the next day. If you trade the whole market, skip this method.
               </p>
             </div>
 
@@ -270,13 +286,10 @@ export default function DocsPage(_props: DocsPageProps) {
                 </div>
               </div>
               <p>
-                <code>on_rebalance</code> runs on the schedule configured through
-                <code> REBALANCE_FREQUENCY</code> (weekly, monthly, quarterly, and so on)
-                and is the point at which the universe is refreshed: underperforming
-                tickers are removed and fresh candidates are brought in. The engine
-                assists with one detail: a losing ticker that still holds an open position
-                can be added to <code>blacklisted_tickers</code>, and the engine removes it
-                from the universe automatically once that position closes.
+                Runs on the schedule set by <code>REBALANCE_FREQUENCY</code> (weekly, monthly and so
+                on). Use it to drop weak tickers and bring in new ones. If you drop a ticker you
+                still hold, add it to <code>blacklisted_tickers</code>. The engine removes it from the
+                list once that position closes.
               </p>
             </div>
           </section>
@@ -288,9 +301,9 @@ export default function DocsPage(_props: DocsPageProps) {
               <h2>Setting up your classes</h2>
             </div>
             <p>
-              Every project has two packages. <code>core/</code> is the engine, read-only:
-              the base classes and helpers you build on. <code>workspace/</code> is yours:
-              the files you write. You reach the engine through its <code>core.*</code> paths.
+              Your project has two folders. <code>core/</code> holds the engine and the base
+              classes. Treat it as read-only. <code>workspace/</code> holds your files. Import the
+              base classes from <code>core.*</code>.
             </p>
             <CodeBlock source={`core/
 ├── portfolio/portfolio_manager.py
@@ -303,18 +316,16 @@ workspace/
 ├── custom_strategy.py
 └── custom_manager.py`} title="project layout" readOnly={false} />
             <p>
-              Before any of those methods run, both classes need a short
-              <code> __init__</code>. This is where you declare what your strategy is and
-              how it should behave.
+              Both classes set themselves up in <code>__init__</code>. That's where you name the
+              strategy, pick its settings and say how much history it needs.
             </p>
 
-            <Step n="1" title="Initialize the Strategy">
+            <Step n="1" title="Set up the Strategy">
               <p>
-                Set a <code>name</code> and <code>description</code>, attach the Manager,
-                define your strategy's tunable parameters as plain attributes, and set
-                <code> MIN_BARS_REQUIRED</code>: the minimum number of daily bars your logic
-                needs before it can produce a real signal. The engine skips any ticker with
-                less history than that, so set it to your longest lookback window plus a small buffer.
+                Give it a name and description, attach your Manager, and put your settings in plain
+                attributes. <code>MIN_BARS_REQUIRED</code> is how many days of prices your logic
+                needs. Set it to your longest lookback plus a small margin. The engine skips a ticker
+                until it has that much history.
               </p>
               <CodeBlock source={`def __init__(self):
     super().__init__()
@@ -330,10 +341,9 @@ workspace/
     self.MIN_BARS_REQUIRED = self.SLOW + 2`} title="strategy __init__" readOnly={false} />
             </Step>
 
-            <Step n="2" title="Initialize the Manager">
+            <Step n="2" title="Set up the Manager">
               <p>
-                Call <code>super().__init__()</code> and set the position limits and the
-                schedule. The three settings that matter:
+                Set the position limit and the rebalance schedule. These three settings matter most:
               </p>
               <CodeBlock source={`def __init__(self):
     super().__init__()
@@ -355,10 +365,8 @@ workspace/
               <h2>Anatomy of a decision</h2>
             </div>
             <p>
-              <code>StrategyDecision</code> is the only thing your Strategy ever returns,
-              so it is worth knowing exactly what belongs in it. Every decision must include
-              the following. Anything else you add is up to you: these dicts exist precisely
-              so you can debug and track whatever you find useful.
+              Your Strategy always returns a <code>StrategyDecision</code>. It needs a few fixed
+              keys. Add anything else you want for debugging. The engine stores it with the trade.
             </p>
 
             <div className="docs-field-group">
@@ -374,40 +382,40 @@ workspace/
                 <code>on_signal</code>.
               </Field>
               <Field name="confidence" required>
-                {'A float from 0.0 to 1.0. The Manager receives it and may scale the position size by it, so it should be derived from how strongly the entry conditions are met.'}
+                {'A number from 0.0 to 1.0. Higher means a stronger setup. The Manager can use it to size the position.'}
               </Field>
             </div>
 
             <div className="docs-field-group">
               <p className="docs-field-group-title">metrics</p>
               <Field name="close_price" required>
-                {'The current close of the ticker, as '}
+                {'Today\'s closing price, written as '}
                 <code>{'float(close_price[-1])'}</code>
-                {'. The Manager typically needs it to compute stop-loss and take-profit levels from price.'}
+                {'. The Manager uses it to work out stop-loss and take-profit levels.'}
               </Field>
               <Field name="...anything else">
-                {'Every indicator that drove the decision: '}
+                {'The indicator values behind the decision, like '}
                 <code>rsi</code>
-                {', '}
+                {' or '}
                 <code>fast_sma</code>
-                {', and so on. There are no other required keys. Values must be floats, and they are what make a signal explainable after the fact.'}
+                {'. Use floats. These values are what let you explain a trade later.'}
               </Field>
             </div>
 
             <div className="docs-field-group">
               <p className="docs-field-group-title">meta_data</p>
               <Field name="signal_date" required>
-                {'The date the signal was generated, as '}
+                {'The date of the signal, written as '}
                 <code>{'str(history.dates[-1])'}</code>
-                {'. The Manager uses it to locate the signal day in history (for ATR-style stops), and the trade record carries it for auditability.'}
+                {'. It is saved on the trade record so you can trace it later.'}
               </Field>
               <Field name="ticker" required>
-                {'The ticker the decision is for. This keeps decisions self-contained wherever they get logged or stored.'}
+                {'The ticker this decision is about.'}
               </Field>
               <Field name="...anything else">
-                {'Parameter dumps, regime flags, or any other annotations. '}
+                {'Any notes you want to keep. '}
                 <code>meta_data</code>
-                {' accepts arbitrary values, not just floats.'}
+                {' accepts values of any type, not just numbers.'}
               </Field>
             </div>
 
@@ -421,9 +429,9 @@ workspace/
               <h2>Recipe: SMA crossover</h2>
             </div>
             <p>
-              The classic trend-following entry: buy when the fast moving average crosses
-              above the slow one, exit via a fixed-percentage stop and target. This is a
-              complete, runnable strategy, both files.
+              A trend-following entry. It buys when the fast moving average moves above the slow
+              one, and the trade exits at a fixed stop and target. Both files below make a complete
+              strategy.
             </p>
 
             <Step n="1" title="The Strategy (workspace/sma_crossover.py)">
@@ -546,10 +554,9 @@ class SMACrossoverManager(PortfolioManager):
               <h2>Recipe: RSI dip buyer</h2>
             </div>
             <p>
-              A mean-reversion pattern: buy oversold conditions with confidence scaled
-              by how deep the dip is. This one shows the <code>_rsi</code> helper and
-              how to derive confidence from indicator extremes. Both files, with the
-              Strategy first.
+              A mean-reversion entry. It buys when RSI drops below 30 while the price is still above
+              its 200-day average. The deeper the dip, the larger the position. This recipe uses the{" "}
+              <code>_rsi</code> helper from the base class.
             </p>
 
             <Step n="1" title="The Strategy (workspace/rsi_dip_buyer.py)">
@@ -652,11 +659,10 @@ class RSIDipBuyerManager(PortfolioManager):
               <h2>Recipe: custom universe</h2>
             </div>
             <p>
-              If your strategy selects its own tickers instead of trading everything,
-              this is the pattern for <code>initialize_universe</code> and
-              <code> on_rebalance</code>. Return <code>False</code> from
-              <code> initialize_universe</code> if data is not ready; the engine walks
-              forward day by day and retries (up to two months).
+              If your strategy picks its own tickers, this is how to use{' '}
+              <code>initialize_universe</code> and <code>on_rebalance</code>. Return{' '}
+              <code>False</code> from <code>initialize_universe</code> when the data isn't ready. The
+              engine then tries the next day, for up to 60 days.
             </p>
             <CodeBlock source={`# The market-data helpers are engine-side. The project reaches them
 # through the backend path, the same way the core package does.
@@ -704,8 +710,8 @@ def on_rebalance(self, current_date: str) -> None:
               <h2>Engine reference</h2>
             </div>
             <p>
-              Read-only views of the classes you are extending. The Strategy base gives you
-              ~25 technical indicators as one-line helpers, so you rarely need TA-Lib directly.
+              The source of the classes you extend, read-only. The Strategy base class has about 25
+              indicators built in, so you rarely need to import a TA library.
             </p>
 
             <div className="docs-ref-notes">
@@ -720,10 +726,10 @@ def on_rebalance(self, current_date: str) -> None:
               <div className="docs-ref-note">
                 <h5>Leave alone (Manager)</h5>
                 <ul>
-                  <li><code>check_exits</code> — SL/TP engine with gap handling</li>
-                  <li><code>buy_order</code> — fills, slippage, fees, allocation caps</li>
-                  <li><code>mark_to_market</code> — daily equity accounting</li>
-                  <li><code>_base_allocation</code> — quarter-Kelly sizing</li>
+                  <li><code>check_exits</code> — checks stop-loss and take-profit, including gaps</li>
+                  <li><code>buy_order</code> — fills, slippage, fees and allocation caps</li>
+                  <li><code>mark_to_market</code> — daily portfolio value</li>
+                  <li><code>_base_allocation</code> — default sizing (quarter-Kelly)</li>
                 </ul>
               </div>
             </div>
@@ -745,11 +751,11 @@ def on_rebalance(self, current_date: str) -> None:
               <span className="docs-section-num">09</span>
               <h2>API usage</h2>
             </div>
-            <p>Everything the site does, you can do over the REST API.</p>
+            <p>Anything you can do on the site, you can also do through the REST API.</p>
 
             <div className="docs-api-item">
               <div className="docs-api-route"><span className="docs-api-method">GET</span><code>/api/stock/history?ticker=AAPL&timeframe=1y</code></div>
-              <p>Daily candles for one ticker. <code>timeframe</code> accepts <code>1y</code>, <code>2y</code>, <code>5y</code>, <code>all</code>.</p>
+              <p>Daily prices for one ticker. <code>timeframe</code> can be <code>1y</code>, <code>2y</code>, <code>5y</code> or <code>all</code>.</p>
               <CodeBlock source={`[
   { "date": "2026-09-22", "open": 171.2, "high": 173.8,
     "low": 170.6, "close": 173.1, "volume": 54120300 },
@@ -765,7 +771,7 @@ def on_rebalance(self, current_date: str) -> None:
 
             <div className="docs-api-item">
               <div className="docs-api-route"><span className="docs-api-method">GET</span><code>/api/backtest/run?strategy_id=sma-crossover&start_date=2023-01-01</code></div>
-              <p>Runs a full simulation and returns metrics, the equity curve and every trade.</p>
+              <p>Runs a full backtest. Returns the metrics, the equity curve and every trade.</p>
               <CodeBlock source={`{
   "strategy_id": "sma-crossover",
   "strategy_name": "SMA Crossover",
@@ -802,15 +808,15 @@ def on_rebalance(self, current_date: str) -> None:
               <h2>Gotchas and checklist</h2>
             </div>
             <ul className="docs-checklist">
-              <li>Set <code>MIN_BARS_REQUIRED</code> honestly and raise <code>ValueError</code> when history is shorter. The engine treats that as "not yet tradable" and moves on.</li>
-              <li>You can never look ahead: <code>history</code> is sliced up to today before your code runs. The last element of every array is today.</li>
-              <li>Signals do not fill immediately. Buys queue and fill at the <strong>next trading day's open</strong>, with slippage and fees applied.</li>
-              <li>Stop-loss is checked before take-profit on the same bar (pessimistic priority), and gaps fill at the open, not at your exact level.</li>
-              <li><code>allocation_size</code> is a fraction of portfolio value. Total open allocation is capped at 100%; <code>buy_order</code> trims your allocation to whatever remains.</li>
-              <li><code>_base_allocation</code> needs about 10 closed trades before the Kelly sizing kicks in; before that it returns <code>1 / max_positions</code>.</li>
-              <li>Returning <code>False</code> from <code>initialize_universe</code> is normal: the engine retries the next calendar day.</li>
-              <li>Blacklisted tickers cannot re-enter until their position closes, <code>on_rebalance</code> is where that cleanup usually lives.</li>
-              <li>Portfolio value starts at <strong>100.0</strong> (an index). Scale results to any dollar amount you like.</li>
+              <li>Set <code>MIN_BARS_REQUIRED</code> to the real number of bars you need, and raise <code>ValueError</code> when you have less. The backtester skips that ticker for the day.</li>
+              <li>You can't see the future. <code>history</code> stops at today, so the last element of every array is today's value.</li>
+              <li>Orders don't fill on the day of the signal. A buy fills at the <strong>next day's open</strong>, with slippage and fees.</li>
+              <li>If a bar hits both stop-loss and take-profit, the stop-loss wins. A gap fills at the open price, not at your level.</li>
+              <li><code>allocation_size</code> is a share of the portfolio. Open allocations can't add up to more than 100%, so <code>buy_order</code> trims yours to what's left.</li>
+              <li><code>_base_allocation</code> uses <code>1 / max_positions</code> until you've closed about 10 trades. After that it switches to Kelly sizing.</li>
+              <li>Returning <code>False</code> from <code>initialize_universe</code> is fine. The engine tries again the next day.</li>
+              <li>A blacklisted ticker can't be bought again until its open position closes. Clean the list up in <code>on_rebalance</code>.</li>
+              <li>Portfolio value starts at <strong>100.0</strong>, an index. Scale the results however you like.</li>
             </ul>
           </section>
 
