@@ -1,4 +1,4 @@
-# SLTP — Stock-Loss Take-Profit
+# SLTP
 
 A full-stack platform for exploring, backtesting, and deploying algorithmic trading strategies with risk management and zero setup.
 
