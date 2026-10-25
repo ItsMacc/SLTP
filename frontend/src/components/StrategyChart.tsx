@@ -1,8 +1,7 @@
-// StrategyChart.tsx — Strategy runner: equity chart and metrics sidebar
+// StrategyChart.tsx — Strategy runner: strategy list, equity chart, metrics
 
 import React, { useState, useMemo, useRef, useLayoutEffect, useCallback, useEffect } from 'react'
 import './StrategyChart.css'
-import Select, { type SelectOption } from '../ui/Select'
 import TradeResults, { type TradeRecord } from './TradeResults'
 import DatePicker from '../ui/DatePicker'
 import ErrorToast from '../ui/ErrorToast'
@@ -99,6 +98,8 @@ export default function StrategyChart() {
       .then((data: StrategyOption[]) => {
         if (!cancelled && Array.isArray(data) && data.length > 0) {
           setStrategies(data)
+          // Open on the first published strategy so a run is one click away.
+          setSelectedStrategy((current) => current || data[0]!.id)
         }
       })
       .catch(() => {
@@ -331,216 +332,236 @@ export default function StrategyChart() {
 
   const hoveredCandle = hover && candles[hover.index] ? candles[hover.index] : null
 
-  const selectOptions = useMemo(() => {
-    const options: SelectOption[] = [{ label: 'None', value: '' }]
-    strategies.forEach((s) => {
-      options.push({ label: s.name, value: s.id })
-    })
-    return options
-  }, [strategies])
-
   return (
     <div className="strategy-card">
       {(inputError || error) && (
         <ErrorToast message={inputError || error!} onClose={handleCloseErrors} />
       )}
 
-      <div className="strategy-controls-bar">
-        <form className="strategy-date-form" onSubmit={handleRunCalculation}>
-          {selectOptions.length > 0 && (
-            <Select
-              label="Strategy"
-              options={selectOptions}
-              value={selectedStrategy}
-              onChange={(val) => setSelectedStrategy(val as string)}
+      <div className="strategy-workspace">
+        <aside className="strategy-library" aria-label="Strategy library">
+          <div className="strategy-library-head" aria-hidden="true">
+            <span>Strategy</span>
+            <span>{strategiesLoading ? '…' : strategies.length}</span>
+          </div>
+
+          <div className="strategy-library-scroll">
+            {strategiesLoading && (
+              <div className="strategy-library-status">
+                <LoaderRow label="Loading the strategy library…" />
+              </div>
+            )}
+
+            {!strategiesLoading && strategies.length === 0 && (
+              <p className="strategy-library-status">No published strategies yet.</p>
+            )}
+
+            {!strategiesLoading && strategies.length > 0 && (
+              <ul className="strategy-library-list">
+                {strategies.map((strategy) => {
+                  const isActive = strategy.id === selectedStrategy
+                  return (
+                    <li key={strategy.id}>
+                      <button
+                        type="button"
+                        className={`strategy-row ${isActive ? 'is-active' : ''}`}
+                        aria-pressed={isActive}
+                        // A run is already in flight; switching underneath it
+                        // would leave the results under the wrong name.
+                        disabled={loading}
+                        onClick={() => {
+                          setSelectedStrategy(strategy.id)
+                          if (inputError) setInputError(null)
+                        }}
+                      >
+                        <span className="strategy-row-name">{strategy.name}</span>
+                        {strategy.description && (
+                          <span className="strategy-row-desc">{strategy.description}</span>
+                        )}
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </div>
+        </aside>
+
+        <div className="strategy-detail">
+          <div className="strategy-controls-bar">
+            <form className="strategy-date-form" onSubmit={handleRunCalculation}>
+              <DatePicker
+                id="start-date"
+                label="Start Date *"
+                value={startDate}
+                onChange={(dateStr) => {
+                  setStartDate(dateStr)
+                  if (inputError) setInputError(null)
+                }}
+                placeholder="2020-01-01"
+              />
+
+              <DatePicker
+                id="end-date"
+                label="End Date (Optional)"
+                value={endDate}
+                onChange={(dateStr) => setEndDate(dateStr)}
+                placeholder="Select end date"
+              />
+
+              <Button type="submit" variant="primary" size="md" disabled={loading || strategiesLoading}>
+                {loading ? 'Running...' : 'Run Analysis'}
+              </Button>
+            </form>
+          </div>
+
+          {loading && (
+            <LoaderScreen
+              label={`Running ${strategies.find((s) => s.id === selectedStrategy)?.name || 'strategy'}…`}
+              sub="Simulating the backtest engine over your date range — this can take a moment."
             />
           )}
 
-          <DatePicker
-            id="start-date"
-            label="Start Date *"
-            value={startDate}
-            onChange={(dateStr) => {
-              setStartDate(dateStr)
-              if (inputError) setInputError(null)
-            }}
-            placeholder="2020-01-01"
-          />
-
-          <DatePicker
-            id="end-date"
-            label="End Date (Optional)"
-            value={endDate}
-            onChange={(dateStr) => setEndDate(dateStr)}
-            placeholder="Select end date"
-          />
-
-          <Button type="submit" variant="primary" size="md" disabled={loading || strategiesLoading}>
-            {loading ? 'Running...' : 'Run Analysis'}
-          </Button>
-        </form>
-
-        {/* The strategy library is read on mount: the stock line says it is
-            still on its way. */}
-        {strategiesLoading && (
-          <p className="strategy-loading">
-            <LoaderRow label="Loading the strategy library…" />
-          </p>
-        )}
-      </div>
-
-      {loading && (
-        <LoaderScreen
-          label={`Running ${strategies.find((s) => s.id === selectedStrategy)?.name || 'strategy'}…`}
-          sub="Simulating the backtest engine over your date range — this can take a moment."
-        />
-      )}
-
-      {/* While the library is still being read there is nothing to run yet, so
-          the results area carries the loading screen. */}
-      {!loading && !error && !backtestResult && strategiesLoading && (
-        <LoaderScreen
-          label="Loading strategies…"
-          sub="Fetching the list of published strategies from the server."
-        />
-      )}
-
-      {!loading && !error && !backtestResult && !strategiesLoading && (
-        <div className="empty-state">
-          <p className="empty-state-title">No Strategy Selected</p>
-          <p className="empty-state-body">
-            Select a start date above and click 'Run Analysis' to execute the backtest.
-          </p>
-        </div>
-      )}
-
-      {!loading && !error && backtestResult && (
-        <div className="strategy-content-layout">
-          <div className="strategy-chart-container">
-            <div className="strategy-chart-header">
-              <h3 className="strategy-title">{backtestResult.strategy_name}</h3>
-              {candles.length > 0 && (
-                <span className="strategy-subtext">
-                  {candles[0].date} to {candles[candles.length - 1].date}
-                </span>
-              )}
+          {!loading && !error && !backtestResult && !strategiesLoading && (
+            <div className="empty-state">
+              <p className="empty-state-title">No backtest yet</p>
+              <p className="empty-state-body">
+                Pick a strategy from the list, set a start date, then run the analysis.
+              </p>
             </div>
+          )}
 
-            <div className="strategy-chart-scroll" ref={scrollRef}>
-              <div
-                ref={containerRef}
-                className="strategy-plot-area"
-                style={{ height }}
-                onPointerMove={handlePointerMove}
-                onPointerLeave={() => setHover(null)}
-              >
-                <svg width={width} height={height}>
-                  {gridTicks.map((val) => {
-                    const y = getY(val)
-                    return (
-                      <g key={val}>
-                        <line x1={0} x2={plotWidth} y1={y} y2={y} className="strategy-grid-line" />
-                        <text x={plotWidth + 8} y={y + 4} className="strategy-axis-label">
-                          {formatNumber(val)}
-                        </text>
-                      </g>
-                    )
-                  })}
-
-                  {candles.map((candle, idx) => {
-                    const step = plotWidth / Math.max(1, candles.length - 1)
-                    const x = idx * step
-                    const openY = getY(candle.open)
-                    const closeY = getY(candle.close)
-                    const highY = getY(candle.high)
-                    const lowY = getY(candle.low)
-
-                    const isBullish = candle.close >= candle.open
-                    const candleColor = isBullish ? 'var(--success)' : 'var(--error)'
-
-                    const candleWidth = Math.max(2, Math.min(8, step * 0.7))
-                    const topY = Math.min(openY, closeY)
-                    const bodyHeight = Math.max(1, Math.abs(closeY - openY))
-
-                    return (
-                      <g key={candle.date + idx}>
-                        <line x1={x} x2={x} y1={highY} y2={lowY} stroke={candleColor} strokeWidth={1} />
-                        <rect
-                          x={x - candleWidth / 2}
-                          y={topY}
-                          width={candleWidth}
-                          height={bodyHeight}
-                          fill={candleColor}
-                          rx={1}
-                        />
-                      </g>
-                    );
-                  })}
-
-                  {hover && (
-                    <g pointerEvents="none">
-                      <line
-                        x1={hover.x}
-                        x2={hover.x}
-                        y1={PADDING_TOP}
-                        y2={PADDING_TOP + plotHeight}
-                        className="strategy-crosshair"
-                      />
-                    </g>
+          {!loading && !error && backtestResult && (
+            <>
+              <article className="strategy-chart-container">
+                <div className="strategy-chart-header">
+                  <h3 className="strategy-title">{backtestResult.strategy_name}</h3>
+                  {candles.length > 0 && (
+                    <span className="strategy-subtext">
+                      {candles[0].date} to {candles[candles.length - 1].date}
+                    </span>
                   )}
-                </svg>
+                </div>
 
-                {hoveredCandle && hover && (
+                <div className="strategy-chart-scroll" ref={scrollRef}>
                   <div
-                    className="strategy-tooltip"
-                    style={{
-                      left: Math.min(hover.x + 12, plotWidth - 160),
-                      top: Math.max(PADDING_TOP, hover.y - 65),
-                    }}
+                    ref={containerRef}
+                    className="strategy-plot-area"
+                    style={{ height }}
+                    onPointerMove={handlePointerMove}
+                    onPointerLeave={() => setHover(null)}
                   >
-                    <p className="tooltip-date">{hoveredCandle.date}</p>
-                    <p className="tooltip-value">O: {formatNumber(hoveredCandle.open)}</p>
-                    <p className="tooltip-value">C: {formatNumber(hoveredCandle.close)}</p>
+                    <svg width={width} height={height}>
+                      {gridTicks.map((val) => {
+                        const y = getY(val)
+                        return (
+                          <g key={val}>
+                            <line x1={0} x2={plotWidth} y1={y} y2={y} className="strategy-grid-line" />
+                            <text x={plotWidth + 8} y={y + 4} className="strategy-axis-label">
+                              {formatNumber(val)}
+                            </text>
+                          </g>
+                        )
+                      })}
+
+                      {candles.map((candle, idx) => {
+                        const step = plotWidth / Math.max(1, candles.length - 1)
+                        const x = idx * step
+                        const openY = getY(candle.open)
+                        const closeY = getY(candle.close)
+                        const highY = getY(candle.high)
+                        const lowY = getY(candle.low)
+
+                        const isBullish = candle.close >= candle.open
+                        const candleColor = isBullish ? 'var(--success)' : 'var(--error)'
+
+                        const candleWidth = Math.max(2, Math.min(8, step * 0.7))
+                        const topY = Math.min(openY, closeY)
+                        const bodyHeight = Math.max(1, Math.abs(closeY - openY))
+
+                        return (
+                          <g key={candle.date + idx}>
+                            <line x1={x} x2={x} y1={highY} y2={lowY} stroke={candleColor} strokeWidth={1} />
+                            <rect
+                              x={x - candleWidth / 2}
+                              y={topY}
+                              width={candleWidth}
+                              height={bodyHeight}
+                              fill={candleColor}
+                              rx={1}
+                            />
+                          </g>
+                        );
+                      })}
+
+                      {hover && (
+                        <g pointerEvents="none">
+                          <line
+                            x1={hover.x}
+                            x2={hover.x}
+                            y1={PADDING_TOP}
+                            y2={PADDING_TOP + plotHeight}
+                            className="strategy-crosshair"
+                          />
+                        </g>
+                      )}
+                    </svg>
+
+                    {hoveredCandle && hover && (
+                      <div
+                        className="strategy-tooltip"
+                        style={{
+                          left: Math.min(hover.x + 12, plotWidth - 160),
+                          top: Math.max(PADDING_TOP, hover.y - 65),
+                        }}
+                      >
+                        <p className="tooltip-date">{hoveredCandle.date}</p>
+                        <p className="tooltip-value">O: {formatNumber(hoveredCandle.open)}</p>
+                        <p className="tooltip-value">C: {formatNumber(hoveredCandle.close)}</p>
+                      </div>
+                    )}
                   </div>
+                </div>
+
+                {chartScrollable && (
+                  <p className="strategy-scroll-hint">Swipe to scroll chart</p>
                 )}
-              </div>
-            </div>
+              </article>
 
-            {chartScrollable && (
-              <p className="strategy-scroll-hint">Swipe to scroll chart</p>
-            )}
-          </div>
+              {orderedMetricsList.length > 0 && (
+                <article className="strategy-metrics-card">
+                  <h4 className="strategy-metrics-title">Performance metrics</h4>
+                  <div className="strategy-metrics-grid">
+                    {orderedMetricsList.map(({ key, label, value }) => {
+                      const normalizedKey = key.toLowerCase().replace(/[^a-z0-9]/g, '')
+                      const formattedVal = formatMetricValue(value)
+                      const isNumeric = typeof value === 'number'
+                      const isPositive = isNumeric && value > 0
+                      const isNegative = isNumeric && value < 0
 
-          <div className="strategy-metrics-sidebar">
-            <h4 className="metrics-title">Performance Metrics</h4>
-            <div className="metrics-grid">
-              {orderedMetricsList.map(({ key, label, value }) => {
-                const normalizedKey = key.toLowerCase().replace(/[^a-z0-9]/g, '')
-                const formattedVal = formatMetricValue(value)
-                const isNumeric = typeof value === 'number'
-                const isPositive = isNumeric && value > 0
-                const isNegative = isNumeric && value < 0
+                      let colorClass = ''
+                      if (normalizedKey.includes('winrate')) {
+                        colorClass = 'is-positive'
+                      } else if (normalizedKey.includes('return') || normalizedKey.includes('cagr')) {
+                        colorClass = isPositive ? 'is-positive' : isNegative ? 'is-negative' : ''
+                      } else if (normalizedKey.includes('drawdown') || normalizedKey.includes('lossrate')) {
+                        colorClass = 'is-negative'
+                      }
 
-                let colorClass = ''
-                if (normalizedKey.includes('winrate')) {
-                  colorClass = 'is-positive'
-                } else if (normalizedKey.includes('return') || normalizedKey.includes('cagr')) {
-                  colorClass = isPositive ? 'is-positive' : isNegative ? 'is-negative' : ''
-                } else if (normalizedKey.includes('drawdown') || normalizedKey.includes('lossrate')) {
-                  colorClass = 'is-negative'
-                }
-
-                return (
-                  <div className="metric-card" key={key}>
-                    <span className="metric-label">{label}</span>
-                    <span className={`metric-value ${colorClass}`}>{formattedVal}</span>
+                      return (
+                        <div className="strategy-metric" key={key}>
+                          <span className="strategy-metric-label">{label}</span>
+                          <span className={`strategy-metric-value ${colorClass}`}>{formattedVal}</span>
+                        </div>
+                      )
+                    })}
                   </div>
-                )
-              })}
-            </div>
-          </div>
+                </article>
+              )}
+            </>
+          )}
         </div>
-      )}
+      </div>
 
       {backtestResult && <TradeResults trades={backtestResult.trades ?? null} />}
 

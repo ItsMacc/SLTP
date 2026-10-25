@@ -1,5 +1,5 @@
 /* ============================================================
-   PerformancePage.css — Portfolio performance dashboard
+   PerformancePage.css — Price history workspace
 
    Width conventions: % / vw for layout widths; rem for fixed
    UI atoms. Breakpoints in rem.
@@ -32,154 +32,557 @@
   max-width: min(58rem, 100%); /* ≈928px reading measure */
 }
 
-.perf-hero-actions {
-  display: flex;
-  align-items: center;
-  padding-top: var(--space-lg);
-  border-top: 1px solid var(--border-subtle);
-}
-
-.perf-chart-wrapper {
-  background: var(--bg-surface);
-  padding: var(--space-lg);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-}
-
+/* The workspace runs wider than the reading pages and sits to the left of the
+   frame, with a clear inset on both sides so the cards never crowd the edge.
+   The padding covers everything inside it, including the closing guide. */
 .perf-section {
-  max-width: min(68.5rem, 95vw);
   width: 100%;
-  margin: 0 auto;
+  max-width: min(96rem, 95vw); /* ≈1536px */
+  margin-left: 0;
+  margin-right: auto;
+  padding-inline: var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
 }
 
-/* ---------- mode switch ---------- */
+@media (min-width: 64rem) {
+  .perf-section {
+    padding-inline: var(--space-xl);
+  }
+}
 
-.mode-switch {
+/* ---------- view tabs ---------- */
+
+.perf-tabs {
+  display: flex;
+  gap: var(--space-lg);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.perf-tab {
   position: relative;
   display: inline-flex;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  padding: 0.1875rem; /* ≈3px — thumb must clear the border */
-}
-
-.mode-switch-thumb {
-  position: absolute;
-  top: 0.1875rem;
-  bottom: 0.1875rem;
-  left: 0.1875rem;
-  width: calc(50% - 0.1875rem);
-  background: var(--accent-muted);
-  border: 1px solid var(--accent);
-  border-radius: var(--radius-sm);
-  transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.mode-switch-thumb.is-right {
-  transform: translateX(100%);
-}
-
-.mode-switch-btn {
-  position: relative;
-  z-index: 1;
+  align-items: baseline;
+  gap: var(--space-xs);
   border: none;
   background: transparent;
   color: var(--text-muted);
   font-family: var(--font-sans);
   font-size: var(--text-sm);
   font-weight: 600;
-  padding: var(--space-sm) var(--space-lg);
-  border-radius: var(--radius-sm);
+  padding: var(--space-md) var(--space-2xs);
   cursor: pointer;
-  min-width: 6.25rem; /* ≈100px — keeps the two switch labels even */
+  transition: color 0.2s ease;
 }
 
-.mode-switch-btn.is-active {
+.perf-tab::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 0.125rem; /* ≈2px rule */
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.perf-tab-label {
+  color: inherit;
+}
+
+.perf-tab-meta {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  transition: color 0.2s ease;
+}
+
+.perf-tab.is-active {
+  color: var(--text-primary);
+}
+
+.perf-tab.is-active::after {
+  transform: scaleX(1);
+}
+
+.perf-tab.is-active .perf-tab-meta {
   color: var(--accent);
 }
 
-/* ---------- controls ---------- */
+.perf-tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
 
-.perf-controls {
+/* ---------- workspace: list beside the chart ---------- */
+
+.perf-workspace {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-lg);
+}
+
+@media (min-width: 64rem) {
+  .perf-workspace {
+    grid-template-columns: minmax(14rem, 17.5rem) minmax(0, 1fr);
+    align-items: stretch;
+  }
+}
+
+.perf-watchlist {
   display: flex;
-  gap: var(--space-sm);
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  margin-bottom: var(--space-lg);
+  flex-direction: column;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  /* Floor for the moments when the panel beside it is only a loader or an
+     empty state, so the list does not collapse to its header. */
+  min-height: 20rem;
 }
 
-.ticker-search {
+/* Search field: the list below is the suggestion surface, so the field
+   never opens a dropdown of its own. */
+.perf-search {
   position: relative;
-  flex: 1 1 clamp(16.25rem, 25vw, 21.25rem); /* 260px→340px search field, viewport-aware */
+  padding: var(--space-md);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
-.ticker-search-icon {
+.perf-search-icon {
   position: absolute;
-  left: var(--space-sm);
+  left: calc(var(--space-md) + var(--space-xs));
   top: 50%;
   transform: translateY(-50%);
+  display: inline-flex;
   color: var(--text-muted);
-  font-size: var(--text-sm);
   pointer-events: none;
 }
 
-.ticker-search-input {
+.perf-search-input {
   width: 100%;
-  background: var(--bg-surface);
+  box-sizing: border-box;
+  background: var(--bg-canvas);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: var(--text-sm);
-  padding: var(--space-sm) var(--space-md) var(--space-sm) var(--space-xl);
+  padding: var(--space-sm) var(--space-xl) var(--space-sm) var(--space-2xl);
   outline: none;
-  box-sizing: border-box;
+  transition: border-color 0.2s ease, background 0.2s ease;
 }
 
-.ticker-search-input:focus {
+.perf-search-input::placeholder {
+  color: var(--text-muted);
+}
+
+.perf-search-input:focus {
   border-color: var(--accent);
+  background: var(--bg-surface);
 }
 
-.ticker-suggestions {
+.perf-search-clear {
   position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  right: 0;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
+  right: calc(var(--space-md) + var(--space-xs));
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  line-height: 1;
+  padding: 0 var(--space-3xs);
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.perf-search-clear:hover {
+  color: var(--text-primary);
+}
+
+.perf-watchlist-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--border-subtle);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.perf-watchlist-scroll {
+  max-height: min(34rem, 58vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+.perf-watchlist-scroll::-webkit-scrollbar {
+  width: 0.5rem; /* ≈8px scroll rail */
+}
+
+.perf-watchlist-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.perf-watchlist-scroll::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: var(--radius-full);
+}
+
+.perf-watchlist-list {
   list-style: none;
   margin: 0;
   padding: var(--space-2xs);
-  z-index: 10;
-  box-shadow: var(--shadow-lg);
-  max-height: 13.75rem; /* ≈220px — suggestions scroll cap */
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3xs);
 }
 
-.ticker-suggestions li button {
+.perf-watchlist-status {
+  padding: var(--space-lg) var(--space-md);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.perf-row {
+  display: grid;
+  /* Symbol and figures size to their content; the sparkline takes the slack
+     in between, the way the rest of the financial UI reads. */
+  grid-template-columns: auto minmax(3.5rem, 1fr) auto;
+  align-items: center;
+  gap: var(--space-sm);
   width: 100%;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm);
   text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.perf-row-symbol {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color 0.15s ease;
+}
+
+.perf-row-spark {
+  display: block;
+  height: 1.75rem; /* ≈28px sparkline */
+}
+
+.perf-spark {
+  display: block;
+  width: 100%;
+  height: 100%;
+  color: var(--accent);
+}
+
+.perf-spark.is-up { color: var(--success); }
+.perf-spark.is-down { color: var(--error); }
+
+.perf-row-spark-wait {
+  display: block;
+  height: 1px;
+  margin-top: 0.8125rem; /* centres the rule in the row */
+  background: var(--border-subtle);
+}
+
+.perf-row-figures {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-3xs);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.perf-row-price {
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.perf-row-change {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.perf-row-change.is-up { color: var(--success); }
+.perf-row-change.is-down { color: var(--error); }
+
+.perf-row.is-active {
+  background: var(--accent-muted);
+}
+
+.perf-row.is-active .perf-row-symbol {
+  color: var(--accent);
+}
+
+.perf-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  border-radius: var(--radius-sm);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .perf-row:hover {
+    background: var(--bg-surface-hover);
+  }
+
+  .perf-tab:hover {
+    color: var(--text-primary);
+  }
+}
+
+/* ---------- detail column ---------- */
+
+.perf-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  min-width: 0;
+}
+
+.perf-quote-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-lg);
+}
+
+/* The chart component draws its own frame. Inside the quote card that frame
+   is already the card, so the plot sits bare on it. */
+.perf-quote-card .chart-card {
   background: transparent;
   border: none;
-  color: var(--text-primary);
-  font-family: var(--font-mono);
-  font-size: var(--text-sm);
-  padding: var(--space-xs) var(--space-sm);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
 }
 
-.ticker-suggestions li button:hover {
+.perf-quote-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.perf-quote-identity {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  min-width: 0;
+}
+
+.perf-quote-ticker {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--text-primary);
+}
+
+.perf-quote-price-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-sm);
+  margin: 0;
+}
+
+.perf-quote-price {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(1.75rem, 3vw, 2.5rem);
+  line-height: 1.1;
+  color: var(--text-primary);
+}
+
+.perf-quote-range {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-sm);
+}
+
+.perf-quote-range.is-up { color: var(--success); }
+.perf-quote-range.is-down { color: var(--error); }
+
+.perf-quote-span {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.perf-quote-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.perf-style-group {
+  display: inline-flex;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.perf-style-btn {
+  border: none;
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  padding: var(--space-sm) var(--space-md);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.perf-style-btn + .perf-style-btn {
+  border-left: 1px solid var(--border-subtle);
+}
+
+.perf-style-btn.is-active {
   background: var(--accent-muted);
   color: var(--accent);
 }
 
-/* The ticker list is still being read: the stock line says so in place of
-   the suggestions. */
-.ticker-suggestion-loading {
+.perf-quote-ohlc {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-md);
+  margin: 0;
   padding: var(--space-xs) var(--space-sm);
+  background: var(--bg-canvas);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.perf-quote-ohlc b {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.perf-quote-date {
+  color: var(--text-primary);
+}
+
+/* ---------- stats ---------- */
+
+.perf-stats-card {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.perf-stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  padding: var(--space-lg);
+  border-right: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.perf-stat:nth-child(3n) {
+  border-right: none;
+}
+
+.perf-stat:nth-last-child(-n + 3) {
+  border-bottom: none;
+}
+
+.perf-stat-label {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.perf-stat-value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-xl);
+  color: var(--text-primary);
+}
+
+.perf-stat-value.is-up { color: var(--success); }
+.perf-stat-value.is-down { color: var(--error); }
+
+.perf-stat-note {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* ---------- states ---------- */
+
+.empty-state {
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: var(--space-2xl) var(--space-lg);
+  text-align: center;
+}
+
+.empty-state-title {
+  font-weight: 600;
+  margin: 0 0 var(--space-xs);
+}
+
+.empty-state-body {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  margin: 0;
+  max-width: 40ch;
+  margin-inline: auto;
+}
+
+.status-text {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  margin: 0;
+}
+
+.status-text.is-error {
+  color: var(--error);
 }
 
 .timeframe-group {
@@ -198,6 +601,7 @@
   font-weight: 500;
   padding: var(--space-sm) var(--space-md);
   cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .timeframe-btn + .timeframe-btn {
@@ -209,53 +613,79 @@
   color: var(--accent);
 }
 
-/* ---------- states ---------- */
-
-.empty-state {
-  border: 1px dashed var(--border-strong);
-  border-radius: var(--radius-md);
-  padding: var(--space-2xl) var(--space-lg);
-  text-align: center;
-  margin-bottom: var(--space-lg);
-}
-
-.empty-state-title {
-  font-weight: 600;
-  margin: 0 0 var(--space-xs);
-}
-
-.empty-state-body {
-  color: var(--text-muted);
-  font-size: var(--text-sm);
-  margin: 0;
-  max-width: 40ch;
-  margin-inline: auto;
-}
-
-.empty-state-strategies {
-  border-style: solid;
-  background: var(--bg-surface);
-  box-shadow: var(--shadow-sm);
-}
-
-.status-text {
-  color: var(--text-muted);
-  font-size: var(--text-sm);
-  margin-bottom: var(--space-md);
-}
-
-.status-text.is-error {
-  color: var(--error);
-}
-
-
-/* ---------- Mobile: stack mode switch ---------- */
-@media (max-width: 40rem) {
-  .mode-switch {
-    align-self: stretch;
-    display: flex;
+/* ---------- Wide: the list matches the chart + stats column ----------
+   Size containment keeps the scrolled rows out of the row's height, so the
+   grid row is as tall as the chart card and stats card together and the list
+   simply fills the remainder. */
+@media (min-width: 64rem) {
+  .perf-watchlist-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    contain: size;
   }
-  .mode-switch-btn {
-    flex: 1;
+}
+
+/* ---------- Small screens: list stacks above the chart ---------- */
+@media (max-width: 63.999rem) {
+  .perf-watchlist-scroll {
+    max-height: min(20rem, 45vh);
+  }
+}
+
+@media (max-width: 48rem) {
+  .perf-stats-card {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .perf-stat:nth-child(3n) {
+    border-right: 1px solid var(--border-subtle);
+  }
+
+  .perf-stat:nth-child(2n) {
+    border-right: none;
+  }
+
+  .perf-stat:nth-last-child(-n + 3) {
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .perf-stat:nth-last-child(-n + 2) {
+    border-bottom: none;
+  }
+}
+
+/* Only the narrowest phones drop to one column; two fit comfortably and keep
+   the six figures from becoming a very long scroll. */
+@media (max-width: 23rem) {
+  .perf-stats-card {
+    grid-template-columns: 1fr;
+  }
+
+  .perf-stat,
+  .perf-stat:nth-child(3n),
+  .perf-stat:nth-child(2n) {
+    border-right: none;
+  }
+
+  .perf-stat:nth-last-child(-n + 2) {
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .perf-stat:last-child {
+    border-bottom: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .perf-tab,
+  .perf-tab::after,
+  .perf-tab-meta,
+  .perf-row,
+  .perf-row-symbol,
+  .perf-search-input,
+  .perf-style-btn,
+  .timeframe-btn {
+    transition: none;
   }
 }

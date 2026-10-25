@@ -394,11 +394,11 @@ const PAGE_TOURS: PageTour[] = [
         },
       },
       {
-        element: '.ticker-search',
+        element: '.perf-search',
         popover: {
           title: 'Search a ticker',
           description:
-            'Type a short code such as AAPL. The list filters as you type.',
+            'Type a short code such as AAPL. The scrollable list below narrows as you type.',
           side: 'bottom',
           align: 'start',
         },
@@ -414,7 +414,7 @@ const PAGE_TOURS: PageTour[] = [
         },
       },
       {
-        element: '.perf-chart-wrapper',
+        element: '.perf-quote-card',
         popover: {
           title: 'Price chart',
           description:
@@ -434,7 +434,7 @@ const PAGE_TOURS: PageTour[] = [
         },
       },
       {
-        element: '.mode-switch',
+        element: '.perf-tabs',
         popover: {
           title: 'Two modes',
           description:
@@ -444,7 +444,7 @@ const PAGE_TOURS: PageTour[] = [
           onNextClick: (_el, _step, opts) => {
             /* Flip the Performance page into Strategies mode, then advance
                once the strategy view has mounted. */
-            const buttons = document.querySelectorAll('.mode-switch-btn');
+            const buttons = document.querySelectorAll('.perf-tab');
             (buttons[1] as HTMLElement | undefined)?.click();
             window.setTimeout(() => opts.driver.moveNext(), 250);
           },
@@ -468,7 +468,7 @@ const PAGE_TOURS: PageTour[] = [
         popover: {
           title: 'Set up the run',
           description:
-            'Choose a strategy and a start date, optionally an end date, then press Run Analysis.',
+            'Pick a strategy from the list on the left, choose a start date, optionally an end date, then press Run Analysis.',
           side: 'bottom',
           align: 'start',
         },

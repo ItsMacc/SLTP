@@ -43,14 +43,12 @@
   .docs-layout {
     grid-template-columns: minmax(0, 1fr);
   }
-  .docs-toc {
-    position: static;
-    max-height: none;
-    min-width: 0;
-  }
 }
 
-/* ---------- Sidebar TOC ---------- */
+/* ---------- Sidebar TOC ----------
+   Four short groups, numbered continuously, with the current section marked by
+   a rail and a weight change rather than colour: it reads like a book index,
+   which is the whole point of the rail. */
 .docs-toc {
   position: sticky;
   top: 5.5rem; /* ≈88px — clears the header */
@@ -59,15 +57,23 @@
   gap: var(--space-3xs);
   max-height: calc(100vh - 6.875rem); /* ≈110px */
   overflow-y: auto;
+  padding-bottom: var(--space-md);
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
 }
 
 .docs-toc-heading {
   font-family: var(--font-mono);
-  font-size: 0.66rem;
-  letter-spacing: 0.2em;
+  font-size: var(--text-xs);
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--text-muted);
-  margin: 0 0 calc(var(--space-sm) * 1.25);
+  margin: var(--space-lg) 0 var(--space-xs);
+  padding-left: calc(var(--space-sm) * 1.25);
+}
+
+.docs-toc-heading:first-child {
+  margin-top: 0;
 }
 
 .docs-toc-link {
@@ -78,8 +84,9 @@
   background: none;
   border: none;
   border-left: 2px solid transparent;
-  padding: calc(var(--space-sm) * 0.875) calc(var(--space-sm) * 1.25);
-  font-size: 0.86rem;
+  padding: var(--space-xs) calc(var(--space-sm) * 1.25);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
   color: var(--text-muted);
   cursor: pointer;
   transition: color 0.15s ease, border-color 0.15s ease;
@@ -88,14 +95,51 @@
 .docs-toc-link:hover { color: var(--text-primary); }
 
 .docs-toc-link.is-active {
-  color: var(--accent);
+  color: var(--text-primary);
+  font-weight: 600;
   border-left-color: var(--accent);
+}
+
+.docs-toc-link.is-active .docs-toc-num {
+  color: var(--accent);
+  opacity: 1;
 }
 
 .docs-toc-num {
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: var(--text-xs);
   opacity: 0.7;
+}
+
+.docs-toc-label {
+  min-width: 0;
+}
+
+/* Stacked layout: the index can no longer ride along the side, so it becomes a
+   two-column block above the content instead of a pinned column. */
+@media (max-width: 56.25rem) { /* ≈900px */
+  .docs-toc {
+    position: static;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--space-md);
+    row-gap: var(--space-3xs);
+    max-height: none;
+    overflow: visible;
+    min-width: 0;
+    padding-bottom: var(--space-lg);
+    margin-bottom: var(--space-lg);
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .docs-toc-heading {
+    grid-column: 1 / -1;
+    margin-top: var(--space-md);
+  }
+
+  .docs-toc-heading:first-child {
+    margin-top: 0;
+  }
 }
 
 /* ---------- Sections ---------- */
@@ -107,23 +151,37 @@
 
 .docs-section:last-child { border-bottom: none; }
 
+/* Section opener: mono eyebrow naming the group, then the serif title and a
+   one-sentence lead, so each section announces itself in the same order. */
 .docs-section-heading {
   display: flex;
-  align-items: baseline;
-  gap: calc(var(--space-sm) * 1.5);
-  margin-bottom: calc(var(--space-md) * 1.125);
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-lg);
 }
 
-.docs-section-num {
+.docs-section-eyebrow {
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
   color: var(--accent);
 }
 
 .docs-section-heading h2 {
   font-family: var(--font-heading);
-  font-size: 1.5rem;
+  font-size: clamp(1.75rem, 2.6vw, 2.35rem);
+  line-height: 1.15;
+  color: var(--text-primary);
   margin: 0;
+}
+
+.docs-section .docs-section-lead {
+  margin: var(--space-xs) 0 0;
+  max-width: 66ch;
+  font-size: var(--text-lg);
+  line-height: 1.65;
+  color: var(--text-muted);
 }
 
 .docs-section p {
@@ -140,9 +198,15 @@
   background: var(--bg-surface-hover);
   border-radius: var(--radius-sm);
   padding: var(--space-3xs) var(--space-xs);
-  margin: 0 var(--space-3xs);
   color: var(--accent);
   white-space: nowrap;
+}
+
+/* Punctuation should sit against the chip, not float away from it. */
+.docs-section p code,
+.docs-section dd code,
+.docs-section dt code {
+  margin: 0;
 }
 
 /* ---------- Callout ---------- */
@@ -163,24 +227,59 @@
 
 .docs-callout svg { color: var(--accent); flex-shrink: 0; margin-top: var(--space-3xs); }
 
-.docs-callout-cta { margin-top: var(--space-lg); }
-
-/* ---------- Flow diagram ---------- */
-.docs-flow {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-  margin: calc(var(--space-md) * 1.125) 0;
+.docs-callout-title {
+  margin: 0 0 var(--space-2xs);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
-.docs-flow-step {
+.docs-section .docs-callout-body {
+  margin: 0;
+  max-width: none;
+  font-size: var(--text-sm);
+  line-height: 1.6;
+}
+
+.docs-inline-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+  cursor: pointer;
+}
+
+.docs-inline-link:hover { color: var(--accent-hover); }
+
+/* ---------- Flow diagram: three cards, one trading day ---------- */
+.docs-flow {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-sm);
+  margin: var(--space-lg) 0;
+}
+
+@media (min-width: 64rem) {
+  .docs-flow {
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+  }
+}
+
+.docs-flow-card {
   display: flex;
-  align-items: center;
-  gap: calc(var(--space-sm) * 1.75);
-  background: var(--bg-surface-hover);
+  flex-direction: column;
+  gap: var(--space-xs);
+  height: 100%;
+  background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
-  padding: calc(var(--space-sm) * 1.5) var(--space-md);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-lg);
 }
 
 .docs-flow-icon {
@@ -189,35 +288,34 @@
   display: grid;
   place-items: center;
   border-radius: var(--radius-sm);
-  background: var(--accent);
-  color: var(--bg-canvas);
+  background: var(--accent-muted);
+  color: var(--accent);
   flex-shrink: 0;
 }
 
-.docs-flow-text { min-width: 0; }
-
 .docs-flow-label {
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-  color: var(--accent);
-  display: block;
-  margin-bottom: var(--space-3xs);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
-.docs-flow-text p {
+.docs-flow-card p {
   margin: 0;
-  font-size: 0.85rem;
-  line-height: 1.5;
+  font-size: var(--text-sm);
+  line-height: 1.6;
 }
 
 .docs-flow-arrow {
-  margin-left: auto;
+  display: none;
   color: var(--text-muted);
-  flex-shrink: 0;
+  justify-self: center;
 }
 
-@media (max-width: 37.5rem) { /* ≈600px */
-  .docs-flow-arrow { display: none; }
+@media (min-width: 64rem) {
+  .docs-flow-arrow {
+    display: block;
+  }
 }
 
 /* ---------- Steps ---------- */
@@ -289,6 +387,22 @@
   overflow-x: auto;
   max-height: 35rem; /* ≈560px */
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+.docs-code-pre::-webkit-scrollbar {
+  width: 0.5rem; /* ≈8px rail */
+  height: 0.5rem;
+}
+
+.docs-code-pre::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: var(--radius-full);
+}
+
+.docs-code-pre::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .docs-code-pre code {
@@ -333,91 +447,210 @@
   background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 
-/* ---------- Method cards ---------- */
-.docs-method-card {
+/* ---------- The two classes, side by side ---------- */
+.docs-duo {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-md);
+  margin: var(--space-lg) 0;
+}
+
+@media (min-width: 48rem) {
+  .docs-duo {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.docs-duo-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
-  border-left: 3px solid var(--accent);
   border-radius: var(--radius-md);
-  padding: calc(var(--space-sm) * 1.75) calc(var(--space-md) * 1.125);
-  margin-bottom: calc(var(--space-sm) * 1.75);
-  background: var(--bg-surface-hover);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-lg);
 }
 
-.docs-method-head {
-  display: flex;
-  align-items: flex-start;
-  gap: calc(var(--space-sm) * 1.25);
-  margin-bottom: var(--space-sm);
+.docs-duo-label {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
 }
 
-.docs-method-head svg { color: var(--accent); flex-shrink: 0; margin-top: calc(var(--space-2xs) * 0.75); }
+.docs-duo-title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: var(--text-xl);
+  line-height: 1.25;
+  color: var(--text-primary);
+}
 
-.docs-method-head > div {
+.docs-duo-sig {
   display: flex;
-  align-items: center;
-  gap: calc(var(--space-sm) * 1.25);
   flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+  padding-top: var(--space-sm);
+  border-top: 1px dashed var(--border-subtle);
 }
 
-.docs-method-head code {
-  font-size: 0.86rem;
-  max-width: 100%;
+.docs-duo-sig code {
   overflow-wrap: anywhere;
   white-space: normal;
 }
 
-.docs-method-card p {
-  font-size: 0.9rem;
+.docs-section .docs-duo-note {
   margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
 }
 
-/* ---------- Decision fields ---------- */
-.docs-field-group {
+/* ---------- Method reference cards ---------- */
+.docs-signature {
+  background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
-  padding: calc(var(--space-sm) * 1.75) calc(var(--space-md) * 1.125);
-  margin-bottom: calc(var(--space-sm) * 1.75);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  margin-bottom: var(--space-md);
 }
 
-.docs-field-group-title {
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-  color: var(--accent);
-  margin: 0 0 calc(var(--space-sm) * 1.25) !important;
-}
-
-.docs-field { margin-bottom: calc(var(--space-sm) * 1.5); }
-
-.docs-field:last-child { margin-bottom: 0; }
-
-.docs-field-head {
+.docs-signature-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: calc(var(--space-sm) * 1.25);
-  margin-bottom: var(--space-2xs);
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  background: var(--bg-surface-hover);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
-.docs-field-head code { font-size: 0.84rem; }
+.docs-signature-head code {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  background: none;
+  padding: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
 
+.docs-signature-rows { margin: 0; }
+
+.docs-signature-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-2xs);
+  padding: var(--space-md);
+  border-bottom: 1px dashed var(--border-subtle);
+}
+
+@media (min-width: 48rem) {
+  .docs-signature-row {
+    grid-template-columns: 9.5rem minmax(0, 1fr); /* ≈152px label column */
+    gap: var(--space-md);
+    align-items: baseline;
+  }
+}
+
+.docs-signature-row:last-child { border-bottom: none; }
+
+.docs-signature-row dt {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.docs-signature .docs-signature-row dd {
+  margin: 0;
+  font-size: var(--text-base);
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.docs-signature-row dd strong { color: var(--text-primary); }
+
+/* ---------- Field tables ---------- */
+.docs-table {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  margin: var(--space-lg) 0;
+}
+
+.docs-table-head {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-2xs);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-surface-hover);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.docs-table-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-2xs);
+  padding: var(--space-md);
+  border-top: 1px solid var(--border-subtle);
+}
+
+@media (min-width: 48rem) {
+  .docs-table-head,
+  .docs-table-row {
+    grid-template-columns: 14rem minmax(0, 1fr); /* ≈224px name column */
+    gap: var(--space-md);
+    align-items: baseline;
+  }
+}
+
+.docs-table-row code {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  background: none;
+  padding: 0;
+  margin: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.docs-section .docs-table-row p {
+  margin: 0;
+  max-width: none;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+/* ---------- Required / optional tags ---------- */
 .docs-field-tag {
   font-family: var(--font-mono);
-  font-size: 0.6rem;
-  letter-spacing: 0.12em;
+  font-size: var(--text-xs);
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   color: var(--text-muted);
   padding: var(--space-3xs) var(--space-xs);
+  white-space: nowrap;
 }
 
 .docs-field-tag.is-required {
   color: var(--accent);
   border-color: var(--accent);
-}
-
-.docs-field p {
-  margin: 0 !important;
-  font-size: 0.88rem;
 }
 
 /* ---------- Reference notes grid ---------- */

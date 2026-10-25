@@ -60,6 +60,7 @@ import ImportFolderDialog from '../lab/ImportFolderDialog';
 import Button from '../ui/Button';
 import SuccessToast from '../ui/SuccessToast';
 import { LoaderInline, LoaderOverlay, LoaderScreen } from '../ui/Loader';
+import { modShortcut } from '../shortcuts';
 import './LabEditorPage.css';
 
 const FILE_NAME_RE = /^(?:[A-Za-z0-9_-]{1,50}\/)*[A-Za-z0-9_-]{1,50}\.py$/;
@@ -925,7 +926,7 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
             className="lab-editor-btn lab-desktop-only"
             disabled={!activeFile || !isDirty(activeFile)}
             onClick={() => active && void saveFile(active)}
-            title="Save (Ctrl+S)"
+            title={`Save (${modShortcut('S')})`}
           >
             {savingFile ? (
               <>
@@ -944,7 +945,7 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
             className="lab-editor-btn lab-desktop-only"
             disabled={!activeFile || loading}
             onClick={runActive}
-            title="Run the open file (Ctrl+Enter)"
+            title={`Run the open file (${modShortcut('Enter')})`}
           >
             <Play size={12} aria-hidden="true" /> Run
           </Button>
@@ -1223,7 +1224,7 @@ function TerminalPanelView({ lines, onClear, onClose }: TerminalPanelProps) {
       <div className="lab-terminal-body" ref={bodyRef} role="log" aria-live="polite">
         {lines.length === 0 ? (
           <p className="lab-terminal-empty">
-            Press Run (or Ctrl+Enter) to run the open file. It runs on the server, and the
+            Press Run (or {modShortcut('Enter')}) to run the open file. It runs on the server, and the
             output appears here.
           </p>
         ) : (

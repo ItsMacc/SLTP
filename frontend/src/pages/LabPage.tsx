@@ -1,6 +1,6 @@
 // LabPage.tsx — Lab home: start a project, reopen recent work, and manage workspaces and projects.
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowRight, ChevronRight, FileCode, Folder, Plus, Search, Trash2 } from 'lucide-react';
+import { ArrowRight, ChevronRight, FileCode, Folder, Lock, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import {
   createLabProject,
@@ -11,6 +11,7 @@ import {
   type LabProject,
   type LabWorkspace,
 } from '../../lib/api';
+import { MOD_LABEL } from '../shortcuts';
 import type { LabTemplateId } from '../lab/templates';
 import type { NewProjectInput } from './LabNewProject';
 import Button from '../ui/Button';
@@ -47,6 +48,16 @@ function formatDate(iso: string): string {
   if (Number.isNaN(date.getTime())) return '—';
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
+
+// The engine's execution costs are fixed, not per-project settings
+// (app/engine/portfolio/portfolio_manager.py), so the page states them instead of
+// offering controls that would not do anything.
+const ENGINE_DEFAULTS = [
+  { label: 'Fill price', value: 'Next day open' },
+  { label: 'Slippage', value: '0.05% per fill' },
+  { label: 'Fee', value: '0.10% per fill' },
+  { label: 'Start value', value: 'Index 100.00' },
+];
 
 /** What a pending delete will remove. */
 type DeleteTarget = {
@@ -256,27 +267,27 @@ export default function LabPage({ onNavigate }: LabPageProps) {
       </div>
 
       <div className="lab-page">
-        <div className="lab-cards">
-        <aside className="lab-start" aria-label="Start">
-          <section className="lab-card" aria-labelledby="lab-new-title">
-            <p className="lab-eyebrow">New project</p>
-            <h2 id="lab-new-title" className="lab-section-title">Build a strategy</h2>
-            <p className="lab-card-text">
-              Each project opens in its own editor, with the engine classes read-only and your code in workspace/.
-            </p>
-            <Button variant="primary" size="md" className="lab-full" onClick={() => startWizard()}>
-              <Plus size={15} aria-hidden="true" /> New project
-            </Button>
-          </section>
-        </aside>
+        <div className="lab-top">
+          <aside className="lab-start" aria-label="Start">
+            <section className="lab-card lab-start-card" aria-labelledby="lab-new-title">
+              <p className="lab-eyebrow">New project</p>
+              <h2 id="lab-new-title" className="lab-start-title">Build a strategy</h2>
+              <p className="lab-card-text">
+                Each project opens in its own editor, with the engine classes read-only and your code in{' '}
+                <code>workspace/</code>.
+              </p>
+              <Button variant="primary" size="md" className="lab-full" onClick={() => startWizard()}>
+                <Plus size={15} aria-hidden="true" /> New project
+              </Button>
+            </section>
+          </aside>
 
-        <div className="lab-workspace-panel">
-          <section className="lab-card lab-ws" aria-labelledby="workspace-title">
+          <section className="lab-ws" aria-labelledby="workspace-title">
             <header className="lab-ws-header">
               <h2 id="workspace-title" className="lab-ws-title">Workspaces</h2>
               <span className="lab-ws-meta">
-                {workspaces.length} active workspace{workspaces.length === 1 ? '' : 's'} · {projectCount} strateg
-                {projectCount === 1 ? 'y' : 'ies'}
+                {workspaces.length} workspace{workspaces.length === 1 ? '' : 's'} · {projectCount} project
+                {projectCount === 1 ? '' : 's'}
               </span>
             </header>
 
@@ -293,120 +304,185 @@ export default function LabPage({ onNavigate }: LabPageProps) {
                 />
                 <kbd className="lab-ws-kbd" aria-hidden="true">/</kbd>
               </label>
-              <Button variant="primary" size="sm" className="lab-ws-new" onClick={() => startWizard('blank', 'new')}>
+              <Button variant="secondary" size="sm" className="lab-ws-new" onClick={() => startWizard('blank', 'new')}>
                 <Plus size={13} aria-hidden="true" /> New workspace
               </Button>
             </div>
 
-            <div className="lab-ws-columns" aria-hidden="true">
-              <span>Project</span>
-              <span>Files</span>
-              <span>Created</span>
-              <span />
-            </div>
+            <div className="lab-ws-scroll">
+              <div className="lab-ws-columns" aria-hidden="true">
+                <span>Project</span>
+                <span className="lab-ws-col is-files">Files</span>
+                <span className="lab-ws-col is-created">Created</span>
+                <span />
+              </div>
 
-            <ul className="lab-ws-list">
-              {loading && (
-                <li className="lab-ws-empty">
-                  <LoaderScreen
-                    label="Loading workspaces…"
-                    sub="Reading your workspaces and projects from the account store."
-                  />
-                </li>
-              )}
-
-              {!loading && loadError && (
-                <li className="lab-ws-empty">
-                  <span className="lab-ws-empty-title">{loadError}</span>
-                  <Button variant="secondary" size="sm" onClick={() => void loadWorkspaces()}>
-                    Try again
-                  </Button>
-                </li>
-              )}
-
-              {!loading && !loadError && workspaces.length === 0 && (
-                <li className="lab-ws-empty">
-                  <span className="lab-ws-empty-title">No workspaces yet</span>
-                  <span>Create a project to get started — it will show up here.</span>
-                </li>
-              )}
-
-              {!loading && !loadError && workspaces.length > 0 && visibleWorkspaces.length === 0 && (
-                <li className="lab-ws-empty">No workspaces match “{query.trim()}”.</li>
-              )}
-
-              {visibleWorkspaces.map((ws) => {
-                const isOpen =
-                  expanded.has(ws.id) || (q !== '' && ws.projects.some((p) => p.name.toLowerCase().includes(q)));
-                return (
-                  <li key={ws.id} className={`lab-ws-group${isOpen ? ' is-expanded' : ''}`}>
-                    <div className="lab-ws-row">
-                      <button
-                        type="button"
-                        className="lab-ws-row-main"
-                        onClick={() => toggleWorkspace(ws.id)}
-                        aria-expanded={isOpen}
-                      >
-                        <ChevronRight size={14} aria-hidden="true" className="lab-ws-caret" />
-                        <Folder size={14} aria-hidden="true" className="lab-ws-folder" />
-                        <span className="lab-ws-name"><Highlight text={ws.name} query={q} /></span>
-                      </button>
-                      <span className="lab-ws-badge">
-                        {ws.projects.length} strateg{ws.projects.length === 1 ? 'y' : 'ies'}
-                      </span>
-                      <Button
-                        variant="danger"
-                        size="icon"
-                        className="lab-icon-button lab-icon-button-danger"
-                        aria-label={`Delete workspace ${ws.name}`}
-                        onClick={() => askDelete({ kind: 'workspace', id: ws.id, name: ws.name })}
-                      >
-                        <Trash2 size={14} aria-hidden="true" />
-                      </Button>
-                    </div>
-
-                    {isOpen && (
-                      <ul className="lab-ws-strategies">
-                        {ws.projects.length === 0 && (
-                          <li className="lab-ws-empty">No projects in this workspace yet.</li>
-                        )}
-                        {ws.projects.map((p) => (
-                          <li key={p.id}>
-                            <div className="lab-ws-strategy">
-                              <button
-                                type="button"
-                                className="lab-ws-strategy-open"
-                                onClick={() => openInEditor(p, ws.name)}
-                              >
-                                <span className="lab-ws-strategy-name">
-                                  <FileCode size={14} aria-hidden="true" />
-                                  <span><Highlight text={p.name} query={q} /></span>
-                                </span>
-                              </button>
-                              <span className="lab-ws-cell">
-                                {p.file_count ?? 0} file{(p.file_count ?? 0) === 1 ? '' : 's'}
-                              </span>
-                              <span className="lab-ws-cell">{formatDate(p.created_at)}</span>
-                              <Button
-                                variant="danger"
-                                size="icon"
-                                className="lab-icon-button lab-icon-button-danger"
-                                aria-label={`Delete project ${p.name}`}
-                                onClick={() => askDelete({ kind: 'project', id: p.id, name: p.name })}
-                              >
-                                <Trash2 size={14} aria-hidden="true" />
-                              </Button>
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
+              <ul className="lab-ws-list">
+                {loading && (
+                  <li className="lab-ws-empty">
+                    <LoaderScreen
+                      label="Loading workspaces…"
+                      sub="Reading your workspaces and projects from the account store."
+                    />
                   </li>
-                );
-              })}
-            </ul>
+                )}
+
+                {!loading && loadError && (
+                  <li className="lab-ws-empty">
+                    <span className="lab-ws-empty-title">{loadError}</span>
+                    <Button variant="secondary" size="sm" onClick={() => void loadWorkspaces()}>
+                      Try again
+                    </Button>
+                  </li>
+                )}
+
+                {!loading && !loadError && workspaces.length === 0 && (
+                  <li className="lab-ws-empty">
+                    <span className="lab-ws-empty-title">No workspaces yet</span>
+                    <span>Create a project to get started — it will show up here.</span>
+                  </li>
+                )}
+
+                {!loading && !loadError && workspaces.length > 0 && visibleWorkspaces.length === 0 && (
+                  <li className="lab-ws-empty">No workspaces match “{query.trim()}”.</li>
+                )}
+
+                {visibleWorkspaces.map((ws) => {
+                  const isOpen =
+                    expanded.has(ws.id) || (q !== '' && ws.projects.some((p) => p.name.toLowerCase().includes(q)));
+                  return (
+                    <li key={ws.id} className={`lab-ws-group${isOpen ? ' is-expanded' : ''}`}>
+                      <div className="lab-ws-row">
+                        <button
+                          type="button"
+                          className="lab-ws-row-main"
+                          onClick={() => toggleWorkspace(ws.id)}
+                          aria-expanded={isOpen}
+                        >
+                          <ChevronRight size={14} aria-hidden="true" className="lab-ws-caret" />
+                          <Folder size={14} aria-hidden="true" className="lab-ws-folder" />
+                          <span className="lab-ws-name"><Highlight text={ws.name} query={q} /></span>
+                          <span className="lab-ws-badge">
+                            {ws.projects.length} strateg{ws.projects.length === 1 ? 'y' : 'ies'}
+                          </span>
+                        </button>
+                        <Button
+                          variant="danger"
+                          size="icon"
+                          className="lab-icon-button lab-icon-button-danger"
+                          aria-label={`Delete workspace ${ws.name}`}
+                          onClick={() => askDelete({ kind: 'workspace', id: ws.id, name: ws.name })}
+                        >
+                          <Trash2 size={14} aria-hidden="true" />
+                        </Button>
+                      </div>
+
+                      {isOpen && (
+                        <ul className="lab-ws-strategies">
+                          {ws.projects.length === 0 && (
+                            <li className="lab-ws-empty">No projects in this workspace yet.</li>
+                          )}
+                          {ws.projects.map((p) => (
+                            <li key={p.id}>
+                              <div className="lab-ws-strategy">
+                                <button
+                                  type="button"
+                                  className="lab-ws-strategy-open"
+                                  onClick={() => openInEditor(p, ws.name)}
+                                >
+                                  <span className="lab-ws-strategy-name">
+                                    <FileCode size={14} aria-hidden="true" />
+                                    <span><Highlight text={p.name} query={q} /></span>
+                                  </span>
+                                </button>
+                                <span className="lab-ws-cell is-files">
+                                  {p.file_count ?? 0} file{(p.file_count ?? 0) === 1 ? '' : 's'}
+                                </span>
+                                <span className="lab-ws-cell is-created">{formatDate(p.created_at)}</span>
+                                <Button
+                                  variant="danger"
+                                  size="icon"
+                                  className="lab-icon-button lab-icon-button-danger"
+                                  aria-label={`Delete project ${p.name}`}
+                                  onClick={() => askDelete({ kind: 'project', id: p.id, name: p.name })}
+                                >
+                                  <Trash2 size={14} aria-hidden="true" />
+                                </Button>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
           </section>
         </div>
+
+        <div className="lab-meta">
+          <section className="lab-info" aria-labelledby="lab-layout-title">
+            <p id="lab-layout-title" className="lab-info-eyebrow">Project layout</p>
+            <ul className="lab-info-list">
+              <li className="lab-info-row">
+                <span className="lab-info-icon"><Lock size={14} aria-hidden="true" /></span>
+                <div>
+                  <p className="lab-info-name">core/</p>
+                  <p className="lab-info-desc">Engine and base classes. Read-only.</p>
+                </div>
+              </li>
+              <li className="lab-info-row">
+                <span className="lab-info-icon"><Pencil size={14} aria-hidden="true" /></span>
+                <div>
+                  <p className="lab-info-name">workspace/</p>
+                  <p className="lab-info-desc">Your strategy and its manager. Edit freely.</p>
+                </div>
+              </li>
+            </ul>
+          </section>
+
+          <section className="lab-info" aria-labelledby="lab-defaults-title">
+            <p id="lab-defaults-title" className="lab-info-eyebrow">Execution defaults</p>
+            <ul className="lab-defaults">
+              {ENGINE_DEFAULTS.map((row) => (
+                <li key={row.label} className="lab-default">
+                  <span className="lab-default-label">{row.label}</span>
+                  <span className="lab-default-value">{row.value}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="lab-info-note">
+              A signal never fills on the day it fires, so results are not flattered by hindsight.
+            </p>
+          </section>
+
+          <section className="lab-info" aria-labelledby="lab-shortcuts-title">
+            <p id="lab-shortcuts-title" className="lab-info-eyebrow">Shortcuts</p>
+            <ul className="lab-shortcuts">
+              <li className="lab-shortcut">
+                <span>Focus workspace search</span>
+                <span className="lab-keys"><kbd className="lab-key">/</kbd></span>
+              </li>
+              <li className="lab-shortcut">
+                <span>Save the open file</span>
+                <span className="lab-keys">
+                  <kbd className="lab-key">{MOD_LABEL}</kbd>
+                  <kbd className="lab-key">S</kbd>
+                </span>
+              </li>
+              <li className="lab-shortcut">
+                <span>Run in the editor</span>
+                <span className="lab-keys">
+                  <kbd className="lab-key">{MOD_LABEL}</kbd>
+                  <kbd className="lab-key">Enter</kbd>
+                </span>
+              </li>
+            </ul>
+            <p className="lab-info-note">
+              Runs the open file against the full local price history.
+            </p>
+          </section>
         </div>
       </div>
 
