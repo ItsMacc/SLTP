@@ -8,6 +8,10 @@ import {
   FileCode2,
   ArrowRight,
   ArrowUpRight,
+  BookOpen,
+  Hourglass,
+  ShieldCheck,
+  Sprout,
 } from 'lucide-react';
 import Button from '../ui/Button';
 import './HomePage.css';
@@ -94,6 +98,25 @@ const MODULES: ModuleData[] = [
       'The reference for building on SLTP: how a strategy class works, which methods to override, and worked recipes you can copy into the Lab.',
     icon: FileCode2,
     cta: 'Open the docs',
+  },
+];
+
+/* ---------- Trust & honesty ---------- */
+const TRUST_POINTS: { icon: IconType; title: string; text: string }[] = [
+  {
+    icon: ShieldCheck,
+    title: 'Not financial advice',
+    text: 'SLTP shows research, rules and history. Every decision about your money is yours to make.',
+  },
+  {
+    icon: Hourglass,
+    title: 'Past results are not promises',
+    text: 'Backtests use past prices. They can look better than real trading, and markets change.',
+  },
+  {
+    icon: Sprout,
+    title: 'Small steps still count',
+    text: 'You do not need a large amount or perfect timing. Starting early gives time to learn and compound.',
   },
 ];
 
@@ -215,6 +238,44 @@ export default function HomePage({ onNavigate, onOpenGuide }: HomePageProps) {
               </button>
             );
           })}
+        </div>
+      </section>
+
+      {/* ================= TRUST ================= */}
+      <section className="home-section home-trust">
+        <div className="home-trust-panel home-reveal" style={revealDelay(0)}>
+          <div className="home-trust-head">
+            <h2 className="home-trust-title">
+              It is not financial advice, <em>but the earlier you start, the better.</em>
+            </h2>
+            <p className="home-trust-lede">
+              Investing can feel closed off, with jargon, minimums and a fear of getting it wrong.
+              SLTP is here to make the research clearer so you can begin with confidence.
+            </p>
+          </div>
+
+          <div className="home-trust-grid">
+            {TRUST_POINTS.map((point, i) => {
+              const Icon = point.icon;
+              return (
+                <div key={point.title} className="home-trust-item home-reveal" style={revealDelay(90 * (i + 1))}>
+                  <span className="home-trust-icon">
+                    <Icon size={18} strokeWidth={1.75} />
+                  </span>
+                  <h3 className="home-trust-item-title">{point.title}</h3>
+                  <p className="home-trust-item-text">{point.text}</p>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="home-trust-footer">
+            <Button variant="outline" size="sm" onClick={() => onNavigate('learn')}>
+              <BookOpen size={15} />
+              Start with the basics
+              <ArrowRight size={14} />
+            </Button>
+          </div>
         </div>
       </section>
     </div>

@@ -359,6 +359,131 @@
 
 
 /* ============================================================
+   TRUST & HONESTY
+   ============================================================ */
+
+.home-trust {
+  padding-top: var(--space-md);
+  padding-bottom: var(--space-xl);
+}
+
+.home-trust-panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+  padding-top: var(--space-2xl);
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* Short accent rule that anchors the section to the divider */
+.home-trust-panel::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 0;
+  width: 3rem; /* ≈48px accent rule */
+  height: 2px;
+  background: var(--accent);
+}
+
+.home-trust-head,
+.home-trust-grid,
+.home-trust-footer {
+  position: relative;
+  z-index: 1;
+}
+
+.home-trust-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  max-width: min(50rem, 100%); /* ≈800px reading measure */
+}
+
+.home-trust-title {
+  font-family: var(--font-heading);
+  font-weight: 400;
+  font-size: clamp(1.75rem, 3vw, 2.5rem);
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.home-trust-title em {
+  font-style: italic;
+  color: var(--accent);
+}
+
+.home-trust-lede {
+  max-width: 66ch;
+  font-size: var(--text-base);
+  line-height: 1.7;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.home-trust-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-md);
+}
+
+@media (min-width: 48rem) {
+  .home-trust-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-xl);
+  }
+}
+
+.home-trust-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding-top: var(--space-lg);
+  border-top: 1px dashed var(--border-strong);
+}
+
+.home-trust-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem; /* ≈36px — fixed-size icon tile */
+  height: 2.25rem;
+  margin-bottom: var(--space-2xs);
+  border-radius: var(--radius-md);
+  background: var(--accent-muted);
+  color: var(--accent);
+}
+
+.home-trust-item-title {
+  font-family: var(--font-heading);
+  font-weight: 400;
+  font-size: var(--text-xl);
+  line-height: 1.2;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.home-trust-item-text {
+  font-size: var(--text-sm);
+  line-height: 1.65;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.home-trust-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.home-trust-footer .btn {
+  gap: var(--space-sm);
+}
+
+/* ============================================================
    REDUCED MOTION
    ============================================================ */
 
