@@ -483,6 +483,14 @@
   gap: var(--space-sm);
 }
 
+/* Touch screens: give the small text link and footer button a 44px tap target */
+@media (pointer: coarse) {
+  .home-hero-actions .btn-link,
+  .home-trust-footer .btn {
+    min-height: 2.75rem;
+  }
+}
+
 /* ============================================================
    REDUCED MOTION
    ============================================================ */

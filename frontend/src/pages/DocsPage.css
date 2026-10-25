@@ -41,11 +41,12 @@
 
 @media (max-width: 56.25rem) { /* ≈900px */
   .docs-layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .docs-toc {
     position: static;
     max-height: none;
+    min-width: 0;
   }
 }
 
@@ -358,7 +359,12 @@
   flex-wrap: wrap;
 }
 
-.docs-method-head code { font-size: 0.86rem; }
+.docs-method-head code {
+  font-size: 0.86rem;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
 
 .docs-method-card p {
   font-size: 0.9rem;
