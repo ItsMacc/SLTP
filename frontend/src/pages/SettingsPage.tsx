@@ -55,6 +55,8 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
   const [revokeError, setRevokeError] = useState<string | null>(null);
   const [keyToast, setKeyToast] = useState<string | null>(null);
   const dismissKeyToast = useCallback(() => setKeyToast(null), []);
+  const [settingsToast, setSettingsToast] = useState<string | null>(null);
+  const dismissSettingsToast = useCallback(() => setSettingsToast(null), []);
   
   // Profile State
   const [fullName, setFullName] = useState(initialName || '');
@@ -312,6 +314,10 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
         editorFontLigatures,
       };
 
+      // Apply right away so the page reflects the click, then persist.
+      applyAndStoreUserSettings(updatedSettings, updatedName);
+      onProfileUpdated(updatedName);
+
       const { error } = await supabase
         .from('users')
         .update({
@@ -322,44 +328,27 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
 
       if (error) throw error;
 
-      const { data: verifyData, error: verifyError } = await supabase
-        .from('users')
-        .select('name, settings')
-        .eq('id', userId)
-        .single();
-
-      if (verifyError) throw verifyError;
-
-      if (verifyData) {
-        const freshName = verifyData.name || updatedName;
-        const freshSettings = verifyData.settings || updatedSettings;
-
-        applyAndStoreUserSettings(freshSettings, freshName);
-        onProfileUpdated(freshName);
-
-        // Supabase is the source of truth; Turso keeps a mirror the nightly
-        // runner reads. Without this the mirror would stay stale until the
-        // next run, and the runner would act on yesterday's preferences.
-        try {
-          const { data: sessionData } = await supabase.auth.getSession();
-          const token = sessionData.session?.access_token;
-          if (token) {
-            await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/user/sync-settings`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${token}`,
-              },
-              body: JSON.stringify({ settings: freshSettings }),
-            });
-          }
-        } catch {
-          // Best-effort: Supabase already has the change, so a failed mirror
-          // must not surface as a failed save.
+      // Supabase is the source of truth; Turso keeps a mirror the nightly
+      // runner reads. Best-effort: Supabase already has the change, so a
+      // failed mirror must not surface as a failed save.
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData.session?.access_token;
+        if (token) {
+          await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/user/sync-settings`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ settings: updatedSettings }),
+          });
         }
+      } catch {
+        // Ignored on purpose, see above.
       }
 
-      setMessage({ type: 'success', text: 'Changes saved and synced successfully!' });
+      setSettingsToast('Settings saved');
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message || 'Failed to save changes.' });
     } finally {
@@ -884,6 +873,7 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
       )}
 
       {keyToast && <SuccessToast message={keyToast} onClose={dismissKeyToast} />}
+      {settingsToast && <SuccessToast message={settingsToast} onClose={dismissSettingsToast} />}
 
       {/* Reading the profile and writing it back both go over the network, so
           the page waits behind the loader instead of looking empty. */}
