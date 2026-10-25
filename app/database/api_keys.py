@@ -55,6 +55,12 @@ async def _ensure_table() -> None:
     _table_ready = True
 
 
+async def delete_user_api_keys(user_id: str) -> None:
+    """Hard-delete every API key a user owns. Used by account deletion."""
+    await _ensure_table()
+    await turso.execute("DELETE FROM api_keys WHERE user_id = ?", [user_id])
+
+
 async def user_id_for_api_key(raw_key: str) -> str | None:
     """Returns the owner of an active key, or None. Used by get_current_user."""
     await _ensure_table()

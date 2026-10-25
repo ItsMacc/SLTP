@@ -810,8 +810,9 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
               Delete your account?
             </h3>
             <p className="st-settings-modal-text">
-              This will permanently delete your SLTP profile and all associated
-              configuration data. This action <strong>cannot be undone</strong>.
+              This will permanently delete your SLTP profile, your portfolio setup
+              and trade records, your Lab workspaces and files, your API keys,
+              and your sign-in credentials. This action <strong>cannot be undone</strong>.
             </p>
 
             <label className="st-settings-label" htmlFor="delete-confirm-input">

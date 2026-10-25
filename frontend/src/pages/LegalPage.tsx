@@ -240,7 +240,7 @@ const privacyDocument: LegalDocument = {
             },
             {
               lead: 'Account deletion:',
-              text: 'Deleting your account from Settings permanently removes your profile, portfolio setup, and sign-in credentials. Lab workspaces, projects, files, API keys, and portfolio trade records are not yet removed by that action; we will delete them on written request to the address below.',
+              text: 'Deleting your account from Settings permanently removes your profile, portfolio setup, portfolio trade records, Lab workspaces, projects and files, API keys, and sign-in credentials.',
             },
             {
               lead: 'No residual storage:',
@@ -557,7 +557,7 @@ const termsDocument: LegalDocument = {
       blocks: [
         {
           type: 'paragraph',
-          text: 'You can delete your account from Settings at any time. Deletion is permanent and cannot be undone. It removes your profile, your portfolio setup, and your sign-in credentials. Lab work, portfolio trade records and API keys are not removed by this step, and are handled as described in our Privacy Policy. If we terminate your account, the same rules apply.',
+          text: 'You can delete your account from Settings at any time. Deletion is permanent and cannot be undone. It removes your profile, your portfolio setup and trade records, your Lab work, your API keys, and your sign-in credentials. If we terminate your account, the same rules apply.',
         },
       ],
     },
