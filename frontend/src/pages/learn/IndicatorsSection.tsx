@@ -225,7 +225,7 @@ export function IndicatorsSection() {
         same arithmetic you just did, run over the same five numbers a data feed
         gives you for each day. Those are <strong>OHLCV</strong>: the{' '}
         <strong>O</strong>pen, the <strong>H</strong>igh, the <strong>L</strong>ow,
-        the        <strong>C</strong>lose, and the <strong>V</strong>olume. Learn to
+        the <strong>C</strong>lose, and the <strong>V</strong>olume. Learn to
         average, sum, compare and take ratios of those five columns and you can
         read any indicator chart you are shown.
       </p>

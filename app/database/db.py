@@ -6,6 +6,7 @@
 # One row per (Symbol, Date) with OHLCV columns.
 
 # -------- Imports --------
+import json
 import os
 import re
 import bs4 as bs
@@ -129,44 +130,56 @@ def init_db() -> None:
     print(f"Local Parquet storage initialized at: {parquet_dir}")
 
 
-def _validate_tickers(tickers: list) -> list:
+MISSES_FILE = os.path.join(os.path.dirname(__file__), "stock_data", "missing_symbols.json")
+MISS_LIMIT = 2
+
+
+def _record_misses(symbols: list) -> None:
+    """Count consecutive runs in which each symbol returned no bars.
+
+    Once a symbol reaches MISS_LIMIT it is removed from the master parquet
+    and no longer requested, so delisted names stop costing download time.
     """
-    Confirms each symbol still resolves to a real listing before we spend time
-    downloading it.
-
-    The universe is scraped from Wikipedia index/ETF tables, which keep rows
-    for companies and funds that have since been delisted, merged away or
-    renamed. yfinance then returns nothing for those, so they silently consume
-    a slot in every download batch while never contributing data. Checking up
-    front means the delisted names are dropped explicitly and reported, rather
-    than being discovered implicitly (or not at all) during ingestion.
-    """
-    if not tickers:
-        return []
-
-    valid: list = []
-    invalid: list = []
-
-    for ticker in tickers:
+    misses = {}
+    if os.path.exists(MISSES_FILE):
         try:
-            ticker_info = yf.Ticker(ticker)
-            # history() is the same call the bulk download uses, so a symbol
-            # that passes here is one that will actually return bars.
-            probe = ticker_info.history(period="5d", auto_adjust=False)
-            if probe is None or probe.empty:
-                invalid.append(ticker)
-            else:
-                valid.append(ticker)
+            with open(MISSES_FILE, "r", encoding="utf-8") as f:
+                misses = json.load(f)
         except Exception:
-            invalid.append(ticker)
+            misses = {}
 
-    if invalid:
-        print(
-            f"-> Skipping {len(invalid)} delisted/unresolvable symbol(s): "
-            f"{', '.join(invalid[:20])}{' ...' if len(invalid) > 20 else ''}"
-        )
+    for s in symbols:
+        misses[s] = misses.get(s, 0) + 1
 
-    return valid
+    with open(MISSES_FILE, "w", encoding="utf-8") as f:
+        json.dump(misses, f, indent=2, sort_keys=True)
+
+
+def _remove_dead_symbols() -> set:
+    """Drop symbols that missed MISS_LIMIT runs in a row from the master parquet."""
+    if not os.path.exists(MISSES_FILE):
+        return set()
+    try:
+        with open(MISSES_FILE, "r", encoding="utf-8") as f:
+            misses = json.load(f)
+    except Exception:
+        return set()
+
+    dead = {s for s, n in misses.items() if n >= MISS_LIMIT}
+    if not dead:
+        return dead
+
+    master_file_path = os.path.join(get_parquet_dir(), "market_data.parquet")
+    if os.path.exists(master_file_path):
+        try:
+            df = pd.read_parquet(master_file_path)
+            df = df[~df["Symbol"].isin(dead)]
+            df.to_parquet(master_file_path, compression="snappy", index=False)
+        except Exception as e:
+            print(f"Error removing delisted symbols from master parquet: {e}")
+
+    print(f"-> Removed {len(dead)} delisted symbol(s) from master parquet")
+    return dead
 
 
 def process_and_save_bars(download_list: list,
@@ -240,6 +253,7 @@ def process_and_save_bars(download_list: list,
             f"and were not written: {', '.join(unwritten[:20])}"
             f"{' ...' if len(unwritten) > 20 else ''}"
         )
+        _record_misses(unwritten)
 
     # Merge incoming data with the master Parquet file to preserve historical records safely
     if os.path.exists(master_file_path):
@@ -262,8 +276,9 @@ def insert_or_update_data() -> None:
 
     # Drop delisted/renamed symbols before any download work happens, so they
     # never reach market_data.parquet in the first place.
-    all_tickers = _validate_tickers(raw_tickers)
-    print(f"-> Universe: {len(raw_tickers)} scraped, {len(all_tickers)} tradable")
+    dead = _remove_dead_symbols()
+    all_tickers = [t for t in raw_tickers if t not in dead]
+    print(f"-> Universe: {len(all_tickers)} symbols")
 
     if not all_tickers:
         print("No tradable symbols resolved — aborting without touching the master file.")
@@ -309,7 +324,7 @@ def insert_or_update_data() -> None:
     print(f"-> Recent update (5-day) required for: {len(download_previous_data)} tickers")
 
     if download_all_data:
-        print("Downloading MAX history data in bulk...")
+        print("Downloading MAX history data in bulk...")  # one yf.download call
         try:
             df_max = yf.download(
                 tickers=download_all_data,
@@ -328,7 +343,7 @@ def insert_or_update_data() -> None:
         try:
             df_5d = yf.download(
                 tickers=download_previous_data,
-                period="5d",
+                period="30d",
                 interval="1d",
                 group_by="ticker",
                 auto_adjust=False,
