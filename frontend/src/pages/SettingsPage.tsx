@@ -359,7 +359,7 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
   return (
     <div className="st-settings-layout">
       <div className="st-settings-container">
-        <h1 className="st-settings-header-title">Workspace.</h1>
+        <h1 className="st-settings-header-title">Settings</h1>
 
         <div className="st-settings-grid">
           {/* Sidebar Navigation */}

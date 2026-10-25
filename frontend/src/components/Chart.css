@@ -23,6 +23,13 @@
   margin-bottom: var(--space-md);
 }
 
+/* The quote line is hidden when the host page shows it in its own header:
+   the toolbar keeps only the zoom/latest actions, right-aligned. */
+.chart-toolbar.is-actions-only {
+  justify-content: flex-end;
+  margin-bottom: var(--space-xs);
+}
+
 .chart-toolbar-info {
   display: flex;
   align-items: baseline;

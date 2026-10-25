@@ -1,8 +1,8 @@
 // DocsPage.tsx — SLTP documentation for writing custom strategies and managers.
 // QuantConnect-style: sticky sidebar TOC, reference viewers, worked recipes.
-import { useEffect, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useState, type ReactNode } from 'react';
 import {
-  ArrowRight, Cog, PenLine, FileCode2,
+  ArrowRight, Cog, Info, PenLine, FileCode2,
 } from 'lucide-react';
 import {
   BASE_STRATEGY_SOURCE,
@@ -17,17 +17,19 @@ interface DocsPageProps {
   onNavigate?: (tab: string) => void;
 }
 
+// The sidebar is read in four short groups rather than one long list, so a
+// reader can see where the tour starts and where the reference begins.
 const SECTIONS = [
-  { id: 'overview', label: 'Overview', num: '01' },
-  { id: 'methods', label: 'Methods to override', num: '02' },
-  { id: 'setup', label: 'Set up your classes', num: '03' },
-  { id: 'decision', label: 'What a decision holds', num: '04' },
-  { id: 'recipe-sma', label: 'Recipe: SMA crossover', num: '05' },
-  { id: 'recipe-rsi', label: 'Recipe: RSI dip buyer', num: '06' },
-  { id: 'recipe-universe', label: 'Recipe: custom universe', num: '07' },
-  { id: 'reference', label: 'Engine source', num: '08' },
-  { id: 'api', label: 'REST API', num: '09' },
-  { id: 'gotchas', label: 'Pitfalls', num: '10' },
+  { id: 'overview', label: 'Overview', num: '01', group: 'Start here' },
+  { id: 'methods', label: 'The methods you override', num: '02', group: 'Write a strategy' },
+  { id: 'setup', label: 'Setting up your classes', num: '03', group: 'Write a strategy' },
+  { id: 'decision', label: 'Anatomy of a decision', num: '04', group: 'Write a strategy' },
+  { id: 'recipe-sma', label: 'SMA crossover', num: '05', group: 'Recipes' },
+  { id: 'recipe-rsi', label: 'RSI dip buyer', num: '06', group: 'Recipes' },
+  { id: 'recipe-universe', label: 'Custom universe', num: '07', group: 'Recipes' },
+  { id: 'reference', label: 'Engine source', num: '08', group: 'Reference' },
+  { id: 'api', label: 'REST API', num: '09', group: 'Reference' },
+  { id: 'gotchas', label: 'Pre-flight checklist', num: '10', group: 'Reference' },
 ];
 
 // ---------- primitives ----------
@@ -79,14 +81,91 @@ function Step({ n, title, children }: { n: string; title: string; children: Reac
   );
 }
 
-function Field({ name, required, children }: { name: string; required?: boolean; children: ReactNode }) {
+/** Section opener: the group and number as a mono eyebrow, then a serif title. */
+function SectionHead({
+  num,
+  group,
+  title,
+  lead,
+}: {
+  num: string;
+  group: string;
+  title: string;
+  lead?: ReactNode;
+}) {
   return (
-    <div className="docs-field">
-      <div className="docs-field-head">
-        <code>{name}</code>
-        <span className={`docs-field-tag ${required ? 'is-required' : ''}`}>{required ? 'required' : 'optional'}</span>
+    <header className="docs-section-heading">
+      <span className="docs-section-eyebrow">{num} / {group}</span>
+      <h2>{title}</h2>
+      {lead && <p className="docs-section-lead">{lead}</p>}
+    </header>
+  );
+}
+
+/** One method, described the way a reference card reads: what calls it, what it
+ *  gets, what it hands back, and the trap that goes with it. */
+function Signature({
+  signature,
+  required,
+  rows,
+}: {
+  signature: string;
+  required?: boolean;
+  rows: { label: string; value: ReactNode }[];
+}) {
+  return (
+    <article className="docs-signature">
+      <header className="docs-signature-head">
+        <code>{signature}</code>
+        <span className={`docs-field-tag ${required ? 'is-required' : ''}`}>
+          {required ? 'required' : 'optional'}
+        </span>
+      </header>
+      <dl className="docs-signature-rows">
+        {rows.map((row) => (
+          <div className="docs-signature-row" key={row.label}>
+            <dt>{row.label}</dt>
+            <dd>{row.value}</dd>
+          </div>
+        ))}
+      </dl>
+    </article>
+  );
+}
+
+/** A field reference: name on the left, what it holds on the right. */
+function FieldTable({
+  title,
+  fields,
+}: {
+  title: string;
+  fields: { name: string; contents: ReactNode }[];
+}) {
+  return (
+    <div className="docs-table">
+      <div className="docs-table-head" aria-hidden="true">
+        <span>{title}</span>
+        <span>Contents</span>
       </div>
-      <p>{children}</p>
+      {fields.map((field) => (
+        <div className="docs-table-row" key={field.name}>
+          <code>{field.name}</code>
+          <p>{field.contents}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** One short aside with a title, for the tip that saves a reader a wrong turn. */
+function Callout({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="docs-callout">
+      <Info size={18} aria-hidden="true" />
+      <div>
+        <p className="docs-callout-title">{title}</p>
+        <p className="docs-callout-body">{children}</p>
+      </div>
     </div>
   );
 }
@@ -134,18 +213,21 @@ export default function DocsPage(_props: DocsPageProps) {
 
       <div className="docs-layout">
         {/* Sidebar TOC */}
-        <aside className="docs-toc">
-          <p className="docs-toc-heading">On this page</p>
-          {SECTIONS.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              className={`docs-toc-link ${activeSection === s.id ? 'is-active' : ''}`}
-              onClick={() => jump(s.id)}
-            >
-              <span className="docs-toc-num">{s.num}</span>
-              {s.label}
-            </button>
+        <aside className="docs-toc" aria-label="On this page">
+          {SECTIONS.map((s, i) => (
+            <Fragment key={s.id}>
+              {(i === 0 || SECTIONS[i - 1].group !== s.group) && (
+                <p className="docs-toc-heading">{s.group}</p>
+              )}
+              <button
+                type="button"
+                className={`docs-toc-link ${activeSection === s.id ? 'is-active' : ''}`}
+                onClick={() => jump(s.id)}
+              >
+                <span className="docs-toc-num">{s.num}</span>
+                <span className="docs-toc-label">{s.label}</span>
+              </button>
+            </Fragment>
           ))}
         </aside>
 
@@ -154,156 +236,283 @@ export default function DocsPage(_props: DocsPageProps) {
 
           {/* 01 Overview */}
           <section id="overview" className="docs-section">
-            <div className="docs-section-heading">
-              <span className="docs-section-num">01</span>
-              <h2>Overview</h2>
-            </div>
-            <p>
-              A strategy is two classes that each answer one question. The{' '}
-              <strong>Strategy</strong> asks whether a ticker looks like a buy today. The{' '}
-              <strong>Manager</strong> takes a yes and decides the position size and the stop-loss
-              and take-profit levels.
-            </p>
-            <p>
-              You don't write order execution, fees, slippage or portfolio bookkeeping. The engine
-              does that. You only write the decisions, so each file stays short.
-            </p>
-            <p>In practice you override one method in each class:</p>
-            <div className="docs-ref-notes">
-              <div className="docs-ref-note">
-                <h5>Strategy — decide</h5>
-                <ul>
-                  <li><code>generate_signal(ticker, history)</code> — required</li>
-                </ul>
-              </div>
-              <div className="docs-ref-note">
-                <h5>Manager — size and execute</h5>
-                <ul>
-                  <li><code>on_signal(ticker, decision)</code> — required</li>
-                  <li><code>initialize_universe(date)</code> — optional</li>
-                  <li><code>on_rebalance(date)</code> — optional</li>
-                </ul>
-              </div>
+            <SectionHead
+              num="01"
+              group="Start here"
+              title="Two classes, one daily loop"
+              lead={
+                <>
+                  A strategy is two classes that each answer one question. The{' '}
+                  <strong>Strategy</strong> asks whether a ticker looks like a buy today. The{' '}
+                  <strong>Manager</strong> takes a yes and decides how big to go, and where to get
+                  out.
+                </>
+              }
+            />
+
+            <div className="docs-duo">
+              <article className="docs-duo-card">
+                <span className="docs-duo-label">Strategy</span>
+                <h3 className="docs-duo-title">Does this ticker look like a buy today?</h3>
+                <div className="docs-duo-sig">
+                  <code>generate_signal(ticker, history)</code>
+                  <span className="docs-field-tag is-required">required</span>
+                </div>
+                <p className="docs-duo-note">
+                  Returns a <code>StrategyDecision</code>, and nothing else.
+                </p>
+              </article>
+
+              <article className="docs-duo-card">
+                <span className="docs-duo-label">Manager</span>
+                <h3 className="docs-duo-title">If yes, how big, and where do I get out?</h3>
+                <div className="docs-duo-sig">
+                  <code>on_signal(ticker, decision)</code>
+                  <span className="docs-field-tag is-required">required</span>
+                </div>
+                <div className="docs-duo-sig">
+                  <code>initialize_universe(date)</code>
+                  <span className="docs-field-tag">optional</span>
+                </div>
+                <div className="docs-duo-sig">
+                  <code>on_rebalance(date)</code>
+                  <span className="docs-field-tag">optional</span>
+                </div>
+                <p className="docs-duo-note">
+                  Returns a <code>TradeRecord</code>, or <code>None</code> to skip the trade.
+                </p>
+              </article>
             </div>
 
-            <p>Every trading day, the engine runs the same loop for each ticker:</p>
+            <p>
+              You never write order execution, fees, slippage or portfolio bookkeeping. The engine
+              handles all of that, so each of your files stays short enough to read in one sitting.
+            </p>
+
+            <p>Every trading day, the engine runs the same three steps for every ticker you trade.</p>
 
             <div className="docs-flow" aria-label="What happens each trading day">
-              <div className="docs-flow-step">
-                <FileCode2 size={18} />
-                <div className="docs-flow-text">
-                  <span className="docs-flow-label">1 · Strategy decides</span>
-                  <p>Returns a StrategyDecision: BUY, SELL or HOLD, plus a confidence score.</p>
-                </div>
-                <ArrowRight className="docs-flow-arrow" size={16} />
+              <div className="docs-flow-card">
+                <span className="docs-flow-icon">
+                  <FileCode2 size={18} aria-hidden="true" />
+                </span>
+                <span className="docs-flow-label">1 · Strategy decides</span>
+                <p>
+                  Returns a <code>StrategyDecision</code>: BUY, SELL or HOLD, plus a confidence
+                  score.
+                </p>
               </div>
-              <div className="docs-flow-step">
-                <PenLine size={18} />
-                <div className="docs-flow-text">
-                  <span className="docs-flow-label">2 · Manager sizes</span>
-                  <p>Takes each BUY and returns a TradeRecord with size, stop-loss and take-profit, or None.</p>
-                </div>
-                <ArrowRight className="docs-flow-arrow" size={16} />
+              <ArrowRight className="docs-flow-arrow" size={16} aria-hidden="true" />
+              <div className="docs-flow-card">
+                <span className="docs-flow-icon">
+                  <PenLine size={18} aria-hidden="true" />
+                </span>
+                <span className="docs-flow-label">2 · Manager sizes</span>
+                <p>
+                  Turns each BUY into a <code>TradeRecord</code> with size, stop-loss and
+                  take-profit — or skips it.
+                </p>
               </div>
-              <div className="docs-flow-step">
-                <Cog size={18} />
-                <div className="docs-flow-text">
-                  <span className="docs-flow-label">3 · Engine fills</span>
-                  <p>Fills the order at the next day's open, then closes it at the stop or the target.</p>
-                </div>
+              <ArrowRight className="docs-flow-arrow" size={16} aria-hidden="true" />
+              <div className="docs-flow-card">
+                <span className="docs-flow-icon">
+                  <Cog size={18} aria-hidden="true" />
+                </span>
+                <span className="docs-flow-label">3 · Engine fills</span>
+                <p>
+                  Fills at the next day's open, then closes at the stop or the target.
+                </p>
               </div>
             </div>
+
+            <Callout title="Fastest way to start">
+              Copy the{' '}
+              <button type="button" className="docs-inline-link" onClick={() => jump('recipe-sma')}>
+                SMA crossover recipe
+              </button>{' '}
+              into <code>workspace/</code>, run a backtest, then change one thing at a time.
+            </Callout>
           </section>
 
           {/* 02 Methods */}
           <section id="methods" className="docs-section">
-            <div className="docs-section-heading">
-              <span className="docs-section-num">02</span>
-              <h2>The methods you override</h2>
-            </div>
-            <p>
-              What each method is for, and what it hands back.
-            </p>
+            <SectionHead
+              num="02"
+              group="Write a strategy"
+              title="The methods you override"
+              lead="One method in each class is required. The rest are there when you want them, and the engine behaves sensibly if you never touch them."
+            />
 
-            <div className="docs-method-card">
-              <div className="docs-method-head">
-                <FileCode2 size={16} />
-                <div>
-                  <code>Strategy.generate_signal(ticker, history)</code>
-                  <span className="docs-field-tag is-required">required</span>
-                </div>
-              </div>
-              <p>
-                The engine calls <code>generate_signal</code> once per trading day for each ticker.
-                It passes <code>history</code>, the daily prices up to and including that day, and
-                you return a <code>StrategyDecision</code> saying BUY, SELL or HOLD. If there aren't
-                enough bars yet, raise <code>ValueError</code>. The backtester catches it, skips that
-                ticker for the day, and moves on. Keep the method free of side effects, because each
-                call should depend only on the prices it's given.
-              </p>
-            </div>
+            <Signature
+              signature="Strategy.generate_signal(ticker, history) → StrategyDecision"
+              required
+              rows={[
+                { label: 'Called', value: 'Once per trading day, for every ticker in the universe.' },
+                {
+                  label: 'Receives',
+                  value: (
+                    <>
+                      <code>history</code>, a <code>StockData</code> holding prices up to and
+                      including today. The last element of every array is today's value.
+                    </>
+                  ),
+                },
+                {
+                  label: 'Returns',
+                  value: (
+                    <>
+                      A <code>StrategyDecision</code> saying BUY, SELL or HOLD, with a confidence
+                      score the Manager can size from.
+                    </>
+                  ),
+                },
+                {
+                  label: 'Too little data',
+                  value: (
+                    <>
+                      Raise <code>ValueError</code>. The backtester catches it, skips that ticker
+                      for the day, and moves on.
+                    </>
+                  ),
+                },
+                {
+                  label: 'Keep in mind',
+                  value:
+                    'Avoid side effects. Each call should depend only on the prices it is given, so the same history always gives the same answer.',
+                },
+              ]}
+            />
 
-            <div className="docs-method-card">
-              <div className="docs-method-head">
-                <PenLine size={16} />
-                <div>
-                  <code>Manager.on_signal(ticker, decision)</code>
-                  <span className="docs-field-tag is-required">required</span>
-                </div>
-              </div>
-              <p>
-                <code>on_signal</code> gets each BUY from your Strategy. Check it against your
-                current positions and limits. If you want the trade, return a{' '}
-                <code>TradeRecord</code> with <code>allocation_size</code> (a fraction of the
-                portfolio), a <code>stop_loss</code> and a <code>take_profit</code> price. Return{' '}
-                <code>None</code> to skip it. The engine doesn't fill the order on the spot. It fills
-                at the next trading day's open.
-              </p>
-            </div>
+            <FieldTable
+              title="StockData field"
+              fields={[
+                { name: 'ticker', contents: 'The symbol, as a string.' },
+                { name: 'dates', contents: 'Trading dates, oldest first. The last one is today.' },
+                { name: 'open_price / high / low', contents: 'Daily open, high and low, as arrays.' },
+                {
+                  name: 'close_price',
+                  contents: "Each day's closing price — what most signals actually read.",
+                },
+                { name: 'volume', contents: 'Shares traded that day, as an array.' },
+              ]}
+            />
 
-            <div className="docs-method-card">
-              <div className="docs-method-head">
-                <Cog size={16} />
-                <div>
-                  <code>Manager.initialize_universe(current_date)</code>
-                  <span className="docs-field-tag">optional</span>
-                </div>
-              </div>
-              <p>
-                Use this to pick which tickers you trade. Return <code>True</code> once you have a
-                list. If the data isn't ready for that date, return <code>False</code> and the engine
-                tries again the next day. If you trade the whole market, skip this method.
-              </p>
-            </div>
+            <Signature
+              signature="Manager.on_signal(ticker, decision) → TradeRecord | None"
+              required
+              rows={[
+                { label: 'Called', value: 'Whenever your Strategy returns a BUY.' },
+                {
+                  label: 'Receives',
+                  value: (
+                    <>
+                      The ticker, and the <code>StrategyDecision</code> behind the signal.
+                    </>
+                  ),
+                },
+                {
+                  label: 'Returns',
+                  value: (
+                    <>
+                      A <code>TradeRecord</code> with <code>allocation_size</code> (a fraction of
+                      the portfolio), a <code>stop_loss</code> and a <code>take_profit</code> — or{' '}
+                      <code>None</code> to skip the trade.
+                    </>
+                  ),
+                },
+                {
+                  label: 'When it fills',
+                  value:
+                    "Not on the spot. The engine fills at the next trading day's open, with slippage and fees.",
+                },
+                {
+                  label: 'Keep in mind',
+                  value: (
+                    <>
+                      Open allocations cannot add up to more than 100% of the portfolio.{' '}
+                      <code>buy_order</code> quietly trims yours to whatever is left.
+                    </>
+                  ),
+                },
+              ]}
+            />
 
-            <div className="docs-method-card">
-              <div className="docs-method-head">
-                <Cog size={16} />
-                <div>
-                  <code>Manager.on_rebalance(current_date)</code>
-                  <span className="docs-field-tag">optional</span>
-                </div>
-              </div>
-              <p>
-                Runs on the schedule set by <code>REBALANCE_FREQUENCY</code> (weekly, monthly and so
-                on). Use it to drop weak tickers and bring in new ones. If you drop a ticker you
-                still hold, add it to <code>blacklisted_tickers</code>. The engine removes it from the
-                list once that position closes.
-              </p>
-            </div>
+            <Signature
+              signature="Manager.initialize_universe(current_date) → bool"
+              rows={[
+                {
+                  label: 'Called',
+                  value: 'At the start of the run, then once a day until you say the list is ready.',
+                },
+                {
+                  label: 'Returns',
+                  value: (
+                    <>
+                      <code>True</code> once your tickers are in place. <code>False</code> means
+                      "not yet" — the engine asks again tomorrow, for up to 60 days.
+                    </>
+                  ),
+                },
+                {
+                  label: 'Skip it',
+                  value: 'You trade the whole tradable universe, which is a fine default.',
+                },
+                {
+                  label: 'Keep in mind',
+                  value: (
+                    <>
+                      Fill in <code>self.histories</code> for every ticker you add, or the engine has
+                      no prices to read.
+                    </>
+                  ),
+                },
+              ]}
+            />
+
+            <Signature
+              signature="Manager.on_rebalance(current_date) → None"
+              rows={[
+                {
+                  label: 'Called',
+                  value: (
+                    <>
+                      On the schedule you set in <code>REBALANCE_FREQUENCY</code> — weekly, monthly,
+                      quarterly, or never.
+                    </>
+                  ),
+                },
+                {
+                  label: 'Use it for',
+                  value: 'Dropping the weak names in your universe and bringing in new ones.',
+                },
+                {
+                  label: 'Keep in mind',
+                  value: (
+                    <>
+                      If you drop a ticker you still hold, add it to{' '}
+                      <code>blacklisted_tickers</code>. The engine removes it once that position
+                      closes, so you never sell it by accident.
+                    </>
+                  ),
+                },
+              ]}
+            />
           </section>
 
           {/* 03 Setup / initialization */}
           <section id="setup" className="docs-section">
-            <div className="docs-section-heading">
-              <span className="docs-section-num">03</span>
-              <h2>Setting up your classes</h2>
-            </div>
-            <p>
-              Your project has two folders. <code>core/</code> holds the engine and the base
-              classes. Treat it as read-only. <code>workspace/</code> holds your files. Import the
-              base classes from <code>core.*</code>.
-            </p>
+            <SectionHead
+              num="03"
+              group="Write a strategy"
+              title="Setting up your classes"
+              lead={
+                <>
+                  Two folders. <code>core/</code> is the engine and the base classes, and you leave
+                  it alone. <code>workspace/</code> is yours: both of your files live there and
+                  import from <code>core.*</code>.
+                </>
+              }
+            />
             <CodeBlock source={`core/
 ├── portfolio/portfolio_manager.py
 ├── strategy/strategy.py
@@ -359,79 +568,65 @@ workspace/
 
           {/* 04 Decision anatomy */}
           <section id="decision" className="docs-section">
-            <div className="docs-section-heading">
-              <span className="docs-section-num">04</span>
-              <h2>Anatomy of a decision</h2>
-            </div>
-            <p>
-              Your Strategy always returns a <code>StrategyDecision</code>. It needs a few fixed
-              keys. Add anything else you want for debugging. The engine stores it with the trade.
-            </p>
+            <SectionHead
+              num="04"
+              group="Write a strategy"
+              title="Anatomy of a decision"
+              lead="Your Strategy always hands back one object. Four keys are fixed; anything else you add is stored with the trade and helps you explain it later."
+            />
 
-            <div className="docs-field-group">
-              <p className="docs-field-group-title">signal</p>
-              <Field name="signal" required>
-                {'A string: '}
-                <code>"BUY"</code>
-                {', '}
-                <code>"SELL"</code>
-                {' or '}
-                <code>"HOLD"</code>
-                {'. Only BUY signals reach the Manager\'s '}
-                <code>on_signal</code>.
-              </Field>
-              <Field name="confidence" required>
-                {'A number from 0.0 to 1.0. Higher means a stronger setup. The Manager can use it to size the position.'}
-              </Field>
-            </div>
-
-            <div className="docs-field-group">
-              <p className="docs-field-group-title">metrics</p>
-              <Field name="close_price" required>
-                {'Today\'s closing price, written as '}
-                <code>{'float(close_price[-1])'}</code>
-                {'. The Manager uses it to work out stop-loss and take-profit levels.'}
-              </Field>
-              <Field name="...anything else">
-                {'The indicator values behind the decision, like '}
-                <code>rsi</code>
-                {' or '}
-                <code>fast_sma</code>
-                {'. Use floats. These values are what let you explain a trade later.'}
-              </Field>
-            </div>
-
-            <div className="docs-field-group">
-              <p className="docs-field-group-title">meta_data</p>
-              <Field name="signal_date" required>
-                {'The date of the signal, written as '}
-                <code>{'str(history.dates[-1])'}</code>
-                {'. It is saved on the trade record so you can trace it later.'}
-              </Field>
-              <Field name="ticker" required>
-                {'The ticker this decision is about.'}
-              </Field>
-              <Field name="...anything else">
-                {'Any notes you want to keep. '}
-                <code>meta_data</code>
-                {' accepts values of any type, not just numbers.'}
-              </Field>
-            </div>
+            <FieldTable
+              title="Decision key"
+              fields={[
+                {
+                  name: 'signal',
+                  contents: (
+                    <>
+                      <code>"BUY"</code>, <code>"SELL"</code> or <code>"HOLD"</code>. Only BUY ever
+                      reaches the Manager.
+                    </>
+                  ),
+                },
+                {
+                  name: 'confidence',
+                  contents: 'A number from 0.0 to 1.0. Higher means a stronger setup, and the Manager sizes from it.',
+                },
+                {
+                  name: 'metrics.close_price',
+                  contents: (
+                    <>
+                      Today's close, as <code>float(close_price[-1])</code>. The Manager needs it to
+                      set the stop and the target.
+                    </>
+                  ),
+                },
+                {
+                  name: 'metrics (anything else)',
+                  contents: 'The indicator values behind the call — rsi, fast_sma, whatever you actually used.',
+                },
+                {
+                  name: 'meta_data.signal_date',
+                  contents: (
+                    <>
+                      <code>str(history.dates[-1])</code>, kept on the trade so you can trace it later.
+                    </>
+                  ),
+                },
+                { name: 'meta_data.ticker', contents: 'The ticker the decision is about.' },
+              ]}
+            />
 
             <CodeBlock source={STRATEGY_DECISION_SOURCE} title="StrategyDecision.py" />
           </section>
 
           {/* 05 SMA crossover */}
           <section id="recipe-sma" className="docs-section">
-            <div className="docs-section-heading">
-              <span className="docs-section-num">05</span>
-              <h2>Recipe: SMA crossover</h2>
-            </div>
-            <p>
-              A trend-following entry. It buys when the fast moving average moves above the slow
-              one, and the trade exits at a fixed stop and target. Both files below make a complete
-              strategy.
-            </p>
+            <SectionHead
+              num="05"
+              group="Recipes"
+              title="SMA crossover"
+              lead="A trend-following entry. It buys when the fast moving average crosses above the slow one, and every trade leaves at a fixed stop and target. The two files below make one complete strategy."
+            />
 
             <Step n="1" title="The Strategy (workspace/sma_crossover.py)">
               <CodeBlock source={`# workspace/sma_crossover.py
@@ -548,15 +743,18 @@ class SMACrossoverManager(PortfolioManager):
 
           {/* 06 RSI dip buyer */}
           <section id="recipe-rsi" className="docs-section">
-            <div className="docs-section-heading">
-              <span className="docs-section-num">06</span>
-              <h2>Recipe: RSI dip buyer</h2>
-            </div>
-            <p>
-              A mean-reversion entry. It buys when RSI drops below 30 while the price is still above
-              its 200-day average. The deeper the dip, the larger the position. This recipe uses the{" "}
-              <code>_rsi</code> helper from the base class.
-            </p>
+            <SectionHead
+              num="06"
+              group="Recipes"
+              title="RSI dip buyer"
+              lead={
+                <>
+                  A mean-reversion entry. It buys when RSI drops below 30 while the price is still
+                  above its 200-day average. The deeper the dip, the bigger the position. It uses
+                  the <code>_rsi</code> helper from the base class.
+                </>
+              }
+            />
 
             <Step n="1" title="The Strategy (workspace/rsi_dip_buyer.py)">
               <CodeBlock source={`# workspace/rsi_dip_buyer.py
@@ -653,16 +851,19 @@ class RSIDipBuyerManager(PortfolioManager):
 
           {/* 07 Custom universe */}
           <section id="recipe-universe" className="docs-section">
-            <div className="docs-section-heading">
-              <span className="docs-section-num">07</span>
-              <h2>Recipe: custom universe</h2>
-            </div>
-            <p>
-              If your strategy picks its own tickers, this is how to use{' '}
-              <code>initialize_universe</code> and <code>on_rebalance</code>. Return{' '}
-              <code>False</code> from <code>initialize_universe</code> when the data isn't ready. The
-              engine then tries the next day, for up to 60 days.
-            </p>
+            <SectionHead
+              num="07"
+              group="Recipes"
+              title="Custom universe"
+              lead={
+                <>
+                  If your strategy picks its own tickers, this is how{' '}
+                  <code>initialize_universe</code> and <code>on_rebalance</code> fit together.
+                  Return <code>False</code> while the data is not ready and the engine simply tries
+                  again the next day, for up to 60 days.
+                </>
+              }
+            />
             <CodeBlock source={`# The market-data helpers are engine-side. The project reaches them
 # through the backend path, the same way the core package does.
 from app.database.fetch import get_all_tickers, get_stock_history, get_stock_histories
@@ -704,14 +905,12 @@ def on_rebalance(self, current_date: str) -> None:
 
           {/* 08 Reference */}
           <section id="reference" className="docs-section">
-            <div className="docs-section-heading">
-              <span className="docs-section-num">08</span>
-              <h2>Engine reference</h2>
-            </div>
-            <p>
-              The source of the classes you extend, read-only. The Strategy base class has about 25
-              indicators built in, so you rarely need to import a TA library.
-            </p>
+            <SectionHead
+              num="08"
+              group="Reference"
+              title="Engine source"
+              lead="The classes you extend, read-only. The Strategy base class carries about 25 indicators, so you rarely need to import a technical-analysis library at all."
+            />
 
             <div className="docs-ref-notes">
               <div className="docs-ref-note">
@@ -746,11 +945,12 @@ def on_rebalance(self, current_date: str) -> None:
 
           {/* 09 API */}
           <section id="api" className="docs-section">
-            <div className="docs-section-heading">
-              <span className="docs-section-num">09</span>
-              <h2>API usage</h2>
-            </div>
-            <p>Anything you can do on the site, you can also do through the REST API.</p>
+            <SectionHead
+              num="09"
+              group="Reference"
+              title="REST API"
+              lead="Anything you can do on the site, you can also do from a script. Three endpoints cover it."
+            />
 
             <div className="docs-api-item">
               <div className="docs-api-route"><span className="docs-api-method">GET</span><code>/api/stock/history?ticker=AAPL&timeframe=1y</code></div>
@@ -802,10 +1002,12 @@ def on_rebalance(self, current_date: str) -> None:
 
           {/* 10 Gotchas */}
           <section id="gotchas" className="docs-section">
-            <div className="docs-section-heading">
-              <span className="docs-section-num">10</span>
-              <h2>Gotchas and checklist</h2>
-            </div>
+            <SectionHead
+              num="10"
+              group="Reference"
+              title="Pre-flight checklist"
+              lead="Everything that trips people up on their first strategy, in the order it usually happens."
+            />
             <ul className="docs-checklist">
               <li>Set <code>MIN_BARS_REQUIRED</code> to the real number of bars you need, and raise <code>ValueError</code> when you have less. The backtester skips that ticker for the day.</li>
               <li>You can't see the future. <code>history</code> stops at today, so the last element of every array is today's value.</li>

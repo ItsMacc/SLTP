@@ -5,22 +5,165 @@
    UI atoms. Breakpoints in rem.
    ============================================================ */
 
+/* The backtest view is a workspace, not one card: the strategy list sits on
+   the left and the setup, equity chart and metrics stack on the right, the
+   same shape as the price-history tab on this page. */
 .strategy-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  font-family: var(--font-sans);
+  min-width: 0;
+}
+
+.strategy-workspace {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-lg);
+  min-width: 0;
+}
+
+@media (min-width: 64rem) {
+  .strategy-workspace {
+    grid-template-columns: minmax(14rem, 17.5rem) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
+.strategy-library {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.strategy-library-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--border-subtle);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+/* The list keeps its own height no matter how tall the results beside it
+   grow, and scrolls once the library outgrows it. */
+.strategy-library-scroll {
+  max-height: min(26rem, 55vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+.strategy-library-status {
+  padding: var(--space-lg) var(--space-md);
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.strategy-library-list {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-2xs);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3xs);
+}
+
+.strategy-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3xs);
+  width: 100%;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.strategy-row-name {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  transition: color 0.15s ease;
+}
+
+.strategy-row-desc {
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  color: var(--text-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* The two-line clamp keeps the rows even, but the rest of the description is
+   one pointer move away; on touch the selected row stays open after a tap. */
+@media (hover: hover) and (pointer: fine) {
+  .strategy-row:hover .strategy-row-desc {
+    display: block;
+    -webkit-line-clamp: unset;
+    overflow: visible;
+  }
+}
+
+.strategy-row.is-active .strategy-row-desc {
+  display: block;
+  -webkit-line-clamp: unset;
+  overflow: visible;
+}
+
+.strategy-row.is-active {
+  background: var(--accent-muted);
+}
+
+.strategy-row.is-active .strategy-row-name {
+  color: var(--accent);
+}
+
+.strategy-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* A run is in flight: the strategy cannot be swapped under it. */
+.strategy-row:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .strategy-row:hover:not(:disabled) {
+    background: var(--bg-surface-hover);
+  }
+}
+
+.strategy-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  min-width: 0;
+}
+
+.strategy-controls-bar {
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
   padding: var(--space-lg);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-lg);
-  font-family: var(--font-sans);
-  overflow: hidden;
-}
-
-.strategy-controls-bar {
-  border-bottom: 1px solid var(--border-subtle);
-  padding-bottom: var(--space-md);
   overflow-x: auto;
   overscroll-behavior-x: contain;
   -webkit-overflow-scrolling: touch;
@@ -31,11 +174,6 @@
   align-items: flex-end;
   gap: var(--space-md);
   flex-wrap: wrap;
-}
-
-/* The stock line shown while the strategy library is still being read. */
-.strategy-loading {
-  margin: var(--space-sm) 0 0;
 }
 
 .run-strategy-btn {
@@ -95,25 +233,16 @@
   margin: 0;
 }
 
-/* Main Content Layout */
-.strategy-content-layout {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--space-lg);
-  min-width: 0;
-}
-
-@media (min-width: 64rem) {
-  .strategy-content-layout {
-    grid-template-columns: minmax(0, 1fr) min(21.25rem, 30%); /* ≈340px sidebar, capped to 30% viewport */
-  }
-}
-
 .strategy-chart-container {
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
   min-width: 0;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-lg);
 }
 
 .strategy-chart-header {
@@ -208,83 +337,76 @@
   font-family: var(--font-mono);
 }
 
-/* Sidebar Metrics Container */
-.strategy-metrics-sidebar {
+/* Metrics read as a label/value grid under the chart, the way the stats card
+   sits under the price chart on the other tab. */
+.strategy-metrics-card {
   display: flex;
   flex-direction: column;
-  gap: var(--space-sm);
-  background: var(--bg-surface-hover);
-  padding: var(--space-md);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-subtle);
-  height: auto;
-  overflow: visible;
-  min-width: 0;
-}
-
-.metrics-title {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  margin: 0 0 var(--space-xs);
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.metrics-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: var(--space-sm);
-}
-
-.metric-card {
+  gap: var(--space-md);
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-lg);
+}
+
+.strategy-metrics-title {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.strategy-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); /* ≈152px cells */
+  gap: var(--space-md) var(--space-lg);
+}
+
+.strategy-metric {
   display: flex;
   flex-direction: column;
   gap: var(--space-3xs);
+  min-width: 0;
   word-break: break-word;
 }
 
-.metric-label {
-  font-size: 0.6875rem; /* ≈11px — fixed-size label atom */
+.strategy-metric-label {
+  font-size: var(--text-xs);
   color: var(--text-muted);
 }
 
-.metric-value {
-  font-size: var(--text-sm);
-  font-weight: 600;
+.strategy-metric-value {
+  font-size: var(--text-lg);
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
 }
 
-.metric-value.is-positive {
+.strategy-metric-value.is-positive {
   color: var(--success);
 }
 
-.metric-value.is-negative {
+.strategy-metric-value.is-negative {
   color: var(--error);
 }
 
-/* ---------- Mobile: keep controls & chart on one row, scroll horizontally ---------- */
+/* ---------- Mobile: the controls stack so the Run button stays visible;
+   the chart keeps its own horizontal scroll. ---------- */
 @media (max-width: 48rem) {
   .strategy-date-form {
-    flex-wrap: nowrap;
-    min-width: max-content;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-sm);
   }
 
-  .strategy-date-form .select-wrapper {
-    width: 12.5rem; /* ≈200px — fixed-width control in scrollable row */
-    flex: none;
-  }
-
-  .strategy-date-form .custom-datepicker-wrapper {
-    flex: none;
-  }
-
-  .run-strategy-btn {
-    flex: none;
+  .strategy-date-form .custom-datepicker-wrapper,
+  .strategy-date-form .custom-datepicker-input-container,
+  .strategy-date-form .btn {
+    width: 100%;
   }
 
   .strategy-chart-scroll .strategy-plot-area {

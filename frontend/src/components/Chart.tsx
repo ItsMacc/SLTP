@@ -17,6 +17,9 @@ interface ChartProps {
   ticker: string
   chartStyle?: 'candles' | 'line'
   defaultZoom?: number
+  /** Render the ticker/price line inside the toolbar. Pages that show the
+   *  quote themselves in a larger header pass false and keep the actions. */
+  showQuote?: boolean
 }
 
 const AXIS_WIDTH = 54
@@ -51,7 +54,7 @@ const volumeLabel = (value: number) => {
  * crosshair tooltip. All the interaction state lives here so the page
  * itself only ever has to pass in a ticker and a list of bars.
  */
-export default function Chart({ bars, ticker, chartStyle = 'candles', defaultZoom }: ChartProps) {
+export default function Chart({ bars, ticker, chartStyle = 'candles', defaultZoom, showQuote = true }: ChartProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(360)
   const [height, setHeight] = useState(420)
@@ -205,20 +208,22 @@ export default function Chart({ bars, ticker, chartStyle = 'candles', defaultZoo
 
   return (
     <div className="chart-card">
-      <div className="chart-toolbar">
-        <div className="chart-toolbar-info">
-          <span className="chart-ticker">{ticker}</span>
-          {last && (
-            <span className="chart-last-price">
-              ${priceLabel(last.close)}
-              <span className={`chart-change ${change >= 0 ? 'is-up' : 'is-down'}`}>
-                {change >= 0 ? '+' : ''}
-                {change.toFixed(2)} ({changePct >= 0 ? '+' : ''}
-                {changePct.toFixed(2)}%)
+      <div className={`chart-toolbar${showQuote ? '' : ' is-actions-only'}`}>
+        {showQuote && (
+          <div className="chart-toolbar-info">
+            <span className="chart-ticker">{ticker}</span>
+            {last && (
+              <span className="chart-last-price">
+                ${priceLabel(last.close)}
+                <span className={`chart-change ${change >= 0 ? 'is-up' : 'is-down'}`}>
+                  {change >= 0 ? '+' : ''}
+                  {change.toFixed(2)} ({changePct >= 0 ? '+' : ''}
+                  {changePct.toFixed(2)}%)
+                </span>
               </span>
-            </span>
-          )}
-        </div>
+            )}
+          </div>
+        )}
         <div className="chart-toolbar-actions">
           <span className="chart-bars-count">{windowData.length} bars visible</span>
           <div className="chart-zoom-group">
@@ -273,15 +278,22 @@ export default function Chart({ bars, ticker, chartStyle = 'candles', defaultZoo
             return (
               <g>
                 <polyline points={points} className="chart-line" fill="none" />
+                {/* Volume bars carry the same up/down class as candles, so the
+                    line style still reads green/red instead of falling back to
+                    the SVG default fill. */}
                 {windowData.map((bar, index) => (
-                  <rect
+                  <g
                     key={bar.date || index}
-                    x={index * slot + slot / 2 - candleWidth / 2}
-                    y={yVolume(bar.volume)}
-                    width={candleWidth}
-                    height={Math.max(1, volumeTop + volumeHeight - yVolume(bar.volume))}
-                    className="candle-volume"
-                  />
+                    className={bar.close >= bar.open ? 'candle-up' : 'candle-down'}
+                  >
+                    <rect
+                      x={index * slot + slot / 2 - candleWidth / 2}
+                      y={yVolume(bar.volume)}
+                      width={candleWidth}
+                      height={Math.max(1, volumeTop + volumeHeight - yVolume(bar.volume))}
+                      className="candle-volume"
+                    />
+                  </g>
                 ))}
               </g>
             )
