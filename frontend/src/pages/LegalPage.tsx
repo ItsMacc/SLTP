@@ -39,7 +39,7 @@ const legalEmail = 'legal.sltp@gmail.com';
 
 const privacyDocument: LegalDocument = {
   title: 'Privacy Policy',
-  meta: 'Last Updated: September 23, 2026',
+  meta: 'Last Updated: October 24, 2026',
   intro: 'This Privacy Policy explains what information SLTP collects, why we collect it, how long we keep it, and what you can ask us to do with it. It applies to the SLTP website, its API, and the research and backtesting tools offered through it.',
   sections: [
     {
@@ -166,7 +166,11 @@ const privacyDocument: LegalDocument = {
           items: [
             {
               lead: 'Supabase:',
-              text: 'Acts as our database and authentication provider, processing account credentials and saved preferences.',
+              text: 'Provides authentication and stores your account profile, notification settings, and sign-in device history.',
+            },
+            {
+              lead: 'Turso:',
+              text: 'Our database for portfolio setup, Lab workspaces and projects, API key records, and portfolio trade records.',
             },
             {
               lead: 'Hosting providers (Vercel and Render):',
@@ -178,7 +182,7 @@ const privacyDocument: LegalDocument = {
             },
             {
               lead: 'Email delivery:',
-              text: 'A transactional email provider delivers account, security, and support messages to the address on your account.',
+              text: 'Security alerts, such as a sign-in from a new device, are sent through Gmail SMTP to the address on your account.',
             },
           ],
         },
@@ -208,8 +212,8 @@ const privacyDocument: LegalDocument = {
               text: 'Until the matter is resolved, and afterwards for a reasonable period so that we have a record of what was agreed.',
             },
             {
-              lead: 'Security records:',
-              text: 'The sign-in device hash is retained for a limited period sufficient to identify a device if it is used again, and is then discarded.',
+              lead: 'Sign-in device history:',
+              text: 'We keep up to 10 of your most recently used devices, stored with your account settings, until you delete your account or newer devices replace them.',
             },
             {
               lead: 'Server logs:',
@@ -235,8 +239,8 @@ const privacyDocument: LegalDocument = {
               text: 'You can review and update the information held on your account from within the platform, and you can ask us for a copy of it in writing.',
             },
             {
-              lead: 'Immediate removal:',
-              text: 'When you request account deletion, all associated records, watchlists, portfolios, and authentication identifiers are permanently purged from our database.',
+              lead: 'Account deletion:',
+              text: 'Deleting your account from Settings permanently removes your profile, portfolio setup, and sign-in credentials. Lab workspaces, projects, files, API keys, and portfolio trade records are not yet removed by that action; we will delete them on written request to the address below.',
             },
             {
               lead: 'No residual storage:',
@@ -306,6 +310,16 @@ const privacyDocument: LegalDocument = {
     },
     {
       step: '13',
+      title: 'Cookies and browser storage',
+      blocks: [
+        {
+          type: 'paragraph',
+          text: 'We do not use tracking cookies or advertising pixels. The platform keeps your sign-in session in your browser. It also caches your learning progress in local storage so pages load faster, and keeps your display name and theme preference in session storage for the current visit. You can clear this data at any time through the site settings of your browser.',
+        },
+      ],
+    },
+    {
+      step: '14',
       title: 'Contact information',
       blocks: [
         {
@@ -327,7 +341,7 @@ const privacyDocument: LegalDocument = {
 
 const termsDocument: LegalDocument = {
   title: 'Terms of Service',
-  meta: 'Last Updated: September 23, 2026',
+  meta: 'Last Updated: October 24, 2026',
   intro: 'Please read these Terms of Service carefully before accessing or using SLTP. By using the platform, you agree to be bound by them. If you do not agree, please do not use the platform.',
   sections: [
     {
@@ -539,6 +553,26 @@ const termsDocument: LegalDocument = {
     },
     {
       step: '15',
+      title: 'Account deletion',
+      blocks: [
+        {
+          type: 'paragraph',
+          text: 'You can delete your account from Settings at any time. Deletion is permanent and cannot be undone. It removes your profile, your portfolio setup, and your sign-in credentials. Lab work, portfolio trade records and API keys are not removed by this step, and are handled as described in our Privacy Policy. If we terminate your account, the same rules apply.',
+        },
+      ],
+    },
+    {
+      step: '16',
+      title: 'Portfolio records and Lab work',
+      blocks: [
+        {
+          type: 'paragraph',
+          text: 'Portfolio trade records and Lab projects are tools for recording and testing your own decisions. They do not connect to a brokerage, do not place orders, and do not reflect real holdings held by SLTP. Figures such as cash, realised gain or loss, and average cost are calculated from the entries you make, and may be wrong if those entries are wrong.',
+        },
+      ],
+    },
+    {
+      step: '17',
       title: 'Contact information',
       blocks: [
         {
