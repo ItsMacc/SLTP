@@ -143,13 +143,10 @@ export default function PerformancePage({ initialSettings }: PerformancePageProp
       <div className="perf-hero-wrapper page-hero-band is-full-bleed is-dot-grid">
         <div className="perf-hero-inner page-hero-inner">
           <div className="perf-hero-copy">
-            <span className="page-hero-eyebrow">Research</span>
-            <h1 className="page-hero-title">Price history and strategy backtests</h1>
+            <span className="page-hero-eyebrow">Charts and backtests</span>
+            <h1 className="page-hero-title">Prices and backtest results</h1>
             <p className="page-hero-description">
-              Study any stock's price history on a candlestick chart, or replay a built-in
-              strategy across real market history and read the resulting metrics next to a
-              buy-and-hold benchmark. The market data is real; the results are hypothetical.
-              Nothing on this page places a trade.
+              Look up price history for any stock, or see how a published strategy would have performed over the same stretch of time.
             </p>
           </div>
 

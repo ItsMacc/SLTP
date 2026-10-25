@@ -1561,14 +1561,12 @@ export default function LearnPage({ onNavigate }: LearnPageProps) {
       <div className="learn-hero-wrapper page-hero-band is-full-bleed is-dot-grid">
         <div className="learn-hero-inner page-hero-inner">
         <div className="learn-hero-copy">
-          <span className="page-hero-eyebrow">New to the stock market? Start here.</span>
-          <h1 className="page-hero-title">The stock market, from zero.</h1>
+          <span className="page-hero-eyebrow">Beginner course</span>
+          <h1 className="page-hero-title">Learn the stock market from the basics.</h1>
           <p className="page-hero-description">
-          Five tiers, unlocked one at a time. Each tier opens with a single module, and the
-          next one appears only when you finish the last, so there is always exactly one
-          thing to do. Finish a module to claim its badge, and pass a tier's quiz to earn
-          its certificate. Every module also ends with an optional quiz if you want to
-          check yourself.
+          Five tiers, each unlocked by finishing the one before it. Finish a module to claim
+          its badge, and pass a tier's quiz to earn its certificate. Every module also ends with
+          an optional quiz if you want to check yourself.
           </p>
         </div>
         <div className="learn-hero-stats">

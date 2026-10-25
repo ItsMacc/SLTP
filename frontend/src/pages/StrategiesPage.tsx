@@ -538,12 +538,11 @@ export const StrategiesPage: React.FC = () => {
       <div className="strategies-hero-wrapper page-hero-band is-full-bleed is-dot-grid">
         <div className="strategies-hero-inner page-hero-inner">
           <div className="strategies-hero-copy">
-            <span className="page-hero-eyebrow">Strategy library</span>
-            <h1 className="page-hero-title">Quantitative strategies</h1>
+            <span className="page-hero-eyebrow">Strategies</span>
+            <h1 className="page-hero-title">Published strategies</h1>
             <p className="page-hero-description">
-              Every strategy here is a written set of rules: what it buys, when it sells, and how
-              much it puts at risk. Expand a card to read the reasoning behind those rules and to
-              see the strategy backtested against simply buying and holding.
+              Browse the strategies published on SLTP. For each one, see its entry and exit rules,
+              how it sizes positions, and how its backtest compares with buying and holding.
             </p>
           </div>            <div className="strategies-stats-row">
               <div className="strategy-stat-card">

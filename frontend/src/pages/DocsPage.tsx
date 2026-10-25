@@ -123,11 +123,10 @@ export default function DocsPage(_props: DocsPageProps) {
         <div className="docs-hero-inner page-hero-inner">
           <div className="docs-hero-copy">
             <span className="page-hero-eyebrow">Documentation</span>
-            <h1 className="page-hero-title">Write a strategy in two classes.</h1>
+            <h1 className="page-hero-title">Strategy Engine and How It Works</h1>
             <p className="page-hero-description">
-              A strategy has a Strategy class that looks at prices and says buy, sell or hold,
-              and a Manager class that decides how much to put into each trade. The engine runs
-              the rest: fills, fees, stop-losses and the day-by-day simulation.
+              Read the following to get an understanding of how SLTP implements its strategies and
+              handles execution logic.
             </p>
           </div>
         </div>

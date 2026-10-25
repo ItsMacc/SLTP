@@ -155,15 +155,15 @@ export default function HomePage({ onNavigate, onOpenGuide }: HomePageProps) {
       <section className="home-hero-wrapper page-hero-band is-full-bleed is-dot-grid">
         <div className="home-hero-inner page-hero-inner">
           <div className="home-hero-copy">
-            <span className="page-hero-eyebrow">Research platform for the stock market</span>
+            <span className="page-hero-eyebrow">Stock research platform</span>
             <h1 className="page-hero-title">
-              Research stocks, test strategies,
+              Research stocks
               <br />
-              <em>and track what you own.</em>
+              <em>and track your portfolio.</em>
             </h1>
             <p className="page-hero-description">
-              Every strategy on SLTP comes with the rules behind it and its full backtest history,
-              so you can see how it works, test your own ideas, and decide what to follow.
+              SLTP brings together market charts, published strategies and a portfolio tracker, so
+              you can follow what you own in one place.
             </p>
 
             <div className="home-hero-actions">

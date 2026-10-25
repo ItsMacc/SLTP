@@ -240,15 +240,13 @@ export default function LabPage({ onNavigate }: LabPageProps) {
       <div className="lab-hero-wrapper page-hero-band is-full-bleed is-dot-grid">
         <div className="lab-hero-inner page-hero-inner">
           <div className="lab-hero-copy">
-            <span className="page-hero-eyebrow">The Lab</span>
-            <h1 className="page-hero-title">
-              Write a strategy, then test it against real market history.
-            </h1>
+            <span className="page-hero-eyebrow">Lab</span>
+            <h1 className="page-hero-title">Write a strategy in Python and backtest it.</h1>
           </div>
 
           <div className="lab-hero-docs">
             <p className="lab-hero-docs-text">
-              The Docs page lists every method you can override, with worked examples you can copy.
+              Need help? Check out the docs and see how the strategy engine works.
             </p>
             <Button variant="link" size="sm" onClick={() => onNavigate?.('docs')}>
               Read the docs <ArrowRight size={14} aria-hidden="true" />
