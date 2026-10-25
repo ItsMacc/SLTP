@@ -181,6 +181,20 @@
   white-space: nowrap;
 }
 
+.lab-start .lab-card {
+  justify-content: center;
+  gap: var(--space-lg);
+}
+
+.lab-start .lab-card-text {
+  font-size: var(--text-base);
+  line-height: 1.7;
+}
+
+.lab-start .lab-full {
+  margin-top: 0;
+}
+
 /* Eyebrow */
 .lab-eyebrow {
   margin: 0;
