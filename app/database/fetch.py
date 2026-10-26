@@ -82,15 +82,27 @@ def __load_cache() -> None:
         return
 
     try:
-        df = pd.read_parquet(master_file_path)
+        cols_to_load = ["Symbol", "Date", "Open", "High", "Low", "Close", "Volume"]
+        df = pd.read_parquet(
+            master_file_path,
+            engine="pyarrow",
+            memory_map=True,
+            columns=cols_to_load
+        )
+
         if not df.empty and "Symbol" in df.columns:
-            for symbol, group in df.groupby("Symbol"):
-                rows = group[["Date", "Open", "High", "Low", "Close", "Volume"]].values.tolist()
-                _GLOBAL_CACHE["histories"][symbol] = _build_stock_data(symbol, rows)
-                if "Name" in group.columns:
-                    names = group["Name"].dropna()
-                    if not names.empty:
-                        _GLOBAL_CACHE["names"][symbol] = str(names.iloc[-1])
+            for symbol, group in df.groupby("Symbol", sort=False):
+                matrix = group[["Date", "Open", "High", "Low", "Close", "Volume"]].to_numpy()
+                _GLOBAL_CACHE["histories"][symbol] = StockData(
+                    ticker=symbol,
+                    dates=matrix[:, 0].astype("U"),
+                    open_price=matrix[:, 1].astype(float),
+                    high=matrix[:, 2].astype(float),
+                    low=matrix[:, 3].astype(float),
+                    close_price=matrix[:, 4].astype(float),
+                    volume=matrix[:, 5].astype(float),
+                )
+
     except Exception as e:
         print(f"Error loading master parquet cache: {e}")
 

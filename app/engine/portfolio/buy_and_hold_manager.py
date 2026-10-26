@@ -6,7 +6,7 @@
 
 # -------- Imports --------
 from app.engine.portfolio.portfolio_manager import (
-    PortfolioManager, RebalanceFrequency, TradeRecord, UNIVERSE
+    PortfolioManager, RebalanceFrequency, TradeRecord
 )
 from app.engine.utils.StrategyDecision import StrategyDecision, Signal
 from app.database.fetch import get_stock_histories, get_all_tickers
@@ -18,7 +18,7 @@ class BuyAndHoldManager(PortfolioManager):
         super().__init__()
 
         # Configured for a benchmark passive strategy
-        self.max_positions = len(UNIVERSE)
+        self.max_positions = len(self.get_available_universe)
         self.REBALANCE_FREQUENCY = RebalanceFrequency.NEVER
         self.WARM_UP_PERIOD = 30
 
