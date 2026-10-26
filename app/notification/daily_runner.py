@@ -20,6 +20,7 @@ from datetime import datetime, timezone
 
 from app.database import turso
 from app.database.db import insert_or_update_data
+from app.engine.utils.StrategyDecision import Signal
 from app.notification.email import (
     send_notification_email,
     signals_digest_email,
@@ -175,10 +176,10 @@ def _run_strategy_signals(strategy_id: str, latest_date: str) -> list[dict]:
             print(f"  [signals] {strategy_id}/{ticker}: generate_signal failed: {e}")
             continue
 
-        if decision is None or decision.signal != "BUY":
+        if decision is None or decision.signal not in (Signal.LONG, Signal.SHORT):
             continue
 
-        # Route through the manager to compute stop-loss / take-profit
+        # Route through the manager to compute direction-aware risk levels
         stop_loss = None
         take_profit = None
         try:
@@ -193,7 +194,7 @@ def _run_strategy_signals(strategy_id: str, latest_date: str) -> list[dict]:
             "strategy_id": strategy_id,
             "strategy": strategy.name,
             "ticker": ticker,
-            "signal_type": decision.signal,
+            "signal_type": decision.signal.value,
             "price": decision.metrics.get("close_price"),
             "confidence": decision.confidence,
             "stop_loss": stop_loss,

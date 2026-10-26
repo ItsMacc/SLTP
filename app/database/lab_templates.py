@@ -23,12 +23,12 @@ BLANK_ID = "blank"
 
 _STRATEGY_HEADER = """from core.strategy.strategy import Strategy
 from core.utils.StockData import StockData
-from core.utils.StrategyDecision import StrategyDecision
+from core.utils.StrategyDecision import StrategyDecision, Signal
 from workspace.{manager_module} import {manager_class}
 """
 
 _MANAGER_HEADER = """from core.portfolio.portfolio_manager import PortfolioManager, TradeRecord
-from core.utils.StrategyDecision import StrategyDecision
+from core.utils.StrategyDecision import StrategyDecision, Signal
 """
 
 
@@ -51,7 +51,7 @@ class CustomStrategy(Strategy):
         # history.close_price, history.high, history.low and history.volume
         # hold the daily bars, oldest first. The last one is today.
         return StrategyDecision(
-            signal="HOLD",
+            signal=Signal.HOLD,
             confidence=0.0,
             metrics={"close_price": float(history.close_price[-1])},
             meta_data={"ticker": ticker, "signal_date": str(history.dates[-1])},
@@ -65,7 +65,7 @@ class CustomManager(PortfolioManager):
         super().__init__(max_positions=10)
 
     def on_signal(self, ticker: str, decision: StrategyDecision) -> TradeRecord | None:
-        # Return None to skip the trade. For a BUY, build a TradeRecord with
+        # Return None to skip the trade. For a LONG signal, build a TradeRecord with
         # allocation_size, stop_loss and take_profit from decision.metrics.
         return None
 ''',
@@ -101,7 +101,7 @@ class EmaCrossover(Strategy):
         crossed_up = fast[-2] <= slow[-2] and fast[-1] > slow[-1]
 
         return StrategyDecision(
-            signal="BUY" if crossed_up else "HOLD",
+            signal=Signal.LONG if crossed_up else Signal.HOLD,
             confidence=1.0 if crossed_up else 0.0,
             metrics={"close_price": close, "fast_ema": float(fast[-1]), "slow_ema": float(slow[-1])},
             meta_data={"ticker": ticker, "signal_date": today},
@@ -115,8 +115,8 @@ class EmaCrossoverManager(PortfolioManager):
         super().__init__(max_positions=10)
 
     def on_signal(self, ticker: str, decision: StrategyDecision) -> TradeRecord | None:
-        # Only a BUY opens a position, and only one per ticker
-        if decision.signal != "BUY" or self.open_positions.get(ticker, False):
+        # Only a LONG signal opens a position, and only one per ticker
+        if decision.signal is not Signal.LONG or self.open_positions.get(ticker, False):
             return None
 
         close = decision.metrics.get("close_price", 0.0)
@@ -168,7 +168,7 @@ class RsiPullback(Strategy):
         uptrend = close > trend[-1]
 
         return StrategyDecision(
-            signal="BUY" if oversold and uptrend else "HOLD",
+            signal=Signal.LONG if oversold and uptrend else Signal.HOLD,
             confidence=1.0 if oversold and uptrend else 0.0,
             metrics={"close_price": close, "rsi": float(rsi[-1])},
             meta_data={"ticker": ticker, "signal_date": today},
@@ -182,8 +182,8 @@ class RsiPullbackManager(PortfolioManager):
         super().__init__(max_positions=8)
 
     def on_signal(self, ticker: str, decision: StrategyDecision) -> TradeRecord | None:
-        # Only a BUY opens a position, and only one per ticker
-        if decision.signal != "BUY" or self.open_positions.get(ticker, False):
+        # Only a LONG signal opens a position, and only one per ticker
+        if decision.signal is not Signal.LONG or self.open_positions.get(ticker, False):
             return None
 
         close = decision.metrics.get("close_price", 0.0)
@@ -234,7 +234,7 @@ class ParabolicSarTrend(Strategy):
         flipped_up = close[-2] <= sar[-2] and close[-1] > sar[-1]
 
         return StrategyDecision(
-            signal="BUY" if flipped_up else "HOLD",
+            signal=Signal.LONG if flipped_up else Signal.HOLD,
             confidence=1.0 if flipped_up else 0.0,
             metrics={"close_price": close_now, "sar": float(sar[-1])},
             meta_data={"ticker": ticker, "signal_date": today},
@@ -248,8 +248,8 @@ class ParabolicSarManager(PortfolioManager):
         super().__init__(max_positions=10)
 
     def on_signal(self, ticker: str, decision: StrategyDecision) -> TradeRecord | None:
-        # Only a BUY opens a position, and only one per ticker
-        if decision.signal != "BUY" or self.open_positions.get(ticker, False):
+        # Only a LONG signal opens a position, and only one per ticker
+        if decision.signal is not Signal.LONG or self.open_positions.get(ticker, False):
             return None
 
         close = decision.metrics.get("close_price", 0.0)

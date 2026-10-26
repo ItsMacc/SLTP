@@ -6,7 +6,7 @@
 #   from core.strategy.strategy import Strategy
 #   from core.portfolio.portfolio_manager import PortfolioManager, TradeRecord
 #   from core.utils.StockData import StockData
-#   from core.utils.StrategyDecision import StrategyDecision
+#   from core.utils.StrategyDecision import StrategyDecision, Signal
 #
 # The mirror is byte-for-byte the repo file apart from one thing: the imports
 # *inside* those modules are rewritten to point at the mirrored package, so

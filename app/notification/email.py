@@ -3,7 +3,7 @@
 # Four notification types, all rendered from one shared boilerplate so the
 # styling stays consistent. Fill-in points come straight from the
 # StrategyDecision datatype where applicable:
-#   decision.signal        -> BUY / SELL / HOLD
+#   decision.signal        -> Signal.LONG / SHORT / HOLD / EXIT
 #   decision.confidence    -> 0..1
 #   decision.metrics       -> e.g. {"close_price", "stop_loss", "take_profit", ...}
 #   decision.meta_data     -> e.g. {"ticker", "signal_date", ...}
@@ -147,7 +147,7 @@ def trade_signal_email(receiver: str, user_name: str, strategy_name: str,
       stop_loss / take_profit from decision.metrics or the position plan
     """
     signal_type = signal_type.upper()
-    is_buy = signal_type == "BUY"
+    is_buy = signal_type.lower() in ("long", "buy")
     accent = C_GREEN if is_buy else C_RED
     signal_color = C_GREEN if is_buy else C_RED
     action_word = "buy" if is_buy else "sell"
@@ -188,7 +188,7 @@ def signals_digest_email(receiver: str, user_name: str,
     strategies on a given trading day. `signals` entries:
       { strategy, ticker, signal_type, price?, confidence?,
         stop_loss?, take_profit? }
-    Only BUY signals are expected today, but any type renders correctly.
+    Only LONG signals are generated today, but any type renders correctly.
     """
     if not signals:
         return False, "No signals — digest email skipped"
@@ -208,7 +208,7 @@ def signals_digest_email(receiver: str, user_name: str,
     rows_html = ""
     for s in signals:
         sig = str(s.get("signal_type", "")).upper()
-        is_buy = sig == "BUY"
+        is_buy = sig in ("LONG", "BUY")
         color = C_GREEN if is_buy else C_RED
         conf = s.get("confidence")
         conf_html = f" <span style='color:{C_MUTED};'>({conf * 100:.0f}%)</span>" if conf is not None else ""
@@ -508,16 +508,16 @@ if __name__ == "__main__":
     demo_payloads = {
         "trade_signal": {
             "strategy_name": "Stock Health Filter", "ticker": "AAPL",
-            "signal_type": "BUY", "price": 187.42, "confidence": 0.82,
+            "signal_type": "LONG", "price": 187.42, "confidence": 0.82,
             "stop_loss": 174.50, "take_profit": 215.00,
             "note": "Health-spike criteria met for the third consecutive session.",
         },
         "signals_digest": {
             "signal_date": "2026-09-23",
             "signals": [
-                {"strategy": "Stock Health Filter", "ticker": "AAPL", "signal_type": "BUY",
+                {"strategy": "Stock Health Filter", "ticker": "AAPL", "signal_type": "LONG",
                  "price": 187.42, "confidence": 0.82, "stop_loss": 174.50, "take_profit": 215.00},
-                {"strategy": "Stock Health Filter", "ticker": "MU", "signal_type": "BUY",
+                {"strategy": "Stock Health Filter", "ticker": "MU", "signal_type": "LONG",
                  "price": 612.10, "confidence": 0.64, "stop_loss": 560.00, "take_profit": 720.00},
             ],
         },
@@ -545,7 +545,7 @@ if __name__ == "__main__":
                 "watchlist_moves": [{"ticker": "NVDA", "change_pct": 4.8},
                                     {"ticker": "SHOP.TO", "change_pct": -2.1}],
                 "signals_today": [{"strategy": "Stock Health Filter",
-                                   "ticker": "MSFT", "signal_type": "BUY"}],
+                                   "ticker": "MSFT", "signal_type": "LONG"}],
             },
         },
         "price_alert": {"ticker": "TSLA", "change_pct": -6.3, "current_price": 212.55},

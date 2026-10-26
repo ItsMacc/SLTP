@@ -298,8 +298,8 @@ export default function DocsPage(_props: DocsPageProps) {
                 </span>
                 <span className="docs-flow-label">1 · Strategy decides</span>
                 <p>
-                  Returns a <code>StrategyDecision</code>: BUY, SELL or HOLD, plus a confidence
-                  score.
+                  Returns a <code>StrategyDecision</code>: LONG, SHORT, HOLD or EXIT, plus a
+                  confidence score.
                 </p>
               </div>
               <ArrowRight className="docs-flow-arrow" size={16} aria-hidden="true" />
@@ -309,8 +309,8 @@ export default function DocsPage(_props: DocsPageProps) {
                 </span>
                 <span className="docs-flow-label">2 · Manager sizes</span>
                 <p>
-                  Turns each BUY into a <code>TradeRecord</code> with size, stop-loss and
-                  take-profit — or skips it.
+                  Turns each LONG or SHORT signal into a <code>TradeRecord</code> with size,
+                  direction-aware stop-loss and take-profit — or skips it. EXIT closes an open trade.
                 </p>
               </div>
               <ArrowRight className="docs-flow-arrow" size={16} aria-hidden="true" />
@@ -361,7 +361,7 @@ export default function DocsPage(_props: DocsPageProps) {
                   label: 'Returns',
                   value: (
                     <>
-                      A <code>StrategyDecision</code> saying BUY, SELL or HOLD, with a confidence
+                      A <code>StrategyDecision</code> saying LONG, SHORT, HOLD or EXIT, with a confidence
                       score the Manager can size from.
                     </>
                   ),
@@ -401,7 +401,7 @@ export default function DocsPage(_props: DocsPageProps) {
               signature="Manager.on_signal(ticker, decision) → TradeRecord | None"
               required
               rows={[
-                { label: 'Called', value: 'Whenever your Strategy returns a BUY.' },
+                { label: 'Called', value: 'Whenever your Strategy returns LONG or SHORT. EXIT closes a matching open position directly.' },
                 {
                   label: 'Receives',
                   value: (
@@ -582,8 +582,9 @@ workspace/
                   name: 'signal',
                   contents: (
                     <>
-                      <code>"BUY"</code>, <code>"SELL"</code> or <code>"HOLD"</code>. Only BUY ever
-                      reaches the Manager.
+                      A <code>Signal</code> enum value: <code>Signal.LONG</code>, <code>Signal.SHORT</code>,
+                      <code>Signal.HOLD</code> or <code>Signal.EXIT</code>. LONG and SHORT signals
+                      reach the Manager; EXIT closes an open position, while HOLD does nothing.
                     </>
                   ),
                 },
@@ -634,7 +635,7 @@ import numpy as np
 from workspace.sma_crossover_manager import SMACrossoverManager
 from core.strategy.strategy import Strategy
 from core.utils.StockData import StockData
-from core.utils.StrategyDecision import StrategyDecision
+from core.utils.StrategyDecision import StrategyDecision, Signal
 
 
 class SMACrossoverStrategy(Strategy):
@@ -670,14 +671,13 @@ class SMACrossoverStrategy(Strategy):
         trending_up = close[-1] > slow_now
 
         buy = crossed_up and trending_up
-        signal = "BUY" if buy else "HOLD"
 
         # Confidence grows with how decisively fast is above slow
         separation = (fast_now - slow_now) / slow_now if slow_now else 0.0
         confidence = round(min(1.0, max(0.3, separation * 20)), 2)
 
         return StrategyDecision(
-            signal=signal,
+            signal=Signal.LONG if buy else Signal.HOLD,
             confidence=confidence,
             metrics={
                 "fast_sma": round(float(fast_now), 2),
@@ -693,7 +693,7 @@ class SMACrossoverStrategy(Strategy):
 from core.portfolio.portfolio_manager import (
     PortfolioManager, RebalanceFrequency, TradeRecord, UNIVERSE,
 )
-from core.utils.StrategyDecision import StrategyDecision
+from core.utils.StrategyDecision import StrategyDecision, Signal
 
 
 class SMACrossoverManager(PortfolioManager):
@@ -710,8 +710,8 @@ class SMACrossoverManager(PortfolioManager):
         return len(self.tickers) > 0
 
     def on_signal(self, ticker: str, decision: StrategyDecision) -> TradeRecord | None:
-        # Only fresh BUYs, and never double up on an open position
-        if decision.signal != "BUY" or self.open_positions.get(ticker, False):
+        # Accept LONG or SHORT entries, never double up on an open position
+        if decision.signal not in (Signal.LONG, Signal.SHORT) or self.open_positions.get(ticker, False):
             return None
         if ticker in self.blacklisted_tickers:
             return None
@@ -720,9 +720,13 @@ class SMACrossoverManager(PortfolioManager):
         if entry <= 0:
             return None
 
-        # Fixed 8% stop and 16% target (2:1 reward-to-risk)
-        stop_loss = round(entry * 0.92, 2)
-        take_profit = round(entry * 1.16, 2)
+        # Fixed 8% stop and 16% target (2:1 reward-to-risk), reversed for shorts
+        if decision.signal is Signal.SHORT:
+            stop_loss = round(entry * 1.08, 2)
+            take_profit = round(entry * 0.84, 2)
+        else:
+            stop_loss = round(entry * 0.92, 2)
+            take_profit = round(entry * 1.16, 2)
 
         # Equal-weight sizing: 1 / max_positions, scaled by confidence
         base = self._base_allocation()
@@ -730,7 +734,7 @@ class SMACrossoverManager(PortfolioManager):
 
         return TradeRecord(
             ticker=ticker,
-            action="BUY",
+            action="SHORT" if decision.signal is Signal.SHORT else "BUY",
             entry_date=None,
             allocation_size=allocation,
             entry_price=None,
@@ -762,7 +766,7 @@ import numpy as np
 from workspace.rsi_dip_buyer_manager import RSIDipBuyerManager
 from core.strategy.strategy import Strategy
 from core.utils.StockData import StockData
-from core.utils.StrategyDecision import StrategyDecision
+from core.utils.StrategyDecision import StrategyDecision, Signal
 
 
 class RSIDipBuyerStrategy(Strategy):
@@ -797,7 +801,7 @@ class RSIDipBuyerStrategy(Strategy):
         confidence = round(min(1.0, 0.3 + depth), 2) if oversold else 1.0
 
         return StrategyDecision(
-            signal="BUY" if (oversold and long_term_ok) else "HOLD",
+            signal=Signal.LONG if (oversold and long_term_ok) else Signal.HOLD,
             confidence=confidence,
             metrics={"rsi": round(current_rsi, 2), "close_price": float(close[-1])},
             meta_data={"ticker": ticker, "signal_date": today},
@@ -807,7 +811,7 @@ class RSIDipBuyerStrategy(Strategy):
             <Step n="2" title="The Manager (workspace/rsi_dip_buyer_manager.py)">
               <CodeBlock source={`# workspace/rsi_dip_buyer_manager.py
 from core.portfolio.portfolio_manager import PortfolioManager, RebalanceFrequency, TradeRecord
-from core.utils.StrategyDecision import StrategyDecision
+from core.utils.StrategyDecision import StrategyDecision, Signal
 
 
 class RSIDipBuyerManager(PortfolioManager):
@@ -817,7 +821,7 @@ class RSIDipBuyerManager(PortfolioManager):
         self.REBALANCE_FREQUENCY = RebalanceFrequency.NEVER
 
     def on_signal(self, ticker: str, decision: StrategyDecision) -> TradeRecord | None:
-        if decision.signal != "BUY" or self.open_positions.get(ticker, False):
+        if decision.signal not in (Signal.LONG, Signal.SHORT) or self.open_positions.get(ticker, False):
             return None
         if ticker in self.blacklisted_tickers:
             return None
@@ -833,12 +837,16 @@ class RSIDipBuyerManager(PortfolioManager):
         allocation = round(min(0.10, 0.06 + dip_strength * 0.10), 2)
 
         # Wide stop, because mean reversion needs room to breathe
-        stop_loss = round(entry * 0.90, 2)        # -10%
-        take_profit = round(entry * 1.05, 2)      # +5%
+        if decision.signal is Signal.SHORT:
+            stop_loss = round(entry * 1.10, 2)
+            take_profit = round(entry * 0.95, 2)
+        else:
+            stop_loss = round(entry * 0.90, 2)        # -10%
+            take_profit = round(entry * 1.05, 2)      # +5%
 
         return TradeRecord(
             ticker=ticker,
-            action="BUY",
+            action="SHORT" if decision.signal is Signal.SHORT else "BUY",
             entry_date=None,
             allocation_size=allocation,
             entry_price=None,
@@ -924,7 +932,7 @@ def on_rebalance(self, current_date: str) -> None:
               <div className="docs-ref-note">
                 <h5>Leave alone (Manager)</h5>
                 <ul>
-                  <li><code>check_exits</code> — checks stop-loss and take-profit, including gaps</li>
+                  <li><code>check_exits</code> — checks directional stop-loss / take-profit first, then closes on an EXIT signal; ignores EXIT when flat</li>
                   <li><code>buy_order</code> — fills, slippage, fees and allocation caps</li>
                   <li><code>mark_to_market</code> — daily portfolio value</li>
                   <li><code>_base_allocation</code> — default sizing (quarter-Kelly)</li>
@@ -995,7 +1003,7 @@ def on_rebalance(self, current_date: str) -> None:
       "active_positions": 0, "transaction_cost": 0.0 },
     ...
   ],
-  "trades": { "AAPL": [ { "action": "BUY", "entry_price": 172.4, ... } ] }
+  "trades": { "AAPL": [ { "action": "BUY" | "SHORT" | "EXIT" | "STOP_LOSS" | "TAKE_PROFIT", "entry_price": 172.4, ... } ] }
 }`} title="response (trimmed)" readOnly={false} />
             </div>
           </section>

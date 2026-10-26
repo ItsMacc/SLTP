@@ -56,7 +56,7 @@ const GUIDE_GLOSSARY: Record<string, string | GlossaryTerm> = {
   signal: {
     definition:
       "The moment a strategy's rules say to act, buy, sell or hold. A signal is the output of the rules, not a guess.",
-    example: 'A signal might read: BUY MU, confidence 82%, because price health is accelerating.',
+    example: 'A signal might read: LONG MU, confidence 82%, because price health is accelerating.',
   },
   strategy: {
     definition: 'A fixed set of rules that decides what to buy, when to sell, and when to re-check the holdings.',
