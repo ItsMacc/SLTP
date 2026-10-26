@@ -106,14 +106,24 @@ export default function TradeResults({ trades }: TradeResultsProps) {
               const action = rawAction === '' || rawAction === 'UNKNOWN' ? 'BUY' : rawAction
               const displayAction = action === 'BUY' ? 'LONG' : action
 
-              const actionClass =
-                action === 'TAKE_PROFIT'
-                  ? 'is-take-profit'
-                  : action === 'STOP_LOSS'
-                  ? 'is-stop-loss'
-                  : action === 'EXIT'
-                  ? 'is-exit'
-                  : action === 'SHORT'
+              const isClosedTrade =
+                trade.exit_date != null ||
+                trade.exit_price != null ||
+                action === 'TAKE_PROFIT' ||
+                action === 'STOP_LOSS' ||
+                action === 'EXIT'
+              const realizedReturn = Number(trade.realized_return_pct)
+              const actionClass = isClosedTrade
+                ? realizedReturn > 0
+                  ? 'is-winning'
+                  : realizedReturn < 0
+                    ? 'is-losing'
+                    : action === 'TAKE_PROFIT'
+                      ? 'is-winning'
+                      : action === 'STOP_LOSS'
+                        ? 'is-losing'
+                        : 'is-exit'
+                : action === 'SHORT'
                   ? 'is-short'
                   : 'is-buy'
 
