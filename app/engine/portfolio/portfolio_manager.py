@@ -55,7 +55,6 @@ REBALANCE_SETTINGS: dict[RebalanceFrequency, relativedelta] = {
 }
 
 MIN_KELLY_TRADES: int = 10
-UNIVERSE = get_all_tickers()
 
 
 # -------- Portfolio Manager --------
@@ -92,6 +91,10 @@ class PortfolioManager:
         self.LAST_REBALANCE_DATE: str | None = None
         self.REBALANCE_FREQUENCY: RebalanceFrequency = RebalanceFrequency.NEVER
         self.WARM_UP_PERIOD: int = 0
+
+    @property
+    def get_available_universe(self) -> list[str]:
+        return get_all_tickers()
 
     # -------- Data Management --------
     def add_ticker(self,

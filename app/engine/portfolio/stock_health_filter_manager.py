@@ -12,7 +12,7 @@ import talib as ta
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from app.engine.portfolio.portfolio_manager import (
-    PortfolioManager, RebalanceFrequency, TradeRecord, UNIVERSE
+    PortfolioManager, RebalanceFrequency, TradeRecord
 )
 from app.engine.utils.StrategyDecision import StrategyDecision, Signal
 from app.database.fetch import get_stock_histories, get_stock_history
@@ -173,6 +173,7 @@ class StockHealthFilterManager(PortfolioManager):
         # Fetch historical data with safety margin up to current_date
         start_date = datetime.strptime(current_date, "%Y-%m-%d") - relativedelta(days=self.WARM_UP_PERIOD * 2)
         start_date_str = start_date.strftime("%Y-%m-%d")
+        UNIVERSE = self.get_available_universe
         histories = get_stock_histories(UNIVERSE, start=start_date_str, end=current_date)
 
         exclude_set = set(self.tickers) | self.blacklisted_tickers if exclude_current else set()

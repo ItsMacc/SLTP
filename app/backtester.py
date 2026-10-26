@@ -10,6 +10,7 @@
 
 # -------- Imports --------
 import numpy as np
+import time
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from app.engine.portfolio.portfolio_manager import TradeRecord, RebalanceFrequency, REBALANCE_SETTINGS
@@ -67,6 +68,7 @@ class Backtester:
             self._execute_pending_buys(current_date, ticker_data)
 
             # Check exits and signal generation
+            max_positions = self.manager.max_positions
             for ticker, data in ticker_data.items():
                 date_map = data["date_to_idx"]
                 if current_date not in date_map:
@@ -76,6 +78,12 @@ class Backtester:
 
                 # Ensure we only backtest past our start index window
                 if i < data["start_idx"]:
+                    continue
+
+                has_position = self.manager.open_positions.get(ticker, False)
+
+                # Skip strategy signal checks for idle tickers if portfolio is fully maxed out
+                if not has_position and max_positions is not None and self.manager.active_positions >= max_positions:
                     continue
 
                 current_open = float(data["open"][i])
@@ -380,3 +388,151 @@ class Backtester:
         sliced_history.low = data["low"][:i + 1]
         sliced_history.close_price = data["close"][:i + 1]
         sliced_history.volume = data["volume"][:i + 1]
+
+    def _timed_run(self, verbose: bool = True) -> None:
+        total_start = time.perf_counter()
+        timing = {}
+
+        # 1. Initialize Universe and get the actual valid start date string
+        t0 = time.perf_counter()
+        actual_start_date = self._initialize_universe()
+        timing["universe_init_time"] = time.perf_counter() - t0
+        timing["actual_start_date"] = actual_start_date
+
+        # 2. Build and validate calendar
+        t0 = time.perf_counter()
+        valid_dates = self._build_trading_calendar()
+        if not valid_dates:
+            raise ValueError("No valid dates found within the specified start and end range.")
+
+        # Filter active dates from actual_start_date onwards (and up to end_date if specified)
+        if self.end_date is not None:
+            active_dates = [d for d in valid_dates if actual_start_date <= d <= self.end_date]
+        else:
+            active_dates = [d for d in valid_dates if d >= actual_start_date]
+
+        if not active_dates:
+            raise ValueError("No active dates found after initialization and filtering.")
+
+        timing["calendar_build_time"] = time.perf_counter() - t0
+        timing["active_days_count"] = len(active_dates)
+
+        self.manager.equity_curve = []
+
+        # 3. Pre-cache ticker data mappings for high-performance lookup
+        t0 = time.perf_counter()
+        ticker_data = self._pre_cache_ticker_data(active_dates[0])
+        sliced_history = StockData("", [], [], [], [], [], [])
+        timing["pre_cache_time"] = time.perf_counter() - t0
+        timing["cached_tickers_count"] = len(ticker_data)
+
+        # 4. Iterate day by day
+        loop_start = time.perf_counter()
+        rebalance_count = 0
+        signal_count = 0
+        exit_count = 0
+
+        for current_date in active_dates:
+            # Automatically check rebalance schedule and execute if due
+            if self._should_rebalance(current_date):
+                self.manager.on_rebalance(current_date)
+                self.manager.LAST_REBALANCE_DATE = current_date
+                rebalance_count += 1
+
+            # Pick up any tickers on_rebalance just added so they're actually simulated
+            self._sync_ticker_data(ticker_data, current_date)
+
+            # Execute pending buys
+            self._execute_pending_buys(current_date, ticker_data)
+
+            # Check exits and signal generation
+            max_positions = self.manager.max_positions
+            for ticker, data in ticker_data.items():
+                date_map = data["date_to_idx"]
+                if current_date not in date_map:
+                    continue
+
+                i = date_map[current_date]
+
+                # Ensure we only backtest past our start index window
+                if i < data["start_idx"]:
+                    continue
+
+                has_position = self.manager.open_positions.get(ticker, False)
+
+                # Optimization: Skip strategy signal checks for idle tickers if portfolio is fully maxed out
+                if not has_position and max_positions is not None and self.manager.active_positions >= max_positions:
+                    continue
+
+                current_open = float(data["open"][i])
+                current_high = float(data["high"][i])
+                current_low = float(data["low"][i])
+                current_close = float(data["close"][i])
+
+                # Generate today's decision from history ending at today's close.
+                self._slice_history_for_ticker(sliced_history, ticker, data, i)
+                decision = None
+                try:
+                    decision = self.strategy.generate_signal(ticker, sliced_history)
+                except ValueError:
+                    pass
+
+                # Stop/target exits use intraday prices; explicit EXIT signals use
+                # today's close and are ignored when there is no open position.
+                self.manager.check_exits(
+                    ticker,
+                    current_open,
+                    current_high,
+                    current_low,
+                    current_date,
+                    signal=decision.signal if decision is not None else None,
+                    signal_price=current_close,
+                )
+
+                # Queue either entry direction for execution at the next open.
+                if decision is not None and decision.signal in (Signal.LONG, Signal.SHORT):
+                    trade_record = self.manager.on_signal(ticker, decision)
+                    if trade_record is not None and trade_record.action in ("BUY", "SHORT"):
+                        self._pending_buys.append((ticker, trade_record))
+                        signal_count += 1
+
+                # Update open position values using today's close price
+                self.manager.mark_to_market(ticker, current_close)
+
+            # Record a clean, unified portfolio equity point once per day
+            self.manager.equity_curve.append(
+                {
+                    "date": current_date,
+                    "portfolio_value": round(self.manager.portfolio_value, 2),
+                    "active_positions": self.manager.active_positions,
+                    "total_transaction_cost": round(self.manager.total_transactions_cost, 4)
+                }
+            )
+
+        # Finalize timing metrics
+        timing["loop_time"] = time.perf_counter() - loop_start
+        timing["rebalances_executed"] = rebalance_count
+        timing["signals_processed"] = signal_count
+        timing["exits_triggered"] = exit_count
+        timing["avg_time_per_day_ms"] = (timing["loop_time"] / len(active_dates)) * 1000 if active_dates else 0.0
+        timing["total_time"] = time.perf_counter() - total_start
+
+        # Print nicely if verbose is enabled
+        if verbose:
+            print("\n" + "=" * 50)
+            print("        BACKTEST EXECUTION TIMING SUMMARY        ")
+            print("=" * 50)
+            print(
+                f" • Universe Init Time       : {timing['universe_init_time']:.4f}s (Start: {timing['actual_start_date']})")
+            print(
+                f" • Calendar Build Time      : {timing['calendar_build_time']:.4f}s ({timing['active_days_count']} active days)")
+            print(
+                f" • Ticker Pre-cache Time    : {timing['pre_cache_time']:.4f}s ({timing['cached_tickers_count']} tickers)")
+            print(f" • Simulation Loop Time     : {timing['loop_time']:.4f}s")
+            print(f"   - Rebalances Executed    : {timing['rebalances_executed']}")
+            print(f"   - Signals Processed      : {timing['signals_processed']}")
+            print(f"   - Exits Triggered        : {timing['exits_triggered']}")
+            print(f"   - Average Time per Day   : {timing['avg_time_per_day_ms']:.2f} ms")
+            print("-" * 50)
+            print(f" • Total Execution Time     : {timing['total_time']:.4f}s")
+            print("=" * 50 + "\n")
