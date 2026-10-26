@@ -18,7 +18,8 @@ from app.engine.utils.StockData import StockData
 # -------- Global Cache --------
 _GLOBAL_CACHE = {
     "loaded": False,
-    "histories": {}
+    "histories": {},
+    "names": {},
 }
 
 
@@ -86,6 +87,10 @@ def __load_cache() -> None:
             for symbol, group in df.groupby("Symbol"):
                 rows = group[["Date", "Open", "High", "Low", "Close", "Volume"]].values.tolist()
                 _GLOBAL_CACHE["histories"][symbol] = _build_stock_data(symbol, rows)
+                if "Name" in group.columns:
+                    names = group["Name"].dropna()
+                    if not names.empty:
+                        _GLOBAL_CACHE["names"][symbol] = str(names.iloc[-1])
     except Exception as e:
         print(f"Error loading master parquet cache: {e}")
 
@@ -94,10 +99,27 @@ def __load_cache() -> None:
 
 # -------- Stock Data Queries --------
 def get_all_tickers() -> List[str]:
-    # Returns a list of all unique ticker symbols currently available in the master Parquet database
+    # Returns all symbols currently available in the master Parquet database.
     __load_cache()
     global _GLOBAL_CACHE
     return list(_GLOBAL_CACHE["histories"].keys())
+
+
+def get_all_ticker_details() -> List[Dict[str, str]]:
+    """Return ticker symbols and their display names for the search UI."""
+    __load_cache()
+    global _GLOBAL_CACHE
+    return [
+        {"ticker": ticker, "name": _GLOBAL_CACHE["names"].get(ticker, ticker)}
+        for ticker in _GLOBAL_CACHE["histories"].keys()
+    ]
+
+
+def get_stock_name(ticker: str) -> str:
+    """Return a market-data name, falling back to the symbol for older files."""
+    __load_cache()
+    global _GLOBAL_CACHE
+    return _GLOBAL_CACHE["names"].get(ticker, ticker)
 
 def get_all_stocks() -> List[str]:
     __load_cache()

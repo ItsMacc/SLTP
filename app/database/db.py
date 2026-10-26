@@ -1,9 +1,8 @@
 # db.py — Market data ingestion into the local Parquet master file.
 #
-# Builds the tradable symbol universe from Wikipedia (S&P 500, TSX 60,
-# ETFs, gold) and keeps the master market_data.parquet fresh: tickers
-# missing from the file get full history, existing ones get a 5-day top-up.
-# One row per (Symbol, Date) with OHLCV columns.
+# Builds the tradable symbol universe from Wikipedia (S&P 500, S&P 400,
+# S&P 600, TSX 60, ETFs, gold) and keeps the master market_data.parquet fresh.
+# One row per (Symbol, Date) with OHLCV columns and the company/fund Name.
 
 # -------- Imports --------
 import json
@@ -39,54 +38,73 @@ def _fetch_soup(url: str, timeout: int = 10) -> bs.BeautifulSoup | None:
 
 
 # -------- Symbol Lists --------
-def load_sp500() -> list:
-    url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
+def _load_constituents(url: str, table_id: str = "constituents") -> dict[str, str]:
+    """Return ticker -> company name from a constituents table."""
     soup = _fetch_soup(url)
     if soup is None:
-        return []
+        return {}
 
-    table = soup.find("table", {"id": "constituents"})
+    table = soup.find("table", {"id": table_id})
     if table is None:
-        return []
+        tables = soup.find_all("table", {"class": "wikitable"})
+        table = tables[0] if tables else None
+    if table is None:
+        return {}
 
-    # Extract ticker symbols from the table rows
-    symbols = []
+    companies = {}
     for row in table.find_all("tr")[1:]:
         cells = row.find_all("td")
         if not cells:
             continue
-        ticker = cells[0].text.strip().replace(".", "-")
-        symbols.append(ticker)
+        ticker = cells[0].get_text(" ", strip=True).replace(".", "-")
+        name = cells[1].get_text(" ", strip=True) if len(cells) > 1 else ticker
+        ticker = re.sub(r"\[.*?\]", "", ticker).strip()
+        if ticker:
+            companies[ticker] = re.sub(r"\s+", " ", name).strip() or ticker
+    return companies
 
-    return symbols
+
+def load_sp500() -> list:
+    return list(_load_constituents("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"))
 
 
-def load_tsx60() -> list:
+def load_sp400() -> list:
+    return list(_load_constituents("https://en.wikipedia.org/wiki/List_of_S%26P_400_companies"))
+
+
+def load_sp600() -> list:
+    return list(_load_constituents("https://en.wikipedia.org/wiki/List_of_S%26P_600_companies"))
+
+
+def _load_tsx60_constituents() -> dict[str, str]:
     url = "https://en.wikipedia.org/wiki/S%26P/TSX_60"
     soup = _fetch_soup(url)
     if soup is None:
-        return []
+        return {}
 
-    # Find the constituents table on the TSX 60 Wikipedia page
     table = soup.find("table", {"id": "constituents"})
     if table is None:
         tables = soup.find_all("table", {"class": "wikitable"})
         table = tables[0] if tables else None
-
     if table is None:
-        return []
+        return {}
 
-    symbols = []
+    companies = {}
     for row in table.find_all("tr")[1:]:
         cells = row.find_all("td")
         if not cells:
             continue
-        ticker_text = cells[0].text.strip().replace(".", "-")
-        if not ticker_text.endswith(".TO") and len(ticker_text) <= 5:
-            ticker_text = f"{ticker_text}.TO"
-        symbols.append(ticker_text)
+        symbol = cells[0].get_text(" ", strip=True).replace(".", "-")
+        if not symbol.endswith(".TO") and len(symbol) <= 5:
+            symbol = f"{symbol}.TO"
+        name = cells[1].get_text(" ", strip=True) if len(cells) > 1 else symbol
+        if symbol:
+            companies[symbol] = re.sub(r"\s+", " ", name).strip() or symbol
+    return companies
 
-    return symbols
+
+def load_tsx60() -> list:
+    return list(_load_tsx60_constituents())
 
 
 def load_etfs() -> list:
@@ -117,9 +135,23 @@ def load_gold() -> list:
     return ["GLD"]
 
 
+def load_company_names() -> dict[str, str]:
+    """Scrape names for the company indexes; non-index funds fall back to symbol."""
+    names = {}
+    sources = (
+        ("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies", "constituents"),
+        ("https://en.wikipedia.org/wiki/List_of_S%26P_400_companies", "constituents"),
+        ("https://en.wikipedia.org/wiki/List_of_S%26P_600_companies", "constituents"),
+    )
+    for url, table_id in sources:
+        names.update(_load_constituents(url, table_id))
+    names.update(_load_tsx60_constituents())
+    return names
+
+
 def load_symbols() -> list:
-    # Combine and deduplicate all loaded US and Canadian symbol groups into a single list
-    return list(set(load_sp500() + load_tsx60() + load_etfs() + load_gold()))
+    # Combine and deduplicate all loaded US and Canadian symbol groups.
+    return sorted(set(load_sp500() + load_sp400() + load_sp600() + load_tsx60() + load_etfs() + load_gold()))
 
 
 # -------- Parquet Database Operations --------
@@ -183,7 +215,8 @@ def _remove_dead_symbols() -> set:
 
 
 def process_and_save_bars(download_list: list,
-                          df: pd.DataFrame) -> None:
+                          df: pd.DataFrame,
+                          company_names: dict[str, str] | None = None) -> None:
     # Return early if dataframe or download list is empty
     if df is None or df.empty or not download_list:
         return
@@ -235,7 +268,8 @@ def process_and_save_bars(download_list: list,
         if valid_rows.empty:
             continue
 
-        # Insert Symbol column to distinguish tickers inside the single master file
+        # Keep the human-readable issuer/fund name with every daily record.
+        valid_rows.insert(0, "Name", (company_names or {}).get(ticker, ticker))
         valid_rows.insert(0, "Symbol", ticker)
         new_rows_list.append(valid_rows)
         written_tickers.add(ticker)
@@ -259,7 +293,14 @@ def process_and_save_bars(download_list: list,
     if os.path.exists(master_file_path):
         try:
             existing_df = pd.read_parquet(master_file_path)
-            combined_df = pd.concat([existing_df, incoming_df]).drop_duplicates(subset=["Symbol", "Date"]).sort_values(["Symbol", "Date"])
+            # Upgrade older parquet files too, and refresh names even when the
+            # daily bars already existed before this schema was introduced.
+            if "Name" not in existing_df.columns:
+                existing_df["Name"] = existing_df["Symbol"].map(company_names or {}).fillna(existing_df["Symbol"])
+            else:
+                mapped_names = existing_df["Symbol"].map(company_names or {})
+                existing_df["Name"] = mapped_names.fillna(existing_df["Name"])
+            combined_df = pd.concat([existing_df, incoming_df]).drop_duplicates(subset=["Symbol", "Date"], keep="last").sort_values(["Symbol", "Date"])
             combined_df.to_parquet(master_file_path, compression="snappy", index=False)
             print(f"Successfully updated master Parquet file: {master_file_path}")
         except Exception as e:
@@ -272,6 +313,7 @@ def process_and_save_bars(download_list: list,
 
 def insert_or_update_data() -> None:
     init_db()
+    company_names = load_company_names()
     raw_tickers = load_symbols()
 
     # Drop delisted/renamed symbols before any download work happens, so they
@@ -334,7 +376,7 @@ def insert_or_update_data() -> None:
                 auto_adjust=False,
                 progress=False,
             )
-            process_and_save_bars(download_all_data, df_max)
+            process_and_save_bars(download_all_data, df_max, company_names)
         except Exception as e:
             print(f"Batch max download error: {e}")
 
