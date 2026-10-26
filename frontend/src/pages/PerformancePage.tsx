@@ -29,6 +29,7 @@ const NO_BARS: Bar[] = []
 
 interface StockHistoryResponse {
   ticker: string
+  name?: string
   timeframe: string
   total_bars: number
   data: Bar[]
@@ -165,9 +166,14 @@ function Sparkline({ values, up }: { values: number[]; up: boolean }) {
   )
 }
 
+interface TickerInfo {
+  ticker: string
+  name: string
+}
+
 export default function PerformancePage({ initialSettings }: PerformancePageProps) {
   const [mode, setMode] = useState<Mode>('stocks')
-  const [allTickers, setAllTickers] = useState<string[]>([])
+  const [allTickers, setAllTickers] = useState<TickerInfo[]>([])
   // The ticker list is read from the market-data store on mount.
   const [tickersLoading, setTickersLoading] = useState(true)
   const [query, setQuery] = useState('')
@@ -204,15 +210,19 @@ export default function PerformancePage({ initialSettings }: PerformancePageProp
 
   useEffect(() => {
     let cancelled = false
-    fetch(`${API_BASE_URL}/api/stock/all-tickers`)
-      .then((res) => res.json())
-      .then((data: string[]) => {
+    fetch(`${API_BASE_URL}/api/stock/ticker-details`)
+      .then((res) => {
+        if (!res.ok) throw new Error('Could not load ticker names')
+        return res.json()
+      })
+      .then((data: TickerInfo[]) => {
         if (cancelled) return
         const list = Array.isArray(data) ? data : []
         setAllTickers(list)
         // Open on a chart rather than an empty frame: Apple when it is in the
         // universe, otherwise whatever the list starts with.
-        setSelectedTicker((current) => current ?? (list.includes('AAPL') ? 'AAPL' : (list[0] ?? null)))
+        const symbols = list.map(({ ticker }) => ticker)
+        setSelectedTicker((current) => current ?? (symbols.includes('AAPL') ? 'AAPL' : (symbols[0] ?? null)))
       })
       .catch(() => {
         if (!cancelled) setAllTickers([])
@@ -228,22 +238,26 @@ export default function PerformancePage({ initialSettings }: PerformancePageProp
   // Typing narrows the list in place; the matches stay in the same scroll
   // area instead of hanging under the field.
   const filteredTickers = useMemo(() => {
-    const q = query.trim().toUpperCase()
+    const q = query.trim().toLocaleLowerCase()
     if (!q) return allTickers
 
-    const startsWithMatches: string[] = []
-    const containsMatches: string[] = []
+    const startsWithMatches: TickerInfo[] = []
+    const containsMatches: TickerInfo[] = []
+    const nameMatches: TickerInfo[] = []
 
-    for (const symbol of allTickers) {
-      const upperSymbol = symbol.toUpperCase()
-      if (upperSymbol.startsWith(q)) {
-        startsWithMatches.push(symbol)
-      } else if (upperSymbol.includes(q)) {
-        containsMatches.push(symbol)
+    for (const item of allTickers) {
+      const symbol = item.ticker.toLocaleLowerCase()
+      const name = item.name.toLocaleLowerCase()
+      if (symbol.startsWith(q)) {
+        startsWithMatches.push(item)
+      } else if (symbol.includes(q)) {
+        containsMatches.push(item)
+      } else if (name.includes(q)) {
+        nameMatches.push(item)
       }
     }
 
-    return [...startsWithMatches, ...containsMatches]
+    return [...startsWithMatches, ...containsMatches, ...nameMatches]
   }, [query, allTickers])
 
   const visibleTickers = useMemo(
@@ -254,9 +268,9 @@ export default function PerformancePage({ initialSettings }: PerformancePageProp
   useEffect(() => {
     if (mode !== 'stocks') return
 
-    const queue = visibleTickers.filter(
-      (ticker) => !quotesRef.current[ticker] && !pendingQuotes.current.has(ticker)
-    )
+    const queue = visibleTickers
+      .map(({ ticker }) => ticker)
+      .filter((ticker) => !quotesRef.current[ticker] && !pendingQuotes.current.has(ticker))
     if (queue.length === 0) return
 
     let cancelled = false
@@ -394,7 +408,7 @@ export default function PerformancePage({ initialSettings }: PerformancePageProp
                   type="text"
                   value={query}
                   onChange={(event) => handleSearch(event.target.value)}
-                  placeholder="Search ticker"
+                  placeholder="Search ticker or company"
                   className="perf-search-input"
                   aria-label="Filter tickers"
                 />
@@ -411,7 +425,7 @@ export default function PerformancePage({ initialSettings }: PerformancePageProp
               </div>
 
               <div className="perf-watchlist-head" aria-hidden="true">
-                <span>Symbol</span>
+                <span>Company / symbol</span>
                 <span>Last / 1D</span>
               </div>
 
@@ -428,7 +442,7 @@ export default function PerformancePage({ initialSettings }: PerformancePageProp
 
                 {!tickersLoading && filteredTickers.length > 0 && (
                   <ul className="perf-watchlist-list">
-                    {visibleTickers.map((symbol) => {
+                    {visibleTickers.map(({ ticker: symbol, name }) => {
                       const quote = quotes[symbol]
                       const isActive = symbol === selectedTicker
                       const up = quote ? quote.changePct >= 0 : true
@@ -441,7 +455,10 @@ export default function PerformancePage({ initialSettings }: PerformancePageProp
                             aria-pressed={isActive}
                             onClick={() => handleSelectTicker(symbol)}
                           >
-                            <span className="perf-row-symbol">{symbol}</span>
+                            <span className="perf-row-identity">
+                              <span className="perf-row-symbol">{symbol}</span>
+                              <span className="perf-row-name">{name}</span>
+                            </span>
                             <span className="perf-row-spark">
                               {quote ? (
                                 <Sparkline values={quote.spark} up={up} />
@@ -486,7 +503,14 @@ export default function PerformancePage({ initialSettings }: PerformancePageProp
                   <article className="perf-quote-card">
                     <header className="perf-quote-head">
                       <div className="perf-quote-identity">
-                        <h2 className="perf-quote-ticker">{stockData?.ticker ?? selectedTicker}</h2>
+                        <div className="perf-quote-heading">
+                          <h2 className="perf-quote-ticker">{stockData?.ticker ?? selectedTicker}</h2>
+                          {(stockData?.name || allTickers.find((item) => item.ticker === selectedTicker)?.name) && (
+                            <span className="perf-quote-name">
+                              {stockData?.name || allTickers.find((item) => item.ticker === selectedTicker)?.name}
+                            </span>
+                          )}
+                        </div>
                         <p className="perf-quote-price-row">
                           <span className="perf-quote-price">${priceText(lastBar.close)}</span>
                           <span

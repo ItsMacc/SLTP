@@ -19,7 +19,12 @@ from app.engine.strategy.buy_and_hold import BuyAndHold
 from app.engine.strategy.stock_health_filter import StockHealthFilterStrategy
 
 # Database Imports
-from app.database.fetch import get_stock_history_json, get_all_tickers as fetch_all_tickers
+from app.database.fetch import (
+    get_stock_history_json,
+    get_all_tickers as fetch_all_tickers,
+    get_all_ticker_details,
+    get_stock_name,
+)
 from app.database.provision import router as provision_router
 from app.database.portfolio_api import router as portfolio_router
 from app.database.account_delete import router as account_delete_router
@@ -149,9 +154,21 @@ def read_stock_history(
 ):
     """Fetch historical price candles for individual stock tickers."""
     try:
-        return get_stock_history_json(ticker=ticker, timeframe=timeframe)
+        history = get_stock_history_json(ticker=ticker, timeframe=timeframe)
+        history["name"] = get_stock_name(ticker.upper())
+        return history
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+
+@app.get("/api/stock/ticker-details")
+def get_ticker_details():
+    """Retrieve available symbols with their company/fund display names."""
+    try:
+        return get_all_ticker_details()
+    except Exception as e:
+        print(f"Ticker details endpoint error: {e}")
+        return []
 
 
 @app.get("/api/stock/all-tickers")
