@@ -385,13 +385,13 @@ def insert_or_update_data() -> None:
         try:
             df_5d = yf.download(
                 tickers=download_previous_data,
-                period="30d",
+                period="5d",
                 interval="1d",
                 group_by="ticker",
                 auto_adjust=False,
                 progress=False,
             )
-            process_and_save_bars(download_previous_data, df_5d)
+            process_and_save_bars(download_previous_data, df_5d, company_names)
         except Exception as e:
             print(f"Batch 5d download error: {e}")
 
