@@ -24,7 +24,7 @@ class StockHealthFilterManager(PortfolioManager):
         super().__init__()
 
         # Initial Configurations
-        self.max_positions = 20
+        self.max_positions = 10
         self.REBALANCE_FREQUENCY = RebalanceFrequency.QUARTERLY
         self.WARM_UP_PERIOD = 60
 
@@ -150,7 +150,7 @@ class StockHealthFilterManager(PortfolioManager):
 
     def initialize_universe(self, current_date: str) -> bool:
         # Fetch top qualifying candidates
-        n = 50
+        n = 25
         top = self._get_top_candidates(current_date, n=n, exclude_current=False)
 
         if len(top) < n:
