@@ -15,6 +15,7 @@
 import numpy as np
 from app.engine.portfolio.stock_health_filter_manager import StockHealthFilterManager
 from app.engine.strategy.strategy import Strategy, StrategyDecision
+from app.engine.utils.StrategyDecision import Signal
 from app.engine.utils.StockData import StockData
 
 
@@ -65,7 +66,7 @@ class StockHealthFilterStrategy(Strategy):
         metrics, meta_data = self._build_decision_payload(ticker, today_date, ratios, deltas, h_short_list, h_long_list, close_arr)
 
         buy_condition = is_spike and is_above_sma and h_long_list[1] > 0.01
-        signal_type = 'BUY' if buy_condition else 'HOLD'
+        signal_type = Signal.LONG if buy_condition else Signal.HOLD
         final_confidence = confidence if is_spike else 1.0
 
         return StrategyDecision(signal=signal_type, confidence=final_confidence, metrics=metrics, meta_data=meta_data)

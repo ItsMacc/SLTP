@@ -8,7 +8,7 @@
 from app.engine.portfolio.portfolio_manager import (
     PortfolioManager, RebalanceFrequency, TradeRecord, UNIVERSE
 )
-from app.engine.utils.StrategyDecision import StrategyDecision
+from app.engine.utils.StrategyDecision import StrategyDecision, Signal
 from app.database.fetch import get_stock_histories, get_all_tickers
 
 
@@ -25,8 +25,8 @@ class BuyAndHoldManager(PortfolioManager):
     # -------- Lifecycle Hooks --------
     def on_signal(self, ticker: str, decision: StrategyDecision) -> TradeRecord | None:
         # Executes a single initial buy order with no stop-loss or take-profit limits
-        # Ignore non-BUY decisions or already open positions
-        if decision.signal != "BUY" or self.open_positions.get(ticker, False):
+        # Ignore non-LONG signals or already open positions
+        if decision.signal is not Signal.LONG or self.open_positions.get(ticker, False):
             return None
 
         current_close = decision.metrics.get("close_price", 0.0)

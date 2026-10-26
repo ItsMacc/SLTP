@@ -15,6 +15,7 @@ from dateutil.relativedelta import relativedelta
 from app.engine.portfolio.portfolio_manager import TradeRecord, RebalanceFrequency, REBALANCE_SETTINGS
 from app.engine.strategy.strategy import Strategy
 from app.engine.utils.StockData import StockData
+from app.engine.utils.StrategyDecision import Signal
 from scipy.stats import skew, kurtosis, norm
 
 
@@ -82,22 +83,31 @@ class Backtester:
                 current_low = float(data["low"][i])
                 current_close = float(data["close"][i])
 
-                # Check existing positions for stop-loss or take-profit exits
-                self.manager.check_exits(ticker, current_open, current_high, current_low, current_date)
-
-                # Slice historical data up to current day to prevent lookahead bias
+                # Generate today's decision from history ending at today's close.
                 self._slice_history_for_ticker(sliced_history, ticker, data, i)
-
-                # Generate strategy signals and queue for tomorrow's open
+                decision = None
                 try:
                     decision = self.strategy.generate_signal(ticker, sliced_history)
-                    if decision and decision.signal == "BUY":
-                        trade_record = self.manager.on_signal(ticker, decision)
-
-                        if trade_record is not None:
-                            self._pending_buys.append((ticker, trade_record))
                 except ValueError:
                     pass
+
+                # Stop/target exits use intraday prices; explicit EXIT signals use
+                # today's close and are ignored when there is no open position.
+                self.manager.check_exits(
+                    ticker,
+                    current_open,
+                    current_high,
+                    current_low,
+                    current_date,
+                    signal=decision.signal if decision is not None else None,
+                    signal_price=current_close,
+                )
+
+                # Queue either entry direction for execution at the next open.
+                if decision is not None and decision.signal in (Signal.LONG, Signal.SHORT):
+                    trade_record = self.manager.on_signal(ticker, decision)
+                    if trade_record is not None and trade_record.action in ("BUY", "SHORT"):
+                        self._pending_buys.append((ticker, trade_record))
 
                 # Update open position values using today's close price
                 self.manager.mark_to_market(ticker, current_close)
@@ -226,7 +236,8 @@ class Backtester:
                 if state and last_trade.entry_price and last_trade.entry_price > 0:
                     last_close = state["last_close"]
                     entry_portfolio_value = state["entry_portfolio_value"]
-                    pct_gain = (last_close - last_trade.entry_price) / last_trade.entry_price
+                    direction = -1.0 if last_trade.action == "SHORT" else 1.0
+                    pct_gain = direction * (last_close - last_trade.entry_price) / last_trade.entry_price
                     open_profit = entry_portfolio_value * last_trade.allocation_size * pct_gain
                     unrealized_profit += open_profit
         unrealized_profit = round(unrealized_profit, 2)
@@ -340,7 +351,7 @@ class Backtester:
         }
 
     def _execute_pending_buys(self, current_date: str, ticker_data: dict) -> None:
-        # Executes queued pending buy orders at today's open price and clears the queue
+        # Executes queued entries at today's open price and clears the queue
         if not self._pending_buys:
             return
 
@@ -354,7 +365,10 @@ class Backtester:
                 open_price = float(data["open"][i])
 
                 if open_price > 0:
-                    self.manager.buy_order(ticker, open_price, trade_record, current_date)
+                    if trade_record.action == "SHORT":
+                        self.manager.short_order(ticker, open_price, trade_record, current_date)
+                    else:
+                        self.manager.buy_order(ticker, open_price, trade_record, current_date)
 
     @staticmethod
     def _slice_history_for_ticker(sliced_history: StockData, ticker: str, data: dict, i: int) -> None:

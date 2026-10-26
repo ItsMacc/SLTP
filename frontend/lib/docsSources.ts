@@ -131,13 +131,13 @@ from enum import Enum
 from dateutil.relativedelta import relativedelta
 from app.database.fetch import get_stock_histories, get_all_tickers, get_stock_history
 from core.utils.StockData import StockData
-from core.utils.StrategyDecision import StrategyDecision
+from core.utils.StrategyDecision import StrategyDecision, Signal
 
 
 @dataclass
 class TradeRecord:
     ticker: str
-    action: str                      # BUY | STOP_LOSS | TAKE_PROFIT
+    action: str                      # BUY | SHORT for entries; EXIT | STOP_LOSS | TAKE_PROFIT for exits
     entry_date: str | None
     allocation_size: float           # fraction of portfolio value (0.0 - 1.0)
     entry_price: float | None
@@ -202,8 +202,8 @@ class PortfolioManager:
 
     # -------- Lifecycle Hooks (override these) --------
     def on_signal(self, ticker: str, decision: StrategyDecision) -> TradeRecord:
-        # Called on every generated signal. Return a pending TradeRecord
-        # to queue a BUY, or None to skip the signal.
+        # Called for LONG / SHORT entries. Return a pending TradeRecord,
+        # or None to skip the signal. EXIT is handled by check_exits.
         raise NotImplementedError("PortfolioManager subclasses must implement on_signal()")
 
     def on_rebalance(self, current_date: str) -> None:
@@ -216,14 +216,18 @@ class PortfolioManager:
         pass
 
     # -------- Trade Execution (usually leave alone) --------
-    def check_exits(self, ticker, current_open, current_high, current_low, current_date) -> None:
-        # Stop-loss / take-profit exit engine with pessimistic priority
-        # (stop-loss before take-profit) and gap handling.
+    def check_exits(self, ticker, current_open, current_high, current_low, current_date,
+                    signal=None, signal_price=None) -> None:
+        # Closes an open position on explicit EXIT or when its directional
+        # stop-loss / take-profit is hit. EXIT is ignored when flat.
         ...
 
     def buy_order(self, ticker, fill_price, trade_record, current_date) -> None:
-        # Fills a pending BUY at the given price: applies slippage and fees,
-        # caps total allocation at 100% of the portfolio, records the trade.
+        # Fills a pending LONG entry at the next open.
+        ...
+
+    def short_order(self, ticker, fill_price, trade_record, current_date) -> None:
+        # Fills a pending SHORT entry at the next open.
         ...
 
     def mark_to_market(self, ticker, current_close) -> None:
@@ -236,6 +240,9 @@ class PortfolioManager:
         ...`;
 
 export const BACKTESTER_SOURCE = `# backtester.py  (the day loop, simplified)
+from core.utils.StrategyDecision import Signal
+
+
 class Backtester:
     def __init__(self, strategy: Strategy, start_date: str, end_date: str | None = None):
         self.strategy = strategy
@@ -259,24 +266,28 @@ class Backtester:
                 self.manager.on_rebalance(current_date)
                 self.manager.LAST_REBALANCE_DATE = current_date
 
-            # Fill yesterday's queued buys at TODAY'S OPEN
+            # Fill yesterday's queued entries at TODAY'S OPEN
             self._execute_pending_buys(current_date, ticker_data)
 
             for ticker, data in ticker_data.items():
                 i = data["date_to_idx"][current_date]
 
-                # Check stop-loss / take-profit exits intraday
-                self.manager.check_exits(ticker, open_i, high_i, low_i, current_date)
-
                 # Slice history strictly up to today (prevents lookahead bias).
                 # This sliced StockData is what your generate_signal receives.
                 self._slice_history_for_ticker(sliced_history, ticker, data, i)
-
-                # Your strategy decides
                 decision = self.strategy.generate_signal(ticker, sliced_history)
-                if decision and decision.signal == "BUY":
+
+                # An explicit EXIT closes at today's close. Otherwise apply
+                # directional stop/target levels; flat tickers are ignored.
+                self.manager.check_exits(
+                    ticker, open_i, high_i, low_i, current_date,
+                    signal=decision.signal if decision else None,
+                    signal_price=current_close,
+                )
+
+                if decision and decision.signal in (Signal.LONG, Signal.SHORT):
                     trade_record = self.manager.on_signal(ticker, decision)
-                    if trade_record is not None:
+                    if trade_record is not None and trade_record.action in ("BUY", "SHORT"):
                         self._pending_buys.append((ticker, trade_record))
 
                 # Mark open positions to today's close
@@ -313,19 +324,27 @@ class StockData:
 
 export const STRATEGY_DECISION_SOURCE = `# core/utils/StrategyDecision.py
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Any
+
+
+class Signal(Enum):
+    LONG = "long"
+    SHORT = "short"
+    HOLD = "hold"
+    EXIT = "exit"
 
 
 @dataclass()
 class StrategyDecision:
-    signal: str                                          # "BUY" | "SELL" | "HOLD"
+    signal: Signal                                      # LONG | SHORT | HOLD | EXIT
     confidence: float                                    # 0.0 - 1.0
     metrics: dict[str, float] = field(default_factory=dict)      # numeric readouts
     meta_data: dict[str, Any] = field(default_factory=dict)      # free-form metadata
 
 # Example:
 # return StrategyDecision(
-#     signal="BUY",
+#     signal=Signal.LONG,
 #     confidence=0.72,
 #     metrics={"rsi": 24.1, "close_price": 187.44},
 #     meta_data={"ticker": ticker, "signal_date": str(history.dates[-1])},

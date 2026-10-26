@@ -7,6 +7,7 @@
 # -------- Imports --------
 from app.engine.portfolio.buy_and_hold_manager import BuyAndHoldManager
 from app.engine.strategy.strategy import Strategy, StrategyDecision
+from app.engine.utils.StrategyDecision import Signal
 from app.engine.utils.StockData import StockData
 
 
@@ -37,10 +38,10 @@ class BuyAndHold(Strategy):
 
         # Buy once at the start, then hold indefinitely
         if not is_already_open:
-            signal_type = "BUY"
+            signal_type = Signal.LONG
             confidence = 1.0
         else:
-            signal_type = "HOLD"
+            signal_type = Signal.HOLD
             confidence = 1.0
 
         metrics = {"close_price": current_close}

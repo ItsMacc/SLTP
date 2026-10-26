@@ -5,7 +5,7 @@ import './TradeResults.css'
 
 export interface TradeRecord {
   ticker?: string
-  action?: 'BUY' | 'TAKE_PROFIT' | 'STOP_LOSS'
+  action?: 'BUY' | 'SHORT' | 'TAKE_PROFIT' | 'STOP_LOSS' | 'EXIT'
   entry_date?: string
   allocation_size?: number | null
   entry_price?: number
@@ -104,12 +104,17 @@ export default function TradeResults({ trades }: TradeResultsProps) {
             {currentTrades.map(({ ticker, trade }, idx) => {
               const rawAction = (trade.action || '').toUpperCase()
               const action = rawAction === '' || rawAction === 'UNKNOWN' ? 'BUY' : rawAction
+              const displayAction = action === 'BUY' ? 'LONG' : action
 
               const actionClass =
                 action === 'TAKE_PROFIT'
                   ? 'is-take-profit'
                   : action === 'STOP_LOSS'
                   ? 'is-stop-loss'
+                  : action === 'EXIT'
+                  ? 'is-exit'
+                  : action === 'SHORT'
+                  ? 'is-short'
                   : 'is-buy'
 
               const displayDate = trade.exit_date || trade.entry_date || trade.signal_date || '-'
@@ -128,7 +133,7 @@ export default function TradeResults({ trades }: TradeResultsProps) {
                   <td>{displayDate}</td>
                   <td className="trade-ticker-cell">{ticker}</td>
                   <td>
-                    <span className={`trade-badge ${actionClass}`}>{action}</span>
+                    <span className={`trade-badge ${actionClass}`}>{displayAction}</span>
                   </td>
                   <td>{allocationVal}</td>
                   <td>{entryPriceVal}</td>

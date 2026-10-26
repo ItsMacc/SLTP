@@ -14,7 +14,7 @@ from dateutil.relativedelta import relativedelta
 from app.engine.portfolio.portfolio_manager import (
     PortfolioManager, RebalanceFrequency, TradeRecord, UNIVERSE
 )
-from app.engine.utils.StrategyDecision import StrategyDecision
+from app.engine.utils.StrategyDecision import StrategyDecision, Signal
 from app.database.fetch import get_stock_histories, get_stock_history
 
 
@@ -32,9 +32,9 @@ class StockHealthFilterManager(PortfolioManager):
     def on_signal(self,
                   ticker: str,
                   decision: StrategyDecision
-                  ) -> TradeRecord:
-        # Ignore signal if signal is not BUY
-        if decision.signal != "BUY":
+                  ) -> TradeRecord | None:
+        # This strategy is long-only; it does not open SHORT positions.
+        if decision.signal is not Signal.LONG:
             return None
 
         # Ignore signal if an open position already exists for the ticker
@@ -107,18 +107,8 @@ class StockHealthFilterManager(PortfolioManager):
         )
 
     def on_rebalance(self, current_date: str) -> None:
-        # Clean up blacklisted tickers whose positions have closed
-        new_blacklist = set()
-        for ticker in list(self.blacklisted_tickers):
-            if not self.open_positions.get(ticker, False):
-                if ticker in self.tickers:
-                    self.tickers.remove(ticker)
-                if ticker in self.histories:
-                    del self.histories[ticker]
-                new_blacklist.add(ticker)
-
-        for ticker in new_blacklist:
-            self.blacklisted_tickers.remove(ticker)
+        # Clean up blacklisted tickers
+        super().on_rebalance(current_date)
 
         # Evaluate performance (net of wins and losses)
         ticker_performance: dict[str, float] = {}
