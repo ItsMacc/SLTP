@@ -87,19 +87,21 @@
   color: var(--error);
 }
 
-.trade-badge.is-exit {
-  background-color: var(--bg-surface-hover);
-  color: var(--text-muted);
-}
-
+.trade-badge.is-winning,
 .trade-badge.is-take-profit {
   background-color: var(--success-muted);
   color: var(--success);
 }
 
+.trade-badge.is-losing,
 .trade-badge.is-stop-loss {
   background-color: var(--error-muted);
   color: var(--error);
+}
+
+.trade-badge.is-exit {
+  background-color: var(--bg-surface-hover);
+  color: var(--text-muted);
 }
 
 .trade-pagination {
