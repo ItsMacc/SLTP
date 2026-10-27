@@ -29,10 +29,15 @@ class Backtester:
         self.start_date = start_date
         self.end_date = end_date
         self._pending_buys: list[tuple[str, TradeRecord]] = []
+        self._pending_exits: list[str] = []
 
     def run(self) -> None:
         # Initialize Universe and get the actual valid start date string
         actual_start_date = self._initialize_universe()
+
+        # The universe was just built for this date, so a rebalance on day one
+        # would immediately rebuild it.
+        self.manager.LAST_REBALANCE_DATE = actual_start_date
 
         # Build and validate calendar
         valid_dates = self._build_trading_calendar()
@@ -64,6 +69,9 @@ class Backtester:
             # Pick up any tickers on_rebalance just added so they're actually simulated
             self._sync_ticker_data(ticker_data, current_date)
 
+            # Fill queued exits first so their capital is available to new entries
+            self._execute_pending_exits(current_date, ticker_data)
+
             # Execute pending buys
             self._execute_pending_buys(current_date, ticker_data)
 
@@ -94,22 +102,26 @@ class Backtester:
                 # Generate today's decision from history ending at today's close.
                 self._slice_history_for_ticker(sliced_history, ticker, data, i)
                 decision = None
-                try:
+                if i + 1 >= self.strategy.MIN_BARS_REQUIRED:
                     decision = self.strategy.generate_signal(ticker, sliced_history)
-                except ValueError:
-                    pass
 
-                # Stop/target exits use intraday prices; explicit EXIT signals use
-                # today's close and are ignored when there is no open position.
+                # Stops and targets are checked against today's bar. An explicit
+                # EXIT is queued so it fills at the next open, exactly like entries.
                 self.manager.check_exits(
                     ticker,
                     current_open,
                     current_high,
                     current_low,
                     current_date,
-                    signal=decision.signal if decision is not None else None,
-                    signal_price=current_close,
                 )
+
+                if (
+                    decision is not None
+                    and decision.signal is Signal.EXIT
+                    and self.manager.open_positions.get(ticker, False)
+                    and ticker not in self._pending_exits
+                ):
+                    self._pending_exits.append(ticker)
 
                 # Queue either entry direction for execution at the next open.
                 if decision is not None and decision.signal in (Signal.LONG, Signal.SHORT):
@@ -265,6 +277,7 @@ class Backtester:
             "max_drawdown": max_drawdown,
             "drawdown_recovery": max_duration,
             "unrealized_profit": unrealized_profit,
+            "rejected_orders": dict(sorted(self.manager.rejected_orders.items())),
             "equity": equity_curve,
         }
 
@@ -330,6 +343,13 @@ class Backtester:
         return ticker_data
 
     def _sync_ticker_data(self, ticker_data: dict, current_date: str) -> None:
+        # manager.histories is the source of truth for the live universe, so drop
+        # tickers that on_rebalance removed (blacklisted / dropped names). Without
+        # this the cache keeps simulating them and their signals reach a manager
+        # that no longer holds their history.
+        for ticker in [t for t in ticker_data if t not in self.manager.histories]:
+            del ticker_data[ticker]
+
         # Caches any ticker added mid-run by on_rebalance so it joins the simulation
         for ticker, history in self.manager.histories.items():
             if ticker in ticker_data:
@@ -358,6 +378,31 @@ class Backtester:
             "date_to_idx": {d: idx for idx, d in enumerate(dates)}
         }
 
+    def _execute_pending_exits(self, current_date: str, ticker_data: dict) -> None:
+        # Queued EXIT signals fill at the next open, mirroring entry timing
+        if not self._pending_exits:
+            return
+
+        still_pending: list[str] = []
+        for ticker in self._pending_exits:
+            # A stop or target may have closed the position in the meantime
+            if not self.manager.open_positions.get(ticker, False):
+                continue
+
+            data = ticker_data.get(ticker)
+            if data is None or current_date not in data["date_to_idx"]:
+                still_pending.append(ticker)  # no bar today, try the next session
+                continue
+
+            open_price = float(data["open"][data["date_to_idx"][current_date]])
+            if open_price <= 0:
+                still_pending.append(ticker)
+                continue
+
+            self.manager.exit_order(ticker, open_price, current_date)
+
+        self._pending_exits = still_pending
+
     def _execute_pending_buys(self, current_date: str, ticker_data: dict) -> None:
         # Executes queued entries at today's open price and clears the queue
         if not self._pending_buys:
@@ -368,15 +413,19 @@ class Backtester:
 
         for ticker, trade_record in orders_to_fill:
             data = ticker_data.get(ticker)
-            if data and current_date in data["date_to_idx"]:
-                i = data["date_to_idx"][current_date]
-                open_price = float(data["open"][i])
+            if data is None or current_date not in data["date_to_idx"]:
+                self.manager.record_rejection("no_bar_on_fill_day")
+                continue
 
-                if open_price > 0:
-                    if trade_record.action == "SHORT":
-                        self.manager.short_order(ticker, open_price, trade_record, current_date)
-                    else:
-                        self.manager.buy_order(ticker, open_price, trade_record, current_date)
+            open_price = float(data["open"][data["date_to_idx"][current_date]])
+            if open_price <= 0:
+                self.manager.record_rejection("invalid_fill_price")
+                continue
+
+            if trade_record.action == "SHORT":
+                self.manager.short_order(ticker, open_price, trade_record, current_date)
+            else:
+                self.manager.buy_order(ticker, open_price, trade_record, current_date)
 
     @staticmethod
     def _slice_history_for_ticker(sliced_history: StockData, ticker: str, data: dict, i: int) -> None:
@@ -398,6 +447,10 @@ class Backtester:
         actual_start_date = self._initialize_universe()
         timing["universe_init_time"] = time.perf_counter() - t0
         timing["actual_start_date"] = actual_start_date
+
+        # The universe was just built for this date, so a rebalance on day one
+        # would immediately rebuild it.
+        self.manager.LAST_REBALANCE_DATE = actual_start_date
 
         # 2. Build and validate calendar
         t0 = time.perf_counter()
@@ -442,6 +495,9 @@ class Backtester:
             # Pick up any tickers on_rebalance just added so they're actually simulated
             self._sync_ticker_data(ticker_data, current_date)
 
+            # Fill queued exits first so their capital is available to new entries
+            self._execute_pending_exits(current_date, ticker_data)
+
             # Execute pending buys
             self._execute_pending_buys(current_date, ticker_data)
 
@@ -472,22 +528,26 @@ class Backtester:
                 # Generate today's decision from history ending at today's close.
                 self._slice_history_for_ticker(sliced_history, ticker, data, i)
                 decision = None
-                try:
+                if i + 1 >= self.strategy.MIN_BARS_REQUIRED:
                     decision = self.strategy.generate_signal(ticker, sliced_history)
-                except ValueError:
-                    pass
 
-                # Stop/target exits use intraday prices; explicit EXIT signals use
-                # today's close and are ignored when there is no open position.
+                # Stops and targets are checked against today's bar. An explicit
+                # EXIT is queued so it fills at the next open, exactly like entries.
                 self.manager.check_exits(
                     ticker,
                     current_open,
                     current_high,
                     current_low,
                     current_date,
-                    signal=decision.signal if decision is not None else None,
-                    signal_price=current_close,
                 )
+
+                if (
+                    decision is not None
+                    and decision.signal is Signal.EXIT
+                    and self.manager.open_positions.get(ticker, False)
+                    and ticker not in self._pending_exits
+                ):
+                    self._pending_exits.append(ticker)
 
                 # Queue either entry direction for execution at the next open.
                 if decision is not None and decision.signal in (Signal.LONG, Signal.SHORT):
@@ -532,6 +592,7 @@ class Backtester:
             print(f"   - Rebalances Executed    : {timing['rebalances_executed']}")
             print(f"   - Signals Processed      : {timing['signals_processed']}")
             print(f"   - Exits Triggered        : {timing['exits_triggered']}")
+            print(f"   - Orders Rejected        : {self.manager.rejected_orders}")
             print(f"   - Average Time per Day   : {timing['avg_time_per_day_ms']:.2f} ms")
             print("-" * 50)
             print(f" • Total Execution Time     : {timing['total_time']:.4f}s")

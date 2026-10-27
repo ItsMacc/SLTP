@@ -298,9 +298,14 @@ export default function StrategyChart() {
       }
     })
 
-    // 2. Append any extra metrics not defined in metricOrder
+    // 2. Append any extra flat metrics not defined in metricOrder.
+    // Nested payloads (e.g. rejected_orders) are diagnostic data, not a
+    // headline metric, so they are skipped rather than stringified.
+    const isDisplayable = (val: unknown) =>
+      typeof val === 'number' || typeof val === 'string' || typeof val === 'boolean'
+
     Object.keys(rawMetrics).forEach((rawKey) => {
-      if (!usedRawKeys.has(rawKey)) {
+      if (!usedRawKeys.has(rawKey) && isDisplayable(rawMetrics[rawKey])) {
         items.push({
           key: rawKey,
           label: formatMetricKey(rawKey),
