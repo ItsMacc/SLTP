@@ -31,7 +31,16 @@ class Backtester:
         self._pending_buys: list[tuple[str, TradeRecord]] = []
         self._pending_exits: list[str] = []
 
+        # Track execution state
+        self._has_run = False
+
     def run(self) -> None:
+        # Enforce single-use to prevent state corruption
+        if self._has_run or self.manager.equity_curve or self.manager.trades:
+            raise RuntimeError("Backtester instance has already been executed! "
+                               "Instantiate a new Backtester and a new strategy for subsequent runs")
+        self._has_run = True
+
         # Initialize Universe and get the actual valid start date string
         actual_start_date = self._initialize_universe()
 
@@ -238,7 +247,10 @@ class Backtester:
         losing_trades = [r for r in all_closed_returns if r < 0]
 
         win_rate = round((len(winning_trades) / total_trades) * 100.0, 2) if total_trades > 0 else 0.0
-        loss_rate = round((len(losing_trades) / total_trades) * 100.0, 2) if total_trades > 0 else 0.0
+
+        # Loss rate is the complement of the win rate so the pair always sums to 100,
+        # including flat trades that are neither a win nor a loss.
+        loss_rate = round(100.0 - win_rate, 2) if total_trades > 0 else 0.0
         average_win = round((sum(winning_trades) / len(winning_trades)) * 100.0, 2) if winning_trades else 0.0
         average_loss = round((sum(losing_trades) / len(losing_trades)) * 100.0, 2) if losing_trades else 0.0
 
@@ -483,7 +495,6 @@ class Backtester:
         loop_start = time.perf_counter()
         rebalance_count = 0
         signal_count = 0
-        exit_count = 0
 
         for current_date in active_dates:
             # Automatically check rebalance schedule and execute if due
@@ -573,7 +584,13 @@ class Backtester:
         timing["loop_time"] = time.perf_counter() - loop_start
         timing["rebalances_executed"] = rebalance_count
         timing["signals_processed"] = signal_count
-        timing["exits_triggered"] = exit_count
+        # Count the exits actually written, so the figure can't drift from the trades
+        timing["exits_triggered"] = sum(
+            1
+            for trade_list in self.manager.trades.values()
+            for trade in trade_list
+            if trade.action in ("STOP_LOSS", "TAKE_PROFIT", "EXIT")
+        )
         timing["avg_time_per_day_ms"] = (timing["loop_time"] / len(active_dates)) * 1000 if active_dates else 0.0
         timing["total_time"] = time.perf_counter() - total_start
 
