@@ -2641,21 +2641,13 @@
 }
 
 /* ---------- Module quizzes (opt-in, after each section) ---------- */
+/* A modifier on the shared Button, not a button of its own: it keeps the
+   chrome from .btn.btn-secondary and adds only what that leaves out. The CTA
+   holds three children — icon, label and the optional note — and .btn has no
+   gap, so without this they sit flush against each other. */
 .learn-quizcta {
-  display: inline-flex;
-  align-items: center;
   gap: var(--space-sm);
   margin: calc(var(--space-md) * 1.125) 0 var(--space-2xs);
-  padding: calc(var(--space-sm) * 1.125) var(--space-md);
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-  letter-spacing: 0.04em;
-  color: var(--text-muted);
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: color 0.15s ease, border-color 0.15s ease;
 }
 
 .learn-quizcta:hover { color: var(--accent); border-color: var(--accent); }
