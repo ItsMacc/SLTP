@@ -13,7 +13,7 @@
 
 # -------- Imports --------
 import numpy as np
-from app.engine.portfolio.stock_health_filter_manager import StockHealthFilterManager
+from app.strategies.stock_health_filter_manager import StockHealthFilterManager
 from app.engine.strategy.strategy import Strategy, StrategyDecision
 from app.engine.utils.StrategyDecision import Signal
 from app.engine.utils.StockData import StockData

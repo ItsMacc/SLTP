@@ -1,4 +1,4 @@
-# statistical_mean_reversion_strategy.py — Statistical Mean Reversion (SMR) strategy.
+# statistical_mean_reversion.py — Statistical Mean Reversion (SMR) strategy.
 #
 # Key Terms & Definitions:
 # - Z-Score: A statistical measure of how far the current price deviates from its
@@ -15,7 +15,7 @@
 
 # -------- Imports --------
 import numpy as np
-from app.engine.portfolio.statistical_mean_reversion_manager import StatisticalMeanReversionManager
+from app.strategies.statistical_mean_reversion_manager import StatisticalMeanReversionManager
 from app.engine.strategy.strategy import Strategy, StrategyDecision
 from app.engine.utils.StrategyDecision import Signal
 from app.engine.utils.StockData import StockData
