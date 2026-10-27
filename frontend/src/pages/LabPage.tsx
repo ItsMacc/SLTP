@@ -1,6 +1,6 @@
 // LabPage.tsx — Lab home: start a project, reopen recent work, and manage workspaces and projects.
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowRight, ChevronRight, FileCode, Folder, Lock, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { ArrowRight, ChevronRight, FileCode, Folder, Plus, Search, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import {
   createLabProject,
@@ -11,7 +11,6 @@ import {
   type LabProject,
   type LabWorkspace,
 } from '../../lib/api';
-import { MOD_LABEL } from '../shortcuts';
 import type { LabTemplateId } from '../lab/templates';
 import type { NewProjectInput } from './LabNewProject';
 import Button from '../ui/Button';
@@ -48,16 +47,6 @@ function formatDate(iso: string): string {
   if (Number.isNaN(date.getTime())) return '—';
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
-
-// The engine's execution costs are fixed, not per-project settings
-// (app/engine/portfolio/portfolio_manager.py), so the page states them instead of
-// offering controls that would not do anything.
-const ENGINE_DEFAULTS = [
-  { label: 'Fill price', value: 'Next day open' },
-  { label: 'Slippage', value: '0.05% per fill' },
-  { label: 'Fee', value: '0.10% per fill' },
-  { label: 'Start value', value: 'Index 100.00' },
-];
 
 /** What a pending delete will remove. */
 type DeleteTarget = {
@@ -422,65 +411,27 @@ export default function LabPage({ onNavigate }: LabPageProps) {
         </div>
 
         <div className="lab-meta">
-          <section className="lab-info" aria-labelledby="lab-layout-title">
-            <p id="lab-layout-title" className="lab-info-eyebrow">Project layout</p>
-            <ul className="lab-info-list">
-              <li className="lab-info-row">
-                <span className="lab-info-icon"><Lock size={14} aria-hidden="true" /></span>
-                <div>
-                  <p className="lab-info-name">core/</p>
-                  <p className="lab-info-desc">Engine and base classes. Read-only.</p>
-                </div>
-              </li>
-              <li className="lab-info-row">
-                <span className="lab-info-icon"><Pencil size={14} aria-hidden="true" /></span>
-                <div>
-                  <p className="lab-info-name">workspace/</p>
-                  <p className="lab-info-desc">Your strategy and its manager. Edit freely.</p>
-                </div>
-              </li>
-            </ul>
-          </section>
-
-          <section className="lab-info" aria-labelledby="lab-defaults-title">
-            <p id="lab-defaults-title" className="lab-info-eyebrow">Execution defaults</p>
-            <ul className="lab-defaults">
-              {ENGINE_DEFAULTS.map((row) => (
-                <li key={row.label} className="lab-default">
-                  <span className="lab-default-label">{row.label}</span>
-                  <span className="lab-default-value">{row.value}</span>
-                </li>
-              ))}
-            </ul>
-            <p className="lab-info-note">
-              A signal never fills on the day it fires, so results are not flattered by hindsight.
+          <section className="lab-info" aria-labelledby="lab-confidence-title">
+            <p id="lab-confidence-title" className="lab-info-eyebrow">Test strategies with confidence</p>
+            <p className="lab-info-body">
+              Run backtests seamlessly, track real-time results, export performance reports, and
+              document your research insights in one centralized workflow.
             </p>
           </section>
 
-          <section className="lab-info" aria-labelledby="lab-shortcuts-title">
-            <p id="lab-shortcuts-title" className="lab-info-eyebrow">Shortcuts</p>
-            <ul className="lab-shortcuts">
-              <li className="lab-shortcut">
-                <span>Focus workspace search</span>
-                <span className="lab-keys"><kbd className="lab-key">/</kbd></span>
-              </li>
-              <li className="lab-shortcut">
-                <span>Save the open file</span>
-                <span className="lab-keys">
-                  <kbd className="lab-key">{MOD_LABEL}</kbd>
-                  <kbd className="lab-key">S</kbd>
-                </span>
-              </li>
-              <li className="lab-shortcut">
-                <span>Run in the editor</span>
-                <span className="lab-keys">
-                  <kbd className="lab-key">{MOD_LABEL}</kbd>
-                  <kbd className="lab-key">Enter</kbd>
-                </span>
-              </li>
-            </ul>
-            <p className="lab-info-note">
-              Runs the open file against the full local price history.
+          <section className="lab-info" aria-labelledby="lab-feeds-title">
+            <p id="lab-feeds-title" className="lab-info-eyebrow">Data feeds &amp; universe</p>
+            <p className="lab-info-body">
+              Simulate daily bars of historical data reaching back to 1962, covering 1,915
+              instruments including ETFs, gold, and mid and small-cap companies.
+            </p>
+          </section>
+
+          <section className="lab-info" aria-labelledby="lab-runtime-title">
+            <p id="lab-runtime-title" className="lab-info-eyebrow">Secure runtime environment</p>
+            <p className="lab-info-body">
+              Execute custom logic safely inside a protected sandbox designed to keep your workspace
+              secure and your data private.
             </p>
           </section>
         </div>
