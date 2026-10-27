@@ -1,15 +1,29 @@
-pydantic
-aiohttp
-python-dotenv
-numpy~=2.5.3
+# Runtime dependencies, grouped by what they are for.
+
+# --- Web API ---
 fastapi~=0.141.1
-beautifulsoup4~=4.15.0
-pandas~=3.0.5
-requests~=2.34.2
-yfinance~=1.7.0
-python-dateutil~=2.9.0.post0
+uvicorn~=0.53.0
+pydantic~=2.13.5
+
+# --- Market data & stats ---
+numpy~=2.5.3
+pandas~=3.0.6
+pyarrow~=25.0.1
 scipy~=1.18.1
+python-dateutil~=2.9.0.post0
+yfinance~=1.7.0
+requests~=2.34.2
+aiohttp~=3.14.3
+beautifulsoup4~=4.15.0
+
+# --- Indicators ---
+TA-Lib~=0.8.0
+
+# --- Config & auth ---
+python-dotenv~=1.2.3
 # Supabase JWT verification (JWKS + legacy HS256). The [crypto] extra
 # pulls in `cryptography`, which PyJWT needs for RS256/ES256 tokens.
 PyJWT[crypto]~=2.14.0
+
+# --- Development ---
 mypy~=2.4.0
