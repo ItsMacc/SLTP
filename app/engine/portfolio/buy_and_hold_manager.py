@@ -17,8 +17,10 @@ class BuyAndHoldManager(PortfolioManager):
     def __init__(self):
         super().__init__()
 
-        # Configured for a benchmark passive strategy
-        self.max_positions = len(self.get_available_universe)
+        # Configured for a benchmark passive strategy. The position count depends on
+        # the universe size, which is only known once it is built, so constructing
+        # a Buy & Hold strategy never reads market data.
+        self.max_positions = None
         self.REBALANCE_FREQUENCY = RebalanceFrequency.NEVER
         self.WARM_UP_PERIOD = 30
 
@@ -62,5 +64,8 @@ class BuyAndHoldManager(PortfolioManager):
         # Load all tickers and batch-fetch stock histories up to current_date
         self.tickers = get_all_tickers()
         self.histories = get_stock_histories(self.tickers)
+
+        # Equal-weight across every name the universe ended up with
+        self.max_positions = len(self.tickers)
 
         return bool(self.tickers)
