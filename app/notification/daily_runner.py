@@ -31,17 +31,14 @@ from app.notification.email import (
 # a single stale ticker can't misdate the whole run (majority vote).
 REFERENCE_TICKERS = ["SPY", "QQQ", "XEQT.TO"]
 
-# Lazy-loaded strategy registry: mirrors app.main.STRATEGIES without
-# importing FastAPI at runner startup.
+# Lazy-loaded strategy registry: the same app.strategies.REGISTRY the API
+# serves from, imported on first use so FastAPI is never pulled in at runner
+# startup.
 # -------- Step 1: User Cache --------
 def _strategy_registry() -> dict[str, tuple[type, str]]:
-    from app.engine.strategy.buy_and_hold import BuyAndHold
-    from app.engine.strategy.stock_health_filter import StockHealthFilterStrategy
+    from app.strategies import REGISTRY
 
-    return {
-        "buy-and-hold": (BuyAndHold, "investing"),
-        "stock-health-filter": (StockHealthFilterStrategy, "trading"),
-    }
+    return REGISTRY
 
 
 # -------- Step 1: Market Data --------

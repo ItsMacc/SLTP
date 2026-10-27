@@ -5,7 +5,7 @@
 # baseline every active strategy is compared against.
 
 # -------- Imports --------
-from app.engine.portfolio.buy_and_hold_manager import BuyAndHoldManager
+from app.strategies.buy_and_hold_manager import BuyAndHoldManager
 from app.engine.strategy.strategy import Strategy, StrategyDecision
 from app.engine.utils.StrategyDecision import Signal
 from app.engine.utils.StockData import StockData

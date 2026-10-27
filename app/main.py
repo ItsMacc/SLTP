@@ -6,7 +6,7 @@
 #   GET /api/stock/history     -> daily candles for one ticker
 #   GET /api/stock/all-tickers -> the tradable universe
 # Routers: provisioning (users), portfolio (setup wizard), security (login
-# device checks). Strategies are registered in STRATEGIES / STRATEGY_CATALOG.
+# device checks). Strategies are registered in app/strategies/REGISTRY.
 
 # -------- Imports --------
 from fastapi import FastAPI, HTTPException, Query
@@ -15,9 +15,7 @@ from typing import Dict, Any, List
 
 # Core Backtester & Strategy Imports
 from app.backtester import Backtester
-from app.engine.strategy.buy_and_hold import BuyAndHold
-from app.engine.strategy.stock_health_filter import StockHealthFilterStrategy
-from app.engine.strategy.statistical_mean_reversion_strategy import StatisticalMeanReversionStrategy
+from app.strategies import REGISTRY
 
 # Database Imports
 from app.database.fetch import (
@@ -51,30 +49,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# -------- Strategy Registry --------
-# Registry for user-followable strategies.
-STRATEGIES = {
-    "buy-and-hold": (BuyAndHold, "investing"),
-    "stock-health-filter": (StockHealthFilterStrategy, "trading"),
-    "statistical-mean-reversion": (StatisticalMeanReversionStrategy, "investing"),
-}
-
-# Strategy catalog for the onboarding wizard. To surface a new strategy on the
-# onboarding page, just add an entry here with its type — the frontend filters
-# the list by the user's selected intent (invest / trade / both).
-STRATEGY_CATALOG = {
-    "buy-and-hold": {"name": "Buy & Hold", "type": "investing"},
-    "stock-health-filter": {"name": "Stock Health Filter", "type": "trading"},
-    "statistical-mean-reversion": {"name": "Statistical Mean Reversion", "type": "investing"},
-}
-
-
 # -------- Endpoints --------
 @app.get("/api/strategies")
 def get_available_strategies() -> List[Dict[str, str]]:
     """Returns followable strategies (id, name, description, type) for the frontend."""
     strategy_list = []
-    for key, (strategy_cls, stype) in STRATEGIES.items():
+    for key, (strategy_cls, stype) in REGISTRY.items():
         instance = strategy_cls()
         strategy_list.append({
             "id": key,
@@ -97,15 +77,15 @@ def run_backtest(
       1. 'metrics': Dictionary containing all performance stats (Sharpe, CAGR, Win Rate, etc.)
       2. 'chart_data': Formatted portfolio index history over time for line/bar charts.
     """
-    if strategy_id not in STRATEGIES:
+    if strategy_id not in REGISTRY:
         raise HTTPException(
             status_code=404,
-            detail=f"Strategy '{strategy_id}' not found. Available strategies: {list(STRATEGIES.keys())}"
+            detail=f"Strategy '{strategy_id}' not found. Available strategies: {list(REGISTRY.keys())}"
         )
 
     try:
         # Instantiate the requested strategy
-        strategy_cls, _ = STRATEGIES[strategy_id]
+        strategy_cls, _ = REGISTRY[strategy_id]
         strategy_instance = strategy_cls()
 
         # Initialize and run backtest
