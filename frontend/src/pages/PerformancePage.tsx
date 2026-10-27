@@ -56,6 +56,13 @@ interface PerformancePageProps {
   initialSettings?: { defaultTimeframe?: string; [key: string]: any }
 }
 
+// Hard ceiling on the bars handed to the chart. A long history is trimmed to
+// its most recent stretch and reached by scrolling, which keeps the series
+// bounded however far back a ticker goes. Deliberately not a user setting, and
+// not surfaced anywhere in the UI — the analytics below still read every bar,
+// so the summary cards cover the whole timeframe the reader picked.
+const CHART_MAX_BARS = 1000
+
 const priceText = (value: number) =>
   value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
@@ -365,6 +372,13 @@ export default function PerformancePage({ initialSettings }: PerformancePageProp
     firstBar && lastBar && firstBar.close !== 0 ? (rangeChange / firstBar.close) * 100 : 0
   const stats = useMemo(() => computeStats(bars), [bars])
 
+  // Memoised on purpose: Chart resets its zoom and scroll position whenever the
+  // bars array changes identity, so slicing inline would break panning.
+  const chartBars = useMemo(
+    () => (bars.length > CHART_MAX_BARS ? bars.slice(-CHART_MAX_BARS) : bars),
+    [bars]
+  )
+
   return (
     <div className="perf-page">
       {/* Edge-to-Edge Hero Banner */}
@@ -569,7 +583,7 @@ export default function PerformancePage({ initialSettings }: PerformancePageProp
                     </p>
 
                     <Chart
-                      bars={bars}
+                      bars={chartBars}
                       ticker={stockData?.ticker ?? selectedTicker ?? ''}
                       chartStyle={chartStyle}
                       defaultZoom={
