@@ -564,6 +564,15 @@
   color: var(--text-muted);
 }
 
+/* The body copy of an info card: the card's main text rather than a footnote,
+   so it sits a step above the --text-xs note styling. */
+.lab-info-body {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.65;
+  color: var(--text-muted);
+}
+
 .lab-info-list {
   list-style: none;
   margin: 0;
