@@ -11,9 +11,9 @@ import pandas as pd
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from typing import Any, Dict, List
-from app.database.db import load_sp500, load_tsx60
 from app.database.db_client import get_parquet_dir
 from app.engine.utils.StockData import StockData
+from app.database.db import load_etfs, load_gold, load_sp500, load_sp400, load_sp600, load_tsx60
 
 # -------- Global Cache --------
 _GLOBAL_CACHE = {
@@ -67,6 +67,23 @@ def validate_dates(start_date: str | None = None,
 
     return True
 
+def get_available_etfs() -> List[str]:
+    __load_cache()
+    global _GLOBAL_CACHE
+    etf_set = set(load_etfs())
+    return [ticker for ticker in _GLOBAL_CACHE["histories"].keys() if ticker in etf_set]
+
+def get_available_stocks() -> List[str]:
+    __load_cache()
+    global _GLOBAL_CACHE
+    stock_set = set(load_sp500() + load_sp400() + load_sp600() + load_tsx60())
+    return [ticker for ticker in _GLOBAL_CACHE["histories"].keys() if ticker in stock_set]
+
+def get_available_gold() -> List[str]:
+    __load_cache()
+    global _GLOBAL_CACHE
+    gold_set = set(load_gold())
+    return [ticker for ticker in _GLOBAL_CACHE["histories"].keys() if ticker in gold_set]
 
 # -------- Master Cache Loader Helper --------
 def __load_cache() -> None:
@@ -78,8 +95,12 @@ def __load_cache() -> None:
     master_file_path = os.path.join(parquet_dir, "market_data.parquet")
 
     if not os.path.exists(master_file_path):
-        _GLOBAL_CACHE["loaded"] = True
-        return
+        # Fail loudly: silently serving an empty universe turns a missing dataset
+        # into a confusing "no dates/tickers" error far away from the cause.
+        raise RuntimeError(
+            f"Market data not found: expected market_data.parquet in {parquet_dir}. "
+            "Build the dataset before running a backtest."
+        )
 
     try:
         cols_to_load = ["Symbol", "Date", "Open", "High", "Low", "Close", "Volume"]
@@ -104,7 +125,16 @@ def __load_cache() -> None:
                 )
 
     except Exception as e:
-        print(f"Error loading master parquet cache: {e}")
+        # Leave the cache unloaded so a later call retries instead of quietly
+        # operating on an empty universe.
+        raise RuntimeError(
+            f"Failed to load market_data.parquet from {parquet_dir}: {e}"
+        ) from e
+
+    if not _GLOBAL_CACHE["histories"]:
+        raise RuntimeError(
+            f"market_data.parquet in {parquet_dir} loaded but contained no symbols."
+        )
 
     _GLOBAL_CACHE["loaded"] = True
 

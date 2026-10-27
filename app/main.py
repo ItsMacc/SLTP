@@ -17,6 +17,7 @@ from typing import Dict, Any, List
 from app.backtester import Backtester
 from app.engine.strategy.buy_and_hold import BuyAndHold
 from app.engine.strategy.stock_health_filter import StockHealthFilterStrategy
+from app.engine.strategy.statistical_mean_reversion_strategy import StatisticalMeanReversionStrategy
 
 # Database Imports
 from app.database.fetch import (
@@ -55,6 +56,7 @@ app.add_middleware(
 STRATEGIES = {
     "buy-and-hold": (BuyAndHold, "investing"),
     "stock-health-filter": (StockHealthFilterStrategy, "trading"),
+    "statistical-mean-reversion": (StatisticalMeanReversionStrategy, "investing"),
 }
 
 # Strategy catalog for the onboarding wizard. To surface a new strategy on the
@@ -63,6 +65,7 @@ STRATEGIES = {
 STRATEGY_CATALOG = {
     "buy-and-hold": {"name": "Buy & Hold", "type": "investing"},
     "stock-health-filter": {"name": "Stock Health Filter", "type": "trading"},
+    "statistical-mean-reversion": {"name": "Statistical Mean Reversion", "type": "investing"},
 }
 
 

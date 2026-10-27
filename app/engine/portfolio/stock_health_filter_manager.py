@@ -159,9 +159,9 @@ class StockHealthFilterManager(PortfolioManager):
         # Populate universe
         self.tickers.clear()
         self.histories.clear()
-        for ticker, avg_volume in top:
-            self.tickers.append(ticker)
-            self.histories[ticker] = get_stock_history(ticker)
+        # Load full history so the 200-bar SMA has warm-up available on day one
+        tickers_to_append = [ticker for ticker, _ in top]
+        self.add_tickers(tickers_to_append)
 
         return True
 

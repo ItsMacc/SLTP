@@ -11,11 +11,10 @@
 from dataclasses import dataclass, replace
 from enum import Enum
 from dateutil.relativedelta import relativedelta
-from app.database.fetch import get_stock_histories, get_all_tickers
 from app.database.fetch import get_stock_history
 from app.engine.utils.StockData import StockData
-from app.engine.utils.StrategyDecision import StrategyDecision, Signal
-
+from app.engine.utils.StrategyDecision import StrategyDecision
+from app.database.fetch import get_stock_histories, get_all_tickers, get_available_etfs, get_available_stocks, get_available_gold
 
 # -------- Records, Risk and Rebalance Frequency Enumerations --------
 @dataclass
@@ -86,6 +85,7 @@ class PortfolioManager:
         self.ticker_wins: dict[str, list[float]] = {}
         self.ticker_losses: dict[str, list[float]] = {}
         self.total_transactions_cost: float = 0.0
+        self.rejected_orders: dict[str, int] = {}
 
         # Rebalancing Tracking
         self.LAST_REBALANCE_DATE: str | None = None
@@ -95,6 +95,18 @@ class PortfolioManager:
     @property
     def get_available_universe(self) -> list[str]:
         return get_all_tickers()
+
+    @property
+    def get_available_etfs(self) -> list[str]:
+        return get_available_etfs()
+
+    @property
+    def get_available_stocks(self) -> list[str]:
+        return get_available_stocks()
+
+    @property
+    def get_available_gold(self) -> list[str]:
+        return get_available_gold()
 
     # -------- Data Management --------
     def add_ticker(self,
@@ -153,12 +165,8 @@ class PortfolioManager:
                     current_high: float,
                     current_low: float,
                     current_date: str,
-                    signal: Signal | None = None,
-                    signal_price: float | None = None,
                     ) -> None:
-        """Apply an explicit EXIT first, otherwise today's directional stop/target."""
-        if signal is not None and not isinstance(signal, Signal):
-            raise TypeError("signal must be a Signal enum value or None")
+        """Close the open position if today's bar crossed its stop or target."""
         if self.active_positions == 0 or not self.open_positions.get(ticker, False):
             return
 
@@ -167,25 +175,6 @@ class PortfolioManager:
             return
         active_trade = trade_list[-1]
         is_short = active_trade.action == "SHORT"
-
-        # A strategy EXIT takes precedence over intraday risk triggers. Use the
-        # active trade record for its original SL/TP values when writing the exit.
-        if signal is Signal.EXIT:
-            if signal_price is None or signal_price <= 0:
-                raise ValueError("signal_price must be positive when signal is EXIT")
-            exit_fill = (
-                self._apply_cover_slippage(signal_price)
-                if is_short
-                else self._apply_exit_slippage(signal_price)
-            )
-            self._close_position(
-                ticker,
-                active_trade,
-                round(exit_fill, 2),
-                "EXIT",
-                current_date,
-            )
-            return
         sl = active_trade.stop_loss
         tp = active_trade.take_profit
         exit_action: str | None = None
@@ -214,6 +203,34 @@ class PortfolioManager:
         if exit_action is not None and exit_price is not None:
             self._close_position(ticker, active_trade, exit_price, exit_action, current_date)
             return
+
+    def exit_order(self,
+                   ticker: str,
+                   fill_price: float,
+                   current_date: str,
+                   ) -> None:
+        """Close an open position at a supplied fill (a queued EXIT signal)."""
+        if not self.open_positions.get(ticker, False):
+            return
+
+        trade_list = self.trades.get(ticker)
+        if not trade_list or trade_list[-1].action not in ("BUY", "SHORT"):
+            return
+        if fill_price <= 0:
+            self.record_rejection("invalid_fill_price")
+            return
+
+        active_trade = trade_list[-1]
+        exit_fill = (
+            self._apply_cover_slippage(fill_price)
+            if active_trade.action == "SHORT"
+            else self._apply_exit_slippage(fill_price)
+        )
+        self._close_position(ticker, active_trade, round(exit_fill, 2), "EXIT", current_date)
+
+    def record_rejection(self, reason: str) -> None:
+        """Count an order the engine could not fill."""
+        self.rejected_orders[reason] = self.rejected_orders.get(reason, 0) + 1
 
     def _close_position(
         self,
@@ -305,12 +322,16 @@ class PortfolioManager:
         if trade_record.action != expected_action:
             raise ValueError(f"Expected {expected_action} trade record, got {trade_record.action}")
         if fill_price <= 0:
+            self.record_rejection("invalid_fill_price")
             return
         if self.open_positions.get(ticker, False):
+            self.record_rejection("already_open")
             return
         if self.max_positions is not None and self.active_positions >= self.max_positions:
+            self.record_rejection("max_positions_reached")
             return
         if ticker in self.blacklisted_tickers:
+            self.record_rejection("blacklisted")
             return
 
         current_total_allocation = sum(
@@ -320,9 +341,21 @@ class PortfolioManager:
         )
         remaining_allocation = 1.0 - current_total_allocation
         if remaining_allocation <= 0:
+            self.record_rejection("no_remaining_capital")
             return
 
-        effective_allocation = min(trade_record.allocation_size, remaining_allocation)
+        # Cap a single position at its equal-weight slot so a confidence multiplier
+        # cannot consume the book before max_positions is reached.
+        slot_allocation = (
+            1.0 / self.max_positions
+            if self.max_positions is not None and self.max_positions > 0
+            else 1.0
+        )
+        requested_allocation = min(trade_record.allocation_size, slot_allocation)
+        effective_allocation = min(requested_allocation, remaining_allocation)
+        if effective_allocation <= 0:
+            self.record_rejection("zero_allocation")
+            return
         if effective_allocation < trade_record.allocation_size:
             trade_record = replace(trade_record, allocation_size=effective_allocation)
 
@@ -333,7 +366,13 @@ class PortfolioManager:
             else fill_price * (1.0 - self.SLIPPAGE_PCT),
             2,
         )
-        confirmed_record = replace(trade_record, entry_date=current_date, entry_price=entry_price)
+        # Stop and target are the prices the manager supplied; the fill only
+        # backfills the entry fields.
+        confirmed_record = replace(
+            trade_record,
+            entry_date=current_date,
+            entry_price=entry_price,
+        )
         self.trades.setdefault(ticker, []).append(confirmed_record)
         self.active_positions += 1
         self.open_positions[ticker] = True
