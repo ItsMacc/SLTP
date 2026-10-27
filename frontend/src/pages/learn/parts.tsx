@@ -104,7 +104,7 @@ export function SectionQuiz({ questions }: { questions: QuizQuestion[] }) {
 
   if (!open) {
     return (
-      <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>
+      <Button variant="secondary" size="sm" className="learn-quizcta" onClick={() => setOpen(true)}>
         <ListChecks size={15} />
         Take the quiz
         <span className="learn-quizcta-note">{questions.length} questions, optional</span>
