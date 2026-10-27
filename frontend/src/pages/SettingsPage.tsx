@@ -13,6 +13,7 @@ import SuccessToast from '../ui/SuccessToast';
 import ConfirmDeleteDialog from '../ui/ConfirmDeleteDialog';
 import { Check, Copy } from 'lucide-react';
 import { listApiKeys, createApiKey, revokeApiKey, type ApiKeySummary } from '../../lib/api';
+import { applyTheme, applyAndStoreUserSettings, type UserSettings } from '../../lib/settings';
 import './SettingsPage.css';
 
 const EDITOR_FONT_SIZE_OPTIONS = Array.from({ length: 11 }, (_, i) => {
@@ -24,20 +25,10 @@ interface SettingsPageProps {
   userId: string;
   userEmail: string;
   initialName?: string | null;
-  onProfileUpdated: (newName: string) => void;
+  onProfileUpdated: (newName: string, settings?: UserSettings) => void;
   onAccountDeleted: () => Promise<void> | void;
 }
 
-export function applyAndStoreUserSettings(settings: { theme?: string; [key: string]: any }, name?: string) {
-  if (settings.theme) {
-    const themeVal = settings.theme.toLowerCase();
-    document.documentElement.setAttribute('data-theme', themeVal);
-    sessionStorage.setItem('st_user_theme', settings.theme);
-  }
-  if (name !== undefined) {
-    sessionStorage.setItem('st_user_name', name);
-  }
-}
 
 export default function SettingsPage({ userId, userEmail, initialName, onProfileUpdated, onAccountDeleted }: SettingsPageProps) {
   const [activeSubTab, setActiveSubTab] = useState<'profile' | 'preferences' | 'notifications' | 'editor' | 'api'>('profile');
@@ -143,7 +134,7 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
           if (currentSettings.editorLineNumbers !== undefined) setEditorLineNumbers(currentSettings.editorLineNumbers);
           if (currentSettings.editorFontLigatures !== undefined) setEditorFontLigatures(currentSettings.editorFontLigatures);
 
-          applyAndStoreUserSettings(currentSettings, currentName);
+          applyAndStoreUserSettings(currentSettings, currentName, userId);
         }
       } finally {
         firstLoadRef.current = false;
@@ -167,7 +158,9 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
 
   const handleThemeChange = (newThemeVal: string) => {
     setTheme(newThemeVal);
-    applyAndStoreUserSettings({ theme: newThemeVal });
+    // Preview only: this must not overwrite the cached settings object, or a
+    // theme click would wipe the chart style that has not been saved yet.
+    applyTheme(newThemeVal);
   };
 
   const handleRequestDelete = () => {
@@ -314,9 +307,12 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
         editorFontLigatures,
       };
 
-      // Apply right away so the page reflects the click, then persist.
-      applyAndStoreUserSettings(updatedSettings, updatedName);
-      onProfileUpdated(updatedName);
+      // Apply right away so the page reflects the click, then persist. The
+      // settings go to the parent as well, because every other page reads its
+      // preferences from the app-level user object: without this, Performance
+      // keeps drawing the previous chart style until the page is reloaded.
+      applyAndStoreUserSettings(updatedSettings, updatedName, userId);
+      onProfileUpdated(updatedName, updatedSettings);
 
       const { error } = await supabase
         .from('users')

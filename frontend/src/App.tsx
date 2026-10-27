@@ -6,7 +6,8 @@ import Footer from './components/Footer';
 import HomePage from './pages/HomePage';
 import SiteGuide from './components/SiteGuide';
 import 'driver.js/dist/driver.css';
-import SettingsPage, { applyAndStoreUserSettings } from './pages/SettingsPage';
+import SettingsPage from './pages/SettingsPage';
+import { applyAndStoreUserSettings, readStoredUserSettings } from '../lib/settings';
 import LegalPage, { type LegalPageKind } from './pages/LegalPage';
 import PerformancePage from './pages/PerformancePage';
 import StrategiesPage from './pages/StrategiesPage';
@@ -78,9 +79,12 @@ export default function App() {
         .eq('id', userId)
         .maybeSingle();
       const name = data?.name || email;
-      const settings = data?.settings || {};
+      // Supabase is the source of truth, but the cached copy fills in when the
+      // profile cannot be read, so the user keeps their chart style offline
+      // instead of silently dropping back to the defaults.
+      const settings = { ...readStoredUserSettings(userId), ...(data?.settings || {}) };
 
-      applyAndStoreUserSettings(settings, name);
+      applyAndStoreUserSettings(settings, name, userId);
       setUser({ id: userId, email, name, settings });
 
       // Ensure the user exists in BOTH stores with the shared defaults
@@ -226,7 +230,9 @@ export default function App() {
                 userId={user.id}
                 userEmail={user.email}
                 initialName={user.name}
-                onProfileUpdated={(newName) => setUser((prev) => prev ? { ...prev, name: newName } : null)}
+                onProfileUpdated={(newName, newSettings) => setUser((prev) => (
+                  prev ? { ...prev, name: newName, settings: newSettings ?? prev.settings } : null
+                ))}
                 onAccountDeleted={async () => {
                   await handleSignOut();
                 }}
