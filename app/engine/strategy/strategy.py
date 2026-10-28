@@ -1,62 +1,168 @@
-# strategy.py — Base Strategy interface and technical indicator helpers.
+# strategy.py — Base class for a strategy: hooks, universe access and indicators.
 #
-# Every SLTP strategy subclasses Strategy. A strategy decides WHEN to buy;
-# its paired PortfolioManager decides HOW MUCH and where to cut losses.
-# Subclasses implement generate_signal() and set MIN_BARS_REQUIRED.
-# The indicator helpers below are thin TA-Lib wrappers for common analysis.
+# A strategy makes the decisions and keeps no book. on_signal returns an Order
+# and the manager turns it into a position; the strategy sees a read-only view
+# through open_trades, open_tickers, position() and equity.
+#
+# Only on_signal is required. initialize_universe, on_rebalance, on_day and
+# should_exit are optional and do nothing by default.
 
 # -------- Imports --------
 import talib as ta
-from app.engine.portfolio.portfolio_manager import PortfolioManager
+from app.database.fetch import (
+    get_stock_history,
+    get_stock_histories,
+    get_all_tickers,
+    get_available_etfs,
+    get_available_stocks,
+    get_available_gold,
+)
+from app.engine.utils.Order import Order
 from app.engine.utils.StockData import StockData
-from app.engine.utils.StrategyDecision import StrategyDecision
+from app.engine.utils.Trade import Trade
+from app.engine.utils.RebalanceFrequency import RebalanceFrequency
 
 
-# -------- Base Strategy Class --------
+# -------- Strategy --------
 class Strategy:
-    """
-    Base Strategy Interface providing fundamental strategy properties,
-    portfolio manager delegation, and standard technical analysis indicators.
-    """
+    """Base class for every strategy: hooks, universe access and indicators."""
 
-    def __init__(self):
-        # Identity, paired manager, and minimum history requirement
-        self.name: str = "Base Strategy"
-        self.description: str = "Base Strategy Interface"
-        self.manager: PortfolioManager = None
+    # -------- Identity --------
+    name: str = "Base Strategy"
+    description: str = "Base Strategy Interface"
 
-        self.MIN_BARS_REQUIRED: int = 0
+    # -------- Policy, read by the manager --------
+    MAX_POSITIONS: int | None = 10
+    MAX_WEIGHT_PER_TICKER: float | None = None
+    MAX_LOTS_PER_TICKER: int = 1
+    REBALANCE_FREQUENCY: RebalanceFrequency = RebalanceFrequency.NEVER
+    MIN_BARS_REQUIRED: int = 0
 
+    def __init__(self) -> None:
+        # Tickers this strategy trades, in declared order
+        self.tickers: list[str] = []
 
-    def add_ticker(self, ticker: str, start_date: str | None = None, end_date: str | None = None) -> None:
-        # Delegate single ticker addition to the underlying portfolio manager
-        self.manager.add_ticker(ticker, start_date, end_date)
+        self._open_trades: tuple[Trade, ...] = ()
+        self._equity: float = 0.0
 
+    # -------- Book, read-only --------
+    @property
+    def open_trades(self) -> tuple[Trade, ...]:
+        return self._open_trades
 
-    def add_tickers(self, tickers: list[str], start_date: str | None = None, end_date: str | None = None) -> None:
-        # Delegate multiple ticker addition to the underlying portfolio manager
-        self.manager.add_tickers(tickers, start_date, end_date)
+    @property
+    def open_tickers(self) -> set[str]:
+        # Distinct tickers with at least one open lot
+        return {trade.ticker for trade in self._open_trades}
 
+    @property
+    def equity(self) -> float:
+        # Portfolio value as of the previous close
+        return self._equity
 
-    def generate_signal(self, ticker: str, history: StockData) -> StrategyDecision:
-        # Enforce implementation of signal generation in strategy subclasses
-        raise NotImplementedError("Strategy subclasses must implement generate_signal()")
+    def position(self, ticker: str) -> Trade | None:
+        # The oldest open lot in this ticker, if any
+        for trade in self._open_trades:
+            if trade.ticker == ticker:
+                return trade
+        return None
 
-    # -------- Helper Methods --------
+    def is_open(self, ticker: str) -> bool:
+        # True when this ticker already holds at least one lot
+        return any(trade.ticker == ticker for trade in self._open_trades)
+
+    # -------- Universe --------
+    @property
+    def available_universe(self) -> list[str]:
+        # Everything with local price data
+        return get_all_tickers()
+
+    @property
+    def available_etfs(self) -> list[str]:
+        # Exchange-traded funds only
+        return get_available_etfs()
+
+    @property
+    def available_stocks(self) -> list[str]:
+        # Individual companies only
+        return get_available_stocks()
+
+    @property
+    def available_gold(self) -> list[str]:
+        # Gold proxies only
+        return get_available_gold()
+
+    def add_ticker(self, ticker: str) -> None:
+        # Add one symbol to the universe, ignoring a duplicate
+        if ticker not in self.tickers:
+            self.tickers.append(ticker)
+
+    def add_tickers(self, tickers: list[str]) -> None:
+        # Add several symbols at once, keeping their order
+        for ticker in tickers:
+            self.add_ticker(ticker)
+
+    def remove_ticker(self, ticker: str) -> None:
+        # Drop one symbol from the universe; a no-op when it is not held
+        if ticker in self.tickers:
+            self.tickers.remove(ticker)
+
+    def get_history(self,
+                    ticker: str,
+                    start: str | None = None,
+                    end: str | None = None,
+                    ) -> StockData:
+        # One ticker's full history, optionally bounded, for universe scoring
+        return get_stock_history(ticker, start, end)
+
+    def get_histories(self,
+                      tickers: list[str],
+                      start: str | None = None,
+                      end: str | None = None,
+                      ) -> dict[str, StockData]:
+        # Batch version of get_history; unknown tickers are skipped
+        return get_stock_histories(tickers, start, end)
+
+    # -------- Lifecycle Hooks --------
+    def initialize_universe(self, current_date: str) -> bool:
+        # Build the starting universe; the default accepts the declared tickers.
+        return bool(self.tickers)
+
+    def on_rebalance(self, current_date: str) -> None:
+        # Refresh self.tickers when REBALANCE_FREQUENCY comes due
+        return None
+
+    def on_day(self, current_date: str) -> None:
+        # Once per day, before any ticker is polled
+        return None
+
+    def on_signal(self, ticker: str, data: StockData) -> Order | None:
+        # Turn one ticker's data into at most one order. Return None to pass.
+        raise NotImplementedError("Strategy subclasses must implement on_signal()")
+
+    def should_exit(self,
+                    ticker: str,
+                    trade: Trade,
+                    data: StockData,
+                    ) -> bool:
+        # True closes this lot at the next open, separate from its stop or target.
+        return False
+
+    # -------- Indicator Helpers --------
     def _sma(self, values, window):
-        # Calculate Simple Moving Average (average price over a fixed window)
+        # Simple Moving Average (average price over a fixed window)
         return ta.SMA(values, window)
 
     def _ema(self, values, window):
-        # Calculate Exponential Moving Average (gives higher weight to recent prices)
+        # Exponential Moving Average (weights recent prices more heavily)
         return ta.EMA(values, window)
 
     def _dema(self, values, window):
-        # Calculate Double Exponential Moving Average (reduces lag compared to standard EMA)
+        # Double Exponential Moving Average (less lag than a standard EMA)
         return ta.DEMA(values, window)
 
     def _rsi(self, values, window):
-        # Calculate Relative Strength Index (measures momentum on a 0 to 100 scale)
+        # Relative Strength Index (momentum on a 0 to 100 scale)
         return ta.RSI(values, window)
 
     def _macd(self,
@@ -64,11 +170,11 @@ class Strategy:
               fast_period=12,
               slow_period=26,
               signal_period=9):
-        # Calculate Moving Average Convergence Divergence (shows trend momentum and direction)
+        # Moving Average Convergence Divergence (trend momentum and direction)
         return ta.MACD(values, fast_period, slow_period, signal_period)
 
     def _bollinger_bands(self, values, window, deviations=2):
-        # Calculate volatility bands placed above and below a moving average
+        # Volatility bands placed above and below a moving average
         return ta.BBANDS(values, window, deviations, deviations)
 
     def _atr(self,
@@ -76,7 +182,7 @@ class Strategy:
              low,
              close,
              window):
-        # Calculate Average True Range (measures market volatility over time)
+        # Average True Range (volatility over time)
         return ta.ATR(high, low, close, window)
 
     def _adx(self,
@@ -84,7 +190,7 @@ class Strategy:
              low,
              close,
              window):
-        # Calculate Average Directional Index (measures the strength of a trend)
+        # Average Directional Index (strength of a trend)
         return ta.ADX(high, low, close, window)
 
     def _stochastic(self,
@@ -94,7 +200,7 @@ class Strategy:
                     fast_k=5,
                     slow_k=3,
                     slow_d=3):
-        # Calculate Stochastic Oscillator (compares closing price to price range over time)
+        # Stochastic Oscillator (close relative to the recent range)
         return ta.STOCH(
             high, low, close,
             fastk_period=fast_k,
@@ -107,7 +213,7 @@ class Strategy:
                     low,
                     close,
                     window):
-        # Calculate Williams %R (reflects overbought or oversold conditions)
+        # Williams %R (overbought and oversold conditions)
         return ta.WILLR(high, low, close, window)
 
     def _cci(self,
@@ -115,19 +221,19 @@ class Strategy:
              low,
              close,
              window):
-        # Calculate Commodity Channel Index (evaluates price level relative to statistical average)
+        # Commodity Channel Index (price relative to its statistical average)
         return ta.CCI(high, low, close, window)
 
     def _roc(self, values, window):
-        # Calculate Rate of Change (percentage difference between current and past price)
+        # Rate of Change (percentage difference from `window` bars ago)
         return ta.ROC(values, window)
 
     def _momentum(self, values, window):
-        # Calculate price momentum (absolute difference between current and past price)
+        # Price momentum (absolute difference from `window` bars ago)
         return ta.MOM(values, window)
 
     def _obv(self, close, volume):
-        # Calculate On-Balance Volume (uses volume flow to predict price shifts)
+        # On-Balance Volume (volume flow as a predictor of price shifts)
         return ta.OBV(close, volume)
 
     def _mfi(self,
@@ -136,7 +242,7 @@ class Strategy:
              close,
              volume,
              window):
-        # Calculate Money Flow Index (uses price and volume to measure buying/selling pressure)
+        # Money Flow Index (price and volume as buying or selling pressure)
         return ta.MFI(high, low, close, volume, window)
 
     def _ad(self,
@@ -144,15 +250,15 @@ class Strategy:
             low,
             close,
             volume):
-        # Calculate Accumulation/Distribution Line (measures underlying supply and demand)
+        # Accumulation/Distribution Line (underlying supply and demand)
         return ta.AD(high, low, close, volume)
 
     def _trix(self, values, window):
-        # Calculate Triple Exponential Average (filters out market noise to show momentum)
+        # Triple Exponential Average (noise-filtered momentum)
         return ta.TRIX(values, window)
 
     def _tema(self, values, window):
-        # Calculate Triple Exponential Moving Average (ultra-low lag moving average)
+        # Triple Exponential Moving Average (very low lag)
         return ta.TEMA(values, window)
 
     def _parabolic_sar(self,
@@ -160,7 +266,7 @@ class Strategy:
                        low,
                        acceleration=0.02,
                        maximum=0.2):
-        # Calculate Parabolic SAR (determines trend direction and potential reversal points)
+        # Parabolic SAR (trend direction and potential reversal points)
         return ta.SAR(high, low, acceleration, maximum)
 
     def _stochastic_rsi(self,
@@ -168,5 +274,5 @@ class Strategy:
                         window,
                         fast_k=5,
                         fast_d=3):
-        # Calculate Stochastic RSI (applies Stochastic formula to RSI values for sensitivity)
+        # Stochastic RSI (the Stochastic formula applied to RSI values)
         return ta.STOCHRSI(values, window, fast_k, fast_d)

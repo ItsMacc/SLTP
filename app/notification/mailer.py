@@ -1,4 +1,4 @@
-# email.py — SLTP notification emails (HTML, mobile-friendly).
+# mailer.py — SLTP notification emails (HTML, mobile-friendly).
 #
 # Four notification types, all rendered from one shared boilerplate so the
 # styling stays consistent. Fill-in points come straight from the
@@ -490,70 +490,3 @@ def send_notification_email(kind: str, receiver: str, user_name: str,
             p.get("change_pct", 0.0), p.get("current_price"), p.get("direction"),
         )
     return False, f"Unknown notification kind: {kind}"
-
-
-if __name__ == "__main__":
-    # CLI test — send one of the four templates:
-    import sys
-
-    if len(sys.argv) < 3:
-        print("Usage: python -m app.notification.email <to> <kind> [user_name]")
-        print("Kinds: trade_signal | signals_digest | market_summary | security_warning | daily_summary | price_alert")
-        sys.exit(1)
-
-    to, kind = sys.argv[1], sys.argv[2]
-    name = sys.argv[3] if len(sys.argv) > 3 else "there"
-
-    # Demo payloads mirror what the strategies' StrategyDecision provides
-    demo_payloads = {
-        "trade_signal": {
-            "strategy_name": "Stock Health Filter", "ticker": "AAPL",
-            "signal_type": "LONG", "price": 187.42, "confidence": 0.82,
-            "stop_loss": 174.50, "take_profit": 215.00,
-            "note": "Health-spike criteria met for the third consecutive session.",
-        },
-        "signals_digest": {
-            "signal_date": "2026-09-23",
-            "signals": [
-                {"strategy": "Stock Health Filter", "ticker": "AAPL", "signal_type": "LONG",
-                 "price": 187.42, "confidence": 0.82, "stop_loss": 174.50, "take_profit": 215.00},
-                {"strategy": "Stock Health Filter", "ticker": "MU", "signal_type": "LONG",
-                 "price": 612.10, "confidence": 0.64, "stop_loss": 560.00, "take_profit": 720.00},
-            ],
-        },
-        "market_summary": {
-            "summary": {
-                "mood": "risk_on",
-                "headline": "Risk-on rally: buyers swept the board",
-                "trading_date": "2026-09-23",
-                "breadth_pct": 71.0,
-                "gainers": [{"ticker": "NVDA", "change_pct": 6.4, "close": 1210.55},
-                            {"ticker": "MU", "change_pct": 5.1, "close": 612.10}],
-                "losers": [{"ticker": "SHOP.TO", "change_pct": -2.3, "close": 158.40}],
-                "spotlight": {"ticker": "NVDA", "change_pct": 6.4, "close": 1210.55,
-                              "note": "Led the advance on heavy volume."},
-            },
-        },
-        "security_warning": {
-            "event": "New sign-in from an unrecognized device",
-            "ip_address": "203.0.113.42", "device": "Chrome on macOS",
-            "when": "Today at 9:14 AM",
-        },
-        "daily_summary": {
-            "summary_data": {
-                "portfolio_value": 10450.00, "portfolio_change_pct": 1.25,
-                "watchlist_moves": [{"ticker": "NVDA", "change_pct": 4.8},
-                                    {"ticker": "SHOP.TO", "change_pct": -2.1}],
-                "signals_today": [{"strategy": "Stock Health Filter",
-                                   "ticker": "MSFT", "signal_type": "LONG"}],
-            },
-        },
-        "price_alert": {"ticker": "TSLA", "change_pct": -6.3, "current_price": 212.55},
-    }
-
-    ok, err = send_notification_email(kind, to, name, demo_payloads.get(kind, {}))
-    if ok:
-        print(f"{kind} email sent successfully.")
-    else:
-        print(f"Email failed: {err}")
-        sys.exit(1)

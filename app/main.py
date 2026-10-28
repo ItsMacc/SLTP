@@ -121,7 +121,7 @@ def run_backtest(
             "strategy_name": strategy_instance.name,
             "metrics": raw_metrics,
             "chart_data": chart_data,
-            "trades": strategy_instance.manager.trades
+            "trades": backtester.manager.trades
         }
 
     except ValueError as ve:

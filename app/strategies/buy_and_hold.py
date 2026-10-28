@@ -1,55 +1,52 @@
 # buy_and_hold.py — Passive benchmark strategy.
 #
-# Buys every ticker in the universe once at the start and holds it for the
-# entire backtest. No stop-loss, no take-profit, no rotation. Serves as the
-# baseline every active strategy is compared against.
+# Buys every ticker in the universe once, on its first trading day, with an equal
+# share of the book, and holds it to the end. No stop-loss, no take-profit, no
+# rotation. This is the baseline every active strategy is compared against.
 
 # -------- Imports --------
-from app.strategies.buy_and_hold_manager import BuyAndHoldManager
-from app.engine.strategy.strategy import Strategy, StrategyDecision
-from app.engine.utils.StrategyDecision import Signal
+import math
+
+from app.engine.strategy.strategy import Strategy
+from app.engine.utils.Order import Order
+from app.engine.utils.PositionType import PositionType
+from app.engine.utils.RebalanceFrequency import RebalanceFrequency
 from app.engine.utils.StockData import StockData
 
 
-# -------- Buy And Hold Strategy Class --------
+# -------- Buy And Hold Strategy --------
 class BuyAndHold(Strategy):
-    def __init__(self):
-        super().__init__()
+    name: str = "Buy & Hold"
+    description: str = "Standard Buy and Hold benchmark strategy"
 
-        # Identity and paired manager
-        self.name = "Buy & Hold"
-        self.description = "Standard Buy and Hold benchmark strategy"
-        self.manager = BuyAndHoldManager()
+    # Every name is held, so there is no position cap and no rotation
+    MAX_POSITIONS = None
+    MAX_LOTS_PER_TICKER = 1
+    REBALANCE_FREQUENCY = RebalanceFrequency.NEVER
 
-        self.MIN_BARS_REQUIRED = 1
+    def initialize_universe(self, current_date: str) -> bool:
+        # The whole local universe, loaded once
+        self.tickers.clear()
+        self.add_tickers(self.available_universe)
+        return bool(self.tickers)
 
-    def generate_signal(self, ticker: str, history: StockData) -> StrategyDecision:
-        # Check if stock has enough price history to calculate metrics
-        if len(history.close_price) < self.MIN_BARS_REQUIRED:
-            raise ValueError(f"{ticker} does not contain enough bars | required: {self.MIN_BARS_REQUIRED}")
+    def on_signal(self, ticker: str, data: StockData) -> Order | None:
+        # Buy once, the first day the ticker trades. Never sell.
+        if self.is_open(ticker):
+            return None
 
-        today_date = str(history.dates[-1])
-        current_close = float(history.close_price[-1])
+        close = float(data.close_price[-1])
+        if close <= 0:
+            return None
 
-        # Check if the portfolio is already holding this ticker
-        is_already_open = False
-        if self.manager:
-            is_already_open = self.manager.open_positions.get(ticker, False)
+        # Round down so the equal shares can never sum past the whole book
+        weight = math.floor(10000 / len(self.tickers)) / 10000
 
-        # Buy once at the start, then hold indefinitely
-        if not is_already_open:
-            signal_type = Signal.LONG
-            confidence = 1.0
-        else:
-            signal_type = Signal.HOLD
-            confidence = 1.0
-
-        metrics = {"close_price": current_close}
-        meta_data = {"ticker": ticker, "signal_date": today_date}
-
-        return StrategyDecision(
-            signal=signal_type,
-            confidence=confidence,
-            metrics=metrics,
-            meta_data=meta_data
+        return Order(
+            ticker=ticker,
+            position_type=PositionType.LONG,
+            weight=weight,
+            order_date=str(data.dates[-1]),
+            stop_loss=0.0,    # 0 disables the stop
+            take_profit=0.0,  # 0 disables the target
         )
