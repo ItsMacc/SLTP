@@ -1,491 +1,343 @@
-# portfolio_manager.py — Base portfolio manager: sizing, execution, accounting.
+# portfolio_manager.py — Keeps the book: orders, fills, positions, costs and equity.
 #
-# Paired with a Strategy: the Strategy decides WHEN to buy, the Manager
-# decides HOW MUCH (allocation), WHERE to cut losses (stop-loss / take-profit)
-# and keeps the portfolio's books (fees, slippage, mark-to-market, equity).
-# Subclasses implement on_signal(); initialize_universe() and on_rebalance()
-# are optional. check_exits / buy_order / mark_to_market / _base_allocation
-# are the engine's execution internals and are shared by all strategies.
+# Orders fill at the next open. Stops and targets are resting levels, so they
+# fill inside the day's bar at the level, or at the open when the bar gapped
+# through it. One entry is one lot, so adding to a position never averages the
+# entry price.
+#
+# Equity is an index starting at 100:
+#     starting + realized - costs + unrealized
+# The strategy sees this book through refresh_view() and never changes it.
 
 # -------- Imports --------
-from dataclasses import dataclass, replace
-from enum import Enum
+from datetime import datetime
 from dateutil.relativedelta import relativedelta
-from app.database.fetch import get_stock_history
-from app.engine.utils.StockData import StockData
-from app.engine.utils.StrategyDecision import StrategyDecision
-from app.database.fetch import get_stock_histories, get_all_tickers, get_available_etfs, get_available_stocks, get_available_gold
-
-# -------- Records, Risk and Rebalance Frequency Enumerations --------
-@dataclass
-class TradeRecord:
-    ticker: str
-    action: str
-    entry_date: str | None
-    allocation_size: float
-    entry_price: float | None
-    stop_loss: float
-    take_profit: float
-    exit_price: float | None = None
-    exit_date: str | None = None
-    transaction_cost: float = 0.0
-    realized_return_pct: float | None = None
-    signal_date: str | None = None
+from app.engine.strategy.strategy import Strategy
+from app.engine.utils.Event import Event
+from app.engine.utils.EventType import EventType
+from app.engine.utils.Order import Order
+from app.engine.utils.PositionType import PositionType
+from app.engine.utils.RebalanceFrequency import RebalanceFrequency
+from app.engine.utils.Trade import Trade
 
 
-
-class RebalanceFrequency(Enum):
-    DAILY = "daily"
-    WEEKLY = "weekly"
-    MONTHLY = "monthly"
-    QUARTERLY = "quarterly"
-    YEARLY = "yearly"
-    NEVER = "never"
-
-
-# -------- Constants --------
-REBALANCE_SETTINGS: dict[RebalanceFrequency, relativedelta] = {
+# -------- Rebalance Arithmetic --------
+# NEVER is checked in rebalance_due(), so it has no delta here.
+REBALANCE_DELTAS: dict[RebalanceFrequency, relativedelta] = {
     RebalanceFrequency.DAILY: relativedelta(days=1),
     RebalanceFrequency.WEEKLY: relativedelta(weeks=1),
     RebalanceFrequency.MONTHLY: relativedelta(months=1),
     RebalanceFrequency.QUARTERLY: relativedelta(months=3),
     RebalanceFrequency.YEARLY: relativedelta(years=1),
-    RebalanceFrequency.NEVER: relativedelta(years=999_999),
 }
-
-MIN_KELLY_TRADES: int = 10
 
 
 # -------- Portfolio Manager --------
 class PortfolioManager:
-    def __init__(self,
-                 max_positions: int | None = 10
-                 ) -> None:
-        # Trading Costs & Configuration
+    """Owns the book: orders, fills, positions, costs and equity."""
+
+    def __init__(self, strategy: Strategy) -> None:
+        # The strategy this book belongs to
+        self.strategy: Strategy = strategy
+
+        # Trading costs, applied to every fill
         self.SLIPPAGE_PCT: float = 0.0005
         self.FEE_RATE: float = 0.001
-        self.max_positions: int | None = max_positions
 
-        # Universe & Market Data Storage
-        self.tickers: list[str] = []
-        self.histories: dict[str, StockData] = {}
-
-        # Portfolio Tracking & State
+        # Index accounting, starting at 100
+        self.starting_equity: float = 100.00
         self.portfolio_value: float = 100.00
-        self.active_positions: int = 0
-        self.open_positions: dict[str, bool] = {}
-        self.trades: dict[str, list[TradeRecord]] = {}
+        self.realized_pnl: float = 0.0
+        self.total_cost: float = 0.0
 
-        # Execution & Marking States
-        self.blacklisted_tickers: set[str] = set()
-        self.open_trade_state: dict[str, dict] = {}
-
-        # Performance & Analytics Cache
+        # Records
+        self.trades: list[Trade] = []
+        self.open_trades: list[Trade] = []
         self.equity_curve: list[dict] = []
-        self.ticker_wins: dict[str, list[float]] = {}
-        self.ticker_losses: dict[str, list[float]] = {}
-        self.total_transactions_cost: float = 0.0
         self.rejected_orders: dict[str, int] = {}
 
-        # Rebalancing Tracking
-        self.LAST_REBALANCE_DATE: str | None = None
-        self.REBALANCE_FREQUENCY: RebalanceFrequency = RebalanceFrequency.NEVER
-        self.WARM_UP_PERIOD: int = 0
+        # Queues drained at the next open; ids of lots due to close
+        self.pending_orders: list[Order] = []
+        self.pending_exits: list[int] = []
+
+        # Last traded price per ticker, so a suspended name keeps its mark
+        self.last_prices: dict[str, float] = {}
+
+        # Rebalance tracking
+        self.last_rebalance_date: str | None = None
+
+        self._next_trade_id: int = 1
+
+        # Hand the strategy the opening book
+        self.refresh_view()
+
+    # -------- Strategy View --------
+    def refresh_view(self) -> None:
+        # Push the book to the strategy; called before every hook.
+        self.strategy._open_trades = tuple(self.open_trades)
+        self.strategy._equity = self.portfolio_value
+
+    # -------- Read-only State --------
+    @property
+    def active_positions(self) -> int:
+        # Distinct tickers with at least one open lot
+        return len({trade.ticker for trade in self.open_trades})
 
     @property
-    def get_available_universe(self) -> list[str]:
-        return get_all_tickers()
+    def open_tickers(self) -> set[str]:
+        # Every ticker currently holding a lot
+        return {trade.ticker for trade in self.open_trades}
 
-    @property
-    def get_available_etfs(self) -> list[str]:
-        return get_available_etfs()
+    def lots(self, ticker: str) -> list[Trade]:
+        # Open lots in one ticker, oldest first
+        return [trade for trade in self.open_trades if trade.ticker == ticker]
 
-    @property
-    def get_available_stocks(self) -> list[str]:
-        return get_available_stocks()
+    # -------- Submitting --------
+    def submit(self, order: Order) -> None:
+        # Queue an entry for the next open; it is validated at the fill.
+        self.pending_orders.append(order)
 
-    @property
-    def get_available_gold(self) -> list[str]:
-        return get_available_gold()
+    def queue_exit(self, trade_id: int) -> None:
+        # Queue one lot to close at the next open, ignoring a duplicate request
+        if trade_id not in self.pending_exits:
+            self.pending_exits.append(trade_id)
 
-    # -------- Data Management --------
-    def add_ticker(self,
-                   ticker: str,
-                   start_date: str | None = None,
-                   end_date: str | None = None
-                   ) -> None:
-        # Fetch and cache individual stock history
-        self.histories[ticker] = get_stock_history(ticker, start_date, end_date)
-        if ticker not in self.tickers:
-            self.tickers.append(ticker)
+    # -------- Filling --------
+    def fill_pending(self, current_date: str, opens: dict[str, float]) -> None:
+        """Fill every queued order and exit at today's open.
 
-    def add_tickers(self,
-                    tickers: list[str],
-                    start_date: str | None = None,
-                    end_date: str | None = None
-                    ) -> None:
-        # Fetch and cache batch stock histories
-        self.histories.update(get_stock_histories(tickers, start_date, end_date))
-        for ticker in tickers:
-            if ticker not in self.tickers:
-                self.tickers.append(ticker)
+        ``opens`` maps a ticker to its open price today. A queued ticker with no
+        bar is dropped and counted, never carried forward, so an order cannot
+        fill on stale data days later.
+        """
+        for order in self.pending_orders:
+            open_price = opens.get(order.ticker)
+            if open_price is None or open_price <= 0:
+                self._reject("no_bar")
+                continue
+            self._open(order, open_price, current_date)
 
-    # -------- Lifecycle Hooks --------
-    def on_signal(self,
-                  ticker: str,
-                  decision: StrategyDecision
-                  ) -> TradeRecord | None:
-        # Returning None means "no trade for this signal", which the backtester and runner handle
-        # Base method placeholder enforcing implementation in subclasses
-        raise NotImplementedError("PortfolioManager subclasses must implement on_signal()")
+        for trade_id in self.pending_exits:
+            trade = self._find_trade(trade_id)
+            if trade is None or not trade.is_open:
+                continue
+            open_price = opens.get(trade.ticker)
+            if open_price is None or open_price <= 0:
+                self._reject("no_bar")
+                continue
+            self._close(
+                trade,
+                open_price,
+                current_date,
+                EventType.SIGNAL,
+            )
 
-    def on_rebalance(self, current_date: str) -> None:
-        # Clean up blacklisted tickers whose positions have closed
-        new_blacklist = set()
-        for ticker in list(self.blacklisted_tickers):
-            if not self.open_positions.get(ticker, False):
-                if ticker in self.tickers:
-                    self.tickers.remove(ticker)
-                if ticker in self.histories:
-                    del self.histories[ticker]
-                new_blacklist.add(ticker)
+        self.pending_orders.clear()
+        self.pending_exits.clear()
 
-        for ticker in new_blacklist:
-            self.blacklisted_tickers.remove(ticker)
-
-    def initialize_universe(self, current_date: str) -> bool:
-        # Base method to initialize universe
-        pass
-
-    # -------- Trade Execution & Risk Management --------
-    def check_exits(
-                    self,
+    # -------- Exits --------
+    def check_exits(self,
                     ticker: str,
                     current_open: float,
                     current_high: float,
                     current_low: float,
                     current_date: str,
                     ) -> None:
-        """Close the open position if today's bar crossed its stop or target."""
-        if self.active_positions == 0 or not self.open_positions.get(ticker, False):
+        # Close lots whose stop or target was hit; stop wins if both were.
+        for trade in self.lots(ticker):
+            filled_price, event_type = self._triggered(
+                trade, current_open, current_high, current_low,
+            )
+            if event_type is not None:
+                self._close(trade, filled_price, current_date, event_type)
+
+    def close_all(self, current_date: str, closes: dict[str, float]) -> None:
+        # Flatten the book when a run ends with positions still open.
+        for trade in list(self.open_trades):
+            close_price = closes.get(trade.ticker)
+            if close_price is None or close_price <= 0:
+                close_price = self.last_prices.get(trade.ticker, trade.entry_price)
+            self._close(trade, close_price, current_date, EventType.END_OF_BACKTEST)
+
+    # -------- Marking --------
+    def mark_to_market(self, prices: dict[str, float]) -> None:
+        # Revalue at today's closes; a ticker without a price keeps its last mark.
+        for ticker, price in prices.items():
+            if price > 0:
+                self.last_prices[ticker] = price
+
+        # equity = starting + realized - costs + unrealized
+        unrealized = 0.0
+        for trade in self.open_trades:
+            price = self.last_prices.get(trade.ticker, trade.entry_price)
+            direction = -1.0 if trade.position_type is PositionType.SHORT else 1.0
+            unrealized += (
+                trade.equity_at_entry
+                * trade.weight
+                * direction
+                * (price - trade.entry_price)
+                / trade.entry_price
+            )
+
+        self.portfolio_value = (
+            self.starting_equity + self.realized_pnl - self.total_cost + unrealized
+        )
+
+    def record_equity(self, current_date: str) -> None:
+        # One point per trading day; key names match what the API already serves
+        self.equity_curve.append({
+            "date": current_date,
+            "portfolio_value": round(self.portfolio_value, 2),
+            "active_positions": self.active_positions,
+            "total_transaction_cost": round(self.total_cost, 4),
+        })
+
+    # -------- Rebalancing --------
+    def rebalance_due(self, current_date: str) -> bool:
+        # True when the cadence has elapsed since the last rebuild.
+        frequency = self.strategy.REBALANCE_FREQUENCY
+        if frequency is RebalanceFrequency.NEVER:
+            return False
+        if self.last_rebalance_date is None:
+            return True
+
+        due_at = datetime.strptime(self.last_rebalance_date, "%Y-%m-%d")
+        due_at += REBALANCE_DELTAS[frequency]
+        return current_date >= due_at.strftime("%Y-%m-%d")
+
+    def mark_rebalanced(self, current_date: str) -> None:
+        # Remember when the universe was last rebuilt
+        self.last_rebalance_date = current_date
+
+    # -------- Internals --------
+    def _open(self, order: Order, open_price: float, current_date: str) -> None:
+        # Validate against the book, then record one filled lot
+        if open_price <= 0:
+            self._reject("invalid_price")
+            return
+        if order.weight <= 0:
+            self._reject("invalid_weight")
             return
 
-        trade_list = self.trades.get(ticker)
-        if not trade_list or trade_list[-1].action not in ("BUY", "SHORT"):
+        ticker_lots = self.lots(order.ticker)
+        max_lots = self.strategy.MAX_LOTS_PER_TICKER
+        if max_lots is not None and len(ticker_lots) >= max_lots:
+            self._reject("max_lots")
             return
-        active_trade = trade_list[-1]
-        is_short = active_trade.action == "SHORT"
-        sl = active_trade.stop_loss
-        tp = active_trade.take_profit
-        exit_action: str | None = None
-        exit_price: float | None = None
 
-        # Stops take precedence if both levels are crossed in one bar.
-        if is_short:
-            if sl > 0 and current_high >= sl:
-                fill_price = current_open if current_open > sl else sl
-                exit_action = "STOP_LOSS"
-                exit_price = round(self._apply_cover_slippage(fill_price), 2)
-            elif tp > 0 and current_low <= tp:
-                fill_price = min(current_open, tp)
-                exit_action = "TAKE_PROFIT"
-                exit_price = round(self._apply_cover_slippage(fill_price), 2)
+        max_positions = self.strategy.MAX_POSITIONS
+        if (max_positions is not None
+                and not ticker_lots
+                and self.active_positions >= max_positions):
+            self._reject("max_positions")
+            return
+
+        # Measure exposure in current equity; weights from different days don't add.
+        self.mark_to_market({})
+        ticker_weight = sum(
+            trade.equity_at_entry * trade.weight for trade in ticker_lots
+        ) / self.portfolio_value
+
+        max_weight = self.strategy.MAX_WEIGHT_PER_TICKER
+        if max_weight is not None and ticker_weight + order.weight > max_weight:
+            self._reject("max_weight")
+            return
+
+        invested = sum(
+            trade.equity_at_entry * trade.weight for trade in self.open_trades
+        ) / self.portfolio_value
+        if invested + order.weight > 1.0:
+            self._reject("no_capital")
+            return
+
+        # Entry slippage always moves against the position
+        if order.position_type is PositionType.LONG:
+            entry_price = round(open_price * (1.0 + self.SLIPPAGE_PCT), 2)
         else:
-            if sl > 0 and current_low <= sl:
-                fill_price = current_open if current_open < sl else sl
-                exit_action = "STOP_LOSS"
-                exit_price = round(self._apply_exit_slippage(fill_price), 2)
-            elif tp > 0 and current_high >= tp:
-                fill_price = max(current_open, tp)
-                exit_action = "TAKE_PROFIT"
-                exit_price = round(self._apply_exit_slippage(fill_price), 2)
+            entry_price = round(open_price * (1.0 - self.SLIPPAGE_PCT), 2)
 
-        if exit_action is not None and exit_price is not None:
-            self._close_position(ticker, active_trade, exit_price, exit_action, current_date)
-            return
+        equity_at_entry = self.portfolio_value
+        entry_fee = round(equity_at_entry * order.weight * self.FEE_RATE, 4)
 
-    def exit_order(self,
-                   ticker: str,
-                   fill_price: float,
-                   current_date: str,
-                   ) -> None:
-        """Close an open position at a supplied fill (a queued EXIT signal)."""
-        if not self.open_positions.get(ticker, False):
-            return
-
-        trade_list = self.trades.get(ticker)
-        if not trade_list or trade_list[-1].action not in ("BUY", "SHORT"):
-            return
-        if fill_price <= 0:
-            self.record_rejection("invalid_fill_price")
-            return
-
-        active_trade = trade_list[-1]
-        exit_fill = (
-            self._apply_cover_slippage(fill_price)
-            if active_trade.action == "SHORT"
-            else self._apply_exit_slippage(fill_price)
-        )
-        self._close_position(ticker, active_trade, round(exit_fill, 2), "EXIT", current_date)
-
-    def record_rejection(self, reason: str) -> None:
-        """Count an order the engine could not fill."""
-        self.rejected_orders[reason] = self.rejected_orders.get(reason, 0) + 1
-
-    def _close_position(
-        self,
-        ticker: str,
-        last_trade_record: TradeRecord,
-        exit_price: float,
-        exit_action: str,
-        current_date: str,
-    ) -> None:
-        """Apply accounting and append an exit record for an open position."""
-        entry_price = last_trade_record.entry_price
-        if entry_price is None or entry_price <= 0 or not self.open_positions.get(ticker, False):
-            return
-
-        is_short = last_trade_record.action == "SHORT"
-        direction = -1.0 if is_short else 1.0
-        self.active_positions = max(0, self.active_positions - 1)
-        self.open_positions[ticker] = False
-
-        state = self.open_trade_state.pop(ticker, None)
-        entry_portfolio_value = (
-            state.get("entry_portfolio_value", self.portfolio_value)
-            if state is not None else self.portfolio_value
-        )
-
-        exit_fee_ratio = exit_price * self.FEE_RATE / entry_price
-        fee_index_impact = round(
-            entry_portfolio_value * last_trade_record.allocation_size * exit_fee_ratio,
-            4,
-        )
-        self.total_transactions_cost += fee_index_impact
-        self.portfolio_value -= fee_index_impact
-
-        pct_return = direction * (exit_price - entry_price) / entry_price
-        already_marked_pct_return = 0.0
-        if state is not None:
-            already_marked_pct_return = direction * (state["last_close"] - entry_price) / entry_price
-
-        incremental_pct_return = pct_return - already_marked_pct_return
-        gained_value = entry_portfolio_value * last_trade_record.allocation_size * incremental_pct_return
-        self.portfolio_value += round(gained_value, 4)
-
-        exit_record = TradeRecord(
-            ticker=ticker,
-            action=exit_action,
-            entry_date=last_trade_record.entry_date,
-            allocation_size=last_trade_record.allocation_size,
-            entry_price=entry_price,
-            stop_loss=last_trade_record.stop_loss,
-            take_profit=last_trade_record.take_profit,
-            exit_price=exit_price,
-            exit_date=current_date,
-            transaction_cost=fee_index_impact,
-            realized_return_pct=pct_return,
-        )
-        self.trades[ticker].append(exit_record)
-
-        if pct_return > 0:
-            self.ticker_wins.setdefault(ticker, []).append(pct_return)
-        elif pct_return < 0:
-            self.ticker_losses.setdefault(ticker, []).append(pct_return)
-
-    def buy_order(
-                  self,
-                  ticker: str,
-                  fill_price: float,
-                  trade_record: TradeRecord,
-                  current_date: str,
-                  ) -> None:
-        self._open_order(ticker, fill_price, trade_record, current_date, "BUY")
-
-    def short_order(
-                  self,
-                  ticker: str,
-                  fill_price: float,
-                  trade_record: TradeRecord,
-                  current_date: str,
-                  ) -> None:
-        self._open_order(ticker, fill_price, trade_record, current_date, "SHORT")
-
-    def _open_order(
-                  self,
-                  ticker: str,
-                  fill_price: float,
-                  trade_record: TradeRecord,
-                  current_date: str,
-                  expected_action: str,
-                  ) -> None:
-        if trade_record.action != expected_action:
-            raise ValueError(f"Expected {expected_action} trade record, got {trade_record.action}")
-        if fill_price <= 0:
-            self.record_rejection("invalid_fill_price")
-            return
-        if self.open_positions.get(ticker, False):
-            self.record_rejection("already_open")
-            return
-        if self.max_positions is not None and self.active_positions >= self.max_positions:
-            self.record_rejection("max_positions_reached")
-            return
-        if ticker in self.blacklisted_tickers:
-            self.record_rejection("blacklisted")
-            return
-
-        current_total_allocation = sum(
-            trade_list[-1].allocation_size
-            for open_ticker, trade_list in self.trades.items()
-            if self.open_positions.get(open_ticker, False) and trade_list
-        )
-        remaining_allocation = 1.0 - current_total_allocation
-        if remaining_allocation <= 0:
-            self.record_rejection("no_remaining_capital")
-            return
-
-        # Cap a single position at its equal-weight slot so a confidence multiplier
-        # cannot consume the book before max_positions is reached.
-        slot_allocation = (
-            1.0 / self.max_positions
-            if self.max_positions is not None and self.max_positions > 0
-            else 1.0
-        )
-        requested_allocation = min(trade_record.allocation_size, slot_allocation)
-        effective_allocation = min(requested_allocation, remaining_allocation)
-        if effective_allocation <= 0:
-            self.record_rejection("zero_allocation")
-            return
-        if effective_allocation < trade_record.allocation_size:
-            trade_record = replace(trade_record, allocation_size=effective_allocation)
-
-        # Entry slippage always moves against the position.
-        entry_price = round(
-            self._apply_entry_slippage(fill_price)
-            if expected_action == "BUY"
-            else fill_price * (1.0 - self.SLIPPAGE_PCT),
-            2,
-        )
-        # Stop and target are the prices the manager supplied; the fill only
-        # backfills the entry fields.
-        confirmed_record = replace(
-            trade_record,
+        trade = Trade(
+            id=self._next_trade_id,
+            ticker=order.ticker,
+            position_type=order.position_type,
             entry_date=current_date,
             entry_price=entry_price,
+            weight=order.weight,
+            equity_at_entry=equity_at_entry,
+            stop_loss=order.stop_loss,
+            take_profit=order.take_profit,
+            fees=entry_fee,
         )
-        self.trades.setdefault(ticker, []).append(confirmed_record)
-        self.active_positions += 1
-        self.open_positions[ticker] = True
 
-        entry_fee_index_impact = round(
-            self.portfolio_value * confirmed_record.allocation_size * self.FEE_RATE,
-            4,
-        )
-        self.total_transactions_cost += entry_fee_index_impact
-        self.portfolio_value -= entry_fee_index_impact
-        self.open_trade_state[ticker] = {
-            "entry_price": entry_price,
-            "allocation_size": confirmed_record.allocation_size,
-            "last_close": entry_price,
-            "entry_portfolio_value": self.portfolio_value,
-        }
+        self._next_trade_id += 1
+        self.trades.append(trade)
+        self.open_trades.append(trade)
+        self.last_prices[order.ticker] = entry_price
+        self.total_cost += entry_fee
 
-    def mark_to_market(self,
-                       ticker: str,
-                       current_close: float
-                       ) -> None:
-        # Cache dictionary lookup locally.
-        if not self.open_positions.get(ticker, False):
+    def _close(self,
+               trade: Trade,
+               price: float,
+               current_date: str,
+               event_type: EventType,
+               ) -> None:
+        # Realize one lot: exit slippage, fee, event, realized profit
+        if price <= 0:
+            self._reject("invalid_price")
             return
 
-        trade_list = self.trades.get(ticker)
-        if not trade_list:
-            return
+        if trade.position_type is PositionType.LONG:
+            exit_price = round(price * (1.0 - self.SLIPPAGE_PCT), 2)
+            direction = 1.0
+        else:
+            exit_price = round(price * (1.0 + self.SLIPPAGE_PCT), 2)
+            direction = -1.0
 
-        last_trade_record = trade_list[-1]
-        if last_trade_record.action not in ("BUY", "SHORT"):
-            return
+        notional = trade.equity_at_entry * trade.weight
+        pct_return = direction * (exit_price - trade.entry_price) / trade.entry_price
+        exit_fee = round(notional * (exit_price / trade.entry_price) * self.FEE_RATE, 4)
 
-        state = self.open_trade_state.get(ticker)
-        entry_price = last_trade_record.entry_price
-        if entry_price is None or entry_price <= 0:
-            return
+        trade.fees = round(trade.fees + exit_fee, 4)
+        trade.exit = Event(date=current_date, type=event_type, price=exit_price)
 
-        prev_marked_close = state["last_close"] if state is not None else entry_price
-        entry_portfolio_value = (
-            state.get("entry_portfolio_value", self.portfolio_value)
-            if state is not None else self.portfolio_value
-        )
-        direction = -1.0 if last_trade_record.action == "SHORT" else 1.0
-        incremental_pct_return = direction * (current_close - prev_marked_close) / entry_price
-        gained_value = entry_portfolio_value * last_trade_record.allocation_size * incremental_pct_return
-        self.portfolio_value += round(gained_value, 4)
-        self.open_trade_state[ticker] = {
-            "entry_price": entry_price,
-            "allocation_size": last_trade_record.allocation_size,
-            "last_close": current_close,
-            "entry_portfolio_value": entry_portfolio_value,
-        }
+        self.realized_pnl += notional * pct_return
+        self.total_cost += exit_fee
+        self.last_prices[trade.ticker] = exit_price
+        self.open_trades.remove(trade)
 
-    def _base_allocation(self) -> float:
-        """
-        Calculates position base allocation size using the Kelly Criterion across
-        all closed portfolio trades, adjusted by the portfolio's risk profile.
-        """
-        default_allocation = (1.0 / self.max_positions) if (self.max_positions and self.max_positions > 0) else 0.1
+    def _triggered(self,
+                   trade: Trade,
+                   current_open: float,
+                   current_high: float,
+                   current_low: float,
+                   ) -> tuple[float, EventType | None]:
+        # Which resting level, if any, today's bar touched, and at what price
+        stop = trade.stop_loss
+        target = trade.take_profit
 
-        # Aggregate all realized closed trade returns across all tickers in the portfolio
-        all_closed_returns = [
-            trade.realized_return_pct
-            for trade_list in self.trades.values()
-            for trade in trade_list
-            if trade.realized_return_pct is not None
-        ]
+        if trade.position_type is PositionType.LONG:
+            if stop > 0 and current_low <= stop:
+                return min(current_open, stop), EventType.STOP_LOSS
+            if target > 0 and current_high >= target:
+                return max(current_open, target), EventType.TAKE_PROFIT
+        else:
+            if stop > 0 and current_high >= stop:
+                return max(current_open, stop), EventType.STOP_LOSS
+            if target > 0 and current_low <= target:
+                return min(current_open, target), EventType.TAKE_PROFIT
 
-        total_trades = len(all_closed_returns)
-        wins = [r for r in all_closed_returns if r > 0]
-        losses = [r for r in all_closed_returns if r < 0]
+        return 0.0, None
 
-        # Requires sufficient trades AND at least one win and one loss globally
-        if total_trades < MIN_KELLY_TRADES or not wins or not losses:
-            return default_allocation
+    def _find_trade(self, trade_id: int) -> Trade | None:
+        # Look up a lot by id across the whole log
+        for trade in self.trades:
+            if trade.id == trade_id:
+                return trade
+        return None
 
-        win_rate = len(wins) / total_trades
-        avg_win = sum(wins) / len(wins)
-        avg_loss = abs(sum(losses) / len(losses))
-
-        # Absolute mathematical check: avg_loss must be non-zero to avoid division by zero
-        if avg_loss == 0.0:
-            return default_allocation
-
-        # Payoff ratio (b) = average win size / average loss size
-        win_loss_ratio = avg_win / avg_loss
-
-        # Pure Kelly Criterion Formula: f* = p - ((1 - p) / b)
-        kelly_fraction = win_rate - ((1.0 - win_rate) / win_loss_ratio)
-
-        # If Kelly yields negative expectation, do not allocate capital (return default floor)
-        if kelly_fraction <= 0.0:
-            return default_allocation
-
-        # Apply fractional Kelly scaling based on low risk profile
-        adjusted_kelly = kelly_fraction * 0.25
-
-        # Bound allocation strictly between minimum and maximum allocation
-        min_allocation = 0.01
-        max_allocation = default_allocation * 2
-        final_allocation = max(min_allocation, min(max_allocation, round(adjusted_kelly, 4)))
-
-        return final_allocation
-
-    def _apply_entry_slippage(self, price: float) -> float:
-        # Adjust entry price upwards for buy slippage
-        return price * (1.0 + self.SLIPPAGE_PCT)
-
-    def _apply_exit_slippage(self, price: float) -> float:
-        # Adjust long exit price downwards for sell slippage
-        return price * (1.0 - self.SLIPPAGE_PCT)
-
-    def _apply_cover_slippage(self, price: float) -> float:
-        # Adjust short exit price upwards for buy-to-cover slippage
-        return price * (1.0 + self.SLIPPAGE_PCT)
+    def _reject(self, reason: str) -> None:
+        # Count a refusal so a strategy can see why nothing happened
+        self.rejected_orders[reason] = self.rejected_orders.get(reason, 0) + 1
