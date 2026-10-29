@@ -14,16 +14,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from typing import Dict, Any, List
 
 # Core Backtester & Strategy Imports
-from app.backtester import Backtester
+from app.engine.backtesting import Backtester
 from app.strategies import REGISTRY
 
 # Database Imports
 from app.database.fetch import (
-    get_stock_history_json,
+    get_stock_history,
     get_all_tickers as fetch_all_tickers,
     get_all_ticker_details,
     get_stock_name,
 )
+from app.api.services.market_data import calculate_start_date, serialize_stock_history
+from app.engine.utils.EventType import EventType
+from app.engine.utils.PositionType import PositionType
 from app.database.provision import router as provision_router
 from app.database.portfolio_api import router as portfolio_router
 from app.database.account_delete import router as account_delete_router
@@ -94,36 +97,68 @@ def run_backtest(
             start_date=start_date,
             end_date=end_date
         )
-        backtester.run()
+        result = backtester.run()
+        raw_metrics = dict(result["metrics"])
+        raw_metrics.pop("equity", None)
+        equity_curve = result["equity"]
 
-        # Compute metrics dictionary from backtester
-        raw_metrics = backtester.performance_metrics()
-
-        if not raw_metrics:
+        if not equity_curve:
             raise HTTPException(status_code=400, detail="Backtest completed with no equity curve data.")
 
-        # Extract equity curve for chart formatting and pop equity array out of the raw metrics dict
-        equity_curve = raw_metrics.pop("equity", [])
-
-        # Format chart points for simple Recharts/Chart.js frontend consumption
+        # Keep the established frontend contract; only adapt the engine records here.
         chart_data = [
             {
                 "date": point["date"],
                 "portfolio_value": point["portfolio_value"],
                 "active_positions": point["active_positions"],
-                "transaction_cost": point["total_transaction_cost"]
+                "transaction_cost": point["total_transaction_cost"],
             }
             for point in equity_curve
         ]
+        trades = []
+        for trade in result["trades"]:
+            exit_event = trade.exit
+            direction = -1.0 if trade.position_type is PositionType.SHORT else 1.0
+            realized_return_pct = None
+            if exit_event is not None and trade.entry_price > 0:
+                notional = trade.equity_at_entry * trade.allocation
+                gross_pnl = notional * direction * (exit_event.price - trade.entry_price) / trade.entry_price
+                realized_return_pct = (gross_pnl - trade.fees) / notional * 100.0 if notional > 0 else 0.0
+            exit_reason = {
+                EventType.TAKE_PROFIT: "TAKE_PROFIT",
+                EventType.STOP_LOSS: "STOP_LOSS",
+                EventType.SIGNAL: "EXIT",
+                EventType.END_OF_BACKTEST: "EXIT",
+            }.get(exit_event.type, "EXIT") if exit_event is not None else None
+            trades.append({
+                "id": trade.id,
+                "ticker": trade.ticker,
+                # Keep action as the entry direction; the close cause is a separate field.
+                "action": "SHORT" if trade.position_type is PositionType.SHORT else "BUY",
+                "position_type": trade.position_type.value,
+                "exit_reason": exit_reason,
+                "entry_date": trade.entry_date,
+                "allocation_size": trade.allocation,
+                "entry_price": trade.entry_price,
+                "stop_loss": trade.stop_loss,
+                "take_profit": trade.take_profit,
+                "exit_price": exit_event.price if exit_event is not None else None,
+                "exit_date": exit_event.date if exit_event is not None else None,
+                "transaction_cost": trade.fees,
+                "realized_return_pct": realized_return_pct,
+            })
 
         return {
             "strategy_id": strategy_id,
             "strategy_name": strategy_instance.name,
             "metrics": raw_metrics,
             "chart_data": chart_data,
-            "trades": backtester.manager.trades
+            "trades": trades,
+            "rejections": result["rejections"],
         }
 
+    except HTTPException:
+        raise
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
@@ -137,9 +172,14 @@ def read_stock_history(
 ):
     """Fetch historical price candles for individual stock tickers."""
     try:
-        history = get_stock_history_json(ticker=ticker, timeframe=timeframe)
-        history["name"] = get_stock_name(ticker.upper())
-        return history
+        normalized_ticker = ticker.strip().upper()
+        stock_data = get_stock_history(
+            ticker=normalized_ticker,
+            start=calculate_start_date(timeframe),
+        )
+        response = serialize_stock_history(stock_data, normalized_ticker, timeframe)
+        response["name"] = get_stock_name(normalized_ticker)
+        return response
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
@@ -150,8 +190,7 @@ def get_ticker_details():
     try:
         return get_all_ticker_details()
     except Exception as e:
-        print(f"Ticker details endpoint error: {e}")
-        return []
+        raise HTTPException(status_code=503, detail=f"Ticker details are temporarily unavailable: {e}") from e
 
 
 @app.get("/api/stock/all-tickers")
@@ -161,5 +200,4 @@ def get_all_tickers():
         tickers = fetch_all_tickers()
         return sorted(tickers)
     except Exception as e:
-        print(f"All tickers endpoint error: {e}")
-        return []
+        raise HTTPException(status_code=503, detail=f"Ticker symbols are temporarily unavailable: {e}") from e

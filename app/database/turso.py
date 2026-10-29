@@ -192,6 +192,20 @@ async def get_all_users() -> list[dict[str, Any]]:
     return rows
 
 
+async def get_notification_recipients() -> list[dict[str, Any]]:
+    """Return users with an onboarded portfolio and decoded notification settings."""
+    rows = await execute(
+        """SELECT u.id, u.name, u.email, u.settings_json, p.preferences_json
+             FROM users AS u
+             JOIN portfolios AS p ON p.user_id = u.id
+            WHERE p.onboarded = 1"""
+    )
+    for row in rows:
+        row["settings"] = _parse_json(row.pop("settings_json", None), {})
+        row["preferences"] = _parse_json(row.pop("preferences_json", None), {})
+    return rows
+
+
 # -------- Portfolios (setup wizard answers) --------
 async def get_portfolio(user_id: str) -> dict[str, Any] | None:
     rows = await execute("SELECT * FROM portfolios WHERE user_id = ?", [user_id])

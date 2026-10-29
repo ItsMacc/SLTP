@@ -3,8 +3,10 @@
 # The real modules live under `app/`. The Lab editor presents them as a `core/`
 # package, so a project's own files can reach them by one stable path:
 #
-#   from core.strategy.strategy import Strategy
-#   from core.portfolio.portfolio_manager import PortfolioManager, TradeRecord
+#   from core.strategy.base_strategy import Strategy
+#   from core.portfolio.portfolio_manager import PortfolioManager
+#   from core.utils.Order import Order
+#   from core.utils.Trade import Trade
 #   from core.utils.StockData import StockData
 #
 # The mirror is byte-for-byte the repo file apart from one thing: the imports
@@ -23,8 +25,19 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 # Project path -> the repo file it mirrors.
 CORE_FILES: dict[str, Path] = {
     "core/portfolio/portfolio_manager.py": _REPO_ROOT / "app" / "engine" / "portfolio" / "portfolio_manager.py",
-    "core/strategy/strategy.py": _REPO_ROOT / "app" / "engine" / "strategy" / "strategy.py",
-    "core/utils/StockData.py": _REPO_ROOT / "app" / "engine" / "utils" / "StockData.py",
+    "core/strategy/base_strategy.py": _REPO_ROOT / "app" / "engine" / "strategy" / "base_strategy.py",
+    **{
+        f"core/utils/{name}": _REPO_ROOT / "app" / "engine" / "utils" / name
+        for name in (
+            "Event.py",
+            "EventType.py",
+            "Order.py",
+            "PositionType.py",
+            "RebalanceFrequency.py",
+            "StockData.py",
+            "Trade.py",
+        )
+    },
 }
 
 # The root of the read-only package. Nothing under it can be written to.

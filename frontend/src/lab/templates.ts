@@ -1,5 +1,5 @@
 // templates.ts — Starting points for Lab projects. The ids match app/database/lab_templates.py,
-// which creates a strategy and a manager module in workspace/ for each template.
+// which creates Strategy subclasses that return Orders from the current engine.
 import { Activity, Crosshair, FileCode, TrendingUp, type LucideIcon } from 'lucide-react';
 
 export type LabTemplateId = 'blank' | 'ema-crossover' | 'rsi-pullback' | 'parabolic-sar';
@@ -17,13 +17,13 @@ export const LAB_TEMPLATES: LabTemplate[] = [
   {
     id: 'blank',
     name: 'Boilerplate',
-    summary: 'A Strategy and a PortfolioManager to write your own.',
+    summary: 'A Strategy subclass that returns Orders to the backtester.',
     rule: 'Engine in core/ · your code in workspace/',
     preview: [
       'workspace/custom_strategy.py',
-      'from core.strategy.strategy import Strategy',
+      'from core.strategy.base_strategy import Strategy',
+      'from core.utils.Order import Order',
       'class CustomStrategy(Strategy):',
-      'workspace/custom_manager.py',
     ],
     icon: FileCode,
   },
@@ -35,8 +35,8 @@ export const LAB_TEMPLATES: LabTemplate[] = [
     preview: [
       'workspace/ema_crossover_strategy.py',
       'class EmaCrossover(Strategy):',
-      'workspace/ema_crossover_manager.py',
-      'class EmaCrossoverManager(PortfolioManager):',
+      'def on_signal(self, ticker, data):',
+      'return Order(ticker=ticker, ...)',
     ],
     icon: TrendingUp,
   },
@@ -48,8 +48,8 @@ export const LAB_TEMPLATES: LabTemplate[] = [
     preview: [
       'workspace/rsi_pullback_strategy.py',
       'class RsiPullback(Strategy):',
-      'workspace/rsi_pullback_manager.py',
-      'class RsiPullbackManager(PortfolioManager):',
+      'def on_signal(self, ticker, data):',
+      'return Order(ticker=ticker, ...)',
     ],
     icon: Activity,
   },
@@ -61,8 +61,8 @@ export const LAB_TEMPLATES: LabTemplate[] = [
     preview: [
       'workspace/parabolic_sar_strategy.py',
       'class ParabolicSarTrend(Strategy):',
-      'workspace/parabolic_sar_manager.py',
-      'class ParabolicSarManager(PortfolioManager):',
+      'def on_signal(self, ticker, data):',
+      'return Order(ticker=ticker, ...)',
     ],
     icon: Crosshair,
   },

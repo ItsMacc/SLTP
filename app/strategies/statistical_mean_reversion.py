@@ -10,7 +10,7 @@
 
 # -------- Imports --------
 import numpy as np
-from app.engine.strategy.strategy import Strategy
+from app.engine.strategy import Strategy
 from app.engine.utils.Order import Order
 from app.engine.utils.PositionType import PositionType
 from app.engine.utils.RebalanceFrequency import RebalanceFrequency

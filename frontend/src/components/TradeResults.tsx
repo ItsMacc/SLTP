@@ -15,6 +15,8 @@ export interface TradeRecord {
   exit_date?: string | null
   transaction_cost?: number
   realized_return_pct?: number | null
+  id?: number
+  position_type?: 'long' | 'short'
   signal_date?: string | null
   [key: string]: any
 }
@@ -36,14 +38,14 @@ export default function TradeResults({ trades }: TradeResultsProps) {
 
     if (Array.isArray(trades)) {
       for (const trade of trades) {
-        const dateKey = trade.exit_date || trade.entry_date || trade.signal_date || ''
+        const dateKey = trade.entry_date || trade.exit_date || trade.signal_date || ''
         list.push({ ticker: trade.ticker || 'UNKNOWN', trade, dateKey })
       }
     } else {
       for (const [ticker, entries] of Object.entries(trades)) {
         if (Array.isArray(entries)) {
           for (const trade of entries) {
-            const dateKey = trade.exit_date || trade.entry_date || trade.signal_date || ''
+            const dateKey = trade.entry_date || trade.exit_date || trade.signal_date || ''
             list.push({ ticker, trade, dateKey })
           }
         }
@@ -113,21 +115,21 @@ export default function TradeResults({ trades }: TradeResultsProps) {
                 action === 'STOP_LOSS' ||
                 action === 'EXIT'
               const realizedReturn = Number(trade.realized_return_pct)
-              const actionClass = isClosedTrade
-                ? realizedReturn > 0
-                  ? 'is-winning'
-                  : realizedReturn < 0
-                    ? 'is-losing'
-                    : action === 'TAKE_PROFIT'
+              const actionClass = action === 'TAKE_PROFIT'
+                ? 'is-winning'
+                : action === 'STOP_LOSS'
+                  ? 'is-losing'
+                  : isClosedTrade
+                    ? realizedReturn > 0
                       ? 'is-winning'
-                      : action === 'STOP_LOSS'
+                      : realizedReturn < 0
                         ? 'is-losing'
                         : 'is-exit'
-                : action === 'SHORT'
-                  ? 'is-short'
-                  : 'is-buy'
+                    : action === 'SHORT'
+                      ? 'is-short'
+                      : 'is-buy'
 
-              const displayDate = trade.exit_date || trade.entry_date || trade.signal_date || '-'
+              const displayDate = trade.entry_date || trade.exit_date || trade.signal_date || '-'
               const allocationVal =
                 trade.allocation_size !== null && trade.allocation_size !== undefined
                   ? `${(Number(trade.allocation_size) * 100).toFixed(2)}%`
@@ -139,7 +141,7 @@ export default function TradeResults({ trades }: TradeResultsProps) {
                   : '-'
 
               return (
-                <tr key={`${ticker}-${displayDate}-${idx}`}>
+                <tr key={trade.id ?? `${ticker}-${displayDate}-${idx}`}>
                   <td>{displayDate}</td>
                   <td className="trade-ticker-cell">{ticker}</td>
                   <td>

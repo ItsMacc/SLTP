@@ -1,7 +1,7 @@
 # Tests a single ticker to see if strategy is working.
 # Also useful for testing
 
-from app.engine.strategy.strategy import Strategy
+from app.engine.strategy import Strategy
 from app.engine.utils.Order import Order
 from app.engine.utils.StockData import StockData
 

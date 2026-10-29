@@ -1,7 +1,7 @@
 // pyright.ts — Pyright running in a Web Worker (monaco-pyright-lsp) for the Lab editor.
 // Each project's files are handed to Pyright as type stubs under /typings, so
-// `from core.strategy.strategy import Strategy` and
-// `from workspace.custom_manager import CustomManager` resolve, and completions,
+// `from core.strategy.base_strategy import Strategy` and
+// `from core.utils.Order import Order` resolve, and completions,
 // hovers and type errors know the project's own names. Everything runs in the
 // browser: no server call.
 import type * as MonacoNs from 'monaco-editor';
@@ -18,7 +18,7 @@ export interface DiagnosticsTarget {
   model: TextModel;
 }
 
-// Missing-import rules are dropped. A stub-only module (core.strategy.strategy) reports
+// Missing-import rules are dropped. A stub-only module (core.strategy.base_strategy) reports
 // "could not be resolved from source" even though it resolves fine, and third-party modules
 // such as numpy are loaded by the server, not known to Pyright. Every other rule
 // (undefined names, wrong argument types, syntax errors) is reported.

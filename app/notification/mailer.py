@@ -1,13 +1,8 @@
 # mailer.py — SLTP notification emails (HTML, mobile-friendly).
 #
-# Four notification types, all rendered from one shared boilerplate so the
-# styling stays consistent. Fill-in points come straight from the
-# StrategyDecision datatype where applicable:
-#   decision.signal        -> Signal.LONG / SHORT / HOLD / EXIT
-#   decision.confidence    -> 0..1
-#   decision.metrics       -> e.g. {"close_price", "stop_loss", "take_profit", ...}
-#   decision.meta_data     -> e.g. {"ticker", "signal_date", ...}
-#
+# Notification emails share one HTML boilerplate. Strategy-signal emails
+# receive fields from the current engine's Order records and close prices.
+
 # Every email ends with a notice pointing to Settings -> Notifications.
 # Layout uses inline styles + table markup so it renders correctly in Gmail,
 # Outlook and mobile mail clients.
@@ -140,11 +135,7 @@ def trade_signal_email(receiver: str, user_name: str, strategy_name: str,
                        stop_loss: float | None = None,
                        take_profit: float | None = None) -> tuple[bool, str | None]:
     """
-    Boilerplate trade-signal email. Pass values straight from a StrategyDecision:
-      signal_type = decision.signal
-      confidence  = decision.confidence
-      price       = decision.metrics.get('close_price')
-      stop_loss / take_profit from decision.metrics or the position plan
+    Boilerplate trade-signal email; values are supplied by the signal runner.
     """
     signal_type = signal_type.upper()
     is_buy = signal_type.lower() in ("long", "buy")
@@ -186,7 +177,7 @@ def signals_digest_email(receiver: str, user_name: str,
     """
     One email containing every signal generated for a user's followed
     strategies on a given trading day. `signals` entries:
-      { strategy, ticker, signal_type, price?, confidence?,
+      { strategy, ticker, signal_type, signal_date?, price?, confidence?,
         stop_loss?, take_profit? }
     Only LONG signals are generated today, but any type renders correctly.
     """

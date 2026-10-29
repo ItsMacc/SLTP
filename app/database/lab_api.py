@@ -80,7 +80,7 @@ async def _store_starter_files(project_id: str, user_id: str, starter_files: dic
 
 
 async def _starter_or_400(template: str | None) -> dict[str, str]:
-    # Blank projects get two editable subclasses; templates get their corresponding source split by role.
+    # Blank projects and templates each receive their starter strategy source.
     sources = source_for(template)
     if sources is None:
         raise HTTPException(status_code=400, detail="Unknown starting template.")
@@ -120,9 +120,9 @@ async def _ensure_folders(project_id: str, user_id: str, names: list[str], now: 
 # imports rewritten. A file whose new name is already taken is left alone.
 _LEGACY_PREFIXES = ("strategy/", "manager/")
 _LEGACY_IMPORT_REWRITES: tuple[tuple[str, str], ...] = (
-    ("from base.strategy import", "from core.strategy.strategy import"),
+    ("from base.strategy import", "from core.strategy.base_strategy import"),
     ("from base.portfolio_manager import", "from core.portfolio.portfolio_manager import"),
-    ("from base import", "from core.strategy.strategy import"),
+    ("from base import", "from core.strategy.base_strategy import"),
     ("from portfolio_manager import", "from core.portfolio.portfolio_manager import"),
     ("from app.engine.utils.", "from core.utils."),
     ("from manager.", "from workspace."),
@@ -786,7 +786,7 @@ async def delete_workspace(
 
 # -------- Type check --------
 # Runs mypy over a project's Python files in a temp directory. The read-only
-# core/ package is written in beside the user's files so their imports resolve,
+# current-engine core/ package is written beside the user's files so their imports resolve,
 # and MYPYPATH points at the repo so `from app.* import ...` resolves too. Only
 # the user's files are reported; errors inside imported modules are silenced
 # with --follow-imports=silent.
@@ -866,9 +866,8 @@ def _run_type_check(sources: dict[str, str]) -> dict[str, Any]:
             f"--cache-dir={os.devnull}",
             "--follow-imports=silent",
             # The project is two packages, `core` and `workspace`, without
-            # __init__.py files. Without this, mypy would name the same file
-            # both `custom_manager` and `workspace.custom_manager` and refuse to
-            # check it at all.
+            # __init__.py files. Explicit bases keep source modules consistently
+            # named under their package during checking.
             "--explicit-package-bases",
             # Check bodies of unannotated functions too; strategy code is mostly unannotated.
             "--check-untyped-defs",
