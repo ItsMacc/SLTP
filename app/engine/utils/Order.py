@@ -18,7 +18,7 @@ from app.engine.utils.PositionType import PositionType
 class Order:
     ticker: str
     position_type: PositionType
-    weight: float
+    allocation: float
     order_date: str
     stop_loss: float
     take_profit: float

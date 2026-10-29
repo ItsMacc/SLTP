@@ -13,6 +13,7 @@
 # -------- Imports --------
 from dataclasses import dataclass
 from app.engine.utils.Event import Event
+from app.engine.utils.StockData import StockData
 from app.engine.utils.PositionType import PositionType
 
 
@@ -21,10 +22,11 @@ from app.engine.utils.PositionType import PositionType
 class Trade:
     id: int
     ticker: str
+    history: StockData
     position_type: PositionType
     entry_date: str
     entry_price: float
-    weight: float
+    allocation: float
     equity_at_entry: float
     stop_loss: float
     take_profit: float

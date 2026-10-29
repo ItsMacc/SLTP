@@ -74,55 +74,50 @@ class Backtester:
         self.manager.mark_rebalanced(calendar[0])
         last_date = calendar[-1]
 
-        manager = self.manager
-        strategy = self.strategy
-
         for current_date in calendar:
             # Strategy hooks first, so a rebalance can add tickers
-            manager.refresh_view()
-            strategy.on_day(current_date)
+            self.manager.refresh_view()
+            self.strategy.on_day(current_date)
 
-            rebalance_needed = manager.rebalance_due(current_date)
-            if rebalance_needed:
-                strategy.on_rebalance(current_date)
-                manager.mark_rebalanced(current_date)
+            if self.manager.rebalance_due(current_date):
+                self.strategy.on_rebalance(current_date)
+                self.manager.mark_rebalanced(current_date)
 
-            # Load tickers only when a rebalance or open positions require it
-            if rebalance_needed or manager.open_tickers:
-                self._ensure_universe()
+            # Load tickers the rebalance or an open position introduced
+            self._ensure_universe()
 
             bars = self._bars_on(current_date)
             opens = {ticker: bar[0] for ticker, bar in bars.items()}
             closes = {ticker: bar[3] for ticker, bar in bars.items()}
 
             # Fill yesterday's orders and exits at today's open
-            manager.fill_pending(current_date, opens)
+            self.manager.fill_pending(current_date, opens)
 
             # Stops, signals and discretionary exits
             self._process_tickers(current_date, bars)
 
             # Mark the close, then optionally liquidate what is still open
-            manager.mark_to_market(closes)
+            self.manager.mark_to_market(closes)
             if current_date == last_date:
-                self._unrealized_at_end = (
-                    manager.portfolio_value
-                    if hasattr(manager, "portfolio_value")
-                    else (manager.starting_equity + manager.realized_pnl - manager.total_cost)
+                self._unrealized_at_end = self.manager.portfolio_value - (
+                    self.manager.starting_equity
+                    + self.manager.realized_pnl
+                    - self.manager.total_cost
                 )
                 if self.liquidate_on_end:
-                    manager.close_all(current_date, closes)
-                    manager.mark_to_market(closes)
+                    self.manager.close_all(current_date, closes)
+                    self.manager.mark_to_market(closes)
 
-            manager.record_equity(current_date)
+            self.manager.record_equity(current_date)
 
         # Refresh so the strategy is not left with a stale view after liquidation
-        manager.refresh_view()
+        self.manager.refresh_view()
 
         return {
             "metrics": self.performance_metrics(),
-            "equity": manager.equity_curve,
-            "trades": manager.trades,
-            "rejections": dict(sorted(manager.rejected_orders.items())),
+            "equity": self.manager.equity_curve,
+            "trades": self.manager.trades,
+            "rejections": dict(sorted(self.manager.rejected_orders.items())),
         }
 
     # -------- Debug: timed run (temporary) --------
@@ -154,24 +149,19 @@ class Backtester:
             last_date = calendar[-1]
             counts["days"] = len(calendar)
 
-            manager = self.manager
-            strategy = self.strategy
-
             for current_date in calendar:
                 t = time.perf_counter()
-                manager.refresh_view()
-                strategy.on_day(current_date)
+                self.manager.refresh_view()
+                self.strategy.on_day(current_date)
                 t = self._lap(timings, "strategy_on_day", t)
 
-                rebalance_needed = manager.rebalance_due(current_date)
-                if rebalance_needed:
+                if self.manager.rebalance_due(current_date):
                     counts["rebalances"] += 1
-                    strategy.on_rebalance(current_date)
-                    manager.mark_rebalanced(current_date)
+                    self.strategy.on_rebalance(current_date)
+                    self.manager.mark_rebalanced(current_date)
                 t = self._lap(timings, "rebalance", t)
 
-                if rebalance_needed or manager.open_tickers:
-                    self._ensure_universe()
+                self._ensure_universe()
                 t = self._lap(timings, "ensure_universe", t)
 
                 bars = self._bars_on(current_date)
@@ -180,28 +170,28 @@ class Backtester:
                 counts["ticker_bars"] += len(bars)
                 t = self._lap(timings, "bars_on_day", t)
 
-                manager.fill_pending(current_date, opens)
+                self.manager.fill_pending(current_date, opens)
                 t = self._lap(timings, "fill_pending", t)
 
                 self._process_tickers(current_date, bars)
                 t = self._lap(timings, "process_tickers", t)
 
-                manager.mark_to_market(closes)
+                self.manager.mark_to_market(closes)
                 if current_date == last_date:
-                    self._unrealized_at_end = (
-                        manager.portfolio_value
-                        if hasattr(manager, "portfolio_value")
-                        else (manager.starting_equity + manager.realized_pnl - manager.total_cost)
+                    self._unrealized_at_end = self.manager.portfolio_value - (
+                        self.manager.starting_equity
+                        + self.manager.realized_pnl
+                        - self.manager.total_cost
                     )
                     if self.liquidate_on_end:
-                        manager.close_all(current_date, closes)
-                        manager.mark_to_market(closes)
+                        self.manager.close_all(current_date, closes)
+                        self.manager.mark_to_market(closes)
                 t = self._lap(timings, "mark_to_market", t)
 
-                manager.record_equity(current_date)
+                self.manager.record_equity(current_date)
                 t = self._lap(timings, "record_equity", t)
 
-            manager.refresh_view()
+            self.manager.refresh_view()
             metrics = self.performance_metrics()
             self._lap(timings, "performance_metrics", t)
         finally:
@@ -214,7 +204,7 @@ class Backtester:
             "total_seconds": time.perf_counter() - total_start,
             "timings_seconds": dict(sorted(timings.items(), key=lambda kv: kv[1], reverse=True)),
             "counts": dict(counts),
-            "trades": len(manager.trades),
+            "trades": len(self.manager.trades),
             "function_calls": stats.total_calls,
             "primitive_function_calls": stats.prim_calls,
             "top_functions_by_own_time": [
@@ -431,10 +421,10 @@ class Backtester:
             if i is None:
                 continue
             bars[ticker] = (
-                data["open"][i],
-                data["high"][i],
-                data["low"][i],
-                data["close"][i],
+                float(data["open"][i]),
+                float(data["high"][i]),
+                float(data["low"][i]),
+                float(data["close"][i]),
             )
         return bars
 
@@ -452,8 +442,6 @@ class Backtester:
                 ordered.append(ticker)
 
         max_positions = self.strategy.MAX_POSITIONS
-        manager = self.manager
-        strategy = self.strategy
 
         for ticker in ordered:
             bar = bars.get(ticker)
@@ -463,35 +451,35 @@ class Backtester:
             current_open, current_high, current_low, _ = bar
 
             # Resting levels first: a stop or target can close a lot today
-            manager.check_exits(
+            self.manager.check_exits(
                 ticker, current_open, current_high, current_low, current_date,
             )
 
             i = self._data[ticker]["date_to_idx"][current_date]
-            if i + 1 < strategy.MIN_BARS_REQUIRED:
+            if i + 1 < self.strategy.MIN_BARS_REQUIRED:
                 continue
 
             self._slice(ticker, i)
 
-            held = manager.lots(ticker)
+            held = self.manager.lots(ticker)
 
             if ticker in universe:
                 # No new entries once the book is full; exits still run below.
                 if (not held
                         and max_positions is not None
-                        and manager.active_positions >= max_positions):
+                        and self.manager.active_positions >= max_positions):
                     continue
 
-                manager.refresh_view()
-                order = strategy.on_signal(ticker, self._sliced)
+                self.manager.refresh_view()
+                order = self.strategy.on_signal(ticker, self._sliced)
                 if order is not None:
-                    manager.submit(order)
+                    self.manager.submit(order)
 
             # Discretionary exits queue for the next open
-            manager.refresh_view()
+            self.manager.refresh_view()
             for trade in held:
-                if strategy.should_exit(ticker, trade, self._sliced):
-                    manager.queue_exit(trade.id)
+                if self.strategy.should_exit(ticker, trade, self._sliced):
+                    self.manager.queue_exit(trade.id)
 
     def _slice(self, ticker: str, i: int) -> None:
         # Point the shared view at history up to and including today

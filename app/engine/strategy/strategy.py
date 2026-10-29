@@ -8,7 +8,10 @@
 # should_exit are optional and do nothing by default.
 
 # -------- Imports --------
+import numpy as np
 import talib as ta
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
 from app.database.fetch import (
     get_stock_history,
     get_stock_histories,
@@ -18,58 +21,31 @@ from app.database.fetch import (
     get_available_gold,
 )
 from app.engine.utils.Order import Order
-from app.engine.utils.StockData import StockData
 from app.engine.utils.Trade import Trade
+from app.engine.utils.StockData import StockData
+from app.engine.utils.PositionType import PositionType
 from app.engine.utils.RebalanceFrequency import RebalanceFrequency
 
 
 # -------- Strategy --------
 class Strategy:
     """Base class for every strategy: hooks, universe access and indicators."""
+    def __init__(self):
+        # -------- Identity --------
+        self.name = "Base Strategy"
+        self.description = "Base Strategy Interface"
 
-    # -------- Identity --------
-    name: str = "Base Strategy"
-    description: str = "Base Strategy Interface"
+        # -------- Portfolio Constraints --------
+        self.MAX_POSITIONS: int | None = 10
+        self.MAX_ALLOCATION_PER_TICKER: float | None = None
+        self.MAX_LOTS_PER_TICKER: int = 1
+        self.REBALANCE_FREQUENCY: RebalanceFrequency = RebalanceFrequency.NEVER
+        self.MIN_BARS_REQUIRED: int = 0
+        self.LIQUIDATE_ON_END: bool = False
 
-    # -------- Policy, read by the manager --------
-    MAX_POSITIONS: int | None = 10
-    MAX_WEIGHT_PER_TICKER: float | None = None
-    MAX_LOTS_PER_TICKER: int = 1
-    REBALANCE_FREQUENCY: RebalanceFrequency = RebalanceFrequency.NEVER
-    MIN_BARS_REQUIRED: int = 0
-
-    def __init__(self) -> None:
-        # Tickers this strategy trades, in declared order
+        # -------- Tickers -------
         self.tickers: list[str] = []
 
-        self._open_trades: tuple[Trade, ...] = ()
-        self._equity: float = 0.0
-
-    # -------- Book, read-only --------
-    @property
-    def open_trades(self) -> tuple[Trade, ...]:
-        return self._open_trades
-
-    @property
-    def open_tickers(self) -> set[str]:
-        # Distinct tickers with at least one open lot
-        return {trade.ticker for trade in self._open_trades}
-
-    @property
-    def equity(self) -> float:
-        # Portfolio value as of the previous close
-        return self._equity
-
-    def position(self, ticker: str) -> Trade | None:
-        # The oldest open lot in this ticker, if any
-        for trade in self._open_trades:
-            if trade.ticker == ticker:
-                return trade
-        return None
-
-    def is_open(self, ticker: str) -> bool:
-        # True when this ticker already holds at least one lot
-        return any(trade.ticker == ticker for trade in self._open_trades)
 
     # -------- Universe --------
     @property
@@ -103,25 +79,10 @@ class Strategy:
             self.add_ticker(ticker)
 
     def remove_ticker(self, ticker: str) -> None:
-        # Drop one symbol from the universe; a no-op when it is not held
+        # Drop one symbol from the universe
         if ticker in self.tickers:
             self.tickers.remove(ticker)
 
-    def get_history(self,
-                    ticker: str,
-                    start: str | None = None,
-                    end: str | None = None,
-                    ) -> StockData:
-        # One ticker's full history, optionally bounded, for universe scoring
-        return get_stock_history(ticker, start, end)
-
-    def get_histories(self,
-                      tickers: list[str],
-                      start: str | None = None,
-                      end: str | None = None,
-                      ) -> dict[str, StockData]:
-        # Batch version of get_history; unknown tickers are skipped
-        return get_stock_histories(tickers, start, end)
 
     # -------- Lifecycle Hooks --------
     def initialize_universe(self, current_date: str) -> bool:
@@ -132,21 +93,18 @@ class Strategy:
         # Refresh self.tickers when REBALANCE_FREQUENCY comes due
         return None
 
-    def on_day(self, current_date: str) -> None:
+    def on_signal(self, ticker: str, data: StockData) -> Order | None:
+        # Evaluate a single ticker's price history to generate a trading signal.
+        raise NotImplementedError("Strategy subclasses must implement on_signal()")
+
+    def run_daily(self, current_date: str) -> None:
         # Once per day, before any ticker is polled
         return None
 
-    def on_signal(self, ticker: str, data: StockData) -> Order | None:
-        # Turn one ticker's data into at most one order. Return None to pass.
-        raise NotImplementedError("Strategy subclasses must implement on_signal()")
-
-    def should_exit(self,
-                    ticker: str,
-                    trade: Trade,
-                    data: StockData,
-                    ) -> bool:
-        # True closes this lot at the next open, separate from its stop or target.
+    def should_exit(self, ticker: str, trade: Trade) -> bool:
+        """Custom exit logic using backend-powered helper methods."""
         return False
+
 
     # -------- Indicator Helpers --------
     def _sma(self, values, window):
@@ -165,11 +123,7 @@ class Strategy:
         # Relative Strength Index (momentum on a 0 to 100 scale)
         return ta.RSI(values, window)
 
-    def _macd(self,
-              values,
-              fast_period=12,
-              slow_period=26,
-              signal_period=9):
+    def _macd(self, values, fast_period=12, slow_period=26, signal_period=9):
         # Moving Average Convergence Divergence (trend momentum and direction)
         return ta.MACD(values, fast_period, slow_period, signal_period)
 
@@ -177,50 +131,27 @@ class Strategy:
         # Volatility bands placed above and below a moving average
         return ta.BBANDS(values, window, deviations, deviations)
 
-    def _atr(self,
-             high,
-             low,
-             close,
-             window):
+    def _atr(self, high, low, close, window):
         # Average True Range (volatility over time)
         return ta.ATR(high, low, close, window)
 
-    def _adx(self,
-             high,
-             low,
-             close,
-             window):
+    def _adx(self, high, low, close, window):
         # Average Directional Index (strength of a trend)
         return ta.ADX(high, low, close, window)
 
-    def _stochastic(self,
-                    high,
-                    low,
-                    close,
-                    fast_k=5,
-                    slow_k=3,
-                    slow_d=3):
+    def _stochastic(self, high, low, close, fast_k=5, slow_k=3, slow_d=3):
         # Stochastic Oscillator (close relative to the recent range)
-        return ta.STOCH(
-            high, low, close,
-            fastk_period=fast_k,
-            slowk_period=slow_k,
-            slowd_period=slow_d,
+        return ta.STOCH(high, low, close,
+                        fastk_period=fast_k,
+                        slowk_period=slow_k,
+                        slowd_period=slow_d,
         )
 
-    def _williams_r(self,
-                    high,
-                    low,
-                    close,
-                    window):
+    def _williams_r(self, high, low, close, window):
         # Williams %R (overbought and oversold conditions)
         return ta.WILLR(high, low, close, window)
 
-    def _cci(self,
-             high,
-             low,
-             close,
-             window):
+    def _cci(self, high, low, close, window):
         # Commodity Channel Index (price relative to its statistical average)
         return ta.CCI(high, low, close, window)
 
@@ -236,20 +167,11 @@ class Strategy:
         # On-Balance Volume (volume flow as a predictor of price shifts)
         return ta.OBV(close, volume)
 
-    def _mfi(self,
-             high,
-             low,
-             close,
-             volume,
-             window):
+    def _mfi(self, high, low, close, volume, window):
         # Money Flow Index (price and volume as buying or selling pressure)
         return ta.MFI(high, low, close, volume, window)
 
-    def _ad(self,
-            high,
-            low,
-            close,
-            volume):
+    def _ad(self, high, low, close, volume):
         # Accumulation/Distribution Line (underlying supply and demand)
         return ta.AD(high, low, close, volume)
 
@@ -261,18 +183,63 @@ class Strategy:
         # Triple Exponential Moving Average (very low lag)
         return ta.TEMA(values, window)
 
-    def _parabolic_sar(self,
-                       high,
-                       low,
-                       acceleration=0.02,
-                       maximum=0.2):
+    def _parabolic_sar(self, high, low, acceleration=0.02, maximum=0.2):
         # Parabolic SAR (trend direction and potential reversal points)
         return ta.SAR(high, low, acceleration, maximum)
 
-    def _stochastic_rsi(self,
-                        values,
-                        window,
-                        fast_k=5,
-                        fast_d=3):
+    def _stochastic_rsi(self, values, window, fast_k=5, fast_d=3):
         # Stochastic RSI (the Stochastic formula applied to RSI values)
         return ta.STOCHRSI(values, window, fast_k, fast_d)
+
+    # -------- Exit helpers --------
+    def _time_stop_days(self, trade: Trade, days: int) -> bool:
+        # Parse the entry date and add the allowed holding duration
+        entry_dt = datetime.strptime(trade.entry_date, "%Y-%m-%d")
+        exit_deadline_str = (entry_dt + relativedelta(days=days)).strftime("%Y-%m-%d")
+
+        return trade.history.dates[-1] >= exit_deadline_str
+
+    def _trailing_stop(self, trade: Trade, pct: float) -> bool:
+        entry_idx = self._get_entry_index(trade)
+        data = trade.history
+
+        if trade.position_type == PositionType.LONG:
+            # Long: track highest price since entry, stop if low drops below peak threshold
+            highest_since_entry = np.max(data.high[entry_idx:])
+            trailing_stop = highest_since_entry * (1.0 - pct)
+            return data.low[-1] <= trailing_stop
+        else:
+            # Short: track lowest price since entry, stop if high rises above trough threshold
+            lowest_since_entry = np.min(data.low[entry_idx:])
+            trailing_stop = lowest_since_entry * (1.0 + pct)
+            return data.high[-1] >= trailing_stop
+
+    def _atr_stop(self, trade: Trade, multiplier: float, window: int = 14) -> bool:
+        entry_idx = self._get_entry_index(trade)
+
+        # Slice backward from entry_idx, ensuring we don't go below 0
+        start_idx = max(0, entry_idx - window - 1)
+
+        data = trade.history
+        high = data.high[start_idx: entry_idx + 1]
+        low = data.low[start_idx: entry_idx + 1]
+        close = data.close_price[start_idx: entry_idx + 1]
+
+        current_atr = self._atr(high, low, close, window)
+
+        if trade.position_type == PositionType.LONG:
+            # Long: stop price is below entry minus ATR * multiplier
+            stop_price = trade.entry_price - (current_atr * multiplier)
+            return data.low[-1] <= stop_price
+        else:
+            # Short: stop price is above entry plus ATR * multiplier
+            stop_price = trade.entry_price + (current_atr * multiplier)
+            return data.high[-1] >= stop_price
+
+    def _get_entry_index(self, trade: Trade) -> int:
+        """Helper to find the entry index with safe fallback."""
+        data = trade.history
+        match_indices = np.where(data.dates == trade.entry_date)[0]
+        if len(match_indices) == 0:
+            return int(np.searchsorted(data.dates, trade.entry_date))
+        return int(match_indices[0])
