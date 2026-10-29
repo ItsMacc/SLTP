@@ -155,7 +155,7 @@ class PortfolioManager:
 
     # -------- Exit --------
     def check_exits(self, ticker: str, current_date: str,
-                    current_open, current_close, current_high, current_low):
+                    current_open, current_high, current_low):
         # Close lots whose stop or target was hit. Stop wins if both were.
         for trade in self.lots(ticker):
             filled_price, event_type = self._check_exit(
@@ -170,7 +170,7 @@ class PortfolioManager:
             close_price = closes.get(trade.ticker, trade.entry_price)
             if close_price is None or close_price <= 0:
                 close_price = self.last_prices.get(trade.ticker, trade.entry_price)
-            self._fill_exit(trade, close_price, current_date, EventType.SIGNAL)
+            self._fill_exit(trade, close_price, current_date, EventType.END_OF_BACKTEST)
 
     # -------- Marking --------
     def update_daily_accounting(self, current_date: str, closes: dict[str, float]) -> None:
@@ -204,9 +204,13 @@ class PortfolioManager:
         )
 
         # Append to high-performance primitive logs
-        self._dates_log.append(current_date)
-        self._equity_log.append(self.portfolio_value)
-        self._cash_log.append(self.cash)
+        if self._dates_log and self._dates_log[-1] == current_date:
+            self._equity_log[-1] = self.portfolio_value
+            self._cash_log[-1] = self.cash
+        else:
+            self._dates_log.append(current_date)
+            self._equity_log.append(self.portfolio_value)
+            self._cash_log.append(self.cash)
 
         # Flag view dirty so the strategy sees updated equity tomorrow morning
         self._strategy_view_dirty = True
@@ -279,6 +283,7 @@ class PortfolioManager:
         self._strategy_view_dirty = True
         self.last_prices[ticker] = entry_price
         self.total_cost += entry_fee
+        self.cash -= (notional + entry_fee)
 
         # Keep later fills in this batch using equity net of earlier entry fees.
         self.portfolio_value -= entry_fee
@@ -309,7 +314,9 @@ class PortfolioManager:
         trade.fees = round(trade.fees + exit_fee, 4)
         trade.exit = Event(date=current_date, type=event_type, price=exit_price)
 
-        self.realized_pnl += notional * pct_return
+        realized_profit = notional * pct_return
+        self.cash += (notional + realized_profit - exit_fee)
+        self.realized_pnl += realized_profit
         self.total_cost += exit_fee
         self.last_prices[trade.ticker] = exit_price
         del self.open_trades[trade.id]
