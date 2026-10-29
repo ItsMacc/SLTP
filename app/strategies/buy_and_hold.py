@@ -1,12 +1,10 @@
 # buy_and_hold.py — Passive benchmark strategy.
 #
-# Buys every ticker in the universe once, on its first trading day, with an equal
-# share of the book, and holds it to the end. No stop-loss, no take-profit, no
-# rotation. This is the baseline every active strategy is compared against.
+# Buys each ticker once when its first eligible signal is produced, allocating
+# an equal fraction of the initial index per ticker. No stops, targets, or
+# discretionary exits: holdings remain open until the backtest's final close.
 
 # -------- Imports --------
-import math
-
 from app.engine.strategy.strategy import Strategy
 from app.engine.utils.Order import Order
 from app.engine.utils.PositionType import PositionType
@@ -16,37 +14,49 @@ from app.engine.utils.StockData import StockData
 
 # -------- Buy And Hold Strategy --------
 class BuyAndHold(Strategy):
-    name: str = "Buy & Hold"
-    description: str = "Standard Buy and Hold benchmark strategy"
+    def __init__(self):
+        super().__init__()
 
-    # Every name is held, so there is no position cap and no rotation
-    MAX_POSITIONS = None
-    MAX_LOTS_PER_TICKER = 1
-    REBALANCE_FREQUENCY = RebalanceFrequency.NEVER
+        self.name: str = "Buy & Hold"
+        self.description: str = "Standard Buy and Hold benchmark strategy"
+
+        # Every name is held; one order per ticker, no rotation or stop processing.
+        self.MAX_POSITIONS = None
+        self.MAX_LOTS_PER_TICKER = 1
+        self.REBALANCE_FREQUENCY = RebalanceFrequency.NEVER
+        self.MIN_BARS_REQUIRED = 1
+        self.LIQUIDATE_ON_END = False
+
+        # tracking flag
+        self.bought_tickers: set[str] = set()
 
     def initialize_universe(self, current_date: str) -> bool:
         # The whole local universe, loaded once
         self.tickers.clear()
-        self.add_tickers(self.available_universe)
+        self.add_ticker("AAPL")
         return bool(self.tickers)
 
     def on_signal(self, ticker: str, data: StockData) -> Order | None:
-        # Buy once, the first day the ticker trades. Never sell.
-        if self.is_open(ticker):
+        # If we already bought this specific ticker, do nothing
+        if ticker in self.bought_tickers:
+            return None
+
+        if not self.tickers:
             return None
 
         close = float(data.close_price[-1])
         if close <= 0:
             return None
 
-        # Round down so the equal shares can never sum past the whole book
-        weight = math.floor(10000 / len(self.tickers)) / 10000
+        # Mark this ticker as bought so we never buy it again
+        self.bought_tickers.add(ticker)
 
+        allocation = 1.0 / len(self.tickers)
         return Order(
             ticker=ticker,
             position_type=PositionType.LONG,
-            weight=weight,
+            allocation=allocation,
             order_date=str(data.dates[-1]),
-            stop_loss=0.0,    # 0 disables the stop
-            take_profit=0.0,  # 0 disables the target
+            stop_loss=0.0,
+            take_profit=0.0,
         )
