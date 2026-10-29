@@ -27,9 +27,6 @@ class BuyAndHold(Strategy):
         self.MIN_BARS_REQUIRED = 1
         self.LIQUIDATE_ON_END = False
 
-        # tracking flag
-        self.bought_tickers: set[str] = set()
-
     def initialize_universe(self, current_date: str) -> bool:
         # The whole local universe, loaded once
         self.tickers.clear()
@@ -37,8 +34,8 @@ class BuyAndHold(Strategy):
         return bool(self.tickers)
 
     def on_signal(self, ticker: str, data: StockData) -> Order | None:
-        # If we already bought this specific ticker, do nothing
-        if ticker in self.bought_tickers:
+        # If we already hold this ticker, do nothing
+        if ticker in self.open_tickers:
             return None
 
         if not self.tickers:
@@ -47,9 +44,6 @@ class BuyAndHold(Strategy):
         close = float(data.close_price[-1])
         if close <= 0:
             return None
-
-        # Mark this ticker as bought so we never buy it again
-        self.bought_tickers.add(ticker)
 
         allocation = 1.0 / len(self.tickers)
         return Order(

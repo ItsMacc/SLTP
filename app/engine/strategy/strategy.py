@@ -13,8 +13,6 @@ import talib as ta
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from app.database.fetch import (
-    get_stock_history,
-    get_stock_histories,
     get_all_tickers,
     get_available_etfs,
     get_available_stocks,
@@ -25,7 +23,6 @@ from app.engine.utils.Trade import Trade
 from app.engine.utils.StockData import StockData
 from app.engine.utils.PositionType import PositionType
 from app.engine.utils.RebalanceFrequency import RebalanceFrequency
-
 
 # -------- Strategy --------
 class Strategy:
@@ -45,7 +42,6 @@ class Strategy:
 
         # -------- Tickers -------
         self.tickers: list[str] = []
-
 
     # -------- Universe --------
     @property
@@ -68,6 +64,21 @@ class Strategy:
         # Gold proxies only
         return get_available_gold()
 
+    @property
+    def open_tickers(self) -> frozenset[str]:
+        # Returns the set of tickers currently holding open positions
+        return getattr(self, "_open_ticker_set", frozenset())
+
+    @property
+    def open_positions(self) -> tuple[Trade, ...]:
+        # Returns the tuple of active open trades
+        return getattr(self, "_open_trades", tuple())
+
+    @property
+    def open_position_count(self) -> int:
+        # Returns the total number of distinct active positions
+        return len(self.open_tickers)
+
     def add_ticker(self, ticker: str) -> None:
         # Add one symbol to the universe, ignoring a duplicate
         if ticker not in self.tickers:
@@ -82,7 +93,6 @@ class Strategy:
         # Drop one symbol from the universe
         if ticker in self.tickers:
             self.tickers.remove(ticker)
-
 
     # -------- Lifecycle Hooks --------
     def initialize_universe(self, current_date: str) -> bool:
@@ -104,7 +114,6 @@ class Strategy:
     def should_exit(self, ticker: str, trade: Trade) -> bool:
         """Custom exit logic using backend-powered helper methods."""
         return False
-
 
     # -------- Indicator Helpers --------
     def _sma(self, values, window):
@@ -192,6 +201,7 @@ class Strategy:
         return ta.STOCHRSI(values, window, fast_k, fast_d)
 
     # -------- Exit helpers --------
+
     def _time_stop_days(self, trade: Trade, days: int) -> bool:
         # Parse the entry date and add the allowed holding duration
         entry_dt = datetime.strptime(trade.entry_date, "%Y-%m-%d")
