@@ -16,34 +16,45 @@ from app.engine.utils.PositionType import PositionType
 from app.engine.utils.RebalanceFrequency import RebalanceFrequency
 from app.engine.utils.StockData import StockData
 from app.engine.utils.Trade import Trade
+from app.database.fetch import get_stock_histories
 
 
 # -------- Statistical Mean Reversion Strategy --------
 class StatisticalMeanReversionStrategy(Strategy):
-    name: str = "Statistical Mean Reversion"
-    description: str = (
-        "Identifies oversold dislocations using RSI and Z-Scores with "
-        "confidence-weighted sizing and dynamic volatility exits."
-    )
+    def __init__(
+            self,
+            max_positions: int = 25,
+            rsi_period: int = 25,
+            z_score_period: int = 20,
+            rsi_threshold: float = 30.0,
+            z_score_threshold: float = 1.5,
+    ):
+        super().__init__()
 
-    # Book policy
-    MAX_POSITIONS = 25
-    MAX_LOTS_PER_TICKER = 1
-    REBALANCE_FREQUENCY = RebalanceFrequency.YEARLY
+        self.name: str = "Statistical Mean Reversion"
+        self.description: str = (
+            "Identifies oversold dislocations using RSI and Z-Scores with "
+            "confidence-weighted sizing and dynamic volatility exits."
+        )
 
-    # Universe
-    UNIVERSE_SIZE = 100
-    ETF_QUOTA = 20
-    LIQUIDITY_BARS = 252
+        # Book policy
+        self.MAX_POSITIONS = max_positions
+        self.MAX_LOTS_PER_TICKER = 1
+        self.REBALANCE_FREQUENCY = RebalanceFrequency.YEARLY
 
-    # Signal parameters
-    RSI_PERIOD = 25
-    Z_SCORE_PERIOD = 20
-    RSI_THRESHOLD = 30.0
-    RSI_EXIT_THRESHOLD = 70.0
-    Z_SCORE_THRESHOLD = 1.5
-    STDEV_EXIT_MULTIPLE = 3.0
-    MIN_BARS_REQUIRED = max(RSI_PERIOD, Z_SCORE_PERIOD) + 2
+        # Universe
+        self.UNIVERSE_SIZE = 100
+        self.ETF_QUOTA = 20
+        self.LIQUIDITY_BARS = 252
+
+        # Signal parameters
+        self.RSI_PERIOD = rsi_period
+        self.Z_SCORE_PERIOD = z_score_period
+        self.RSI_THRESHOLD = rsi_threshold
+        self.RSI_EXIT_THRESHOLD = 70.0
+        self.Z_SCORE_THRESHOLD = z_score_threshold
+        self.STDEV_EXIT_MULTIPLE = 3.0
+        self.MIN_BARS_REQUIRED = max(self.RSI_PERIOD, self.Z_SCORE_PERIOD) + 2
 
     # -------- Universe --------
     def initialize_universe(self, current_date: str) -> bool:
@@ -52,9 +63,9 @@ class StatisticalMeanReversionStrategy(Strategy):
         return bool(self.tickers)
 
     def on_rebalance(self, current_date: str) -> None:
-        # Keep held names, drop the rest, then fill the vacancies
+        # Keep held names using base property, drop the rest, then fill vacancies
         for ticker in list(self.tickers):
-            if not self.is_open(ticker):
+            if ticker not in self.open_tickers:
                 self.remove_ticker(ticker)
 
         vacancies = self.UNIVERSE_SIZE - len(self.tickers)
@@ -66,15 +77,15 @@ class StatisticalMeanReversionStrategy(Strategy):
     def _top_candidates(self, current_date: str, n: int | None = None) -> list[str]:
         n = self.UNIVERSE_SIZE if n is None else n
         known_etfs = set(self.available_etfs)
-        histories = self.get_histories(self.available_universe, end=current_date)
+        histories = get_stock_histories(self.available_universe)
 
         scored_etfs: list[tuple[str, float]] = []
         scored_stocks: list[tuple[str, float]] = []
-        for ticker, data in histories.items():
-            if data is None or len(data.close_price) < self.LIQUIDITY_BARS:
+        for ticker, history in histories.items():
+            if history is None or len(history.close_price) < self.LIQUIDITY_BARS:
                 continue
-            closes = data.close_price[-self.LIQUIDITY_BARS:]
-            volumes = data.volume[-self.LIQUIDITY_BARS:]
+            closes = history.close_price[-self.LIQUIDITY_BARS:]
+            volumes = history.volume[-self.LIQUIDITY_BARS:]
             dollar_volume = float(np.sum(closes * volumes))
             (scored_etfs if ticker in known_etfs else scored_stocks).append((ticker, dollar_volume))
 
@@ -88,7 +99,8 @@ class StatisticalMeanReversionStrategy(Strategy):
 
     # -------- Signals --------
     def on_signal(self, ticker: str, data: StockData) -> Order | None:
-        if self.is_open(ticker):
+        # Prevent duplicate orders if we already hold an open position in this ticker
+        if ticker in self.open_tickers:
             return None
 
         closes = data.close_price
@@ -110,21 +122,20 @@ class StatisticalMeanReversionStrategy(Strategy):
         confidence = float(np.clip(confidence, 0.0, 1.0))
 
         base = 1.0 / self.MAX_POSITIONS
-        weight = round(min(1.0, base * (1.0 + confidence)), 4)
+        allocation = round(min(1.0, base * (1.0 + confidence)), 4)
 
         distance = self.STDEV_EXIT_MULTIPLE * stdev
         return Order(
             ticker=ticker,
             position_type=PositionType.LONG,
-            weight=weight,
+            allocation=allocation,
             order_date=str(data.dates[-1]),
             stop_loss=round(close - distance, 2),
             take_profit=round(close + distance, 2),
         )
 
-    def should_exit(self, ticker: str, trade: Trade, data: StockData) -> bool:
-        # Lower the RSI exit the further price has stretched from its mean
-        closes = data.close_price
+    def should_exit(self, ticker: str, trade: Trade) -> bool:
+        closes = trade.history.close_price
         stdev = float(np.std(closes[-self.Z_SCORE_PERIOD:], ddof=1))
         if stdev == 0:
             return False
@@ -132,5 +143,9 @@ class StatisticalMeanReversionStrategy(Strategy):
         rsi = float(self._rsi(closes, self.RSI_PERIOD)[-1])
         sma = float(self._sma(closes, self.Z_SCORE_PERIOD)[-1])
         z_magnitude = abs((float(closes[-1]) - sma) / stdev)
-        exit_threshold = self.RSI_EXIT_THRESHOLD - max(0.0, (z_magnitude - 1.0) * 3.0)
+
+        # Optimized Square Root Scaling Exit Logic
+        excess_z = max(0.0, z_magnitude - 1.0)
+        exit_threshold = self.RSI_EXIT_THRESHOLD - (np.sqrt(excess_z) * 2.0)
+
         return rsi >= exit_threshold
