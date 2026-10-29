@@ -11,7 +11,7 @@ from dataclasses import dataclass
 
 
 # -------- Stock Data --------
-@dataclass
+@dataclass(frozen=True)
 class StockData:
     ticker: str
     dates: np.ndarray
@@ -20,3 +20,10 @@ class StockData:
     low: np.ndarray
     close_price: np.ndarray
     volume: np.ndarray
+
+    def __post_init__(self):
+        # Make all underlying NumPy arrays read-only in-place
+        for name in ['dates', 'open_price', 'high', 'low', 'close_price', 'volume']:
+            arr = getattr(self, name)
+            if isinstance(arr, np.ndarray):
+                arr.flags.writeable = False
