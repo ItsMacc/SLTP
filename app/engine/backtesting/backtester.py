@@ -12,8 +12,8 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from scipy.stats import skew, kurtosis, norm
 from app.database.fetch import get_stock_histories
-from app.engine.portfolio.portfolio_manager import PortfolioManager
-from app.engine.strategy.strategy import Strategy
+from app.engine.portfolio import PortfolioManager
+from app.engine.strategy import Strategy
 from app.engine.utils.StockData import StockData
 from app.engine.utils.PositionType import PositionType
 
@@ -46,6 +46,7 @@ class Backtester:
         )
         self._has_resting_exits = False
         self._universe_tickers: set[str] = set()
+        self._pending_rebalance = False
 
     # -------- Run --------
     def run(self) -> dict:
@@ -67,8 +68,7 @@ class Backtester:
             self.strategy.run_daily(current_date)
 
             if self.manager.rebalance_due(current_date):
-                self.strategy.on_rebalance(current_date)
-                self.manager.mark_rebalanced(current_date)
+                self._pending_rebalance = True
 
             # A rebalance can change the active universe; cached tickers are cheap to revisit.
             self._ensure_universe()
@@ -90,6 +90,14 @@ class Backtester:
 
             # Evaluate entries against history through today's completed bar.
             self.manager.refresh_view()
+            if self._pending_rebalance:
+                self.strategy.on_rebalance(current_date)
+                self.manager.mark_rebalanced(current_date)
+                self._pending_rebalance = False
+                self._ensure_universe()
+                bars = self._bars_on(current_date)
+                opens = {ticker: bar[0] for ticker, bar in bars.items()}
+                closes = {ticker: bar[3] for ticker, bar in bars.items()}
             self._process_tickers(current_date, bars)
 
             # Custom exits use today's completed data and queue next-open orders.
@@ -243,6 +251,7 @@ class Backtester:
                 "volume": history.volume,
                 "date_to_idx": {str(date): idx for idx, date in enumerate(history.dates)},
             }
+        self.manager.set_history_cache({ticker: data["history"] for ticker, data in self._data.items()})
 
     def _build_calendar(self, actual_start: str) -> list[str]:
         if not self._data:
@@ -331,7 +340,7 @@ class Backtester:
             for trade in self.manager.lots(ticker):
                 trade.history = history
                 if self._should_exit_accepts_history:
-                    should_exit = self.strategy.should_exit(ticker, trade)
+                    should_exit = self.strategy.should_exit(ticker, trade, history)
                 else:
                     should_exit = self.strategy.should_exit(ticker, trade)
                 if should_exit:

@@ -319,6 +319,7 @@ def insert_or_update_data() -> None:
     # Drop delisted/renamed symbols before any download work happens, so they
     # never reach market_data.parquet in the first place.
     dead = _remove_dead_symbols()
+    _invalidate_market_data_cache()
     all_tickers = [t for t in raw_tickers if t not in dead]
     print(f"-> Universe: {len(all_tickers)} symbols")
 
@@ -395,7 +396,36 @@ def insert_or_update_data() -> None:
         except Exception as e:
             print(f"Batch 5d download error: {e}")
 
+    _invalidate_market_data_cache(prime_symbol_catalog=True)
     print("Local Parquet database sync completed successfully.")
+
+
+def _invalidate_market_data_cache(*, prime_symbol_catalog: bool = False) -> None:
+    """Clear process-local views after ingestion changes the Parquet file."""
+    try:
+        from app.database.fetch import (
+            get_all_ticker_details,
+            get_available_etfs,
+            get_available_gold,
+            get_available_stocks,
+            refresh_market_data_cache,
+        )
+        refresh_market_data_cache()
+        if prime_symbol_catalog:
+            try:
+                get_all_ticker_details()
+                # Persist the strategy universes as well; otherwise a fresh API
+                # process would scrape constituent lists on its first backtest.
+                get_available_etfs()
+                get_available_stocks()
+                get_available_gold()
+            except Exception as exc:
+                # Market-data sync should succeed even when optional catalogs
+                # cannot be written; the API can rebuild them on its next request.
+                print(f"Could not prime ticker/universe catalog: {exc}")
+    except ImportError:
+        # Ingestion can also run as a standalone script; a fresh process has no stale cache.
+        return
 
 
 # -------- Entry Point --------

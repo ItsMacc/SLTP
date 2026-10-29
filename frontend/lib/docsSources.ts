@@ -1,352 +1,132 @@
-// docsSources.ts — Curated read-only excerpts of the SLTP engine, shown on the Docs page.
-//
-// These are bundled as strings so the Docs page controls exactly what is exposed.
-// They mirror the repo files, with the `app.` imports rewritten to the `core.`
-// package the Lab presents to users:
-//
-//   core/strategy/strategy.py            <-  app/strategies/strategy.py
-//   core/portfolio/portfolio_manager.py  <-  app/portfolio/portfolio_manager.py
-//   core/utils/StockData.py              <-  app/utils/StockData.py
-//   core/utils/StrategyDecision.py       <-  app/utils/StrategyDecision.py
-//
-// When the engine changes, update the matching constant here so the excerpt
-// stays faithful to the source.
-export const BASE_STRATEGY_SOURCE = `# core/strategy/strategy.py
-import talib as ta
-from core.portfolio.portfolio_manager import PortfolioManager
+// docsSources.ts — Concise, current-engine excerpts shown by the Docs page.
+// These examples mirror the public contracts in app/engine, including its backtesting package.
+export const BASE_STRATEGY_SOURCE = `# core/strategy/base_strategy.py
+from core.utils.Order import Order
 from core.utils.StockData import StockData
-from core.utils.StrategyDecision import StrategyDecision
+from core.utils.Trade import Trade
+from core.utils.RebalanceFrequency import RebalanceFrequency
 
 
 class Strategy:
-    """
-    Base Strategy Interface providing fundamental strategy properties,
-    portfolio manager delegation, and standard technical analysis indicators.
-    """
-
     def __init__(self):
-        self.name: str = "Base Strategy"
-        self.description: str = "Base Strategy Interface"
-        self.manager: PortfolioManager = None
-
-        self.MIN_BARS_REQUIRED: int = 0
-
-    def add_ticker(self, ticker: str, start_date: str | None = None, end_date: str | None = None) -> None:
-        # Delegate single ticker addition to the underlying portfolio manager
-        self.manager.add_ticker(ticker, start_date, end_date)
-
-    def add_tickers(self, tickers: list[str], start_date: str | None = None, end_date: str | None = None) -> None:
-        # Delegate multiple ticker addition to the underlying portfolio manager
-        self.manager.add_tickers(tickers, start_date, end_date)
-
-    def generate_signal(self, ticker: str, history: StockData) -> StrategyDecision:
-        # Enforce implementation of signal generation in strategy subclasses
-        raise NotImplementedError("Strategy subclasses must implement generate_signal()")
-
-    # -------- Helper Methods (thin TA-Lib wrappers) --------
-    def _sma(self, values, window):
-        # Simple Moving Average (average price over a fixed window)
-        return ta.SMA(values, window)
-
-    def _ema(self, values, window):
-        # Exponential Moving Average (higher weight on recent prices)
-        return ta.EMA(values, window)
-
-    def _dema(self, values, window):
-        # Double Exponential Moving Average (reduces lag vs EMA)
-        return ta.DEMA(values, window)
-
-    def _tema(self, values, window):
-        # Triple Exponential Moving Average (ultra-low lag)
-        return ta.TEMA(values, window)
-
-    def _rsi(self, values, window):
-        # Relative Strength Index (momentum on a 0 to 100 scale)
-        return ta.RSI(values, window)
-
-    def _macd(self, values, fast_period=12, slow_period=26, signal_period=9):
-        # Moving Average Convergence Divergence (trend momentum and direction)
-        return ta.MACD(values, fast_period, slow_period, signal_period)
-
-    def _bollinger_bands(self, values, window, deviations=2):
-        # Volatility bands placed above and below a moving average
-        return ta.BBANDS(values, window, deviations, deviations)
-
-    def _atr(self, high, low, close, window):
-        # Average True Range (market volatility over time)
-        return ta.ATR(high, low, close, window)
-
-    def _adx(self, high, low, close, window):
-        # Average Directional Index (strength of a trend)
-        return ta.ADX(high, low, close, window)
-
-    def _stochastic(self, high, low, close, fast_k=5, slow_k=3, slow_d=3):
-        # Stochastic Oscillator (close vs recent price range)
-        return ta.STOCH(high, low, close,
-                        fastk_period=fast_k, slowk_period=slow_k, slowd_period=slow_d)
-
-    def _williams_r(self, high, low, close, window):
-        # Williams %R (overbought / oversold conditions)
-        return ta.WILLR(high, low, close, window)
-
-    def _cci(self, high, low, close, window):
-        # Commodity Channel Index (price level vs statistical average)
-        return ta.CCI(high, low, close, window)
-
-    def _roc(self, values, window):
-        # Rate of Change (percentage difference vs past price)
-        return ta.ROC(values, window)
-
-    def _momentum(self, values, window):
-        # Momentum (absolute difference vs past price)
-        return ta.MOM(values, window)
-
-    def _obv(self, close, volume):
-        # On-Balance Volume (volume flow predicting price shifts)
-        return ta.OBV(close, volume)
-
-    def _mfi(self, high, low, close, volume, window):
-        # Money Flow Index (buying / selling pressure using price and volume)
-        return ta.MFI(high, low, close, volume, window)
-
-    def _ad(self, high, low, close, volume):
-        # Accumulation/Distribution Line (supply and demand)
-        return ta.AD(high, low, close, volume)
-
-    def _trix(self, values, window):
-        # Triple Exponential Average (noise-filtered momentum)
-        return ta.TRIX(values, window)
-
-    def _parabolic_sar(self, high, low, acceleration=0.02, maximum=0.2):
-        # Parabolic SAR (trend direction and reversal points)
-        return ta.SAR(high, low, acceleration, maximum)
-
-    def _stochastic_rsi(self, values, window, fast_k=5, fast_d=3):
-        # Stochastic RSI (Stochastic formula applied to RSI)
-        return ta.STOCHRSI(values, window, fast_k, fast_d)`;
-
-export const PORTFOLIO_MANAGER_SOURCE = `# core/portfolio/portfolio_manager.py
-from dataclasses import dataclass, replace
-from enum import Enum
-from dateutil.relativedelta import relativedelta
-from app.database.fetch import get_stock_histories, get_all_tickers, get_stock_history
-from core.utils.StockData import StockData
-from core.utils.StrategyDecision import StrategyDecision, Signal
-
-
-@dataclass
-class TradeRecord:
-    ticker: str
-    action: str                      # BUY | SHORT for entries; EXIT | STOP_LOSS | TAKE_PROFIT for exits
-    entry_date: str | None
-    allocation_size: float           # fraction of portfolio value (0.0 - 1.0)
-    entry_price: float | None
-    stop_loss: float
-    take_profit: float
-    exit_price: float | None = None
-    exit_date: str | None = None
-    transaction_cost: float = 0.0
-    realized_return_pct: float | None = None
-    signal_date: str | None = None
-
-
-class RebalanceFrequency(Enum):
-    DAILY = "daily"
-    WEEKLY = "weekly"
-    MONTHLY = "monthly"
-    QUARTERLY = "quarterly"
-    YEARLY = "yearly"
-    NEVER = "never"
-
-
-class PortfolioManager:
-    def __init__(self, max_positions: int | None = 10) -> None:
-        # Trading costs & configuration
-        self.SLIPPAGE_PCT: float = 0.0005
-        self.FEE_RATE: float = 0.001
-        self.max_positions: int | None = max_positions
-
-        # Universe & market data storage
-        self.tickers: list[str] = []
-        self.histories: dict[str, StockData] = {}
-
-        # Portfolio tracking & state
-        self.portfolio_value: float = 100.00
-        self.active_positions: int = 0
-        self.open_positions: dict[str, bool] = {}
-        self.trades: dict[str, list[TradeRecord]] = {}
-
-        # Execution & marking states
-        self.blacklisted_tickers: set[str] = set()
-        self.open_trade_state: dict[str, dict] = {}
-
-        # Performance & analytics cache
-        self.equity_curve: list[dict] = []
-        self.ticker_wins: dict[str, list[float]] = {}
-        self.ticker_losses: dict[str, list[float]] = {}
-        self.total_transactions_cost: float = 0.0
-
-        # Rebalancing tracking
-        self.LAST_REBALANCE_DATE: str | None = None
-        self.REBALANCE_FREQUENCY: RebalanceFrequency = RebalanceFrequency.NEVER
-        self.WARM_UP_PERIOD: int = 0
-
-    # -------- Data Management --------
-    def add_ticker(self, ticker, start_date=None, end_date=None) -> None:
-        # Fetch and cache individual stock history
-        ...
-
-    def add_tickers(self, tickers, start_date=None, end_date=None) -> None:
-        # Fetch and cache batch stock histories
-        ...
-
-    # -------- Lifecycle Hooks (override these) --------
-    def on_signal(self, ticker: str, decision: StrategyDecision) -> TradeRecord:
-        # Called for LONG / SHORT entries. Return a pending TradeRecord,
-        # or None to skip the signal. EXIT is handled by check_exits.
-        raise NotImplementedError("PortfolioManager subclasses must implement on_signal()")
-
-    def on_rebalance(self, current_date: str) -> None:
-        # Called when the rebalance schedule is due. Prune / replace tickers here.
-        pass
+        self.name = "Base Strategy"
+        self.description = "Base Strategy Interface"
+        self.MAX_POSITIONS = 10
+        self.MAX_ALLOCATION_PER_TICKER = None
+        self.MAX_LOTS_PER_TICKER = 1
+        self.REBALANCE_FREQUENCY = RebalanceFrequency.NEVER
+        self.MIN_BARS_REQUIRED = 0
+        self.LIQUIDATE_ON_END = False
+        self.tickers = []
 
     def initialize_universe(self, current_date: str) -> bool:
-        # Called once at the start. Populate self.tickers and self.histories.
-        # Return False if the universe cannot be built on this date.
+        return bool(self.tickers)
+
+    def run_daily(self, current_date: str) -> None:
         pass
 
-    # -------- Trade Execution (usually leave alone) --------
-    def check_exits(self, ticker, current_open, current_high, current_low, current_date,
-                    signal=None, signal_price=None) -> None:
-        # Closes an open position on explicit EXIT or when its directional
-        # stop-loss / take-profit is hit. EXIT is ignored when flat.
+    def on_rebalance(self, current_date: str) -> None:
+        pass
+
+    def on_signal(self, ticker: str, data: StockData) -> Order | None:
+        raise NotImplementedError
+
+    def should_exit(self, ticker: str, trade: Trade) -> bool:
+        return False`;
+
+export const PORTFOLIO_MANAGER_SOURCE = `# core/portfolio/portfolio_manager.py
+class PortfolioManager:
+    """Created and owned by Backtester. Strategies do not subclass it."""
+
+    SLIPPAGE_PCT = 0.0005  # 0.05% per fill
+    FEE_RATE = 0.001       # 0.1% per fill
+    starting_equity = 100.0
+
+    def submit_order(self, order: Order) -> None:
+        # Queue an entry for the next available open.
         ...
 
-    def buy_order(self, ticker, fill_price, trade_record, current_date) -> None:
-        # Fills a pending LONG entry at the next open.
+    def queue_exit(self, trade_id: int) -> None:
+        # Queue a custom exit for the next available open.
         ...
 
-    def short_order(self, ticker, fill_price, trade_record, current_date) -> None:
-        # Fills a pending SHORT entry at the next open.
-        ...
-
-    def mark_to_market(self, ticker, current_close) -> None:
-        # Adjusts portfolio value daily for open positions using the close.
-        ...
-
-    def _base_allocation(self) -> float:
-        # Kelly-criterion position sizing over closed trades (quarter-Kelly),
-        # falling back to 1 / max_positions until enough trades exist.
+    def update_daily_accounting(self, current_date, closes) -> None:
+        # Mark open positions and record one equity point for the date.
         ...`;
 
-export const BACKTESTER_SOURCE = `# backtester.py  (the day loop, simplified)
-from core.utils.StrategyDecision import Signal
+export const BACKTESTER_SOURCE = `# backtester.py — simplified daily sequence
+for current_date in trading_calendar:
+    strategy.run_daily(current_date)
+    fill_queued_exits_and_entries_at_today_open()
 
+    if rebalance_is_due:
+        strategy.on_rebalance(current_date)
 
-class Backtester:
-    def __init__(self, strategy: Strategy, start_date: str, end_date: str | None = None):
-        self.strategy = strategy
-        self.manager = strategy.manager
-        self.start_date = start_date
-        self.end_date = end_date
-        self._pending_buys: list[tuple[str, TradeRecord]] = []
+    for ticker in strategy.tickers:
+        data = stock_data_through_today(ticker, current_date)
+        if len(data.dates) >= strategy.MIN_BARS_REQUIRED:
+            order = strategy.on_signal(ticker, data)
+            if order is not None:
+                manager.submit_order(order)
 
-    def run(self) -> None:
-        # 1. Initialize universe (walks forward until initialize_universe returns True)
-        actual_start_date = self._initialize_universe()
+    for open_trade in manager.open_trades:
+        open_trade.history = stock_data_through_today(open_trade.ticker, current_date)
+        if strategy.should_exit(open_trade.ticker, open_trade):
+            manager.queue_exit(open_trade.id)
 
-        # 2. Build the trading calendar and pre-cache per-ticker data
-        valid_dates = self._build_trading_calendar()
-        ticker_data = self._pre_cache_ticker_data(actual_start_date)
-
-        # 3. Iterate day by day
-        for current_date in active_dates:
-            # Rebalance when the schedule says so
-            if self._should_rebalance(current_date):
-                self.manager.on_rebalance(current_date)
-                self.manager.LAST_REBALANCE_DATE = current_date
-
-            # Fill yesterday's queued entries at TODAY'S OPEN
-            self._execute_pending_buys(current_date, ticker_data)
-
-            for ticker, data in ticker_data.items():
-                i = data["date_to_idx"][current_date]
-
-                # Slice history strictly up to today (prevents lookahead bias).
-                # This sliced StockData is what your generate_signal receives.
-                self._slice_history_for_ticker(sliced_history, ticker, data, i)
-                decision = self.strategy.generate_signal(ticker, sliced_history)
-
-                # An explicit EXIT closes at today's close. Otherwise apply
-                # directional stop/target levels; flat tickers are ignored.
-                self.manager.check_exits(
-                    ticker, open_i, high_i, low_i, current_date,
-                    signal=decision.signal if decision else None,
-                    signal_price=current_close,
-                )
-
-                if decision and decision.signal in (Signal.LONG, Signal.SHORT):
-                    trade_record = self.manager.on_signal(ticker, decision)
-                    if trade_record is not None and trade_record.action in ("BUY", "SHORT"):
-                        self._pending_buys.append((ticker, trade_record))
-
-                # Mark open positions to today's close
-                self.manager.mark_to_market(ticker, current_close)
-
-            # One equity point per day
-            self.manager.equity_curve.append({
-                "date": current_date,
-                "portfolio_value": round(self.manager.portfolio_value, 2),
-                "active_positions": self.manager.active_positions,
-                "total_transaction_cost": round(self.manager.total_transactions_cost, 4),
-            })
-
-    def performance_metrics(self) -> dict:
-        # Returns: starting_value, ending_value, cagr, sharpe, psr, sortino,
-        # expectancy, win_rate, loss_rate, average_win, average_loss,
-        # max_drawdown, drawdown_recovery, unrealized_profit, equity
-        ...`;
+    check_resting_stop_and_target_levels()
+    if is_final_day and strategy.LIQUIDATE_ON_END:
+        manager.close_all_at_final_close()
+    manager.update_daily_accounting(current_date, closes)`;
 
 export const STOCK_DATA_SOURCE = `# core/utils/StockData.py
-import numpy as np
-from dataclasses import dataclass
-
-
-@dataclass
+@dataclass(frozen=True)
 class StockData:
     ticker: str
-    dates: np.ndarray        # array of 'YYYY-MM-DD' strings
+    dates: np.ndarray
     open_price: np.ndarray
     high: np.ndarray
     low: np.ndarray
     close_price: np.ndarray
-    volume: np.ndarray`;
+    volume: np.ndarray
 
-export const STRATEGY_DECISION_SOURCE = `# core/utils/StrategyDecision.py
-from dataclasses import dataclass, field
-from enum import Enum
-from typing import Any
+# Arrays are read-only. For callbacks, the final item is the current session.
+# Future bars are not included.`;
 
+export const ORDER_SOURCE = `# core/utils/Order.py
+@dataclass(frozen=True)
+class Order:
+    ticker: str
+    position_type: PositionType  # LONG or SHORT
+    allocation: float            # fraction of equity, e.g. 0.10 = 10%
+    order_date: str
+    stop_loss: float             # absolute price; <= 0 disables this level
+    take_profit: float           # absolute price; <= 0 disables this level
+    meta_data: dict | None = None`;
 
-class Signal(Enum):
-    LONG = "long"
-    SHORT = "short"
-    HOLD = "hold"
-    EXIT = "exit"
+export const TRADE_SOURCE = `# core/utils/Trade.py
+@dataclass
+class Trade:
+    id: int
+    ticker: str
+    history: StockData
+    position_type: PositionType
+    entry_date: str
+    entry_price: float
+    allocation: float
+    equity_at_entry: float
+    stop_loss: float
+    take_profit: float
+    fees: float
+    exit: Event | None = None
 
+    @property
+    def is_open(self) -> bool:
+        return self.exit is None`;
 
-@dataclass()
-class StrategyDecision:
-    signal: Signal                                      # LONG | SHORT | HOLD | EXIT
-    confidence: float                                    # 0.0 - 1.0
-    metrics: dict[str, float] = field(default_factory=dict)      # numeric readouts
-    meta_data: dict[str, Any] = field(default_factory=dict)      # free-form metadata
-
-# Example:
-# return StrategyDecision(
-#     signal=Signal.LONG,
-#     confidence=0.72,
-#     metrics={"rsi": 24.1, "close_price": 187.44},
-#     meta_data={"ticker": ticker, "signal_date": str(history.dates[-1])},
-# )`;
-
+export const EVENT_SOURCE = `# core/utils/Event.py
+@dataclass(frozen=True)
+class Event:
+    date: str
+    type: EventType  # STOP_LOSS, TAKE_PROFIT, SIGNAL, END_OF_BACKTEST
+    price: float`;

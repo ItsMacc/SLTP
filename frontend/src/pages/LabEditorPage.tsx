@@ -2,9 +2,9 @@
 // editor checked live by Pyright (in a Web Worker), and a terminal.
 //
 // A project has two packages:
-//   core/       the read-only engine (Strategy, PortfolioManager, StockData,
-//               StrategyDecision), mirrored from the repo and never editable
-//   workspace/  the files the student writes
+//   core/       the read-only engine (Strategy, PortfolioManager, Order, Trade,
+//               StockData and supporting types), mirrored from the repo
+//   workspace/  the strategy files the student writes
 //
 // The tree is built from the files themselves, so a folder is only shown when
 // a real file lives in it. Nothing is executed in the browser: the project runs
@@ -389,7 +389,7 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
     if (pyright === 'active') bindActiveModel();
   }, [active, pyright, bindActiveModel]);
 
-  // Each file's saved text becomes a stub, so `from core.strategy.strategy import Strategy`
+  // Each file's saved text becomes a stub, so `from core.strategy.base_strategy import Strategy`
   // resolves to the project's own core package. Stubs are fixed when a worker starts, so it is
   // rebuilt when a file is saved, created, renamed or deleted. Unsaved drafts do not trigger
   // a rebuild.

@@ -17,9 +17,10 @@ from app.engine.utils.Event import Event
 from app.engine.utils.Order import Order
 from app.engine.utils.Trade import Trade
 from app.engine.utils.EventType import EventType
-from app.engine.strategy.strategy import Strategy
+from app.engine.strategy import Strategy
 from app.engine.utils.PositionType import PositionType
 from app.engine.utils.RebalanceFrequency import RebalanceFrequency
+from app.engine.utils.StockData import StockData
 from app.database.fetch import get_stock_history
 
 # -------- Rebalance Arithmetic --------
@@ -64,6 +65,7 @@ class PortfolioManager:
         self._strategy_view_dirty: bool = True
         self._trade_by_id: dict[int, Trade] = {}
         self.rejected_orders: dict[str, int] = {}
+        self._histories: dict[str, StockData] = {}
 
         # Equity logs (stored as fast lists during execution, converted to NumPy vectors via property)
         self._dates_log: list[str] = []
@@ -119,6 +121,10 @@ class PortfolioManager:
     def lots(self, ticker: str) -> list[Trade]:
         # Open lots in one ticker, oldest first
         return self._open_trades_by_ticker.get(ticker, []).copy()
+
+    def set_history_cache(self, histories: dict[str, StockData]) -> None:
+        """Use already-loaded market histories instead of querying Parquet on fills."""
+        self._histories = histories
 
     # -------- Order Management --------
     def submit_order(self, order: Order) -> None:
@@ -256,10 +262,25 @@ class PortfolioManager:
         equity_at_entry = self.portfolio_value
         entry_fee = round(equity_at_entry * order.allocation * self.FEE_RATE, 4)
 
+        history = self._histories.get(ticker)
+        if history is None:
+            history = get_stock_history(ticker, end=current_date)
+        else:
+            end = int(np.searchsorted(history.dates, current_date, side="right"))
+            history = StockData(
+                ticker=ticker,
+                dates=history.dates[:end],
+                open_price=history.open_price[:end],
+                high=history.high[:end],
+                low=history.low[:end],
+                close_price=history.close_price[:end],
+                volume=history.volume[:end],
+            )
+
         trade = Trade(
             id=self._next_trade_id,
             ticker=ticker,
-            history=get_stock_history(ticker, end=current_date),
+            history=history,
             position_type=order.position_type,
             entry_date=current_date,
             entry_price=entry_price,
@@ -365,9 +386,15 @@ class PortfolioManager:
             )
             return False
 
-        # Check available equity
+        # Check available cash/equity for long entries. Short exposure is not
+        # cash-funded in this index model, but still may not exceed total equity.
         invested = self._invested_notional / self.portfolio_value
-        if invested + order.allocation > 1.0:
+        available_allocation = (
+            self.cash / self.portfolio_value
+            if order.position_type is PositionType.LONG and self.portfolio_value > 0
+            else 1.0 - invested
+        )
+        if order.allocation > available_allocation + 1e-12:
             self._reject(f"Not enough equity to allocate {ticker}")
             return False
 
