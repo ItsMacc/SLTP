@@ -16,7 +16,6 @@ from app.engine.utils.PositionType import PositionType
 from app.engine.utils.RebalanceFrequency import RebalanceFrequency
 from app.engine.utils.StockData import StockData
 from app.engine.utils.Trade import Trade
-from app.database.fetch import get_stock_histories
 
 
 # -------- Statistical Mean Reversion Strategy --------
@@ -57,12 +56,12 @@ class StatisticalMeanReversionStrategy(Strategy):
         self.MIN_BARS_REQUIRED = max(self.RSI_PERIOD, self.Z_SCORE_PERIOD) + 2
 
     # -------- Universe --------
-    def initialize_universe(self, current_date: str) -> bool:
+    def initialize_universe(self, current_date: str, histories: dict[str, StockData]) -> bool:
         self.tickers.clear()
-        self.add_tickers(self._top_candidates(current_date))
+        self.add_tickers(self._top_candidates(histories))
         return bool(self.tickers)
 
-    def on_rebalance(self, current_date: str) -> None:
+    def on_rebalance(self, current_date: str, histories: dict[str, StockData]) -> None:
         # Keep held names using base property, drop the rest, then fill vacancies
         for ticker in list(self.tickers):
             if ticker not in self.open_tickers:
@@ -70,14 +69,13 @@ class StatisticalMeanReversionStrategy(Strategy):
 
         vacancies = self.UNIVERSE_SIZE - len(self.tickers)
         if vacancies > 0:
-            new = [t for t in self._top_candidates(current_date, vacancies)
+            new = [t for t in self._top_candidates(histories, vacancies)
                    if t not in self.tickers]
             self.add_tickers(new)
 
-    def _top_candidates(self, current_date: str, n: int | None = None) -> list[str]:
+    def _top_candidates(self, histories: dict[str, StockData], n: int | None = None) -> list[str]:
         n = self.UNIVERSE_SIZE if n is None else n
         known_etfs = set(self.available_etfs)
-        histories = get_stock_histories(self.available_universe)
 
         scored_etfs: list[tuple[str, float]] = []
         scored_stocks: list[tuple[str, float]] = []

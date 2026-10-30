@@ -95,11 +95,11 @@ class Strategy:
             self.tickers.remove(ticker)
 
     # -------- Lifecycle Hooks --------
-    def initialize_universe(self, current_date: str) -> bool:
+    def initialize_universe(self, current_date: str, histories: dict[str, StockData]) -> bool:
         # Build the starting universe; the default accepts the declared tickers.
         return bool(self.tickers)
 
-    def on_rebalance(self, current_date: str) -> None:
+    def on_rebalance(self, current_date: str, histories: dict[str, StockData]) -> None:
         # Refresh self.tickers when REBALANCE_FREQUENCY comes due
         return None
 

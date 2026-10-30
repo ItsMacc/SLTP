@@ -45,12 +45,12 @@ const MODULES: ModuleData[] = [
     kicker: 'Build & backtest',
     title: 'Lab',
     description:
-      'For more advanced users. Compose your own rules, run them against decades of market history, and keep every experiment organised in one place.',
+      'Have a rule you want to test? Start with a template or a blank project, then work through it in the Python editor.',
     icon: FlaskConical,
     points: [
-      'Write and version custom strategies',
-      'Run, compare and stress-test backtests',
-      'Assemble portfolios from what survives',
+      'Run it against historical daily prices',
+      'Review the trades and portfolio results',
+      'Keep each project in its own workspace',
     ],
     cta: 'Enter the Lab',
   },
@@ -61,7 +61,7 @@ const MODULES: ModuleData[] = [
     kicker: 'Positions & watchlist',
     title: 'Portfolio',
     description:
-      'Keep a watchlist of the stocks you are considering and record the positions you hold, with the gain or loss on each one.',
+      'Choose a strategy to follow and SLTP can email you when its rules flag a possible entry, along with any stop-loss or target levels it sets. It is a prompt to review, not a trade placed for you.',
     icon: Wallet,
     cta: 'Manage portfolio',
     feature: true,
@@ -84,7 +84,7 @@ const MODULES: ModuleData[] = [
     kicker: 'Track record',
     title: 'Performance',
     description:
-      'Follow how each strategy behaves in real market conditions, with drawdown, CAGR and risk-adjusted returns kept in plain sight.',
+      'Review historical price charts and compare strategy results using measures such as CAGR, drawdown, and Sharpe ratio.',
     icon: LineChart,
     cta: 'View performance',
   },
@@ -95,7 +95,7 @@ const MODULES: ModuleData[] = [
     kicker: 'Write & extend',
     title: 'Docs',
     description:
-      'The reference for building on SLTP: how a strategy class works, which methods to override, and worked recipes you can copy into the Lab.',
+      'Find the strategy class reference, engine data structures, API endpoints, and examples for writing strategies in the Lab.',
     icon: FileCode2,
     cta: 'Open the docs',
   },
@@ -105,18 +105,18 @@ const MODULES: ModuleData[] = [
 const TRUST_POINTS: { icon: IconType; title: string; text: string }[] = [
   {
     icon: ShieldCheck,
-    title: 'Not financial advice',
-    text: 'SLTP shows research, rules and history. Every decision about your money is yours to make.',
+    title: 'Research, not advice',
+    text: 'SLTP provides data and tools for your own research. It does not recommend investments.',
   },
   {
     icon: Hourglass,
-    title: 'Past results are not promises',
-    text: 'Backtests use past prices. They can look better than real trading, and markets change.',
+    title: 'Past results have limits',
+    text: 'A backtest uses historical prices and simulated fills. It cannot account for every live-market condition.',
   },
   {
     icon: Sprout,
-    title: 'Small steps still count',
-    text: 'You do not need a large amount or perfect timing. Starting early gives time to learn and compound.',
+    title: 'Check the assumptions',
+    text: 'Changing the dates, symbols, or trading costs can change the result. Check what each test includes.',
   },
 ];
 
@@ -162,8 +162,8 @@ export default function HomePage({ onNavigate, onOpenGuide }: HomePageProps) {
               <em>and track your portfolio.</em>
             </h1>
             <p className="page-hero-description">
-              SLTP brings together market charts, published strategies and a portfolio tracker, so
-              you can follow what you own in one place.
+              Explore historical market data, read how each strategy works, and use the Lab to
+              write and backtest your own rules.
             </p>
 
             <div className="home-hero-actions">
@@ -194,8 +194,8 @@ export default function HomePage({ onNavigate, onOpenGuide }: HomePageProps) {
           <span className="home-section-label">The platform</span>
           <h2 className="home-section-title">What each part of SLTP does</h2>
           <p className="home-section-lede">
-            Follow a model or build your own, keep track of what you hold, and check the record
-            before you act.
+            Start by looking through the strategies. When you have a rule of your own to try, the
+            Lab is ready for it.
           </p>
         </div>
 
@@ -241,16 +241,15 @@ export default function HomePage({ onNavigate, onOpenGuide }: HomePageProps) {
         </div>
       </section>
 
-      {/* ================= TRUST ================= */}
+      {/* ================= RESEARCH NOTES ================= */}
       <section className="home-section home-trust">
         <div className="home-trust-panel home-reveal" style={revealDelay(0)}>
           <div className="home-trust-head">
-            <h2 className="home-trust-title">
-              It is not financial advice, <em>but the earlier you start, the better.</em>
-            </h2>
+            <h2 className="home-trust-title">How to read backtest results</h2>
             <p className="home-trust-lede">
-              Investing can feel closed off, with jargon, minimums and a fear of getting it wrong.
-              SLTP is here to make the research clearer so you can begin with confidence.
+              A backtest applies strategy rules to past prices using assumed costs and fills. It
+              shows how those rules performed over a chosen period, not how they will perform in the
+              future. Dates, symbols, and execution assumptions all affect the result.
             </p>
           </div>
 
@@ -272,7 +271,7 @@ export default function HomePage({ onNavigate, onOpenGuide }: HomePageProps) {
           <div className="home-trust-footer">
             <Button variant="outline" size="sm" onClick={() => onNavigate('learn')}>
               <BookOpen size={15} />
-              Start with the basics
+              Learn the basics
               <ArrowRight size={14} />
             </Button>
           </div>

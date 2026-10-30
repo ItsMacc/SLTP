@@ -246,7 +246,7 @@ export default function LabPage({ onNavigate }: LabPageProps) {
 
           <div className="lab-hero-docs">
             <p className="lab-hero-docs-text">
-              Need help? Check out the docs and see how the strategy engine works.
+              See the engine rules and code examples in the docs.
             </p>
             <Button variant="link" size="sm" onClick={() => onNavigate?.('docs')}>
               Read the docs <ArrowRight size={14} aria-hidden="true" />
@@ -410,28 +410,27 @@ export default function LabPage({ onNavigate }: LabPageProps) {
           </section>
         </div>
 
-        <div className="lab-meta">
-          <section className="lab-info" aria-labelledby="lab-confidence-title">
-            <p id="lab-confidence-title" className="lab-info-eyebrow">Test strategies with confidence</p>
+        <div className="lab-meta">            <section className="lab-info" aria-labelledby="lab-confidence-title">
+            <p id="lab-confidence-title" className="lab-info-eyebrow">Backtest workflow</p>
             <p className="lab-info-body">
-              Run backtests seamlessly, track real-time results, export performance reports, and
-              document your research insights in one centralized workflow.
+              Run a strategy over historical daily bars and inspect its trades and portfolio
+              results. A backtest is a simulation; it does not include every condition of live trading.
             </p>
           </section>
 
           <section className="lab-info" aria-labelledby="lab-feeds-title">
             <p id="lab-feeds-title" className="lab-info-eyebrow">Data feeds &amp; universe</p>
             <p className="lab-info-body">
-              Simulate daily bars of historical data reaching back to 1962, covering 1,915
-              instruments including ETFs, gold, and mid and small-cap companies.
+              The local market dataset contains daily history from 1962 for stocks, ETFs, and gold.
+              Available symbols and date ranges depend on the data loaded by the server.
             </p>
           </section>
 
           <section className="lab-info" aria-labelledby="lab-runtime-title">
-            <p id="lab-runtime-title" className="lab-info-eyebrow">Secure runtime environment</p>
+            <p id="lab-runtime-title" className="lab-info-eyebrow">Strategy environment</p>
             <p className="lab-info-body">
-              Execute custom logic safely inside a protected sandbox designed to keep your workspace
-              secure and your data private.
+              Engine files are read-only. Your strategy code lives in the project workspace and is
+              run by the Lab's backtest service.
             </p>
           </section>
         </div>

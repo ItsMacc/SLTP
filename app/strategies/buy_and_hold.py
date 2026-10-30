@@ -27,7 +27,7 @@ class BuyAndHold(Strategy):
         self.MIN_BARS_REQUIRED = 1
         self.LIQUIDATE_ON_END = False
 
-    def initialize_universe(self, current_date: str) -> bool:
+    def initialize_universe(self, current_date: str, histories: dict[str, StockData]) -> bool:
         # The whole local universe, loaded once
         self.tickers.clear()
         self.add_ticker("AAPL")

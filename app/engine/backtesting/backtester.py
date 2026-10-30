@@ -91,7 +91,7 @@ class Backtester:
             # Evaluate entries against history through today's completed bar.
             self.manager.refresh_view()
             if self._pending_rebalance:
-                self.strategy.on_rebalance(current_date)
+                self._call_universe_hook(self.strategy.on_rebalance, current_date)
                 self.manager.mark_rebalanced(current_date)
                 self._pending_rebalance = False
                 self._ensure_universe()
@@ -221,17 +221,40 @@ class Backtester:
         current_dt = datetime.strptime(self.start_date, "%Y-%m-%d")
         for _ in range(60):
             date_str = current_dt.strftime("%Y-%m-%d")
-            if self.strategy.initialize_universe(date_str):
+            if self._call_universe_hook(self.strategy.initialize_universe, date_str):
                 if not self.strategy.tickers:
                     raise ValueError("initialize_universe() returned True but declared no tickers.")
                 return date_str
             current_dt += relativedelta(days=1)
         raise ValueError(f"Could not initialize universe from {self.start_date} within 60 days.")
 
+    def _call_universe_hook(self, hook, current_date: str):
+        """Pass as-of histories to updated hooks, retaining compatibility with older strategies."""
+        parameters = inspect.signature(hook).parameters.values()
+        accepts_histories = len(parameters) >= 2 or any(
+            parameter.kind is inspect.Parameter.VAR_POSITIONAL for parameter in parameters
+        )
+        if accepts_histories:
+            return hook(current_date, self._histories_as_of(current_date))
+        return hook(current_date)
+
+    def _histories_as_of(self, current_date: str) -> dict[str, StockData]:
+        """Load the available universe and expose only bars through the callback date."""
+        self._ensure_tickers(self.strategy.available_universe)
+        histories: dict[str, StockData] = {}
+        for ticker, data in self._data.items():
+            index = int(np.searchsorted(data["dates"], current_date, side="right")) - 1
+            if index >= 0:
+                histories[ticker] = self._history_as_of(ticker, index)
+        return histories
+
     def _ensure_universe(self) -> None:
         wanted = list(dict.fromkeys([*self.strategy.tickers, *self.manager.open_tickers]))
         self._universe_tickers.update(self.strategy.tickers)
-        missing = [ticker for ticker in wanted if ticker not in self._data and ticker not in self.skipped]
+        self._ensure_tickers(wanted)
+
+    def _ensure_tickers(self, tickers: list[str]) -> None:
+        missing = [ticker for ticker in tickers if ticker not in self._data and ticker not in self.skipped]
         if not missing:
             return
 
