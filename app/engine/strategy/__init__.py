@@ -1,5 +1,9 @@
-"""Strategy interfaces and shared helpers for the trading engine."""
+# -------- __init__.py --------
+# Re-exports the strategy base class, so callers import from the package.
 
+# -------- Imports --------
 from app.engine.strategy.base_strategy import Strategy
 
+
+# -------- Exports --------
 __all__ = ["Strategy"]

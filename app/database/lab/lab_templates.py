@@ -1,11 +1,18 @@
+# -------- lab_templates.py --------
+# Starter source for Lab projects using the current engine.
+#
+# Students implement Strategy hooks and return an Order; PortfolioManager is owned by
+# the backtester and is available as a read-only core reference.
+
+# -------- Imports --------
 from __future__ import annotations
 
-# lab_templates.py — Starter source for Lab projects using the current engine.
-# Students implement Strategy hooks and return an Order; PortfolioManager is
-# owned by the backtester and is available as read-only core reference.
 
+# -------- Template Ids --------
 BLANK_ID = "blank"
 
+
+# -------- Blank --------
 BLANK_SOURCES = {
     "workspace/custom_strategy.py": '''from core.strategy.base_strategy import Strategy
 from core.utils.Order import Order
@@ -32,6 +39,8 @@ class CustomStrategy(Strategy):
 ''',
 }
 
+
+# -------- EMA Crossover --------
 EMA_CROSSOVER_SOURCES = {
     "workspace/ema_crossover_strategy.py": '''from core.strategy.base_strategy import Strategy
 from core.utils.Order import Order
@@ -70,6 +79,8 @@ class EmaCrossover(Strategy):
 ''',
 }
 
+
+# -------- RSI Pullback --------
 RSI_PULLBACK_SOURCES = {
     "workspace/rsi_pullback_strategy.py": '''from core.strategy.base_strategy import Strategy
 from core.utils.Order import Order
@@ -107,6 +118,8 @@ class RsiPullback(Strategy):
 ''',
 }
 
+
+# -------- Parabolic SAR --------
 PARABOLIC_SAR_SOURCES = {
     "workspace/parabolic_sar_strategy.py": '''from core.strategy.base_strategy import Strategy
 from core.utils.Order import Order
@@ -145,6 +158,8 @@ class ParabolicSarTrend(Strategy):
 ''',
 }
 
+
+# -------- Registry --------
 TEMPLATE_SOURCES: dict[str, dict[str, str]] = {
     "ema-crossover": EMA_CROSSOVER_SOURCES,
     "rsi-pullback": RSI_PULLBACK_SOURCES,
@@ -152,8 +167,9 @@ TEMPLATE_SOURCES: dict[str, dict[str, str]] = {
 }
 
 
+# -------- Lookup --------
+# Starter files for a template id; None for an unknown id.
 def source_for(template_id: str | None) -> dict[str, str] | None:
-    """Starter files for a template id. Returns None for an unknown id."""
     if not template_id or template_id == BLANK_ID:
         return dict(BLANK_SOURCES)
     if template_id not in TEMPLATE_SOURCES:

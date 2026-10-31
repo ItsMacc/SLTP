@@ -1,8 +1,9 @@
-# __init__.py — The strategy registry.
+# -------- __init__.py --------
+# The strategy registry.
 #
-# Each strategy is one module in this package: a Strategy subclass that holds
-# its universe, signals and exits. This module is the one place a strategy is
-# declared. Adding one means dropping in its module and adding a line to REGISTRY.
+# Each strategy is one module in this package: a Strategy subclass that holds its
+# universe, signals and exits. This module is the one place a strategy is declared.
+# Adding one means dropping in its module and adding a line to REGISTRY.
 #
 # `main.py` reads REGISTRY instead of keeping its own copy. Import the strategy
 # classes from this package only.
@@ -13,13 +14,14 @@ from app.strategies.statistical_mean_reversion import StatisticalMeanReversionSt
 
 
 # -------- Registry --------
-# strategy id -> (class, kind)
-# kind is "investing" or "trading"; the onboarding wizard filters on it.
+# strategy id -> (class, kind). kind is "investing" or "trading"; the onboarding wizard filters on it.
 REGISTRY: dict[str, tuple[type, str]] = {
     "buy-and-hold": (BuyAndHold, "investing"),
     "statistical-mean-reversion": (StatisticalMeanReversionStrategy, "investing"),
 }
 
+
+# -------- Exports --------
 __all__ = [
     "REGISTRY",
     "BuyAndHold",

@@ -1,23 +1,26 @@
-# StockData.py — The market data container passed to strategies.
+# -------- StockData.py --------
+# One ticker's daily OHLCV history as parallel numpy arrays.
 #
-# A single ticker's daily OHLCV history as parallel numpy arrays. The backtester
-# and runner slice these arrays up to the current date before calling
+# The backtester and runner slice these arrays up to the current date before calling
 # generate_signal, so the last element of every array is "today" and lookahead is
 # impossible.
 #
-# Dates are stored as int32 day numbers (see app/engine/utils/Dates.py) to keep a
-# full universe at 4 bytes per bar. `dates` still reads as "YYYY-MM-DD" strings so
-# existing strategies and docs keep working.
+# Dates are stored as int32 day numbers (see Dates.py) to keep a full universe at
+# 4 bytes per bar. `dates` still reads as "YYYY-MM-DD" strings so existing
+# strategies and docs keep working.
 
 # -------- Imports --------
 import numpy as np
+
 from dataclasses import dataclass
 
+# Engine imports
 from app.engine.utils.Dates import CALENDAR, DateLabels, codes_from_labels
 
+
 # -------- Helpers --------
+# Accept date codes, "YYYY-MM-DD" labels or datetimes and return int32 codes.
 def _coerce_codes(value) -> np.ndarray:
-    """Accept date codes, "YYYY-MM-DD" labels or datetimes and return int32 codes."""
     if value is None:
         raise TypeError("StockData requires date_codes (or legacy dates).")
     if isinstance(value, DateLabels):
@@ -33,6 +36,7 @@ def _coerce_codes(value) -> np.ndarray:
 
 
 # -------- Stock Data --------
+# Read-only container for one ticker's bars.
 @dataclass(frozen=True, init=False)
 class StockData:
     ticker: str
@@ -43,6 +47,9 @@ class StockData:
     close_price: np.ndarray
     volume: np.ndarray
 
+    # Store the bars and make every array read-only.
+    # `dates` is the legacy keyword: old readers pass "YYYY-MM-DD" arrays and they
+    # are converted to codes here.
     def __init__(
         self,
         ticker: str,
@@ -55,9 +62,7 @@ class StockData:
         *,
         dates=None,
     ):
-        # `dates` is the legacy keyword: old readers pass "YYYY-MM-DD" arrays and
-        # they are converted to codes here.
-        fields = {
+        fields: dict[str, object] = {
             "ticker": ticker,
             "date_codes": _coerce_codes(date_codes if date_codes is not None else dates),
             "open_price": open_price,
@@ -67,18 +72,17 @@ class StockData:
             "volume": volume,
         }
         for name, value in fields.items():
-            # Make all underlying NumPy arrays read-only in-place
             if isinstance(value, np.ndarray):
                 value.flags.writeable = False
             object.__setattr__(self, name, value)
 
     # -------- Date views --------
+    # The bar dates as a sequence of "YYYY-MM-DD" strings.
     @property
     def dates(self) -> DateLabels:
-        """The bar dates as a sequence of "YYYY-MM-DD" strings."""
         return DateLabels(self.date_codes)
 
+    # The bar dates as a "<U10" array, for JSON and tabular output.
     @property
     def labels(self) -> np.ndarray:
-        """The bar dates as a "<U10" array, for JSON and tabular output."""
         return CALENDAR.label_array(self.date_codes)

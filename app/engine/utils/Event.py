@@ -1,8 +1,9 @@
-# Event.py — A dated fact that closed a trade.
+# -------- Event.py --------
+# A dated fact that closed a trade.
 #
 # Immutable, because it records something that already happened and nothing may
-# rewrite it afterwards. EventType carries the reason, so a separate reason
-# field would only repeat it.
+# rewrite it afterwards. EventType carries the reason, so a separate reason field
+# would only repeat it.
 
 # -------- Imports --------
 from dataclasses import dataclass

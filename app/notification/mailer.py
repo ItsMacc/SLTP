@@ -1,24 +1,28 @@
-# mailer.py — SLTP notification emails (HTML, mobile-friendly).
+# -------- mailer.py --------
+# SLTP notification emails (HTML, mobile-friendly).
 #
-# Notification emails share one HTML boilerplate. Strategy-signal emails
-# receive fields from the current engine's Order records and close prices.
-
-# Every email ends with a notice pointing to Settings -> Notifications.
-# Layout uses inline styles + table markup so it renders correctly in Gmail,
+# Notification emails share one HTML boilerplate. Strategy-signal emails receive
+# fields from the current engine's Order records and close prices. Every email ends
+# with a notice pointing to Settings -> Notifications.
+#
+# Layout uses inline styles and table markup so it renders correctly in Gmail,
 # Outlook and mobile mail clients.
+#
+# USAGE: python -m app.notification.mailer <to> <kind> [user_name]
 
-# USAGE: python -m app.notification.email <to> <kind> [user_name]
-
+# -------- Imports --------
 import os
 import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from typing import Any
 
+from typing import Any
 from dotenv import load_dotenv
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 load_dotenv()
 
+
+# -------- Brand & Palette --------
 BRAND = "SLTP"
 SENDER_NAME = "SLTP"
 FOOTER_HTML = (
@@ -40,8 +44,8 @@ C_PANEL = "#faf8f2"
 
 
 # -------- Low-Level Sender --------
+# Send an HTML email over Gmail SMTP; returns (success, error_message).
 def send_email(receiver: str, subject: str, html: str) -> tuple[bool, str | None]:
-    """Sends an HTML email via Gmail SMTP. Returns (success, error_message)."""
     sender_email = os.environ.get("SENDER_EMAIL")
     app_password = os.environ.get("APP_PASSWORD")
 
@@ -65,8 +69,8 @@ def send_email(receiver: str, subject: str, html: str) -> tuple[bool, str | None
 
 
 # -------- Shared Boilerplate --------
+# Wrap content in the common branded frame; tables keep the layout email-safe.
 def _shell(preheader: str, title: str, accent: str, inner_html: str) -> str:
-    """Wraps content in the common branded frame (tables = email-safe layout)."""
     return f"""<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
@@ -98,13 +102,14 @@ def _shell(preheader: str, title: str, accent: str, inner_html: str) -> str:
 </html>"""
 
 
+# The opening line every email shares.
 def _greeting(user_name: str) -> str:
     return f'<p style="margin:0 0 16px;">Hello <strong>{user_name}</strong>,</p>'
 
 
+# A labelled key-value panel; rows is [(label, value, value_color), ...].
 def _panel(label: str, rows: list[tuple[str, str, str]]) -> str:
-    """Renders a labelled key-value panel. rows = [(label, value, value_color), ...]"""
-    trs = "".join(
+    trs: str = "".join(
         f'<tr>'
         f'<td style="padding:8px 0;color:{C_MUTED};font-size:13px;width:45%;">{k}</td>'
         f'<td style="padding:8px 0;text-align:right;font-weight:600;font-size:14px;color:{v_color};">{v}</td>'
@@ -120,6 +125,7 @@ def _panel(label: str, rows: list[tuple[str, str, str]]) -> str:
     )
 
 
+# The call-to-action button.
 def _btn(href: str, label: str) -> str:
     return (
         f'<a href="{href}" style="display:inline-block;margin-top:20px;background:{C_ACCENT};color:#ffffff;'
@@ -134,9 +140,7 @@ def trade_signal_email(receiver: str, user_name: str, strategy_name: str,
                        note: str | None = None,
                        stop_loss: float | None = None,
                        take_profit: float | None = None) -> tuple[bool, str | None]:
-    """
-    Boilerplate trade-signal email; values are supplied by the signal runner.
-    """
+    # Boilerplate trade-signal email; values are supplied by the signal runner
     signal_type = signal_type.upper()
     is_buy = signal_type.lower() in ("long", "buy")
     accent = C_GREEN if is_buy else C_RED
@@ -174,13 +178,10 @@ def trade_signal_email(receiver: str, user_name: str, strategy_name: str,
 def signals_digest_email(receiver: str, user_name: str,
                          signals: list[dict[str, Any]],
                          signal_date: str | None = None) -> tuple[bool, str | None]:
-    """
-    One email containing every signal generated for a user's followed
-    strategies on a given trading day. `signals` entries:
-      { strategy, ticker, signal_type, signal_date?, price?, confidence?,
-        stop_loss?, take_profit? }
-    Only LONG signals are generated today, but any type renders correctly.
-    """
+    # One email with every signal for a user's followed strategies on a given
+    # trading day. Each entry is { strategy, ticker, signal_type, signal_date?,
+    # price?, confidence?, stop_loss?, take_profit? }. Only LONG signals are
+    # generated today, but any type renders correctly.
     if not signals:
         return False, "No signals — digest email skipped"
 
@@ -281,17 +282,15 @@ def security_warning_email(receiver: str, user_name: str, event: str,
 # -------- Market Summary Email --------
 def market_summary_email(receiver: str, user_name: str,
                          summary: dict[str, Any]) -> tuple[bool, str | None]:
-    """
-    Daily recap of the biggest moves across the universe. `summary` keys:
-      mood: str            — one of the MOOD_* constants from market_summary.py
-      headline: str        — the mood's headline sentence
-      trading_date: str
-      breadth_pct: float   — % of tickers that closed up
-      gainers: list        — [{ticker, change_pct, close}] top movers up
-      losers: list         — [{ticker, change_pct, close}] top movers down
-      spotlight: dict      — {ticker, change_pct, close, note} biggest mover
-      flat_note: str       — fallback text when data is thin (optional)
-    """
+    # Daily recap of the biggest moves across the universe. Summary keys:
+    #   mood         one of the MOOD_* constants from market_summary.py
+    #   headline     the mood's headline sentence
+    #   trading_date
+    #   breadth_pct  percent of tickers that closed up
+    #   gainers      [{ticker, change_pct, close}] top movers up
+    #   losers       [{ticker, change_pct, close}] top movers down
+    #   spotlight    {ticker, change_pct, close, note} biggest mover
+    #   flat_note    fallback text when data is thin (optional)
     mood = summary.get("mood", "mixed")
     mood_config = {
         "risk_on": ("Market Summary", C_GREEN, "&#9650;"),
@@ -375,14 +374,12 @@ def market_summary_email(receiver: str, user_name: str,
 
 def daily_summary_email(receiver: str, user_name: str,
                         summary_data: dict[str, Any] | None = None) -> tuple[bool, str | None]:
-    """
-    Morning overview. `summary_data` keys rendered when present:
-      market_overview: str          — your analysis text (fill in later)
-      portfolio_value: float
-      portfolio_change_pct: float   — vs yesterday, in percent
-      watchlist_moves: list[dict]   — [{'ticker', 'change_pct'}]
-      signals_today: list[dict]     — [{'strategy', 'ticker', 'signal_type'}]
-    """
+    # Morning overview. Summary keys rendered when present:
+    #   market_overview       your analysis text (fill in later)
+    #   portfolio_value
+    #   portfolio_change_pct  versus yesterday, in percent
+    #   watchlist_moves       [{'ticker', 'change_pct'}]
+    #   signals_today         [{'strategy', 'ticker', 'signal_type'}]
     subject = f"{BRAND} Daily Market Summary"
     data = summary_data or {}
 
@@ -424,7 +421,7 @@ def daily_summary_email(receiver: str, user_name: str,
 def price_alert_email(receiver: str, user_name: str, ticker: str,
                       change_pct: float, current_price: float | None = None,
                       direction: str | None = None) -> tuple[bool, str | None]:
-    """Alert when a tracked instrument moves +/- 5% within one session."""
+    # Alert when a tracked instrument moves +/- 5% within one session
     if direction is None:
         direction = "surge" if change_pct >= 0 else "decline"
     up = change_pct >= 0
@@ -452,8 +449,8 @@ def price_alert_email(receiver: str, user_name: str, ticker: str,
 # -------- Dispatch Helper --------
 def send_notification_email(kind: str, receiver: str, user_name: str,
                             payload: dict[str, Any] | None = None) -> tuple[bool, str | None]:
-    """kind: trade_signal | signals_digest | security_warning | daily_summary |
-    market_summary | price_alert."""
+    # kind: trade_signal | signals_digest | security_warning | daily_summary |
+    # market_summary | price_alert
     p = payload or {}
     if kind == "trade_signal":
         return trade_signal_email(

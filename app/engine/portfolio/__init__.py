@@ -1,5 +1,9 @@
-"""Portfolio management components for the trading engine."""
+# -------- __init__.py --------
+# Re-exports the portfolio manager, so callers import from the package.
 
+# -------- Imports --------
 from app.engine.portfolio.portfolio_manager import PortfolioManager
 
+
+# -------- Exports --------
 __all__ = ["PortfolioManager"]

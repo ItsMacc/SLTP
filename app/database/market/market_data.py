@@ -1,4 +1,5 @@
-# market_data.py — Builds and updates the master daily-bar file (market_data.parquet).
+# -------- market_data.py --------
+# Builds and updates the master daily-bar file (market_data.parquet).
 #
 # init_market_data()   Builds the master file from the full ticker universe (once).
 # update_market_data() Appends today's bars. Runs at most once per day and skips weekends.
@@ -9,39 +10,38 @@
 # the miss list. No other blacklisting exists.
 
 # -------- Imports --------
-import json
 import os
-from datetime import date
+import json
 import pandas as pd
 import yfinance as yf
-from app.database.market.market_data_service import (
-    get_all_ticker_names,
-    get_all_tickers,
-    refresh_market_data_cache,
-)
+
+from datetime import date
+
+# Database imports
+from app.database.market.market_data_service import get_all_tickers, get_all_ticker_names, refresh_market_data_cache
+
 
 # -------- Paths & Constants --------
-MARKET_DIR = os.path.dirname(os.path.abspath(__file__))
-SYMBOL_DATA_DIR = os.path.join(MARKET_DIR, "..", "symbol_data")
-MASTER_FILE = os.path.join(MARKET_DIR, "market_data.parquet")
-MISSES_FILE = os.path.join(SYMBOL_DATA_DIR, "missing_symbols.json")
-STATE_FILE = os.path.join(SYMBOL_DATA_DIR, "update_state.json")
-START_DATE = "1998-01-01"
-CHUNK_SIZE = 500
-PRICE_COLS = ["Open", "High", "Low", "Close", "Volume"]
+MARKET_DIR: str = os.path.dirname(os.path.abspath(__file__))
+SYMBOL_DATA_DIR: str = os.path.join(MARKET_DIR, "..", "symbol_data")
+MASTER_FILE: str = os.path.join(MARKET_DIR, "market_data.parquet")
+MISSES_FILE: str = os.path.join(SYMBOL_DATA_DIR, "missing_symbols.json")
+STATE_FILE: str = os.path.join(SYMBOL_DATA_DIR, "update_state.json")
+START_DATE: str = "1998-01-01"
+CHUNK_SIZE: int = 500
+PRICE_COLS: list[str] = ["Open", "High", "Low", "Close", "Volume"]
 
 
 # -------- Initialization --------
-# Build the master file from the full universe, once. Symbols with no data after the
-# retry are saved as misses.
+# Build the master file from the full universe, once. Symbols with no data after the retry are saved as misses.
 def init_market_data() -> None:
     if os.path.exists(MASTER_FILE):
         print(f"Master file already exists at: {MASTER_FILE}")
         return
 
     os.makedirs(MARKET_DIR, exist_ok=True)
-    names = get_all_ticker_names()
-    tickers = get_all_tickers()
+    names: dict[str, str] = get_all_ticker_names()
+    tickers: list[str] = get_all_tickers()
     print(f"Initializing {len(tickers)} symbols from {START_DATE}...")
 
     frames: list[pd.DataFrame] = []
@@ -50,17 +50,16 @@ def init_market_data() -> None:
         print("No bars downloaded; master file not written.")
         return
 
-    rows = _write_master(frames)
+    rows: int = _write_master(frames)
     _record_misses(received, missed, [], _today())
     print(f"Saved {rows} rows to: {MASTER_FILE} ({len(missed)} misses saved)")
     _refresh_api_cache()
 
 
 # -------- Daily Update --------
-# Append the latest daily bars. Runs once per day and skips weekends. Misses are tried
-# first; any that still return no bars are dropped.
+# Append the latest daily bars. Runs once per day and skips weekends. Misses are tried first; any that still return no bars are dropped.
 def update_market_data() -> None:
-    today = _today()
+    today: str = _today()
     if date.today().weekday() >= 5:  # Saturday or Sunday
         print("Weekend; skipping daily update.")
         return
@@ -71,40 +70,40 @@ def update_market_data() -> None:
         print(f"Already updated today ({today}); nothing to do.")
         return
 
-    master_df = pd.read_parquet(MASTER_FILE)
+    master_df: pd.DataFrame = pd.read_parquet(MASTER_FILE)
     last_dates = master_df.groupby("Symbol")["Date"].max()
-    in_master = set(last_dates.index)
-    misses = _load_json(MISSES_FILE, {})
+    in_master: set[str] = set(last_dates.index)
+    misses: dict[str, str] = _load_json(MISSES_FILE, {})
 
-    pending = [t for t in get_all_tickers() if last_dates.get(t, "") < today]
+    pending: list[str] = [ticker for ticker in get_all_tickers() if last_dates.get(ticker, "") < today]
     if not pending:
         print("No tickers need an update.")
         _save_json(STATE_FILE, {"last_update": today})
         return
 
-    names = get_all_ticker_names()
-    retry = [t for t in pending if t in misses]
-    rest = [t for t in pending if t not in misses]
+    names: dict[str, str] = get_all_ticker_names()
+    retry: list[str] = [ticker for ticker in pending if ticker in misses]
+    rest: list[str] = [ticker for ticker in pending if ticker not in misses]
     print(f"Retrying {len(retry)} missed symbol(s) first; updating {len(rest)} others...")
 
     frames: list[pd.DataFrame] = []
     retry_received, retry_missed = _download_pending(retry, names, frames, in_master)
     rest_received, rest_missed = _download_pending(rest, names, frames, in_master)
-    received = retry_received + rest_received
+    received: list[str] = retry_received + rest_received
 
-    # Nothing came back at all: most likely yfinance is down. Save nothing, so a
+    # Nothing came back at all: most likely yfinance is down. Save nothing, so an
     # outage cannot count as a miss and drop symbols.
     if not received:
         print("No symbols came back; nothing saved. Run again later.")
         return
 
-    # Still missing after being tried first: remove them from the master file.
-    dropped = retry_missed
+    # Still missing after being tried first: remove them from the master file
+    dropped: list[str] = retry_missed
     if dropped:
         print(f"Dropping {len(dropped)} symbol(s) still missing: {', '.join(dropped)}")
         master_df = master_df[~master_df["Symbol"].isin(dropped)]
     if frames or dropped:
-        rows = _write_master([master_df] + frames)
+        rows: int = _write_master([master_df] + frames)
         print(f"Master file updated: {rows} rows")
 
     _record_misses(received, rest_missed, dropped, today)
@@ -112,21 +111,23 @@ def update_market_data() -> None:
     _refresh_api_cache()
 
 
-
 # -------- Small Helpers --------
+# Today as YYYY-MM-DD.
 def _today() -> str:
     return date.today().isoformat()
 
 
+# yfinance writes share classes with a dash: BRK.B becomes BRK-B.
 def _yf_symbol(ticker: str) -> str:
-    # yfinance writes share classes with a dash: BRK.B -> BRK-B.
     return ticker.replace(".", "-")
 
 
+# Split the ticker list into download-sized chunks.
 def _chunks(items: list[str]) -> list[list[str]]:
     return [items[i:i + CHUNK_SIZE] for i in range(0, len(items), CHUNK_SIZE)]
 
 
+# Read a JSON file, or return the default when it does not exist yet.
 def _load_json(path: str, default):
     if not os.path.exists(path):
         return default
@@ -134,6 +135,7 @@ def _load_json(path: str, default):
         return json.load(f)
 
 
+# Write a JSON file, creating the symbol data folder when needed.
 def _save_json(path: str, data) -> None:
     os.makedirs(SYMBOL_DATA_DIR, exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
@@ -141,11 +143,11 @@ def _save_json(path: str, data) -> None:
 
 
 # -------- Downloading --------
+# One yfinance call. Returns None only when the call raises an error.
 def _download(tickers: list[str], **range_kwargs) -> pd.DataFrame | None:
-    # One yfinance call. Returns None only when the call raises an error.
     try:
         return yf.download(
-            tickers=[_yf_symbol(t) for t in tickers],
+            tickers=[_yf_symbol(ticker) for ticker in tickers],
             interval="1d",
             group_by="ticker",
             # Dividend-adjusted (total-return) closes, matching the legacy dataset.
@@ -161,16 +163,16 @@ def _download(tickers: list[str], **range_kwargs) -> pd.DataFrame | None:
         return None
 
 
+# One ticker's daily bars in master-file layout, or None if it has no data.
 def _extract_ticker_bars(df: pd.DataFrame, ticker: str, names: dict[str, str]) -> pd.DataFrame | None:
-    # One ticker's daily bars in master-file layout, or None if it has no data.
     try:
         stock_df = df[_yf_symbol(ticker)] if isinstance(df.columns, pd.MultiIndex) else df
     except KeyError:
         return None
 
     stock_df = stock_df.dropna(how="all").reset_index()
-    stock_df.columns = [str(c).capitalize() for c in stock_df.columns]
-    if "Date" not in stock_df.columns or any(c not in stock_df.columns for c in PRICE_COLS):
+    stock_df.columns = [str(column).capitalize() for column in stock_df.columns]
+    if "Date" not in stock_df.columns or any(column not in stock_df.columns for column in PRICE_COLS):
         return None
 
     bars = stock_df.dropna(subset=["Close"])[["Date"] + PRICE_COLS].copy()
@@ -183,21 +185,21 @@ def _extract_ticker_bars(df: pd.DataFrame, ticker: str, names: dict[str, str]) -
     return bars
 
 
+# One pass over the tickers in chunks, returning (received, missed): received are the
+# symbols with bars, missed are symbols with no bars or in a failed chunk download.
 def _run_pass(tickers: list[str], names: dict[str, str], frames: list[pd.DataFrame],
               range_kwargs: dict) -> tuple[list[str], list[str]]:
-    # One pass over the tickers in chunks. Returns (received, missed): received = symbols
-    # with bars, missed = symbols with no bars or whose chunk download failed.
     received: list[str] = []
     missed: list[str] = []
 
     for chunk in _chunks(tickers):
-        df = _download(chunk, **range_kwargs)
+        df: pd.DataFrame | None = _download(chunk, **range_kwargs)
         if df is None or df.empty:
             print(f"No data returned for {len(chunk)} symbols.")
             missed.extend(chunk)
             continue
         for ticker in chunk:
-            bars = _extract_ticker_bars(df, ticker, names)
+            bars: pd.DataFrame | None = _extract_ticker_bars(df, ticker, names)
             if bars is None:
                 missed.append(ticker)
             else:
@@ -207,9 +209,9 @@ def _run_pass(tickers: list[str], names: dict[str, str], frames: list[pd.DataFra
     return received, missed
 
 
+# Download once, then retry the misses once. Returns (received, missed).
 def _download_all(tickers: list[str], names: dict[str, str], frames: list[pd.DataFrame],
                   range_kwargs: dict) -> tuple[list[str], list[str]]:
-    # Download once, then retry the misses once. Returns (received, missed).
     received, missed = _run_pass(tickers, names, frames, range_kwargs)
     if missed:
         print(f"Retrying {len(missed)} symbol(s)...")
@@ -218,13 +220,13 @@ def _download_all(tickers: list[str], names: dict[str, str], frames: list[pd.Dat
     return received, missed
 
 
+# New tickers get full history; the rest get the last 5 trading days.
 def _download_pending(tickers: list[str], names: dict[str, str], frames: list[pd.DataFrame],
                       in_master: set[str]) -> tuple[list[str], list[str]]:
-    # New tickers get full history; the rest get the last 5 trading days.
     received: list[str] = []
     missed: list[str] = []
-    new = [t for t in tickers if t not in in_master]
-    existing = [t for t in tickers if t in in_master]
+    new: list[str] = [ticker for ticker in tickers if ticker not in in_master]
+    existing: list[str] = [ticker for ticker in tickers if ticker in in_master]
     for group, range_kwargs in ((new, {"start": START_DATE}), (existing, {"period": "5d"})):
         if group:
             group_received, group_missed = _download_all(group, names, frames, range_kwargs)
@@ -234,32 +236,32 @@ def _download_pending(tickers: list[str], names: dict[str, str], frames: list[pd
 
 
 # -------- Miss Tracking --------
+# Clear misses for symbols that now have bars or were dropped, then save the new misses.
 def _record_misses(received: list[str], missed: list[str], dropped: list[str], today: str) -> None:
-    # Clear misses for symbols that now have bars or were dropped, then save the new misses.
-    misses = _load_json(MISSES_FILE, {})
-    for t in received + dropped:
-        misses.pop(t, None)
-    for t in missed:
-        misses[t] = today
+    misses: dict[str, str] = _load_json(MISSES_FILE, {})
+    for ticker in received + dropped:
+        misses.pop(ticker, None)
+    for ticker in missed:
+        misses[ticker] = today
     _save_json(MISSES_FILE, misses)
 
 
 # -------- Writing --------
+# Merge the parts, then replace the master file in one step.
 def _write_master(parts: list[pd.DataFrame]) -> int:
-    # Merge the parts, then replace the master file in one step.
     combined = (
         pd.concat(parts, ignore_index=True)
         .drop_duplicates(subset=["Symbol", "Date"], keep="last")
         .sort_values(["Symbol", "Date"])
     )
-    tmp_file = MASTER_FILE + ".tmp"
+    tmp_file: str = MASTER_FILE + ".tmp"
     combined.to_parquet(tmp_file, compression="snappy", index=False)
     os.replace(tmp_file, MASTER_FILE)
     return len(combined)
 
 
+# Clear the read layer's cached data so the API serves the updated master file.
 def _refresh_api_cache() -> None:
-    # Clear the read layer's cached data so the API serves the updated master file.
     refresh_market_data_cache()
 
 

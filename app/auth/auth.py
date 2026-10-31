@@ -1,37 +1,41 @@
-# auth.py — Supabase JWT verification for FastAPI endpoints.
+# -------- auth.py --------
+# Supabase JWT verification for FastAPI endpoints.
 #
-# Newer Supabase projects sign session tokens with ES256 (asymmetric keys
-# published at /auth/v1/.well-known/jwks.json) rather than the legacy HS256
-# shared secret. We verify via JWKS first and fall back to HS256.
-# PyJWKClientError is caught so unknown-key errors become 401s, not 500s.
+# Newer Supabase projects sign session tokens with ES256 (asymmetric keys published at
+# /auth/v1/.well-known/jwks.json) rather than the legacy HS256 shared secret. We verify
+# via JWKS first and fall back to HS256. PyJWKClientError is caught so unknown-key
+# errors become 401s, not 500s.
 
 # -------- Imports --------
 import os
-from typing import Any
-
+import json
 import jwt
 import requests
+
+from typing import Any
 from dotenv import load_dotenv
 from fastapi import Header, HTTPException
 from jwt import PyJWKClient, PyJWKClientError
 
 load_dotenv()
 
+
 # -------- Configuration --------
 SUPABASE_JWT_SECRET: str | None = os.environ.get("SUPABASE_JWT")
 SUPABASE_URL: str | None = os.environ.get("SUPABASE_URL", "https://jqyqfkrzwimxuzugyuiw.supabase.co")
 SUPABASE_SERVICE_KEY: str | None = os.environ.get("SUPABASE_SERVICE_ROLE")
 
-_JWKS_URL = f"{SUPABASE_URL}/auth/v1/.well-known/jwks.json"
+_JWKS_URL: str = f"{SUPABASE_URL}/auth/v1/.well-known/jwks.json"
 _jwks_client: PyJWKClient | None = None
 
-# Tolerance for clock drift between this host and Supabase's servers, in
-# seconds. PyJWT only accepts `leeway` as a top-level decode argument (the
-# `options` dict key is ignored), so it must be passed explicitly.
-LEEWAY_S = 120
+# Tolerance for clock drift between this host and Supabase's servers, in seconds.
+# PyJWT only accepts `leeway` as a top-level decode argument (the `options` dict key
+# is ignored), so it must be passed explicitly.
+LEEWAY_S: int = 120
 
 
 # -------- Helper Methods --------
+# The cached JWKS client.
 def _get_jwks_client() -> PyJWKClient:
     global _jwks_client
     if _jwks_client is None:
@@ -39,8 +43,8 @@ def _get_jwks_client() -> PyJWKClient:
     return _jwks_client
 
 
+# Verify the Supabase access token: JWKS first, HS256 fallback.
 def _verify_token(token: str) -> dict[str, Any]:
-    """Verifies the Supabase access token (JWKS first, HS256 fallback)."""
     last_error: Exception = jwt.InvalidTokenError("Token verification failed")
 
     try:
@@ -72,8 +76,8 @@ def _verify_token(token: str) -> dict[str, Any]:
     raise jwt.InvalidTokenError(str(last_error))
 
 
+# Fetch name, email and settings from the Supabase public.users table.
 def _fetch_profile(user_id: str) -> dict[str, Any]:
-    """Fetches name/email/settings from the Supabase public.users table."""
     if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
         return {}
     try:
@@ -94,43 +98,44 @@ def _fetch_profile(user_id: str) -> dict[str, Any]:
         return {}
 
 
+# Decode the settings blob, which arrives as a dict or a JSON string.
+def _settings_from(profile: dict[str, Any]) -> dict[str, Any]:
+    settings = profile.get("settings")
+    if isinstance(settings, str):
+        try:
+            settings = json.loads(settings)
+        except ValueError:
+            settings = {}
+    return settings or {}
+
+
 # -------- FastAPI Dependency --------
+# Verify the access token from the Authorization header and return the user context.
 async def get_current_user(authorization: str = Header(default="")) -> dict[str, Any]:
-    """
-    FastAPI dependency: verifies the Supabase access token from the
-    Authorization header and returns the authenticated user's context:
-      { 'id': <supabase uid>, 'email': ..., 'name': ..., 'settings': {...} }
-    """
+    # Returns { 'id': <supabase uid>, 'email': ..., 'name': ..., 'settings': {...} }
     if not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing bearer token")
 
-    token = authorization.removeprefix("Bearer ").strip()
+    token: str = authorization.removeprefix("Bearer ").strip()
 
-    # Personal API keys (issued in Settings) are checked against Turso.
-    # Imported here because api_keys imports this module.
+    # Personal API keys (issued in Settings) are checked against Turso. Imported here
+    # because api_keys imports this module.
     if token.startswith("sltp_"):
         from app.database.users.api_keys import user_id_for_api_key
 
-        key_user_id = await user_id_for_api_key(token)
+        key_user_id: str | None = await user_id_for_api_key(token)
         if not key_user_id:
             raise HTTPException(status_code=401, detail="Invalid API key")
         profile = _fetch_profile(key_user_id)
-        settings = profile.get("settings")
-        if isinstance(settings, str):
-            import json
-            try:
-                settings = json.loads(settings)
-            except ValueError:
-                settings = {}
         return {
             "id": key_user_id,
             "email": profile.get("email"),
             "name": profile.get("name"),
-            "settings": settings or {},
+            "settings": _settings_from(profile),
         }
 
     try:
-        payload = _verify_token(token)
+        payload: dict[str, Any] = _verify_token(token)
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired")
     except jwt.InvalidTokenError as e:
@@ -141,17 +146,10 @@ async def get_current_user(authorization: str = Header(default="")) -> dict[str,
         raise HTTPException(status_code=401, detail="Token missing subject")
 
     profile = _fetch_profile(user_id)
-    settings = profile.get("settings")
-    if isinstance(settings, str):
-        import json
-        try:
-            settings = json.loads(settings)
-        except ValueError:
-            settings = {}
 
     return {
         "id": user_id,
         "email": profile.get("email") or payload.get("email"),
         "name": profile.get("name") or payload.get("user_metadata", {}).get("name"),
-        "settings": settings or {},
+        "settings": _settings_from(profile),
     }

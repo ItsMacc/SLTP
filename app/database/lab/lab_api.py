@@ -1,37 +1,45 @@
-# lab_api.py — Lab endpoints: workspaces and the projects inside them.
+# -------- lab_api.py --------
+# Lab endpoints: workspaces and the projects inside them.
 #
-# Every query is scoped to the authenticated user's id (never a client-supplied
-# id), so one user can never read or write another user's workspace.
-# Storage lives in Turso: lab_workspaces -> lab_projects -> lab_files.
+# Every query is scoped to the authenticated user's id (never a client-supplied id),
+# so one user can never read or write another user's workspace. Storage lives in
+# Turso: lab_workspaces -> lab_projects -> lab_files.
 
-import asyncio
+# -------- Imports --------
 import os
 import re
-import subprocess
 import sys
-import tempfile
 import uuid
-from datetime import datetime, timezone
-from pathlib import Path
+import asyncio
+import tempfile
+import subprocess
+
 from typing import Any
-
-from fastapi import APIRouter, Depends, HTTPException
+from pathlib import Path
+from datetime import datetime, timezone
 from pydantic import BaseModel, Field
+from fastapi import APIRouter, Depends, HTTPException
 
+# Auth imports
 from app.auth.auth import get_current_user
+
+# Database imports
 from app.database.turso import turso
-from app.database.lab.lab_core import CORE_FILES, CORE_FOLDERS, CORE_ROOT, core_source, is_core_path
 from app.database.lab.lab_templates import source_for
+from app.database.lab.lab_core import CORE_FILES, CORE_FOLDERS, CORE_ROOT, core_source, is_core_path
 
 router = APIRouter()
 
-NAME_MAX = 60
+NAME_MAX: int = 60
 
 
+# -------- Helpers --------
+# The current time as an ISO string.
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+# Trim and validate a user-supplied name, with a message naming the field.
 def _clean_name(value: str, label: str) -> str:
     name = (value or "").strip()
     if not name:
@@ -41,6 +49,7 @@ def _clean_name(value: str, label: str) -> str:
     return name
 
 
+# -------- Request Bodies --------
 class CreateWorkspaceIn(BaseModel):
     workspace_name: str = Field(description="Name of the workspace that will hold the project.")
     project_name: str = Field(description="Name of the first project inside the workspace.")
@@ -64,6 +73,8 @@ class CreateProjectIn(BaseModel):
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 WORKSPACE_ROOT = "workspace"
 
+
+# Insert a template's starter files and the folders they imply.
 async def _store_starter_files(project_id: str, user_id: str, starter_files: dict[str, str], now: str) -> None:
     folders: set[str] = set()
     for name, content in starter_files.items():
@@ -79,8 +90,8 @@ async def _store_starter_files(project_id: str, user_id: str, starter_files: dic
         )
 
 
+# The starter files for a template, or a 400 for an unknown one.
 async def _starter_or_400(template: str | None) -> dict[str, str]:
-    # Blank projects and templates each receive their starter strategy source.
     sources = source_for(template)
     if sources is None:
         raise HTTPException(status_code=400, detail="Unknown starting template.")
@@ -95,13 +106,14 @@ FILE_NAME_RE = re.compile(r"^(?:[A-Za-z0-9_-]{1,50}/)*[A-Za-z0-9_-]{1,50}\.py$")
 FOLDER_NAME_RE = re.compile(r"^[A-Za-z0-9_-]{1,50}(?:/[A-Za-z0-9_-]{1,50})*$")
 
 
+# Every folder a file path lives in, shallowest first.
 def _parent_folders(path: str) -> list[str]:
     parts = path.split("/")[:-1]
     return ["/".join(parts[:index]) for index in range(1, len(parts) + 1)]
 
 
+# Create the folder rows a path needs, skipping the ones that already exist.
 async def _ensure_folders(project_id: str, user_id: str, names: list[str], now: str) -> None:
-    """Create the folder rows a path needs, skipping the ones that already exist."""
     for folder in names:
         existing = await turso.execute(
             "SELECT id FROM lab_folders WHERE project_id = ? AND user_id = ? AND name = ?",
@@ -130,8 +142,8 @@ _LEGACY_IMPORT_REWRITES: tuple[tuple[str, str], ...] = (
 )
 
 
+# Move a pre-workspace project onto the current layout; idempotent.
 async def _migrate_legacy_layout(project_id: str, user_id: str) -> None:
-    """Move a pre-`workspace/` project onto the current layout. Idempotent."""
     rows = await turso.execute(
         "SELECT id, name, content FROM lab_files WHERE project_id = ? AND user_id = ? ORDER BY name",
         [project_id, user_id],
@@ -140,7 +152,7 @@ async def _migrate_legacy_layout(project_id: str, user_id: str) -> None:
     if not legacy:
         return
 
-    now = _now()
+    now: str = _now()
     taken = {row["name"] for row in rows}
     moved: list[str] = []
     for row in legacy:
@@ -167,6 +179,7 @@ async def _migrate_legacy_layout(project_id: str, user_id: str) -> None:
     )
 
 
+# Trim and validate a folder path.
 def _clean_folder_name(value: str) -> str:
     name = (value or "").strip().strip("/")
     if not FOLDER_NAME_RE.fullmatch(name):
@@ -174,6 +187,7 @@ def _clean_folder_name(value: str) -> str:
     return name
 
 
+# Trim and validate a file path, refusing the read-only core package.
 def _clean_file_name(value: str) -> str:
     name = (value or "").strip().strip("/")
     parts = name.split("/")
@@ -187,8 +201,8 @@ def _clean_file_name(value: str) -> str:
     return name
 
 
+# A file the student owns; it always lives under workspace/.
 def _clean_workspace_file_name(value: str) -> str:
-    """A file the student owns. It always lives under `workspace/`."""
     name = _clean_file_name(value)
     if not name.startswith(f"{WORKSPACE_ROOT}/"):
         raise HTTPException(
@@ -198,8 +212,8 @@ def _clean_workspace_file_name(value: str) -> str:
     return name
 
 
+# A folder the student owns; it always lives under workspace/.
 def _clean_workspace_folder_name(value: str) -> str:
-    """A folder the student owns. It always lives under `workspace/`."""
     name = _clean_folder_name(value)
     if not name.startswith(f"{WORKSPACE_ROOT}/"):
         raise HTTPException(
@@ -209,6 +223,7 @@ def _clean_workspace_folder_name(value: str) -> str:
     return name
 
 
+# One of the caller's projects, or 404.
 async def _owned_project(project_id: str, user_id: str) -> dict[str, Any]:
     rows = await turso.execute(
         "SELECT id, name FROM lab_projects WHERE id = ? AND user_id = ?",
@@ -219,6 +234,7 @@ async def _owned_project(project_id: str, user_id: str) -> dict[str, Any]:
     return rows[0]
 
 
+# -------- File And Folder Request Bodies --------
 class CreateFileIn(BaseModel):
     name: str = Field(description="File name, including its extension.")
 
@@ -235,10 +251,11 @@ class NameIn(BaseModel):
     name: str = Field(description="New name for the file or folder.")
 
 
+# -------- Workspace Endpoints --------
+# The signed-in user's workspaces, each with its projects (oldest first).
 @router.get("/api/lab/workspaces")
 async def list_workspaces(user: dict[str, Any] = Depends(get_current_user)) -> dict[str, Any]:
-    """The signed-in user's workspaces, each with its projects (oldest first)."""
-    user_id = user["id"]
+    user_id: str = user["id"]
     workspaces = await turso.execute(
         "SELECT id, name, created_at FROM lab_workspaces WHERE user_id = ? ORDER BY created_at",
         [user_id],
@@ -277,18 +294,18 @@ async def list_workspaces(user: dict[str, Any] = Depends(get_current_user)) -> d
     }
 
 
+# Create a workspace together with its first project.
 @router.post("/api/lab/workspaces")
 async def create_workspace(
     body: CreateWorkspaceIn,
     user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
-    """Create a workspace together with its first project."""
-    user_id = user["id"]
+    user_id: str = user["id"]
     workspace_name = _clean_name(body.workspace_name, "Workspace name")
     project_name = _clean_name(body.project_name, "Project name")
     starter_files = await _starter_or_400(body.template)
 
-    now = _now()
+    now: str = _now()
     workspace_id = str(uuid.uuid4())
     project_id = str(uuid.uuid4())
 
@@ -312,13 +329,14 @@ async def create_workspace(
     }
 
 
+# -------- File And Folder Endpoints --------
+# The project's files: the read-only core/ package from the repo, then the user's own.
 @router.get("/api/lab/projects/{project_id}/files")
 async def list_files(
     project_id: str,
     user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
-    """The project's files: the read-only core/ package from the repo, then the user's own."""
-    user_id = user["id"]
+    user_id: str = user["id"]
     project = await _owned_project(project_id, user_id)
     await _migrate_legacy_layout(project_id, user_id)
 
@@ -345,13 +363,14 @@ async def list_files(
     }
 
 
+# Create an empty file in the workspace.
 @router.post("/api/lab/projects/{project_id}/files")
 async def create_file(
     project_id: str,
     body: CreateFileIn,
     user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
-    user_id = user["id"]
+    user_id: str = user["id"]
     await _owned_project(project_id, user_id)
     name = _clean_workspace_file_name(body.name)
 
@@ -362,7 +381,7 @@ async def create_file(
     if existing:
         raise HTTPException(status_code=409, detail=f"{name} already exists.")
 
-    now = _now()
+    now: str = _now()
     await turso.execute(
         """INSERT INTO lab_files (id, project_id, user_id, name, content, created_at, updated_at)
            VALUES (?, ?, ?, ?, '', ?, ?)""",
@@ -372,16 +391,17 @@ async def create_file(
     return {"name": name, "content": "", "locked": False}
 
 
+# Create a folder in the workspace.
 @router.post("/api/lab/projects/{project_id}/folders")
 async def create_folder(
     project_id: str,
     body: CreateFolderIn,
     user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
-    user_id = user["id"]
+    user_id: str = user["id"]
     await _owned_project(project_id, user_id)
     name = _clean_workspace_folder_name(body.name)
-    now = _now()
+    now: str = _now()
     try:
         await turso.execute(
             "INSERT INTO lab_folders (id, project_id, user_id, name, created_at) VALUES (?, ?, ?, ?, ?)",
@@ -406,13 +426,14 @@ async def create_folder(
     return {"name": name}
 
 
+# Delete a folder and every file under it.
 @router.delete("/api/lab/projects/{project_id}/folders/{folder_name:path}")
 async def delete_folder(
     project_id: str,
     folder_name: str,
     user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
-    user_id = user["id"]
+    user_id: str = user["id"]
     await _owned_project(project_id, user_id)
     name = _clean_folder_name(folder_name)
     if is_core_path(name):
@@ -439,6 +460,7 @@ async def delete_folder(
     return {"deleted": True, "kind": "folder", "name": name}
 
 
+# Save a file's new content.
 @router.put("/api/lab/projects/{project_id}/files/{file_name:path}")
 async def save_file(
     project_id: str,
@@ -446,7 +468,7 @@ async def save_file(
     body: SaveFileIn,
     user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
-    user_id = user["id"]
+    user_id: str = user["id"]
     await _owned_project(project_id, user_id)
     name = _clean_workspace_file_name(file_name)
     if len(body.content) > FILE_CONTENT_MAX:
@@ -459,6 +481,7 @@ async def save_file(
     return {"name": name, "saved": True}
 
 
+# Rename or move one file, creating the folders the new path needs.
 @router.patch("/api/lab/projects/{project_id}/files/{file_name:path}")
 async def rename_file(
     project_id: str,
@@ -466,7 +489,7 @@ async def rename_file(
     body: NameIn,
     user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
-    user_id = user["id"]
+    user_id: str = user["id"]
     await _owned_project(project_id, user_id)
     old_name = _clean_workspace_file_name(file_name)  # 403 for the locked repo files
     new_name = _clean_workspace_file_name(body.name)  # 403 if the new name is a locked name
@@ -490,7 +513,7 @@ async def rename_file(
         "UPDATE lab_files SET name = ?, updated_at = ? WHERE project_id = ? AND user_id = ? AND name = ?",
         [new_name, _now(), project_id, user_id, old_name],
     )
-    now = _now()
+    now: str = _now()
     await _ensure_folders(project_id, user_id, _parent_folders(new_name), now)
     old_folders = _parent_folders(old_name)
     for folder in reversed(old_folders):
@@ -512,13 +535,14 @@ async def rename_file(
     return {"name": new_name, "previous": old_name}
 
 
+# Delete one file and any folders it leaves empty.
 @router.delete("/api/lab/projects/{project_id}/files/{file_name:path}")
 async def delete_file(
     project_id: str,
     file_name: str,
     user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
-    user_id = user["id"]
+    user_id: str = user["id"]
     await _owned_project(project_id, user_id)
     name = _clean_workspace_file_name(file_name)  # 403 for the locked repo files
 
@@ -576,14 +600,14 @@ class ImportIn(BaseModel):
     folders: list[str] = Field(default=[], description="Folder paths, relative to the picked folder, to import.")
 
 
+# Write a batch of files the browser read from a local folder into the project.
 @router.post("/api/lab/projects/{project_id}/import")
 async def import_files(
     project_id: str,
     body: ImportIn,
     user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
-    """Write a batch of files the browser read from a local folder into the project."""
-    user_id = user["id"]
+    user_id: str = user["id"]
     await _owned_project(project_id, user_id)
 
     if not body.files:
@@ -608,7 +632,7 @@ async def import_files(
         if any(other.startswith(f"{path}/") for other in file_paths)
     }
 
-    now = _now()
+    now: str = _now()
     imported: list[str] = []
     skipped: list[dict[str, str]] = []
     seen: set[str] = set()
@@ -665,14 +689,15 @@ async def import_files(
     return {"imported": imported, "skipped": skipped}
 
 
+# -------- Project And Workspace Management --------
+# Add a project to an existing workspace, seeded with the chosen starter file.
 @router.post("/api/lab/workspaces/{workspace_id}/projects")
 async def create_project(
     workspace_id: str,
     body: CreateProjectIn,
     user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
-    """Add a project to an existing workspace, seeded with the chosen starter file."""
-    user_id = user["id"]
+    user_id: str = user["id"]
     workspace = await turso.execute(
         "SELECT id FROM lab_workspaces WHERE id = ? AND user_id = ?",
         [workspace_id, user_id],
@@ -682,7 +707,7 @@ async def create_project(
     project_name = _clean_name(body.name, "Project name")
     starter_files = await _starter_or_400(body.template)
 
-    now = _now()
+    now: str = _now()
     project_id = str(uuid.uuid4())
     await turso.execute(
         """INSERT INTO lab_projects (id, workspace_id, user_id, name, created_at, updated_at)
@@ -693,13 +718,14 @@ async def create_project(
     return {"id": project_id, "name": project_name, "created_at": now}
 
 
+# Rename a project.
 @router.patch("/api/lab/projects/{project_id}")
 async def rename_project(
     project_id: str,
     body: NameIn,
     user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
-    user_id = user["id"]
+    user_id: str = user["id"]
     await _owned_project(project_id, user_id)
     name = _clean_name(body.name, "Project name")
     await turso.execute(
@@ -709,17 +735,15 @@ async def rename_project(
     return {"id": project_id, "name": name}
 
 
+# Delete a project and every file in it.
 @router.delete("/api/lab/projects/{project_id}")
 async def delete_project(
     project_id: str,
     user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
-    """Delete a project and every file in it, from Turso.
-
-    Turso is not guaranteed to enforce the ON DELETE CASCADE from the schema,
-    so the child rows are removed explicitly, files first.
-    """
-    user_id = user["id"]
+    # Turso is not guaranteed to enforce the ON DELETE CASCADE from the schema, so
+    # the child rows are removed explicitly, files first
+    user_id: str = user["id"]
     project = await _owned_project(project_id, user_id)
     await turso.execute(
         "DELETE FROM lab_files WHERE project_id = ? AND user_id = ?",
@@ -736,17 +760,15 @@ async def delete_project(
     return {"deleted": True, "kind": "project", "name": project["name"]}
 
 
+# Delete a workspace with all of its projects and files.
 @router.delete("/api/lab/workspaces/{workspace_id}")
 async def delete_workspace(
     workspace_id: str,
     user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
-    """Delete a workspace with all of its projects and files, from Turso.
-
-    Child rows are removed explicitly, deepest first (files, projects, then the
-    workspace), because Turso may not enforce the ON DELETE CASCADE.
-    """
-    user_id = user["id"]
+    # Child rows are removed explicitly, deepest first (files, projects, then the
+    # workspace), because Turso may not enforce the ON DELETE CASCADE
+    user_id: str = user["id"]
     workspace = await turso.execute(
         "SELECT id, name FROM lab_workspaces WHERE id = ? AND user_id = ?",
         [workspace_id, user_id],
@@ -797,6 +819,7 @@ _DIAG_RE = re.compile(
 )
 
 
+# Unsaved editor drafts sent with a check request.
 class DraftFileIn(BaseModel):
     name: str
     content: str
@@ -809,8 +832,8 @@ _mypy_python: str | None = None
 _mypy_python_found = False
 
 
+# The first Python that can import mypy: the repo venv, then the server's own.
 def _mypy_interpreter() -> str | None:
-    """The first Python that can import mypy: the repo venv, then the server's own."""
     global _mypy_python, _mypy_python_found
     if _mypy_python_found:
         return _mypy_python
@@ -838,6 +861,7 @@ class CheckIn(BaseModel):
     files: list[DraftFileIn] = []
 
 
+# Write the sources into a temp tree beside the core package and run mypy over them.
 def _run_type_check(sources: dict[str, str]) -> dict[str, Any]:
     interpreter = _mypy_interpreter()
     if interpreter is None:
@@ -924,13 +948,14 @@ def _run_type_check(sources: dict[str, str]) -> dict[str, Any]:
     }
 
 
+# Run mypy over the project, including the drafts the editor has not saved yet.
 @router.post("/api/lab/projects/{project_id}/check")
 async def check_project(
     project_id: str,
     body: CheckIn,
     user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
-    user_id = user["id"]
+    user_id: str = user["id"]
     await _owned_project(project_id, user_id)
 
     rows = await turso.execute(

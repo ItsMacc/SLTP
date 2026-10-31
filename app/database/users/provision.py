@@ -1,25 +1,37 @@
-# provision.py — Idempotent user provisioning in Turso.
+# -------- provision.py --------
+# Idempotent user provisioning in Turso.
 #
-# Called on login: ensures the authenticated user has a row in the users
-# table (the Supabase mirror the runner reads emails/settings from).
+# Called on login: ensures the authenticated user has a row in the users table (the
+# Supabase mirror the runner reads emails and settings from).
 
 # -------- Imports --------
-import json
 import os
-from datetime import datetime, timezone
-
+import json
 import requests
-from dotenv import load_dotenv
-from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+
 from typing import Any, Optional
+from datetime import datetime, timezone
+from dotenv import load_dotenv
+from pydantic import BaseModel
+from fastapi import APIRouter, Depends
+
+# Database imports
+from app.database.turso import turso
+from app.database.users.defaults import default_settings
+
+# Auth imports
+from app.auth.auth import get_current_user
 
 load_dotenv()
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://jqyqfkrzwimxuzugyuiw.supabase.co")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE")
 
+router = APIRouter()
 
+
+# -------- Helpers --------
+# Service-role headers, used only for the profile seed below.
 def _service_headers() -> dict[str, str]:
     return {
         "apikey": SUPABASE_SERVICE_KEY,
@@ -27,65 +39,51 @@ def _service_headers() -> dict[str, str]:
         "Content-Type": "application/json",
     }
 
-from app.auth.auth import get_current_user
-from app.database.turso import turso
-from app.database.users.defaults import default_settings
 
-router = APIRouter()
-
-
+# -------- Request Bodies --------
 class ProvisionIn(BaseModel):
     name: Optional[str] = None
 
 
 # -------- Endpoints --------
+# Ensure the authenticated user exists in the users table; safe to call on every login.
 @router.post("/api/user/provision")
 async def provision_user(
     body: ProvisionIn,
     user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
-    """Idempotently ensures the authenticated user exists in the users table.
-    Safe to call on every login.
+    # Only the users row is created here, deliberately. No portfolio is made: a
+    # brand-new user must land on the onboarding wizard first, so the absence of a
+    # portfolios row is the signal the frontend uses to show it (see PortfolioPage,
+    # which renders the wizard while onboarded is false).
+    user_id: str = user["id"]
+    email: str | None = user.get("email")
+    name: str | None = body.name or user.get("name") or (email.split("@")[0] if email else None)
 
-    Only the users row is created here, deliberately. No portfolio is made:
-    a brand-new user must land on the onboarding wizard first, so the absence
-    of a portfolios row is the signal the frontend uses to show it (see
-    PortfolioPage, which renders the wizard while onboarded is false).
-    """
-    user_id = user["id"]
-    email = user.get("email")
-    name = body.name or user.get("name") or (email.split("@")[0] if email else None)
+    existing: dict[str, Any] | None = await turso.get_user(user_id)
 
-    existing = await turso.get_user(user_id)
-
-    # Resolve settings in priority order: what the caller sent, then what the
-    # Supabase profile already holds, then what the Turso row already holds,
-    # and only then the shared defaults.
-    #
-    # `existing` is None for a brand-new account, which is the ONLY case where
-    # every other source is empty too — so each read has to tolerate None.
-    # Reading existing["settings"] unguarded raised TypeError here, which meant
-    # provisioning 500'd for every new signup and no Turso row was ever
-    # written. The defaults are what finally fills the gap.
+    # Resolve settings in priority order: what the caller sent, then what the Supabase
+    # profile already holds, then what the Turso row already holds, and only then the
+    # shared defaults. `existing` is None for a brand-new account, which is the only
+    # case where every other source is empty too, so each read has to tolerate None.
     candidates = [
         user.get("settings"),
         (existing or {}).get("settings"),
     ]
-    settings = next((dict(c) for c in candidates if isinstance(c, dict) and c), None)
+    settings: dict[str, Any] | None = next((dict(c) for c in candidates if isinstance(c, dict) and c), None)
     if settings is None:
         settings = default_settings()
 
-    # Also seed the Supabase profile row, so a brand-new account exists in
-    # both stores with the same defaults from the very first authenticated
-    # request. Idempotent: an existing profile is left exactly as it is.
-    supabase_profile = await _ensure_supabase_profile(user_id, name, email, settings)
+    # Seed the Supabase profile row too, so a brand-new account exists in both stores
+    # with the same defaults from the very first authenticated request
+    supabase_profile: bool = await _ensure_supabase_profile(user_id, name, email, settings)
 
     await turso.upsert_user(user_id, name, email, settings)
-    created = existing is None
+    created: bool = existing is None
 
-    # Deliberately NOT creating a portfolio here. Its absence is what routes
-    # the user into onboarding, so the wizard owns the very first portfolio.
-    portfolio = await turso.get_portfolio(user_id)
+    # Deliberately NOT creating a portfolio here: its absence is what routes the user
+    # into onboarding, so the wizard owns the very first portfolio
+    portfolio: dict[str, Any] | None = await turso.get_portfolio(user_id)
 
     return {
         "provisioned": created,
@@ -95,21 +93,17 @@ async def provision_user(
     }
 
 
+# Create the Supabase public.users profile row if it is missing; True only when a row was created.
 async def _ensure_supabase_profile(
     user_id: str,
     name: str | None,
     email: str | None,
     settings: dict[str, Any],
 ) -> bool:
-    """Creates the Supabase public.users profile row if it is missing.
-
-    Uses the service-role key because a brand-new user has no row to write and
-    the client's own RLS insert policy may not cover the first write yet.
-    Best-effort: if Supabase is unreachable the account still provisions in
-    Turso, which is what the rest of the app actually reads.
-
-    Returns True only when a row was actually created.
-    """
+    # Uses the service-role key because a brand-new user has no row to write and the
+    # client's own RLS insert policy may not cover the first write yet. Best-effort: if
+    # Supabase is unreachable the account still provisions in Turso, which is what the
+    # rest of the app actually reads.
     if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
         return False
 
@@ -121,7 +115,7 @@ async def _ensure_supabase_profile(
             timeout=10,
         )
         if existing.status_code == 200 and existing.json():
-            return False  # already there — never overwrite saved settings
+            return False  # already there, never overwrite saved settings
 
         created = requests.post(
             f"{SUPABASE_URL}/rest/v1/users",

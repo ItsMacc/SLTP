@@ -1,51 +1,53 @@
-# buy_and_hold.py — Passive benchmark strategy.
+# -------- buy_and_hold.py --------
+# Passive benchmark strategy: buy once, hold until the end.
 #
-# Buys each ticker once when its first eligible signal is produced, allocating
-# an equal fraction of the initial index per ticker. No stops, targets, or
+# Buys each ticker once when its first eligible signal is produced, allocating an
+# equal fraction of the initial index per ticker. No stops, targets, or
 # discretionary exits: holdings remain open until the backtest's final close.
 
 # -------- Imports --------
+# Engine imports
 from app.engine.strategy import Strategy
 from app.engine.utils.Order import Order
+from app.engine.utils.StockData import StockData
 from app.engine.utils.PositionType import PositionType
 from app.engine.utils.RebalanceFrequency import RebalanceFrequency
-from app.engine.utils.StockData import StockData
 
 
 # -------- Buy And Hold Strategy --------
 class BuyAndHold(Strategy):
+    # Every name is held; one order per ticker, no rotation or stop processing.
     def __init__(self):
         super().__init__()
 
         self.name: str = "Buy & Hold"
         self.description: str = "Standard Buy and Hold benchmark strategy"
 
-        # Every name is held; one order per ticker, no rotation or stop processing.
-        self.MAX_POSITIONS = None
-        self.MAX_LOTS_PER_TICKER = 1
-        self.REBALANCE_FREQUENCY = RebalanceFrequency.NEVER
-        self.MIN_BARS_REQUIRED = 1
-        self.LIQUIDATE_ON_END = False
+        self.MAX_POSITIONS: int | None = None
+        self.MAX_LOTS_PER_TICKER: int = 1
+        self.REBALANCE_FREQUENCY: RebalanceFrequency = RebalanceFrequency.NEVER
+        self.MIN_BARS_REQUIRED: int = 1
+        self.LIQUIDATE_ON_END: bool = False
 
+    # Hold one name, picked once at the start of the run.
     def initialize_universe(self, current_date: str, histories: dict[str, StockData]) -> bool:
-        # The whole local universe, loaded once
         self.tickers.clear()
         self.add_ticker("AAPL")
         return bool(self.tickers)
 
+    # Buy the ticker once and never trade it again.
     def on_signal(self, ticker: str, data: StockData) -> Order | None:
-        # If we already hold this ticker, do nothing
         if ticker in self.open_tickers:
             return None
 
         if not self.tickers:
             return None
 
-        close = float(data.close_price[-1])
+        close: float = float(data.close_price[-1])
         if close <= 0:
             return None
 
-        allocation = 1.0 / len(self.tickers)
+        allocation: float = 1.0 / len(self.tickers)
         return Order(
             ticker=ticker,
             position_type=PositionType.LONG,

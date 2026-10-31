@@ -1,4 +1,5 @@
-# account_delete.py — Full account erasure.
+# -------- account_delete.py --------
+# Full account erasure.
 #
 # Deleting an account has to touch three places. The order matters:
 #
@@ -22,13 +23,16 @@
 
 # -------- Imports --------
 import os
-from typing import Any
-
 import requests
+
+from typing import Any
 from dotenv import load_dotenv
 from fastapi import APIRouter, Depends, HTTPException
 
+# Auth imports
 from app.auth.auth import get_current_user
+
+# Database imports
 from app.database.turso import turso
 from app.database.users.api_keys import delete_user_api_keys
 
@@ -51,20 +55,17 @@ def _service_headers() -> dict[str, str]:
 
 
 # -------- Endpoints --------
-
+# Erase the caller everywhere; already-gone counts as gone.
 @router.delete("/api/user/account")
 async def delete_account(
     user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
-    """Erase the caller everywhere. Idempotent: already-gone counts as gone.
-
-    The auth credential is removed first. If that fails the endpoint returns 409
-    before touching any data, because the account is still usable and the
-    person must be able to retry. Once it succeeds the account can no longer
-    sign in, so data-cleanup failures are reported as warnings for retry rather
-    than failing the request.
-    """
-    user_id = user["id"]
+    # The auth credential is removed first. If that fails the endpoint returns 409
+    # before touching any data, because the account is still usable and the person
+    # must be able to retry. Once it succeeds the account can no longer sign in, so
+    # data-cleanup failures are reported as warnings for retry rather than failing
+    # the request.
+    user_id: str = user["id"]
     removed: dict[str, Any] = {
         "supabase_auth": False,
         "supabase_profile": False,
@@ -75,7 +76,8 @@ async def delete_account(
     }
     warnings: list[str] = []
 
-    # ---- Supabase auth: the credential. First, and required. ----
+    # -------- Supabase Auth: The Credential --------
+    # First, and required
     if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
         raise HTTPException(
             status_code=409,
@@ -106,7 +108,7 @@ async def delete_account(
             detail=f"Could not delete your sign-in credentials, so the account is still active. {e}",
         ) from e
 
-    # ---- Supabase: the public profile row ----
+    # -------- Supabase: The Profile Row --------
     try:
         resp = requests.delete(
             f"{SUPABASE_URL}/rest/v1/users",
@@ -125,9 +127,9 @@ async def delete_account(
     except Exception as e:  # noqa: BLE001
         warnings.append(f"Supabase profile row not deleted: {e}")
 
-    # ---- Turso: Lab work, deepest rows first (files, folders, projects,
-    #      workspaces). Child rows are deleted explicitly because Turso may
-    #      not enforce ON DELETE CASCADE. ----
+    # -------- Turso: Lab Work --------
+    # Deepest rows first (files, folders, projects, workspaces). Child rows are
+    # deleted explicitly because Turso may not enforce ON DELETE CASCADE.
     try:
         for table in ("lab_files", "lab_folders", "lab_projects", "lab_workspaces"):
             await turso.execute(f"DELETE FROM {table} WHERE user_id = ?", [user_id])
@@ -135,16 +137,16 @@ async def delete_account(
     except Exception as e:  # noqa: BLE001 - report, never abort the cascade
         warnings.append(f"Turso Lab data not deleted: {e}")
 
-    # ---- Turso: API keys ----
+    # -------- Turso: API Keys --------
     try:
         await delete_user_api_keys(user_id)
         removed["turso_api_keys"] = 1
     except Exception as e:  # noqa: BLE001
         warnings.append(f"Turso API keys not deleted: {e}")
 
-    # ---- Turso: portfolios first, then the user row ----
-    # (no FK between them today, but portfolio is the dependent record and
-    #  this ordering stays correct if one is ever added)
+    # -------- Turso: Portfolios, Then The User Row --------
+    # No FK between them today, but the portfolio is the dependent record and this
+    # ordering stays correct if one is ever added
     try:
         await turso.execute("DELETE FROM portfolios WHERE user_id = ?", [user_id])
         removed["turso_portfolios"] = 1

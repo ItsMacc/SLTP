@@ -1,21 +1,27 @@
-# market_data.py — API-facing market data date and serialization helpers.
-# Raw history loading, Parquet access, and cache management stay in fetch.py.
+# -------- market_data.py --------
+# API-facing market data helpers: timeframe maths and the stock-history response.
+#
+# Raw bars, Parquet access and cache management stay in app/database/market.
+
+# -------- Imports --------
 from datetime import datetime
 from typing import Any
 
 from dateutil.relativedelta import relativedelta
 
+# Engine imports
 from app.engine.utils.StockData import StockData
 
 
+# -------- Timeframes --------
+# Turn a stock-history timeframe into its earliest date; None means all history.
 def calculate_start_date(timeframe: str) -> str | None:
-    """Translate a stock-history API timeframe into its earliest date."""
-    normalized = timeframe.lower()
+    normalized: str = timeframe.lower()
     if normalized == "all":
         return None
 
-    today = datetime.now()
-    start_by_timeframe = {
+    today: datetime = datetime.now()
+    start_by_timeframe: dict[str, datetime] = {
         "1y": today - relativedelta(years=1),
         "2y": today - relativedelta(years=2),
         "5y": today - relativedelta(years=5),
@@ -23,10 +29,11 @@ def calculate_start_date(timeframe: str) -> str | None:
     return start_by_timeframe.get(normalized, start_by_timeframe["1y"]).strftime("%Y-%m-%d")
 
 
+# -------- Serialization --------
+# Convert one ticker's history into the stock-history API response body.
 def serialize_stock_history(stock_data: StockData, ticker: str, timeframe: str) -> dict[str, Any]:
-    """Convert a StockData record to the existing stock-history API response."""
-    normalized_ticker = ticker.strip().upper()
-    bars = [
+    normalized_ticker: str = ticker.strip().upper()
+    bars: list[dict[str, Any]] = [
         {
             "date": str(date),
             "open": float(open_price),

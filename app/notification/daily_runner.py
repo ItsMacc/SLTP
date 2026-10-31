@@ -1,41 +1,51 @@
-# daily_runner.py — Nightly market refresh and strategy-signal digests.
+# -------- daily_runner.py --------
+# Nightly market refresh and strategy-signal digests.
 #
-# Each registered strategy is evaluated once on the latest stored session with
-# the production Backtester. Its pending Orders are the entry signals; no order
-# is filled by this one-day scan. Signals are shared with onboarded users who
-# follow that strategy and have trade-signal emails enabled.
+# Each registered strategy is evaluated once on the latest stored session with the
+# production Backtester. Its pending Orders are the entry signals; no order is filled
+# by this one-day scan. Signals are shared with onboarded users who follow that
+# strategy and have trade-signal emails enabled.
 
+# -------- Imports --------
 from __future__ import annotations
 
-import argparse
-import asyncio
 import os
-from datetime import datetime, timedelta
-from typing import Any
-
+import json
+import asyncio
+import argparse
 import requests
+
+from typing import Any
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
+# Engine imports
+from app.engine.backtesting import Backtester
+from app.strategies import REGISTRY
+
+# Database imports
 from app.database.turso import turso
 from app.database.market.market_data import update_market_data
 from app.database.market.market_data_service import get_latest_trading_date
+
+# Notification imports
 from app.notification.mailer import signals_digest_email
-from app.strategies import REGISTRY
-from app.engine.backtesting import Backtester
 
 load_dotenv()
+
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://jqyqfkrzwimxuzugyuiw.supabase.co").rstrip("/")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE")
-SUPABASE_PAGE_SIZE = 1000
+SUPABASE_PAGE_SIZE: int = 1000
 
 
+# -------- Settings Mirror --------
+# Read the authoritative notification settings from the Supabase profile table, one page at a time.
 def _fetch_supabase_users() -> list[dict[str, Any]]:
-    """Read the authoritative notification settings from the Supabase profile table."""
     if not SUPABASE_SERVICE_KEY:
         raise RuntimeError("SUPABASE_SERVICE_ROLE is required to sync daily notification settings.")
 
     users: list[dict[str, Any]] = []
-    start = 0
+    start: int = 0
     headers = {
         "apikey": SUPABASE_SERVICE_KEY,
         "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
@@ -58,20 +68,21 @@ def _fetch_supabase_users() -> list[dict[str, Any]]:
     return users
 
 
+# Refresh Turso's notification-settings mirror before selecting recipients.
 async def _sync_settings() -> None:
-    """Refresh Turso's notification-settings mirror before selecting recipients."""
     users = await asyncio.to_thread(_fetch_supabase_users)
     for user in users:
         user_id = user.get("id")
         if not user_id:
             continue
+
         settings = user.get("settings")
         if isinstance(settings, str):
-            import json
             try:
                 settings = json.loads(settings)
             except ValueError:
                 settings = {}
+
         await turso.mirror_settings(
             str(user_id),
             settings if isinstance(settings, dict) else {},
@@ -81,6 +92,8 @@ async def _sync_settings() -> None:
     print(f"Synced notification settings for {len(users)} Supabase user(s).")
 
 
+# -------- Strategy Selection --------
+# The registered strategy ids a user follows, in their stored order.
 def _followed_strategy_ids(preferences: dict[str, Any]) -> list[str]:
     raw = preferences.get("followedStrategies") or []
     ids: list[str] = []
@@ -91,13 +104,14 @@ def _followed_strategy_ids(preferences: dict[str, Any]) -> list[str]:
     return ids
 
 
+# Run one strategy through the real engine for one completed session.
 def _signals_for_strategy(strategy_id: str, signal_date: str) -> list[dict[str, Any]]:
-    """Run one strategy through the real engine for one completed session."""
     strategy_cls, _kind = REGISTRY[strategy_id]
     strategy = strategy_cls()
-    # The engine requires a non-empty range and indicator strategies need
-    # enough prior sessions to evaluate today's signal without lookahead.
-    warmup_start = (datetime.strptime(signal_date, "%Y-%m-%d") - timedelta(days=370)).strftime("%Y-%m-%d")
+
+    # The engine requires a non-empty range and indicator strategies need enough prior
+    # sessions to evaluate today's signal without lookahead
+    warmup_start: str = (datetime.strptime(signal_date, "%Y-%m-%d") - timedelta(days=370)).strftime("%Y-%m-%d")
     backtester = Backtester(strategy=strategy, start_date=warmup_start, end_date=signal_date)
     backtester.run()
 
@@ -112,8 +126,9 @@ def _signals_for_strategy(strategy_id: str, signal_date: str) -> list[dict[str, 
             "stop_loss": order.stop_loss if order.stop_loss > 0 else None,
             "take_profit": order.take_profit if order.take_profit > 0 else None,
         }
-        # The engine already marked the latest close; don't reopen Parquet once
-        # per signal just to decorate the email.
+
+        # The engine already marked the latest close; don't reopen Parquet once per
+        # signal just to decorate the email
         close = backtester.manager.last_prices.get(order.ticker)
         if close is not None:
             signal["price"] = float(close)
@@ -121,14 +136,15 @@ def _signals_for_strategy(strategy_id: str, signal_date: str) -> list[dict[str, 
     return signals
 
 
+# -------- Daily Run --------
+# Refresh market data, evaluate followed strategies, and send one digest per user.
 async def run_daily(*, refresh_market_data: bool = True) -> dict[str, int | str]:
-    """Refresh market data, evaluate followed strategies, and send one digest per user."""
     if refresh_market_data:
         print("Refreshing local market data...")
         await asyncio.to_thread(update_market_data)
 
     await _sync_settings()
-    signal_date = await asyncio.to_thread(get_latest_trading_date)
+    signal_date: str = await asyncio.to_thread(get_latest_trading_date)
     recipients = await turso.get_notification_recipients()
 
     followed = {
@@ -140,27 +156,26 @@ async def run_daily(*, refresh_market_data: bool = True) -> dict[str, int | str]
 
     signals_by_strategy: dict[str, list[dict[str, Any]]] = {}
     for strategy_id in sorted(followed):
-        # Buy & Hold is a passive benchmark, not a recurring actionable signal.
-        # A one-session scan has no persisted portfolio book, so treating each
-        # fresh manager as a new entry would emit the same buy every night.
+        # Buy & Hold is a passive benchmark, not a recurring actionable signal. A
+        # one-session scan has no persisted portfolio book, so treating each fresh
+        # manager as a new entry would emit the same buy every night.
         if strategy_id == "buy-and-hold":
             continue
         try:
-            signals_by_strategy[strategy_id] = await asyncio.to_thread(
-                _signals_for_strategy, strategy_id, signal_date
-            )
+            signals_by_strategy[strategy_id] = await asyncio.to_thread(_signals_for_strategy, strategy_id, signal_date)
             print(f"{strategy_id}: {len(signals_by_strategy[strategy_id])} signal(s) on {signal_date}.")
         except Exception as exc:
-            # One broken strategy should not prevent other followed strategies from notifying.
+            # One broken strategy should not stop the other followed strategies from notifying
             print(f"Strategy {strategy_id} failed for {signal_date}: {exc}")
             signals_by_strategy[strategy_id] = []
 
-    emails_sent = 0
-    emails_failed = 0
+    emails_sent: int = 0
+    emails_failed: int = 0
     for user in recipients:
         settings = user.get("settings") or {}
         if not settings.get("tradeSignals", True):
             continue
+
         user_signals = [
             signal
             for strategy_id in _followed_strategy_ids(user.get("preferences") or {})
@@ -168,10 +183,12 @@ async def run_daily(*, refresh_market_data: bool = True) -> dict[str, int | str]
         ]
         if not user_signals:
             continue
+
         receiver = user.get("email")
         if not receiver:
             print(f"Skipping signal digest for user {user.get('id')}: no email address.")
             continue
+
         sent, error = await asyncio.to_thread(
             signals_digest_email,
             receiver,
@@ -195,6 +212,8 @@ async def run_daily(*, refresh_market_data: bool = True) -> dict[str, int | str]
     return summary
 
 
+# -------- Entry Point --------
+# Parse the command line and run the nightly job.
 async def _main() -> None:
     parser = argparse.ArgumentParser(description="Refresh data and send daily strategy signal digests.")
     parser.add_argument(

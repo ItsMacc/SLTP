@@ -1,80 +1,80 @@
-# backtester.py — Runs a strategy day by day and returns what happened.
+# -------- backtester.py --------
+# Runs a strategy day by day and returns what happened.
 #
-# Market data is loaded once per ticker from the shared cache. Strategy and
-# manager callbacks receive an as-of-date StockData view, never future bars.
-# Resting exits are evaluated after that day's signals, then queued signal exits
-# and entries fill at the next open. A Backtester runs once; build a new one per run.
+# Market data is loaded once per ticker from the shared cache. Strategy and manager
+# callbacks receive an as-of-date StockData view, never future bars. Resting exits
+# are evaluated after that day's signals, then queued signal exits and entries fill
+# at the next open. A Backtester runs once; build a new one per run.
 
 # -------- Imports --------
 import inspect
 import numpy as np
+
 from datetime import datetime
-from dateutil.relativedelta import relativedelta
 from scipy.stats import skew, kurtosis, norm
-from app.database.market.market_data_service import get_stock_histories, get_trading_calendar
+from dateutil.relativedelta import relativedelta
+
+# Engine imports
 from app.engine.portfolio import PortfolioManager
 from app.engine.strategy import Strategy
 from app.engine.utils.Dates import CALENDAR, to_code
 from app.engine.utils.StockData import StockData
 from app.engine.utils.PositionType import PositionType
 
+# Database imports
+from app.database.market.market_data_service import get_stock_histories, get_trading_calendar
+
 
 # -------- Backtester --------
+# One simulation: a strategy, a date range, and the bars it needs.
 class Backtester:
-    def __init__(
-        self,
-        strategy: Strategy,
-        start_date: str,
-        end_date: str | None = None,
-    ) -> None:
-        self.strategy = strategy
-        self.manager = PortfolioManager(strategy)
-        self.start_date = start_date
-        self.end_date = end_date
-        self.liquidate_on_end = self.strategy.LIQUIDATE_ON_END
+    # Wire up the manager and the per-run state.
+    def __init__(self, strategy: Strategy, start_date: str, end_date: str | None = None) -> None:
+        self.strategy: Strategy = strategy
+        self.manager: PortfolioManager = PortfolioManager(strategy)
+        self.start_date: str = start_date
+        self.end_date: str | None = end_date
+        self.liquidate_on_end: bool = self.strategy.LIQUIDATE_ON_END
 
-        # Ticker histories are loaded once and indexed once for the whole run.
+        # Ticker histories are loaded once and indexed once for the whole run
         self._data: dict[str, dict] = {}
         self.skipped: set[str] = set()
-        self._unrealized_at_end = 0.0
+        self._unrealized_at_end: float = 0.0
         self._equity_records: list[dict] = []
-        self._has_run = False
-        self._should_exit_accepts_history = (
-            len(inspect.signature(strategy.should_exit).parameters) >= 3
-        )
-        self._has_custom_exit = (
-            getattr(strategy.should_exit, "__func__", None) is not Strategy.should_exit
-        )
-        self._has_resting_exits = False
+        self._has_run: bool = False
+        self._should_exit_accepts_history: bool = len(inspect.signature(strategy.should_exit).parameters) >= 3
+        self._has_custom_exit: bool = getattr(strategy.should_exit, "__func__", None) is not Strategy.should_exit
+        self._has_resting_exits: bool = False
         self._universe_tickers: set[str] = set()
-        self._pending_rebalance = False
+        self._pending_rebalance: bool = False
         self._day_code = np.int32(0)
 
     # -------- Run --------
+    # Simulate the strategy and return metrics, equity, trades and rejections.
     def run(self) -> dict:
-        """Simulate the strategy and return metrics, equity, trades and rejections."""
         if self._has_run:
             raise RuntimeError("This Backtester has already run. Build a new one for another simulation.")
         self._has_run = True
 
-        actual_start = self._initialize_universe()
+        actual_start: str = self._initialize_universe()
         self._ensure_universe()
-        calendar = self._build_calendar(actual_start)
+        calendar: list = self._build_calendar(actual_start)
         if not calendar:
             raise ValueError("No trading days available between the start date and the loaded data.")
 
         self.manager.mark_rebalanced(CALENDAR.label(calendar[0]))
         for day_index, code in enumerate(calendar):
             self._day_code = code
-            current_date = CALENDAR.label(code)
-            # Strategy lifecycle callbacks precede order processing.
+            current_date: str = CALENDAR.label(code)
+
+            # Strategy lifecycle callbacks come before order processing
             self.manager.refresh_view()
             self.strategy.run_daily(current_date)
 
             if self.manager.rebalance_due(current_date):
                 self._pending_rebalance = True
 
-            # A rebalance can change the active universe; cached tickers are cheap to revisit.
+            # A rebalance can change the active universe; cached tickers are cheap to revisit
             self._ensure_universe()
             bars = self._bars_on()
             opens = {ticker: bar[0] for ticker, bar in bars.items()}
@@ -82,16 +82,16 @@ class Backtester:
 
             # Fill pending exits and entries at today's open
             self.manager.fill_pending_exits(current_date, opens)
-            filled_tickers = {order.ticker for order in self.manager.pending_orders}
+            filled_tickers: set[str] = {order.ticker for order in self.manager.pending_orders}
             self.manager.fill_pending_orders(current_date, opens)
             for ticker in filled_tickers:
-                fill_index = self._index_on_day(self._data.get(ticker))
+                fill_index: int | None = self._index_on_day(self._data.get(ticker))
                 if fill_index is not None:
                     for trade in self.manager.lots(ticker):
                         if trade.entry_date == current_date:
                             trade.history = self._history_as_of(ticker, fill_index)
 
-            # Evaluate entries against history through today's completed bar.
+            # Evaluate entries against history through today's completed bar
             self.manager.refresh_view()
             if self._pending_rebalance:
                 self._call_universe_hook(self.strategy.on_rebalance, current_date)
@@ -103,20 +103,20 @@ class Backtester:
                 closes = {ticker: bar[3] for ticker, bar in bars.items()}
             self._process_tickers(current_date, bars)
 
-            # Custom exits use today's completed data and queue next-open orders.
+            # Custom exits use today's completed data and queue next-open orders
             if self._has_custom_exit and self.manager.open_trades:
                 self._process_custom_exits(current_date, bars)
 
             # Close-based protective exits use today's final OHLC
             self._check_resting_exits(current_date, bars)
 
-            is_last_day = day_index == len(calendar) - 1
+            is_last_day: bool = day_index == len(calendar) - 1
             if is_last_day:
                 self._unrealized_at_end = self._unrealized_pnl(closes)
                 if self.liquidate_on_end:
                     self.manager.close_all(current_date, closes)
 
-            # Exactly one mark/log per date, after all final-day fills.
+            # Exactly one mark and one log per date, after all final-day fills
             self.manager.update_daily_accounting(current_date, closes)
             self._equity_records.append({
                 "date": current_date,
@@ -126,8 +126,8 @@ class Backtester:
             })
 
         self.manager.refresh_view()
-        metrics = self.performance_metrics()
-        equity = self._equity_records
+        metrics: dict = self.performance_metrics()
+        equity: list[dict] = self._equity_records
         return {
             "metrics": metrics,
             "equity": equity,
@@ -136,67 +136,66 @@ class Backtester:
         }
 
     # -------- Metrics --------
+    # Turn the equity curve and closed trades into the reported statistics.
     def performance_metrics(self) -> dict:
         dates, equity_values, _cash_values = self.manager.equity_curve
         if len(equity_values) == 0:
             return {}
 
-        starting_value = float(equity_values[0])
-        ending_value = float(equity_values[-1])
-        start_dt = datetime.strptime(str(dates[0]), "%Y-%m-%d")
-        end_dt = datetime.strptime(str(dates[-1]), "%Y-%m-%d")
-        years = max(1, (end_dt - start_dt).days) / 365.25
-        cagr = (
-            float(((ending_value / starting_value) ** (1.0 / years) - 1.0) * 100.0)
-            if starting_value > 0 else 0.0
-        )
+        starting_value: float = float(equity_values[0])
+        ending_value: float = float(equity_values[-1])
+        start_dt: datetime = datetime.strptime(str(dates[0]), "%Y-%m-%d")
+        end_dt: datetime = datetime.strptime(str(dates[-1]), "%Y-%m-%d")
+        years: float = max(1, (end_dt - start_dt).days) / 365.25
+        cagr: float = float(((ending_value / starting_value) ** (1.0 / years) - 1.0) * 100.0) if starting_value > 0 else 0.0
 
         daily_returns = np.diff(equity_values) / equity_values[:-1] if len(equity_values) > 1 else np.array([0.0])
-        mean_return = float(np.mean(daily_returns))
-        std_return = float(np.std(daily_returns, ddof=1)) if len(daily_returns) > 1 else 0.0
-        sharpe = round(mean_return / std_return * np.sqrt(252), 4) if std_return > 0 else 0.0
+        mean_return: float = float(np.mean(daily_returns))
+        std_return: float = float(np.std(daily_returns, ddof=1)) if len(daily_returns) > 1 else 0.0
+        sharpe: float = round(mean_return / std_return * np.sqrt(252), 4) if std_return > 0 else 0.0
 
-        n = len(daily_returns)
-        sr_benchmark_daily = 1.0 / np.sqrt(252)
+        # Probabilistic Sharpe: adjusts for skew, fat tails and sample size
+        n: int = len(daily_returns)
+        sr_benchmark_daily: float = 1.0 / np.sqrt(252)
         if n > 2 and std_return > 0:
-            sr_daily = mean_return / std_return
-            sk = float(skew(daily_returns))
-            kt = float(kurtosis(daily_returns, fisher=False))
-            daily_variance = (1.0 - sk * sr_daily + ((kt - 1.0) / 4.0) * sr_daily**2) / (n - 1)
-            psr = round(float(norm.cdf((sr_daily - sr_benchmark_daily) / np.sqrt(daily_variance))), 4) if daily_variance > 0 else 0.0
+            sr_daily: float = mean_return / std_return
+            sk: float = float(skew(daily_returns))
+            kt: float = float(kurtosis(daily_returns, fisher=False))
+            daily_variance: float = (1.0 - sk * sr_daily + ((kt - 1.0) / 4.0) * sr_daily ** 2) / (n - 1)
+            psr: float = round(float(norm.cdf((sr_daily - sr_benchmark_daily) / np.sqrt(daily_variance))), 4) if daily_variance > 0 else 0.0
         else:
             psr = 0.0
 
         negative_returns = daily_returns[daily_returns < 0]
-        downside_std = float(np.std(negative_returns, ddof=1)) if len(negative_returns) > 1 else 0.0
-        sortino = round(mean_return / downside_std * np.sqrt(252), 4) if downside_std > 0 else 0.0
+        downside_std: float = float(np.std(negative_returns, ddof=1)) if len(negative_returns) > 1 else 0.0
+        sortino: float = round(mean_return / downside_std * np.sqrt(252), 4) if downside_std > 0 else 0.0
 
         peaks = np.maximum.accumulate(equity_values)
         drawdowns = np.divide(peaks - equity_values, peaks, out=np.zeros_like(peaks), where=peaks != 0)
-        max_drawdown = round(float(np.max(drawdowns)) * 100.0, 2)
+        max_drawdown: float = round(float(np.max(drawdowns)) * 100.0, 2)
         below_peak = equity_values < peaks
-        max_duration = current_duration = 0
+        max_duration: int = 0
+        current_duration: int = 0
         for is_below in below_peak:
             current_duration = current_duration + 1 if is_below else 0
             max_duration = max(max_duration, current_duration)
 
-        # Only evaluate trades that have actually exited/closed
-        trade_returns = []
+        # Only trades that have actually exited count towards the win and loss figures
+        trade_returns: list[float] = []
         for trade in self.manager.trades:
             if trade.exit is not None:
-                exit_price = trade.exit.price
-                direction = -1.0 if trade.position_type is PositionType.SHORT else 1.0
+                exit_price: float = trade.exit.price
+                direction: float = -1.0 if trade.position_type is PositionType.SHORT else 1.0
                 trade_returns.append(direction * (exit_price - trade.entry_price) / trade.entry_price)
 
-        wins = [value for value in trade_returns if value > 0]
-        losses = [value for value in trade_returns if value < 0]
-        total_trades = len(trade_returns)
-        win_rate = len(wins) / total_trades * 100.0 if total_trades else 0.0
-        average_win = sum(wins) / len(wins) * 100.0 if wins else 0.0
-        average_loss = sum(losses) / len(losses) * 100.0 if losses else 0.0
-        expectancy = (
-            (len(wins) / total_trades * average_win / 100.0)
-            - (len(losses) / total_trades * abs(average_loss) / 100.0)
+        wins: list[float] = [value for value in trade_returns if value > 0]
+        losses: list[float] = [value for value in trade_returns if value < 0]
+        total_trades: int = len(trade_returns)
+        win_rate: float = len(wins) / total_trades * 100.0 if total_trades else 0.0
+        average_win: float = sum(wins) / len(wins) * 100.0 if wins else 0.0
+        average_loss: float = sum(losses) / len(losses) * 100.0 if losses else 0.0
+        expectancy: float = (
+            (len(wins) / total_trades * average_win / 100.0) - (len(losses) / total_trades * abs(average_loss) / 100.0)
             if total_trades else 0.0
         )
 
@@ -220,10 +219,11 @@ class Backtester:
         }
 
     # -------- Universe and Data --------
+    # Ask the strategy for its universe, stepping forward up to 60 days if needed.
     def _initialize_universe(self) -> str:
-        current_dt = datetime.strptime(self.start_date, "%Y-%m-%d")
+        current_dt: datetime = datetime.strptime(self.start_date, "%Y-%m-%d")
         for _ in range(60):
-            date_str = current_dt.strftime("%Y-%m-%d")
+            date_str: str = current_dt.strftime("%Y-%m-%d")
             if self._call_universe_hook(self.strategy.initialize_universe, date_str):
                 if not self.strategy.tickers:
                     raise ValueError("initialize_universe() returned True but declared no tickers.")
@@ -231,44 +231,44 @@ class Backtester:
             current_dt += relativedelta(days=1)
         raise ValueError(f"Could not initialize universe from {self.start_date} within 60 days.")
 
+    # Call a universe hook, passing as-of histories when the strategy asks for them.
     def _call_universe_hook(self, hook, current_date: str):
-        """Pass as-of histories to updated hooks, retaining compatibility with older strategies."""
         parameters = inspect.signature(hook).parameters.values()
-        accepts_histories = len(parameters) >= 2 or any(
+        accepts_histories: bool = len(parameters) >= 2 or any(
             parameter.kind is inspect.Parameter.VAR_POSITIONAL for parameter in parameters
         )
         if accepts_histories:
             return hook(current_date, self._histories_as_of(current_date))
         return hook(current_date)
 
+    # Load the market and expose only bars through the callback date.
+    # Universe selection may rank the whole market, but that data is only needed for
+    # this call: it comes from the shared market-data cache and never joins the
+    # tickers the daily loop walks.
     def _histories_as_of(self, current_date: str) -> dict[str, StockData]:
-        """Load the available universe and expose only bars through the callback date.
-
-        Universe selection may rank the whole market, but that data is only needed
-        for this call: it is fetched from the shared market-data cache and never
-        added to the tickers the daily loop walks.
-        """
         code = to_code(current_date)
         histories: dict[str, StockData] = {}
         for ticker, history in get_stock_histories(self.strategy.available_universe).items():
-            index = int(np.searchsorted(history.date_codes, code, side="right")) - 1
+            index: int = int(np.searchsorted(history.date_codes, code, side="right")) - 1
             if index >= 0:
                 histories[ticker] = self._slice_history(history, index)
         return histories
 
+    # Make sure every ticker the strategy currently wants is loaded.
     def _ensure_universe(self) -> None:
-        wanted = list(dict.fromkeys([*self.strategy.tickers, *self.manager.open_tickers]))
+        wanted: list[str] = list(dict.fromkeys([*self.strategy.tickers, *self.manager.open_tickers]))
         self._universe_tickers.update(self.strategy.tickers)
         self._ensure_tickers(wanted)
 
+    # Load the given tickers, remembering the ones with no local data.
     def _ensure_tickers(self, tickers: list[str]) -> None:
-        missing = [ticker for ticker in tickers if ticker not in self._data and ticker not in self.skipped]
+        missing: list[str] = [ticker for ticker in tickers if ticker not in self._data and ticker not in self.skipped]
         if not missing:
             return
 
-        loaded = get_stock_histories(missing)
+        loaded: dict[str, StockData] = get_stock_histories(missing)
         for ticker in missing:
-            history = loaded.get(ticker)
+            history: StockData | None = loaded.get(ticker)
             if history is None:
                 self.skipped.add(ticker)
                 continue
@@ -280,16 +280,17 @@ class Backtester:
                 "low": history.low,
                 "close": history.close_price,
                 "volume": history.volume,
-                # The run walks days forward, so each ticker keeps a cursor.
+                # The run walks days forward, so each ticker keeps a cursor
                 "cursor": 0,
                 "index": None,
                 "index_code": None,
             }
         self.manager.set_history_cache({ticker: data["history"] for ticker, data in self._data.items()})
 
+    # The market's own trading days inside the run window.
+    # The calendar comes from the Date column alone and is cached per file, so the
+    # run never depends on which tickers happen to be loaded.
     def _build_calendar(self, actual_start: str) -> list:
-        # The market's own trading days, not just the ones these tickers happen to
-        # have: the calendar is read from the Date column alone and cached per file.
         if not self._data:
             raise ValueError("No price data loaded. initialize_universe() must add locally available tickers.")
         codes = get_trading_calendar()
@@ -297,24 +298,25 @@ class Backtester:
         end_code = to_code(self.end_date) if self.end_date is not None else codes[-1]
         return codes[(codes >= start_code) & (codes <= end_code)].tolist()
 
+    # -------- Per-day Bars --------
+    # Only the active universe, anything still held, and orders about to fill.
     def _scan_tickers(self) -> set[str]:
-        # Only the active universe, anything still held, and orders about to fill.
-        tickers = set(self.strategy.tickers)
+        tickers: set[str] = set(self.strategy.tickers)
         tickers.update(self.manager.open_tickers)
         tickers.update(order.ticker for order in self.manager.pending_orders)
         return tickers
 
+    # Collect today's bars. Cursors only advance, so a run touches each ticker's codes once.
     def _bars_on(self) -> dict[str, tuple[float, float, float, float]]:
-        # Cursors only advance, so a whole run touches each ticker's codes once.
         code = self._day_code
-        bars = {}
+        bars: dict[str, tuple[float, float, float, float]] = {}
         for ticker in sorted(self._scan_tickers()):
             data = self._data.get(ticker)
             if data is None:
                 continue
             codes = data["codes"]
-            index = data["cursor"]
-            length = len(codes)
+            index: int = data["cursor"]
+            length: int = len(codes)
             while index < length and codes[index] < code:
                 index += 1
             data["cursor"] = index
@@ -332,18 +334,20 @@ class Backtester:
                 data["index_code"] = None
         return bars
 
+    # The index of today's bar, or None when this ticker did not trade.
     def _index_on_day(self, data) -> int | None:
-        # _bars_on already advanced this ticker's cursor to today's bar.
         if data is None or data["index_code"] != self._day_code:
             return None
         return data["index"]
 
+    # Today's view of one loaded ticker.
     def _history_as_of(self, ticker: str, index: int) -> StockData:
         return self._slice_history(self._data[ticker]["history"], index)
 
+    # Cut a history so its last bar is the given index, giving strategies a no-lookahead view.
     @staticmethod
     def _slice_history(history: StockData, index: int) -> StockData:
-        end = index + 1
+        end: int = index + 1
         return StockData(
             ticker=history.ticker,
             date_codes=history.date_codes[:end],
@@ -355,31 +359,24 @@ class Backtester:
         )
 
     # -------- Daily Loop Helpers --------
-    def _process_tickers(
-        self,
-        current_date: str,
-        bars: dict[str, tuple[float, float, float, float]],
-    ) -> None:
-        universe = self._universe_tickers
-        held_tickers = self.manager.open_tickers
-        ordered = list(self.strategy.tickers)
+    # Ask the strategy for entries on every name it may still buy.
+    def _process_tickers(self, current_date: str, bars: dict[str, tuple[float, float, float, float]]) -> None:
+        universe: set[str] = self._universe_tickers
+        held_tickers: set[str] = self.manager.open_tickers
+        ordered: list[str] = list(self.strategy.tickers)
         for ticker in held_tickers:
             if ticker not in universe:
                 ordered.append(ticker)
 
-        max_positions = self.strategy.MAX_POSITIONS
+        max_positions: int | None = self.strategy.MAX_POSITIONS
         for ticker in ordered:
             if ticker not in bars:
                 continue
-            held = self.manager.lots(ticker)
+            held: list = self.manager.lots(ticker)
             if ticker in universe:
-                max_lots = self.strategy.MAX_LOTS_PER_TICKER
-                can_add_lot = max_lots is None or len(held) < max_lots
-                has_position_capacity = (
-                    max_positions is None
-                    or bool(held)
-                    or self.manager.active_positions < max_positions
-                )
+                max_lots: int | None = self.strategy.MAX_LOTS_PER_TICKER
+                can_add_lot: bool = max_lots is None or len(held) < max_lots
+                has_position_capacity: bool = max_positions is None or bool(held) or self.manager.active_positions < max_positions
                 if can_add_lot and has_position_capacity:
                     history = self._history_for_date(ticker)
                     if len(history.dates) >= self.strategy.MIN_BARS_REQUIRED:
@@ -388,14 +385,9 @@ class Backtester:
                             self.manager.submit_order(order)
                             if (order.stop_loss > 0 or order.take_profit > 0) and not self._has_resting_exits:
                                 self._has_resting_exits = True
-            if not held:
-                continue
 
-    def _process_custom_exits(
-        self,
-        current_date: str,
-        bars: dict[str, tuple[float, float, float, float]],
-    ) -> None:
+    # Let the strategy close its own positions and queue an exit for the next open.
+    def _process_custom_exits(self, current_date: str, bars: dict[str, tuple[float, float, float, float]]) -> None:
         for ticker in self.manager.open_tickers:
             if ticker not in bars:
                 continue
@@ -411,17 +403,15 @@ class Backtester:
                 if should_exit:
                     self.manager.queue_exit(trade.id)
 
+    # The strategy's view of one held ticker, ending on today's bar.
     def _history_for_date(self, ticker: str) -> StockData:
-        index = self._index_on_day(self._data[ticker])
+        index: int | None = self._index_on_day(self._data[ticker])
         if index is None:
             raise KeyError(f"{ticker} has no bar on {CALENDAR.label(self._day_code)}")
         return self._history_as_of(ticker, index)
 
-    def _check_resting_exits(
-        self,
-        current_date: str,
-        bars: dict[str, tuple[float, float, float, float]],
-    ) -> None:
+    # Check stop-loss and take-profit levels against today's bar.
+    def _check_resting_exits(self, current_date: str, bars: dict[str, tuple[float, float, float, float]]) -> None:
         if not self._has_resting_exits:
             return
 
@@ -435,11 +425,12 @@ class Backtester:
             current_open, current_high, current_low, _close = bar
             self.manager.check_exits(ticker, current_date, current_open, current_high, current_low)
 
+    # Mark the open book to today's closes.
     def _unrealized_pnl(self, closes: dict[str, float]) -> float:
-        unrealized = 0.0
+        unrealized: float = 0.0
         for trade in self.manager.open_trades.values():
-            price = closes.get(trade.ticker, self.manager.last_prices.get(trade.ticker, trade.entry_price))
-            direction = -1.0 if trade.position_type is PositionType.SHORT else 1.0
-            notional = trade.equity_at_entry * trade.allocation
+            price: float = closes.get(trade.ticker, self.manager.last_prices.get(trade.ticker, trade.entry_price))
+            direction: float = -1.0 if trade.position_type is PositionType.SHORT else 1.0
+            notional: float = trade.equity_at_entry * trade.allocation
             unrealized += notional * direction * (price - trade.entry_price) / trade.entry_price
         return unrealized
