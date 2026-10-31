@@ -14,10 +14,23 @@ import uuid
 import aiohttp
 
 from typing import Any
+from pathlib import Path
 from datetime import datetime, timezone
 from dotenv import load_dotenv
 
-load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".env"))
+
+# -------- Environment --------
+# Load the repo-root .env by walking upward from this file, so a module move cannot
+# silently skip it the way a hardcoded parent count did.
+def _load_env() -> None:
+    for parent in Path(__file__).resolve().parents:
+        candidate = parent / ".env"
+        if candidate.is_file():
+            load_dotenv(candidate)
+            return
+
+
+_load_env()
 
 TURSO_DATABASE_URL = os.environ.get("TURSO_DATABASE_URL")
 TURSO_AUTH_TOKEN = os.environ.get("TURSO_AUTH_TOKEN")
