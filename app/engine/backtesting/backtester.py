@@ -11,9 +11,10 @@ import numpy as np
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from scipy.stats import skew, kurtosis, norm
-from app.database.fetch import get_stock_histories
+from app.database.market.market_data_service import get_stock_histories, get_trading_calendar
 from app.engine.portfolio import PortfolioManager
 from app.engine.strategy import Strategy
+from app.engine.utils.Dates import CALENDAR, to_code
 from app.engine.utils.StockData import StockData
 from app.engine.utils.PositionType import PositionType
 
@@ -47,6 +48,7 @@ class Backtester:
         self._has_resting_exits = False
         self._universe_tickers: set[str] = set()
         self._pending_rebalance = False
+        self._day_code = np.int32(0)
 
     # -------- Run --------
     def run(self) -> dict:
@@ -61,8 +63,10 @@ class Backtester:
         if not calendar:
             raise ValueError("No trading days available between the start date and the loaded data.")
 
-        self.manager.mark_rebalanced(calendar[0])
-        for day_index, current_date in enumerate(calendar):
+        self.manager.mark_rebalanced(CALENDAR.label(calendar[0]))
+        for day_index, code in enumerate(calendar):
+            self._day_code = code
+            current_date = CALENDAR.label(code)
             # Strategy lifecycle callbacks precede order processing.
             self.manager.refresh_view()
             self.strategy.run_daily(current_date)
@@ -72,7 +76,7 @@ class Backtester:
 
             # A rebalance can change the active universe; cached tickers are cheap to revisit.
             self._ensure_universe()
-            bars = self._bars_on(current_date)
+            bars = self._bars_on()
             opens = {ticker: bar[0] for ticker, bar in bars.items()}
             closes = {ticker: bar[3] for ticker, bar in bars.items()}
 
@@ -81,8 +85,7 @@ class Backtester:
             filled_tickers = {order.ticker for order in self.manager.pending_orders}
             self.manager.fill_pending_orders(current_date, opens)
             for ticker in filled_tickers:
-                data = self._data.get(ticker)
-                fill_index = data["date_to_idx"].get(current_date) if data is not None else None
+                fill_index = self._index_on_day(self._data.get(ticker))
                 if fill_index is not None:
                     for trade in self.manager.lots(ticker):
                         if trade.entry_date == current_date:
@@ -95,7 +98,7 @@ class Backtester:
                 self.manager.mark_rebalanced(current_date)
                 self._pending_rebalance = False
                 self._ensure_universe()
-                bars = self._bars_on(current_date)
+                bars = self._bars_on()
                 opens = {ticker: bar[0] for ticker, bar in bars.items()}
                 closes = {ticker: bar[3] for ticker, bar in bars.items()}
             self._process_tickers(current_date, bars)
@@ -239,13 +242,18 @@ class Backtester:
         return hook(current_date)
 
     def _histories_as_of(self, current_date: str) -> dict[str, StockData]:
-        """Load the available universe and expose only bars through the callback date."""
-        self._ensure_tickers(self.strategy.available_universe)
+        """Load the available universe and expose only bars through the callback date.
+
+        Universe selection may rank the whole market, but that data is only needed
+        for this call: it is fetched from the shared market-data cache and never
+        added to the tickers the daily loop walks.
+        """
+        code = to_code(current_date)
         histories: dict[str, StockData] = {}
-        for ticker, data in self._data.items():
-            index = int(np.searchsorted(data["dates"], current_date, side="right")) - 1
+        for ticker, history in get_stock_histories(self.strategy.available_universe).items():
+            index = int(np.searchsorted(history.date_codes, code, side="right")) - 1
             if index >= 0:
-                histories[ticker] = self._history_as_of(ticker, index)
+                histories[ticker] = self._slice_history(history, index)
         return histories
 
     def _ensure_universe(self) -> None:
@@ -266,50 +274,84 @@ class Backtester:
                 continue
             self._data[ticker] = {
                 "history": history,
-                "dates": history.dates,
+                "codes": history.date_codes,
                 "open": history.open_price,
                 "high": history.high,
                 "low": history.low,
                 "close": history.close_price,
                 "volume": history.volume,
-                "date_to_idx": {str(date): idx for idx, date in enumerate(history.dates)},
+                # The run walks days forward, so each ticker keeps a cursor.
+                "cursor": 0,
+                "index": None,
+                "index_code": None,
             }
         self.manager.set_history_cache({ticker: data["history"] for ticker, data in self._data.items()})
 
-    def _build_calendar(self, actual_start: str) -> list[str]:
+    def _build_calendar(self, actual_start: str) -> list:
+        # The market's own trading days, not just the ones these tickers happen to
+        # have: the calendar is read from the Date column alone and cached per file.
         if not self._data:
             raise ValueError("No price data loaded. initialize_universe() must add locally available tickers.")
-        all_dates = set()
-        for data in self._data.values():
-            all_dates.update(str(date) for date in data["dates"])
-        ordered = sorted(all_dates)
-        end = self.end_date if self.end_date is not None else ordered[-1]
-        return [date for date in ordered if actual_start <= date <= end]
+        codes = get_trading_calendar()
+        start_code = to_code(actual_start)
+        end_code = to_code(self.end_date) if self.end_date is not None else codes[-1]
+        return codes[(codes >= start_code) & (codes <= end_code)].tolist()
 
-    def _bars_on(self, current_date: str) -> dict[str, tuple[float, float, float, float]]:
+    def _scan_tickers(self) -> set[str]:
+        # Only the active universe, anything still held, and orders about to fill.
+        tickers = set(self.strategy.tickers)
+        tickers.update(self.manager.open_tickers)
+        tickers.update(order.ticker for order in self.manager.pending_orders)
+        return tickers
+
+    def _bars_on(self) -> dict[str, tuple[float, float, float, float]]:
+        # Cursors only advance, so a whole run touches each ticker's codes once.
+        code = self._day_code
         bars = {}
-        for ticker, data in self._data.items():
-            index = data["date_to_idx"].get(current_date)
-            if index is not None:
+        for ticker in sorted(self._scan_tickers()):
+            data = self._data.get(ticker)
+            if data is None:
+                continue
+            codes = data["codes"]
+            index = data["cursor"]
+            length = len(codes)
+            while index < length and codes[index] < code:
+                index += 1
+            data["cursor"] = index
+            if index < length and codes[index] == code:
+                data["index"] = index
+                data["index_code"] = code
                 bars[ticker] = (
                     float(data["open"][index]),
                     float(data["high"][index]),
                     float(data["low"][index]),
                     float(data["close"][index]),
                 )
+            else:
+                data["index"] = None
+                data["index_code"] = None
         return bars
 
+    def _index_on_day(self, data) -> int | None:
+        # _bars_on already advanced this ticker's cursor to today's bar.
+        if data is None or data["index_code"] != self._day_code:
+            return None
+        return data["index"]
+
     def _history_as_of(self, ticker: str, index: int) -> StockData:
-        data = self._data[ticker]
+        return self._slice_history(self._data[ticker]["history"], index)
+
+    @staticmethod
+    def _slice_history(history: StockData, index: int) -> StockData:
         end = index + 1
         return StockData(
-            ticker=ticker,
-            dates=data["dates"][:end],
-            open_price=data["open"][:end],
-            high=data["high"][:end],
-            low=data["low"][:end],
-            close_price=data["close"][:end],
-            volume=data["volume"][:end],
+            ticker=history.ticker,
+            date_codes=history.date_codes[:end],
+            open_price=history.open_price[:end],
+            high=history.high[:end],
+            low=history.low[:end],
+            close_price=history.close_price[:end],
+            volume=history.volume[:end],
         )
 
     # -------- Daily Loop Helpers --------
@@ -339,7 +381,7 @@ class Backtester:
                     or self.manager.active_positions < max_positions
                 )
                 if can_add_lot and has_position_capacity:
-                    history = self._history_for_date(ticker, current_date)
+                    history = self._history_for_date(ticker)
                     if len(history.dates) >= self.strategy.MIN_BARS_REQUIRED:
                         order = self.strategy.on_signal(ticker, history)
                         if order is not None:
@@ -357,7 +399,7 @@ class Backtester:
         for ticker in self.manager.open_tickers:
             if ticker not in bars:
                 continue
-            history = self._history_for_date(ticker, current_date)
+            history = self._history_for_date(ticker)
             if len(history.dates) < self.strategy.MIN_BARS_REQUIRED:
                 continue
             for trade in self.manager.lots(ticker):
@@ -369,8 +411,10 @@ class Backtester:
                 if should_exit:
                     self.manager.queue_exit(trade.id)
 
-    def _history_for_date(self, ticker: str, current_date: str) -> StockData:
-        index = self._data[ticker]["date_to_idx"][current_date]
+    def _history_for_date(self, ticker: str) -> StockData:
+        index = self._index_on_day(self._data[ticker])
+        if index is None:
+            raise KeyError(f"{ticker} has no bar on {CALENDAR.label(self._day_code)}")
         return self._history_as_of(ticker, index)
 
     def _check_resting_exits(

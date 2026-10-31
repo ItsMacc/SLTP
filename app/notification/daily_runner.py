@@ -16,9 +16,9 @@ from typing import Any
 import requests
 from dotenv import load_dotenv
 
-from app.database import turso
-from app.database.db import insert_or_update_data
-from app.database.fetch import get_latest_trading_date
+from app.database.turso import turso
+from app.database.market.market_data import update_market_data
+from app.database.market.market_data_service import get_latest_trading_date
 from app.notification.mailer import signals_digest_email
 from app.strategies import REGISTRY
 from app.engine.backtesting import Backtester
@@ -125,7 +125,7 @@ async def run_daily(*, refresh_market_data: bool = True) -> dict[str, int | str]
     """Refresh market data, evaluate followed strategies, and send one digest per user."""
     if refresh_market_data:
         print("Refreshing local market data...")
-        await asyncio.to_thread(insert_or_update_data)
+        await asyncio.to_thread(update_market_data)
 
     await _sync_settings()
     signal_date = await asyncio.to_thread(get_latest_trading_date)

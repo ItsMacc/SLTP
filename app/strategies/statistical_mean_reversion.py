@@ -20,14 +20,7 @@ from app.engine.utils.Trade import Trade
 
 # -------- Statistical Mean Reversion Strategy --------
 class StatisticalMeanReversionStrategy(Strategy):
-    def __init__(
-            self,
-            max_positions: int = 25,
-            rsi_period: int = 25,
-            z_score_period: int = 20,
-            rsi_threshold: float = 30.0,
-            z_score_threshold: float = 1.5,
-    ):
+    def __init__(self):
         super().__init__()
 
         self.name: str = "Statistical Mean Reversion"
@@ -37,7 +30,7 @@ class StatisticalMeanReversionStrategy(Strategy):
         )
 
         # Book policy
-        self.MAX_POSITIONS = max_positions
+        self.MAX_POSITIONS = 20
         self.MAX_LOTS_PER_TICKER = 1
         self.REBALANCE_FREQUENCY = RebalanceFrequency.YEARLY
 
@@ -47,11 +40,12 @@ class StatisticalMeanReversionStrategy(Strategy):
         self.LIQUIDITY_BARS = 252
 
         # Signal parameters
-        self.RSI_PERIOD = rsi_period
-        self.Z_SCORE_PERIOD = z_score_period
-        self.RSI_THRESHOLD = rsi_threshold
+        # Periods are ints: they are used as slice indices, and a float there raises.
+        self.RSI_PERIOD = 25
+        self.Z_SCORE_PERIOD = 20
+        self.RSI_THRESHOLD = 30.0
         self.RSI_EXIT_THRESHOLD = 70.0
-        self.Z_SCORE_THRESHOLD = z_score_threshold
+        self.Z_SCORE_THRESHOLD = 1.5
         self.STDEV_EXIT_MULTIPLE = 3.0
         self.MIN_BARS_REQUIRED = max(self.RSI_PERIOD, self.Z_SCORE_PERIOD) + 2
 

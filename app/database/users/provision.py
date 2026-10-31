@@ -28,8 +28,8 @@ def _service_headers() -> dict[str, str]:
     }
 
 from app.auth.auth import get_current_user
-from app.database import turso
-from app.database.defaults import default_settings
+from app.database.turso import turso
+from app.database.users.defaults import default_settings
 
 router = APIRouter()
 

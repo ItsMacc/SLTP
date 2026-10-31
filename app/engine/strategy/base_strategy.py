@@ -12,12 +12,13 @@ import numpy as np
 import talib as ta
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
-from app.database.fetch import (
+from app.database.market.market_data_service import (
     get_all_tickers,
     get_available_etfs,
-    get_available_stocks,
     get_available_gold,
+    get_available_stocks,
 )
+from app.engine.utils.Dates import to_code
 from app.engine.utils.Order import Order
 from app.engine.utils.Trade import Trade
 from app.engine.utils.StockData import StockData
@@ -205,9 +206,9 @@ class Strategy:
     def _time_stop_days(self, trade: Trade, days: int) -> bool:
         # Parse the entry date and add the allowed holding duration
         entry_dt = datetime.strptime(trade.entry_date, "%Y-%m-%d")
-        exit_deadline_str = (entry_dt + relativedelta(days=days)).strftime("%Y-%m-%d")
+        exit_deadline = to_code((entry_dt + relativedelta(days=days)).strftime("%Y-%m-%d"))
 
-        return trade.history.dates[-1] >= exit_deadline_str
+        return int(trade.history.date_codes[-1]) >= int(exit_deadline)
 
     def _trailing_stop(self, trade: Trade, pct: float) -> bool:
         entry_idx = self._get_entry_index(trade)
@@ -249,7 +250,8 @@ class Strategy:
     def _get_entry_index(self, trade: Trade) -> int:
         """Helper to find the entry index with safe fallback."""
         data = trade.history
-        match_indices = np.where(data.dates == trade.entry_date)[0]
+        entry_code = to_code(trade.entry_date)
+        match_indices = np.flatnonzero(data.date_codes == entry_code)
         if len(match_indices) == 0:
-            return int(np.searchsorted(data.dates, trade.entry_date))
+            return int(np.searchsorted(data.date_codes, entry_code))
         return int(match_indices[0])

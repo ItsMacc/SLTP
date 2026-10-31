@@ -19,9 +19,10 @@ from app.engine.utils.Trade import Trade
 from app.engine.utils.EventType import EventType
 from app.engine.strategy import Strategy
 from app.engine.utils.PositionType import PositionType
+from app.engine.utils.Dates import to_code
 from app.engine.utils.RebalanceFrequency import RebalanceFrequency
 from app.engine.utils.StockData import StockData
-from app.database.fetch import get_stock_history
+from app.database.market.market_data_service import get_stock_history
 
 # -------- Rebalance Arithmetic --------
 REBALANCE_DELTAS: dict[RebalanceFrequency, relativedelta] = {
@@ -266,10 +267,10 @@ class PortfolioManager:
         if history is None:
             history = get_stock_history(ticker, end=current_date)
         else:
-            end = int(np.searchsorted(history.dates, current_date, side="right"))
+            end = int(np.searchsorted(history.date_codes, to_code(current_date), side="right"))
             history = StockData(
                 ticker=ticker,
-                dates=history.dates[:end],
+                date_codes=history.date_codes[:end],
                 open_price=history.open_price[:end],
                 high=history.high[:end],
                 low=history.low[:end],

@@ -19,9 +19,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from app.auth.auth import get_current_user
-from app.database import turso
-from app.database.lab_core import CORE_FILES, CORE_FOLDERS, CORE_ROOT, core_source, is_core_path
-from app.database.lab_templates import source_for
+from app.database.turso import turso
+from app.database.lab.lab_core import CORE_FILES, CORE_FOLDERS, CORE_ROOT, core_source, is_core_path
+from app.database.lab.lab_templates import source_for
 
 router = APIRouter()
 

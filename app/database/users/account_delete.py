@@ -29,8 +29,8 @@ from dotenv import load_dotenv
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.auth.auth import get_current_user
-from app.database import turso
-from app.database.api_keys import delete_user_api_keys
+from app.database.turso import turso
+from app.database.users.api_keys import delete_user_api_keys
 
 load_dotenv()
 

@@ -109,7 +109,7 @@ async def get_current_user(authorization: str = Header(default="")) -> dict[str,
     # Personal API keys (issued in Settings) are checked against Turso.
     # Imported here because api_keys imports this module.
     if token.startswith("sltp_"):
-        from app.database.api_keys import user_id_for_api_key
+        from app.database.users.api_keys import user_id_for_api_key
 
         key_user_id = await user_id_for_api_key(token)
         if not key_user_id:

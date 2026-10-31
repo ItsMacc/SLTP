@@ -18,7 +18,7 @@ from app.engine.backtesting import Backtester
 from app.strategies import REGISTRY
 
 # Database Imports
-from app.database.fetch import (
+from app.database.market.market_data_service import (
     get_stock_history,
     get_all_tickers as fetch_all_tickers,
     get_all_ticker_details,
@@ -27,11 +27,11 @@ from app.database.fetch import (
 from app.api.services.market_data import calculate_start_date, serialize_stock_history
 from app.engine.utils.EventType import EventType
 from app.engine.utils.PositionType import PositionType
-from app.database.provision import router as provision_router
-from app.database.portfolio_api import router as portfolio_router
-from app.database.account_delete import router as account_delete_router
-from app.database.lab_api import router as lab_router
-from app.database.api_keys import router as api_keys_router
+from app.database.users.provision import router as provision_router
+from app.database.portfolio.portfolio_api import router as portfolio_router
+from app.database.users.account_delete import router as account_delete_router
+from app.database.lab.lab_api import router as lab_router
+from app.database.users.api_keys import router as api_keys_router
 from app.auth.security import router as security_router
 
 # -------- App Setup --------

@@ -36,7 +36,7 @@ def serialize_stock_history(stock_data: StockData, ticker: str, timeframe: str) 
             "volume": float(volume),
         }
         for date, open_price, high, low, close, volume in zip(
-            stock_data.dates,
+            stock_data.labels,
             stock_data.open_price,
             stock_data.high,
             stock_data.low,

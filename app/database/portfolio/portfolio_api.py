@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field
 from typing import Any
 
 from app.auth.auth import get_current_user
-from app.database import turso
+from app.database.turso import turso
 
 load_dotenv()
 
