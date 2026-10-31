@@ -29,10 +29,10 @@ class BuyAndHold(Strategy):
         self.MIN_BARS_REQUIRED: int = 1
         self.LIQUIDATE_ON_END: bool = False
 
-    # Hold one name, picked once at the start of the run.
+    # Hold all names, picked once at the start of the run.
     def initialize_universe(self, current_date: str, histories: dict[str, StockData]) -> bool:
         self.tickers.clear()
-        self.add_ticker("AAPL")
+        self.add_tickers(self.available_universe)
         return bool(self.tickers)
 
     # Buy the ticker once and never trade it again.
