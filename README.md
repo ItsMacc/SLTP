@@ -27,16 +27,30 @@ TURSO_AUTH_TOKEN=<your-turso-auth-token>
 
 > Get these from the Supabase dashboard (Settings → API) and the Turso dashboard (Database → Connect).
 
-### 3. Initialize the Turso schema
+### 3. Initialize the Turso schema and the market data
 
 ```bash
-python3 -m app.database.db
+# Turso tables, once per database
+turso db shell <your-db> < migrations/migrations.sql
+
+# Market data, once (resumable, about 30-45 minutes for ~11.5k symbols)
+python -m app.database.market.market_data init
 ```
 
-This runs `app/database/db.py` once, which:
-- Creates the `app/database/market_data.parquet` file from yfinance data
-- Seeds the initial market data
-- Leaves `market_data.parquet` in `app/database/` (gitignored in the new history)
+The init command:
+- Downloads daily bars from 1998 for every symbol in the catalog (`symbols.parquet`)
+- Writes `app/database/market/market_data.parquet` (gitignored, ~900MB)
+- Records each symbol's state in `app/database/symbol_data/symbol_status.parquet`
+- Keeps finished chunks on disk, so an interrupted run continues where it stopped
+
+Afterwards, `python -m app.database.market.market_data update` adds the newest bars
+(once a day, weekends skipped) and `python -m app.database.market.market_data status`
+prints the tracking file without touching any data.
+
+The update writes `market_data_recent.parquet`, a tail holding the bars added since the
+last init or compaction, and leaves the main file alone; readers treat the pair as one
+table. Once the tail covers more sessions than `MAX_RECENT_SESSIONS` (about two years) it
+is folded into the main file and cleared. Neither file ever drops a bar.
 
 ### 4. Install Node deps and build the frontend
 
@@ -107,9 +121,9 @@ See `app/main.py` and `app/auth/auth.py` for full route documentation.
 | **Frontend host** | Any static host (Netlify, Vercel, Cloudflare Pages). Build with `npm run build`; the output is `dist/`. |
 | **Supabase** | Enable RLS on `users` and `portfolios` tables. The anon key + RLS is the security boundary. |
 | **Turso** | The database URL + auth token must be reachable from the backend host. No firewall changes needed if both are cloud-hosted. |
-| **Market data** | `python -m app.database.db` creates `market_data.parquet` once. The backend reads it from `app/database/` on every start. Keep that file in your deployment volume. |
+| **Market data** | `python -m app.database.market.market_data init` creates `app/database/market/market_data.parquet` once; `... update` adds a small `market_data_recent.parquet` next to it each night. The backend reads both files and `app/database/symbol_data/symbols.parquet` on every start, so keep all three in your deployment volume. |
 | **Daily runner** | `python -m app.notification.daily_runner` — runs nightly, syncs settings from Supabase into Turso and can refresh market data. |
-| **CI/CD** | If you push to GitHub, add a GitHub Actions workflow that runs `pip install -r requirements.txt`, `npm ci`, `npm run build`, and `python -m app.database.db` on a fresh runner. |
+| **CI/CD** | If you push to GitHub, add a GitHub Actions workflow that runs `pip install -r requirements.txt`, `npm ci`, and `npm run build`. Downloading market data in CI is wasteful: build the parquet once and ship it as an artifact. |
 
 ---
 

@@ -6,10 +6,23 @@
 # stored stock / etf / gold categories. Histories: get_stock_history(ticker, start,
 # end) and get_stock_histories(tickers, start, end), where start defaults to
 # 1998-01-01 (None means the same) and end defaults to the end of the data.
+#
+# Bars live in two files so a daily update never rewrites history:
+#
+#   market_data.parquet         every bar up to the last init or compaction
+#   market_data_recent.parquet  the bars added since, growing by one session a day
+#
+# Readers treat the pair as one table. A symbol's bars are never stored twice: a new
+# bar is only written when it is newer than that symbol's newest stored bar.
+#
+# Both files are append-only, so having bars is no longer the same as being alive.
+# symbol_status.parquet carries that answer (active, lagging, stopped, missing) next
+# to bar counts, last bar dates and probe attempts. Universe lists still return every
+# symbol with history, dead ones included: hiding them is exactly the survivorship
+# bias a backtest must not have.
 
 # -------- Imports --------
 import os
-import json
 import threading
 import numpy as np
 import pyarrow as pa
@@ -31,13 +44,26 @@ from app.database.market.symbol_categories import ETF, GOLD, STOCK, CATEGORY_COL
 MARKET_DIR: str = os.path.dirname(os.path.abspath(__file__))
 SYMBOL_DATA_DIR: str = os.path.join(MARKET_DIR, "..", "symbol_data")
 MASTER_FILE: str = os.path.join(MARKET_DIR, "market_data.parquet")
+RECENT_FILE: str = os.path.join(MARKET_DIR, "market_data_recent.parquet")
 SYMBOLS_FILE: str = os.path.join(SYMBOL_DATA_DIR, "symbols.parquet")
-MISSING_FILE: str = os.path.join(SYMBOL_DATA_DIR, "missing_symbols.json")
+STATUS_FILE: str = os.path.join(SYMBOL_DATA_DIR, "symbol_status.parquet")
 DEFAULT_START: str = "1998-01-01"
 DATE_FORMAT: str = "%Y-%m-%d"
 PRICE_COLS: list[str] = ["Open", "High", "Low", "Close", "Volume"]
 
 Scope = Literal["all", "stocks", "missing"]
+
+
+# -------- Files --------
+# Every file that holds bars, oldest first. Missing master is an error; an absent or
+# empty recent tail simply means nothing has been added since the last compaction.
+def data_files() -> list[str]:
+    if not os.path.exists(MASTER_FILE):
+        raise RuntimeError(f"Market data file not found: {MASTER_FILE}")
+    files: list[str] = [MASTER_FILE]
+    if os.path.exists(RECENT_FILE) and os.path.getsize(RECENT_FILE) > 0:
+        files.append(RECENT_FILE)
+    return files
 
 
 # -------- Process Caches --------
@@ -114,22 +140,32 @@ def get_available_gold() -> list[str]:
     return _symbols_in_category((GOLD,))
 
 
-# Return the symbols that returned no bars on their last check, sorted.
+# Return the symbols that have never returned a bar, sorted.
 def get_missing_tickers() -> list[str]:
-    return sorted(_cached("missing", MISSING_FILE, _read_missing, required=False))
+    return sorted(symbol for symbol, status in _symbol_status().items() if status == "missing")
+
+
+# Return each symbol's status: active, lagging or stopped.
+def get_symbol_statuses() -> dict[str, str]:
+    return dict(_symbol_status())
+
+
+# Return the symbols that stopped trading, meaning their last bar is 5+ sessions back.
+def get_stopped_tickers() -> list[str]:
+    return sorted(symbol for symbol, status in _symbol_status().items() if status == "stopped")
 
 
 # -------- Market Data --------
-# Return the latest trading date stored in the master file.
+# Return the latest trading date stored in the market data files.
 def get_latest_trading_date() -> str:
-    return _cached("latest_date", MASTER_FILE, _read_latest_date)
+    return _cached("latest_date", _dataset_signature(), _read_latest_date)
 
 
 # Return every trading day in the master file as sorted int32 date codes.
 # Reading only the Date column keeps this to one dictionary-encoded pass, so a
 # backtest can use the market's calendar without loading any price history.
 def get_trading_calendar() -> np.ndarray:
-    return _cached("trading_calendar", MASTER_FILE, _read_trading_calendar)
+    return _cached("trading_calendar", _dataset_signature(), _read_trading_calendar)
 
 
 # Return one ticker's bars between start and end (inclusive).
@@ -189,9 +225,13 @@ def _file_signature(path: str, required: bool = True) -> tuple | None:
     return os.path.abspath(path), stat.st_size, stat.st_mtime_ns
 
 
-# Return the cached value for key, rebuilding it when the file at path changed.
-def _cached(key: str, path: str, build, required: bool = True):
-    signature = _file_signature(path, required)
+# A file set's signature, so a write to any part of it invalidates the caches.
+def _dataset_signature() -> tuple:
+    return tuple(_file_signature(path) for path in data_files())
+
+
+# Return the cached value for key, rebuilding it when the signature changed.
+def _cached(key: str, signature: tuple | None, build):
     entry = _CACHE.get(key)
     if entry is not None and entry[0] == signature:
         return entry[1]
@@ -202,20 +242,25 @@ def _cached(key: str, path: str, build, required: bool = True):
 
 # The catalog's symbol to name map, cached per file change.
 def _symbol_names() -> dict[str, str]:
-    return _cached("symbols", SYMBOLS_FILE, _read_symbol_names)
+    return _cached("symbols", _file_signature(SYMBOLS_FILE), _read_symbol_names)
 
 
-# Every symbol that has bars in the master file, cached per file change.
+# Every symbol that has bars, cached per file change.
 def _master_tickers() -> list[str]:
-    return _cached("master_tickers", MASTER_FILE, _read_master_tickers)
+    return _cached("master_tickers", _dataset_signature(), _read_master_tickers)
 
 
 # The catalog's symbol to category map, cached per file change.
 def _symbol_categories() -> dict[str, str]:
-    return _cached("categories", SYMBOLS_FILE, _read_symbol_categories)
+    return _cached("categories", _file_signature(SYMBOLS_FILE), _read_symbol_categories)
 
 
-# Return symbols of the given categories that also have bars in the master file.
+# The symbol to status map, cached per file change.
+def _symbol_status() -> dict[str, str]:
+    return _cached("status", _file_signature(STATUS_FILE, required=False), _read_symbol_status)
+
+
+# Return symbols of the given categories that have bars in the master file.
 def _symbols_in_category(kinds: tuple[str, ...]) -> list[str]:
     categories: dict[str, str] = _symbol_categories()
     available: set[str] = set(_master_tickers())
@@ -227,7 +272,7 @@ def _symbols_in_category(kinds: tuple[str, ...]) -> list[str]:
 def _histories(symbols: list[str]) -> dict[str, StockData]:
     global _HISTORY_SIGNATURE
     with _LOAD_LOCK:
-        signature = _file_signature(MASTER_FILE)
+        signature: tuple = _dataset_signature()
         if signature != _HISTORY_SIGNATURE:
             _HISTORY_CACHE.clear()
             _HISTORY_CACHE.update(_read_histories())
@@ -241,7 +286,7 @@ def _symbol_histories(symbols: list[str]) -> dict[str, StockData]:
     global _SYMBOL_CACHE_SIGNATURE
     wanted: list[str] = list(dict.fromkeys(symbols))
     with _LOAD_LOCK:
-        signature = _file_signature(MASTER_FILE)
+        signature = _dataset_signature()
         if signature != _SYMBOL_CACHE_SIGNATURE:
             _SYMBOL_CACHE.clear()
             _SYMBOL_CACHE_SIGNATURE = signature
@@ -321,7 +366,7 @@ def _read_symbol_categories() -> dict[str, str]:
 # List every symbol with bars. The Symbol column is dictionary-encoded per row
 # group, so this reads one small dictionary per group instead of 29.8M strings.
 def _read_master_tickers() -> list[str]:
-    table = pq.read_table(MASTER_FILE, columns=["Symbol"], read_dictionary=["Symbol"])
+    table = pq.read_table(data_files(), columns=["Symbol"], read_dictionary=["Symbol"])
     column = table.column("Symbol")
     if isinstance(column, pa.ChunkedArray):
         column = column.combine_chunks()
@@ -330,9 +375,11 @@ def _read_master_tickers() -> list[str]:
     return column.unique().to_pylist()
 
 
-# Read the newest session from row-group statistics, falling back to the Date column.
-def _read_latest_date() -> str:
-    metadata = pq.ParquetFile(MASTER_FILE).metadata
+# The newest Date in one file, from row-group statistics when the file has them.
+def _newest_date_in(path: str) -> str | None:
+    metadata = pq.ParquetFile(path).metadata
+    if metadata.num_row_groups == 0:
+        return None
     date_index = next(
         (
             index
@@ -341,19 +388,33 @@ def _read_latest_date() -> str:
         ),
         None,
     )
-    if date_index is not None:
-        newest = None
-        for group in range(metadata.num_row_groups):
-            statistics = metadata.row_group(group).column(date_index).statistics
-            if statistics is None or statistics.max is None:
-                newest = None
-                break
-            value = statistics.max
-            value = value.decode() if isinstance(value, bytes) else str(value)
-            if newest is None or value > newest:
-                newest = value
-        if newest is not None:
-            return newest
+    if date_index is None:
+        return None
+
+    newest = None
+    for group in range(metadata.num_row_groups):
+        statistics = metadata.row_group(group).column(date_index).statistics
+        if statistics is None or statistics.max is None:
+            return None
+        value = statistics.max
+        value = value.decode() if isinstance(value, bytes) else str(value)
+        if newest is None or value > newest:
+            newest = value
+    return newest
+
+
+# Read the newest session across every data file, falling back to the Date column.
+def _read_latest_date() -> str:
+    newest: str | None = None
+    for path in data_files():
+        value: str | None = _newest_date_in(path)
+        if value is None:
+            newest = None
+            break
+        if newest is None or value > newest:
+            newest = value
+    if newest is not None:
+        return newest
 
     column = _read_table(["Date"]).column("Date")
     if isinstance(column, pa.ChunkedArray):
@@ -362,11 +423,11 @@ def _read_latest_date() -> str:
     return str(max(values.to_pylist()))
 
 
-# Read the requested columns, keeping Date dictionary-encoded.
+# Read the requested columns from every data file, keeping Date dictionary-encoded.
 # Arrow then hands over ~7k labels plus an int32 index per bar instead of
-# materialising a string for every bar.
+# materialising a string for every bar, and filters still skip row groups.
 def _read_table(columns: list[str], filters: list | None = None) -> pa.Table:
-    return pq.read_table(MASTER_FILE, columns=columns, filters=filters, read_dictionary=["Date"])
+    return pq.read_table(data_files(), columns=columns, filters=filters, read_dictionary=["Date"])
 
 
 # Convert a table's Date column to int32 day codes.
@@ -426,9 +487,9 @@ def _table_to_histories(table: pa.Table) -> dict[str, StockData]:
     return histories
 
 
-# Read the missed-symbol list, treating a missing file as "no misses".
-def _read_missing() -> list[str]:
-    if not os.path.exists(MISSING_FILE):
-        return []
-    with open(MISSING_FILE, encoding="utf-8") as f:
-        return list(json.load(f))
+# Read the status file as symbol
+def _read_symbol_status() -> dict[str, str]:
+    if not os.path.exists(STATUS_FILE):
+        return {}
+    table = pq.read_table(STATUS_FILE, columns=["Symbol", "Status"])
+    return dict(zip(table.column("Symbol").to_pylist(), table.column("Status").to_pylist()))

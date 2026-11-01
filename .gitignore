@@ -37,6 +37,8 @@ app/test.py
 # Seed it with: python -m app.database.market.market_data
 app/database/market/*.parquet
 app/database/market/*.parquet.*
+# Staging files from a resumable init; removed once the merge finishes.
+app/database/market/init_parts/
 
 # symbols.parquet is a source-of-truth file: it holds the ticker universe, the
 # names and the stock/etf/gold categories. Only the derived state and
@@ -44,9 +46,14 @@ app/database/market/*.parquet.*
 app/database/symbol_data/etf_symbols.json
 app/database/symbol_data/missing_symbols.json
 app/database/symbol_data/update_state.json
+app/database/symbol_data/symbol_status.parquet
+app/database/symbol_data/symbol_status.parquet.*
 
 # Database tests stay local; they are not part of the shipped app.
 app/database/tests/
+
+# Test strategy; Only for testing purposes
+app/strategies/test_strategy.py
 
 # Archived pre-migration market data. Safe to delete once ingestion is verified.
 archive/
