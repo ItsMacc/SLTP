@@ -48,6 +48,7 @@ _HISTORY_CACHE: dict[str, StockData] = {}  # every ticker's bars, loaded in one 
 _HISTORY_SIGNATURE: tuple | None = None
 _SYMBOL_CACHE: OrderedDict[str, StockData] = OrderedDict()  # bounded cache for small reads
 _SYMBOL_CACHE_SIGNATURE: tuple | None = None
+_SESSIONS: np.ndarray | None = None  # every session in the bar files, once a full read has seen them
 _LOAD_LOCK = threading.RLock()  # without it, concurrent cold requests each load the file
 
 
@@ -68,7 +69,7 @@ def get_latest_trading_date() -> str:
     return _cached_value("latest_date", _bars_signature(), _read_latest_date)
 
 
-# Every trading day as sorted int32 codes, read from the Date column alone.
+# Every trading day as sorted int32 codes; served from the loaded universe when there is one.
 def get_trading_calendar() -> np.ndarray:
     return _cached_value("trading_calendar", _bars_signature(), _read_trading_calendar)
 
@@ -117,13 +118,14 @@ def get_dividends(ticker: str, start: str | None = None, end: str | None = None)
 
 # Drop every cached value so the next read reloads from disk.
 def refresh_market_data_cache() -> None:
-    global _HISTORY_SIGNATURE, _SYMBOL_CACHE_SIGNATURE
+    global _HISTORY_SIGNATURE, _SYMBOL_CACHE_SIGNATURE, _SESSIONS
     with _LOAD_LOCK:
         _CACHE.clear()
         _HISTORY_CACHE.clear()
         _SYMBOL_CACHE.clear()
         _HISTORY_SIGNATURE = None
         _SYMBOL_CACHE_SIGNATURE = None
+        _SESSIONS = None
 
 
 # -------- Catalog --------
@@ -418,15 +420,23 @@ def _codes_from_table(table: pa.Table) -> np.ndarray:
 
 # Every trading day in the bars as sorted int32 codes.
 def _read_trading_calendar() -> np.ndarray:
-    codes: np.ndarray = np.unique(_codes_from_table(_read_table(["Date"])))
+    sessions: np.ndarray | None = _known_sessions()
+    codes: np.ndarray = sessions if sessions is not None else np.unique(_codes_from_table(_read_table(["Date"])))
     CALENDAR.register(labels_from_codes(codes))
     return codes
+
+
+# Sessions collected while the whole universe was read, or None if it has not been read.
+def _known_sessions() -> np.ndarray | None:
+    if _SESSIONS is not None and _HISTORY_CACHE and _HISTORY_SIGNATURE == _bars_signature():
+        return _SESSIONS
+    return None
 
 
 # The whole bar file as StockData objects, grouped by symbol.
 def _read_all_histories() -> dict[str, StockData]:
     paths: list[str] = bar_files()
-    return _build_histories(_iter_bar_batches(paths), _count_rows(paths))
+    return _build_histories(_iter_bar_batches(paths), _count_rows(paths), complete=True)
 
 
 # Only the requested symbols, letting row-group statistics skip the rest.
@@ -486,7 +496,9 @@ def _events_in_range(codes: np.ndarray, amounts: np.ndarray, start: str | None, 
 
 
 # Streamed bars into one StockData per symbol, whose arrays are slices of shared blocks.
-def _build_histories(batches, rows: int) -> dict[str, StockData]:
+# A complete read also leaves the sessions behind, so the calendar never reads Date again.
+def _build_histories(batches, rows: int, complete: bool = False) -> dict[str, StockData]:
+    global _SESSIONS
     if rows == 0:
         return {}
 
@@ -495,6 +507,7 @@ def _build_histories(batches, rows: int) -> dict[str, StockData]:
     volume: np.ndarray = np.empty(rows, dtype=np.float32)
     symbols: np.ndarray = np.empty(rows, dtype=np.int32)
     ids: dict[str, int] = {}
+    sessions: list[np.ndarray] = []
     at: int = 0
 
     for batch in batches:
@@ -504,11 +517,15 @@ def _build_histories(batches, rows: int) -> dict[str, StockData]:
         symbols[at:at + count] = local[encoded.indices.to_numpy()]
         dates = batch.column("Date").to_numpy()
         date[at:at + count] = dates
-        CALENDAR.register(labels_from_codes(np.unique(dates)))
+        sessions.append(np.unique(dates))
+        CALENDAR.register(labels_from_codes(sessions[-1]))
         for name, target in prices.items():
             target[at:at + count] = batch.column(name).to_numpy()
         volume[at:at + count] = batch.column("Volume").to_numpy()
         at += count
+
+    if complete and sessions:
+        _SESSIONS = np.unique(np.concatenate(sessions))
 
     names: list[str] = [""] * len(ids)
     for label, index in ids.items():
