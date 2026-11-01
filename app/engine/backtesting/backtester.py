@@ -25,6 +25,11 @@ from app.engine.utils.PositionType import PositionType
 from app.database.market.market_data_service import get_stock_histories, get_trading_calendar
 
 
+# -------- Constants --------
+# How far past the requested start the universe may look for a date it can trade.
+MAX_WARMUP_DAYS: int = 1826
+
+
 # -------- Backtester --------
 # One simulation: a strategy, a date range, and the bars it needs.
 class Backtester:
@@ -219,17 +224,51 @@ class Backtester:
         }
 
     # -------- Universe and Data --------
-    # Ask the strategy for its universe, stepping forward up to 60 days if needed.
+    # Ask the strategy for its universe. A strategy whose warmup outruns the dataset
+    # start is walked forward: probes double in distance, then a binary search settles
+    # on the first date it can trade, so a year of warmup costs about twenty walks.
     def _initialize_universe(self) -> str:
-        current_dt: datetime = datetime.strptime(self.start_date, "%Y-%m-%d")
-        for _ in range(60):
-            date_str: str = current_dt.strftime("%Y-%m-%d")
-            if self._call_universe_hook(self.strategy.initialize_universe, date_str):
-                if not self.strategy.tickers:
-                    raise ValueError("initialize_universe() returned True but declared no tickers.")
-                return date_str
-            current_dt += relativedelta(days=1)
-        raise ValueError(f"Could not initialize universe from {self.start_date} within 60 days.")
+        start_dt: datetime = datetime.strptime(self.start_date, "%Y-%m-%d")
+        if self._universe_at(start_dt, 0):
+            return self._accepted_universe_date(start_dt, 0)
+
+        low: int = 0
+        high: int = 1
+        while True:
+            probe: int = min(high, MAX_WARMUP_DAYS)
+            if self._universe_at(start_dt, probe):
+                high = probe
+                break
+            if probe >= MAX_WARMUP_DAYS:
+                raise ValueError(
+                    f"Could not initialize universe from {self.start_date} within {MAX_WARMUP_DAYS} days."
+                )
+            low, high = probe, probe * 2
+
+        while high - low > 1:
+            middle: int = (low + high) // 2
+            if self._universe_at(start_dt, middle):
+                high = middle
+            else:
+                low = middle
+
+        # The winning call has to run last, so the strategy keeps the universe it built
+        if not self._universe_at(start_dt, high):
+            raise ValueError(
+                f"Could not initialize universe from {self.start_date} within {MAX_WARMUP_DAYS} days."
+            )
+        return self._accepted_universe_date(start_dt, high)
+
+    # Ask the universe hook for one date, counted in calendar days from the requested start.
+    def _universe_at(self, start_dt: datetime, offset: int) -> bool:
+        date_str: str = (start_dt + relativedelta(days=offset)).strftime("%Y-%m-%d")
+        return self._call_universe_hook(self.strategy.initialize_universe, date_str)
+
+    # The date the winning probe landed on, refusing a hook that claims success with no tickers.
+    def _accepted_universe_date(self, start_dt: datetime, offset: int) -> str:
+        if not self.strategy.tickers:
+            raise ValueError("initialize_universe() returned True but declared no tickers.")
+        return (start_dt + relativedelta(days=offset)).strftime("%Y-%m-%d")
 
     # Call a universe hook, passing as-of histories when the strategy asks for them.
     def _call_universe_hook(self, hook, current_date: str):
