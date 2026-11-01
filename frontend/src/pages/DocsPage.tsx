@@ -274,12 +274,12 @@ self.LIQUIDATE_ON_END = False`}/>
               { label: 'No trade', value: 'Return None. The backtester does not submit an entry for that ticker.' },
               { label: 'Fill timing', value: 'The signal is evaluated after the close. A returned order is queued and normally fills at the next available session open.' },
             ]}/>
-            <Signature signature="should_exit(ticker: str, trade: Trade) → bool" rows={[
-              { label: 'When called', value: 'For open positions when the strategy overrides this hook. trade.history is updated to the current as-of history.' },
+            <Signature signature="should_exit(ticker: str, trade: Trade, history: StockData | None = None) → bool" rows={[
+              { label: 'When called', value: 'For open positions when the strategy overrides this hook. The history argument ends on the current completed bar and is the same object held on trade.history.' },
               { label: 'Return True', value: 'Queues an exit for the next available open. A false result keeps the lot open unless a resting stop or target is hit.' },
               { label: 'Trade access', value: 'Use trade.id, entry facts, and the history available through today. Do not mutate the manager or future bars.' },
             ]}/>
-            <Callout title="Custom exit signature">The current base method is <code>should_exit(ticker, trade)</code>. The backtester also passes an optional third history argument to overrides that declare it, but the documented base interface uses two arguments.</Callout>
+            <Callout title="Keep the signature">The backtester always passes the as-of history, so an override must accept the third argument. Give it the default <code>None</code> and fall back to <code>trade.history</code> so the method also works when called directly.</Callout>
           </section>
 
           <section id="universes" className="docs-section">
@@ -337,7 +337,7 @@ class SmallUniverse(Strategy):
           <section id="execution" className="docs-section">
             <SectionHead num="06" group="Portfolio and execution" title="Orders, fills, and equity" lead="An Order is an entry request, not a fill. The manager applies it on the next available open, validates the portfolio constraints, and creates a distinct Trade for each accepted lot." />
             <FieldTable title="Execution rule" fields={[
-              { name: 'allocation', contents: 'A fraction of equity at fill time. For example, 0.10 is 10%, not 10 shares or $10.' },
+              { name: 'allocation', contents: 'A fraction of equity at fill time. For example, 0.10 is 10%, not 10 shares or $10. The manager trims the fill so the fee still fits inside cash, so 1.0 spends the whole book.' },
               { name: 'stop_loss / take_profit', contents: 'Absolute prices, not percentages. A value at or below zero disables that resting level.' },
               { name: 'SLIPPAGE_PCT', contents: '0.0005, or 0.05% per fill. Entry and exit slippage move against the position.' },
               { name: 'FEE_RATE', contents: '0.001, or 0.1% of notional per fill.' },

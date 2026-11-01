@@ -254,9 +254,11 @@ class PortfolioManager:
         else:
             entry_price = round(open_price * (1.0 - self.SLIPPAGE_PCT), 2)
 
-        # Track equity and fees
+        # Track equity and fees. A fill pays its own fee out of the notional, so an
+        # order asking for the whole book spends all the cash instead of borrowing.
         equity_at_entry: float = self.portfolio_value
-        entry_fee: float = round(equity_at_entry * order.allocation * self.FEE_RATE, 4)
+        allocation: float = self._affordable_allocation(order.allocation, equity_at_entry)
+        entry_fee: float = round(equity_at_entry * allocation * self.FEE_RATE, 4)
 
         history: StockData | None = self._histories.get(ticker)
         if history is None:
@@ -281,7 +283,7 @@ class PortfolioManager:
             position_type=order.position_type,
             entry_date=current_date,
             entry_price=entry_price,
-            allocation=order.allocation,
+            allocation=allocation,
             equity_at_entry=equity_at_entry,
             stop_loss=order.stop_loss,
             take_profit=order.take_profit,
@@ -396,6 +398,13 @@ class PortfolioManager:
             return False
 
         return True
+
+    # The fraction of equity a fill can take once its own fee is paid out of the cash.
+    def _affordable_allocation(self, wanted: float, equity_at_entry: float) -> float:
+        if equity_at_entry <= 0:
+            return wanted
+
+        return min(wanted, self.cash / (equity_at_entry * (1.0 + self.FEE_RATE)))
 
     # One open lot by id.
     def _find_trade(self, trade_id: int) -> Trade | None:

@@ -14,7 +14,7 @@ const BuyAndHoldStrategy: StrategyData = {
   metrics: {
     horizon: '10+ Years',
     activity: 'Low',
-    positions: 'Full Universe', 
+    positions: '1 Fund (SPY)',
     rebalance: 'Never',
   },
   idea: {
@@ -30,7 +30,7 @@ const BuyAndHoldStrategy: StrategyData = {
       'Can take years to recover after a major downturn, because nothing reduces the position while prices are falling.',
     ],
   },
-  universeLogic: 'Holds every asset in the selected market. Nothing is filtered out, ranked, or excluded.',
+  universeLogic: 'Holds SPY only: one liquid S&P 500 fund, bought on the first session and never replaced. Nothing is ranked or filtered, because there is nothing to choose between.',
   rebalanceLogic: 'No automatic buying or selling. The holdings only change when you add or withdraw funds yourself.',
   inDepthSections: [
     {

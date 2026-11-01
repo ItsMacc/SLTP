@@ -116,7 +116,7 @@ class Strategy:
         return None
 
     # Custom exit logic using the helper methods below.
-    def should_exit(self, ticker: str, trade: Trade) -> bool:
+    def should_exit(self, ticker: str, trade: Trade, history: StockData | None = None) -> bool:
         return False
 
     # -------- Indicator Helpers --------

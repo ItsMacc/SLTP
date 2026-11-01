@@ -31,7 +31,7 @@ class Strategy:
     def on_signal(self, ticker: str, data: StockData) -> Order | None:
         raise NotImplementedError
 
-    def should_exit(self, ticker: str, trade: Trade) -> bool:
+    def should_exit(self, ticker: str, trade: Trade, history: StockData | None = None) -> bool:
         return False`;
 
 export const PORTFOLIO_MANAGER_SOURCE = `# core/portfolio/portfolio_manager.py
@@ -71,7 +71,7 @@ for current_date in trading_calendar:
 
     for open_trade in manager.open_trades:
         open_trade.history = stock_data_through_today(open_trade.ticker, current_date)
-        if strategy.should_exit(open_trade.ticker, open_trade):
+        if strategy.should_exit(open_trade.ticker, open_trade, open_trade.history):
             manager.queue_exit(open_trade.id)
 
     check_resting_stop_and_target_levels()
@@ -98,7 +98,7 @@ export const ORDER_SOURCE = `# core/utils/Order.py
 class Order:
     ticker: str
     position_type: PositionType  # LONG or SHORT
-    allocation: float            # fraction of equity, e.g. 0.10 = 10%
+    allocation: float            # fraction of equity; 1.0 = the whole book
     order_date: str
     stop_loss: float             # absolute price; <= 0 disables this level
     take_profit: float           # absolute price; <= 0 disables this level

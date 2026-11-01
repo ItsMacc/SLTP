@@ -129,8 +129,8 @@ class StatisticalMeanReversionStrategy(Strategy):
         )
 
     # Exit once RSI recovers, with a threshold that loosens as price stretches further out.
-    def should_exit(self, ticker: str, trade: Trade) -> bool:
-        closes = trade.history.close_price
+    def should_exit(self, ticker: str, trade: Trade, history: StockData | None = None) -> bool:
+        closes = (history if history is not None else trade.history).close_price
         stdev: float = float(np.std(closes[-self.Z_SCORE_PERIOD:], ddof=1))
         if stdev == 0:
             return False

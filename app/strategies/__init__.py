@@ -9,14 +9,14 @@
 # classes from this package only.
 
 # -------- Imports --------
-from app.strategies.buy_and_hold import BuyAndHold
+from app.strategies.benchmark import Benchmark
 from app.strategies.statistical_mean_reversion import StatisticalMeanReversionStrategy
 
 
 # -------- Registry --------
 # strategy id -> (class, kind). kind is "investing" or "trading"; the onboarding wizard filters on it.
 REGISTRY: dict[str, tuple[type, str]] = {
-    "buy-and-hold": (BuyAndHold, "investing"),
+    "buy-and-hold": (Benchmark, "investing"),
     "statistical-mean-reversion": (StatisticalMeanReversionStrategy, "investing"),
 }
 
@@ -24,6 +24,6 @@ REGISTRY: dict[str, tuple[type, str]] = {
 # -------- Exports --------
 __all__ = [
     "REGISTRY",
-    "BuyAndHold",
+    "Benchmark",
     "StatisticalMeanReversionStrategy",
 ]

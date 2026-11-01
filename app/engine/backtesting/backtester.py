@@ -47,7 +47,6 @@ class Backtester:
         self._unrealized_at_end: float = 0.0
         self._equity_records: list[dict] = []
         self._has_run: bool = False
-        self._should_exit_accepts_history: bool = len(inspect.signature(strategy.should_exit).parameters) >= 3
         self._has_custom_exit: bool = getattr(strategy.should_exit, "__func__", None) is not Strategy.should_exit
         self._has_resting_exits: bool = False
         self._universe_tickers: set[str] = set()
@@ -435,11 +434,7 @@ class Backtester:
                 continue
             for trade in self.manager.lots(ticker):
                 trade.history = history
-                if self._should_exit_accepts_history:
-                    should_exit = self.strategy.should_exit(ticker, trade, history)
-                else:
-                    should_exit = self.strategy.should_exit(ticker, trade)
-                if should_exit:
+                if self.strategy.should_exit(ticker, trade, history):
                     self.manager.queue_exit(trade.id)
 
     # The strategy's view of one held ticker, ending on today's bar.
