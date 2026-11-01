@@ -56,7 +56,7 @@ async def _ensure_table() -> None:
           key_hash TEXT NOT NULL UNIQUE,
           created_at TEXT NOT NULL,
           last_used_at TEXT,
-          revoked_at TEXT
+          revoked_at TEXT               -- legacy: keys used to be soft-deleted, now rows are removed
         )
         """
     )
@@ -139,22 +139,22 @@ async def create_api_key(
     }
 
 
-# Revoke one of the caller's keys.
+# Remove one of the caller's keys from the database.
 @router.delete("/api/user/api-keys/{key_id}")
-async def revoke_api_key(
+async def delete_api_key(
     key_id: str,
     user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
     await _ensure_table()
     rows = await turso.execute(
-        "SELECT id FROM api_keys WHERE id = ? AND user_id = ? AND revoked_at IS NULL",
+        "SELECT id FROM api_keys WHERE id = ? AND user_id = ?",
         [key_id, user["id"]],
     )
     if not rows:
         raise HTTPException(status_code=404, detail="API key not found.")
 
     await turso.execute(
-        "UPDATE api_keys SET revoked_at = ? WHERE id = ? AND user_id = ?",
-        [_now(), key_id, user["id"]],
+        "DELETE FROM api_keys WHERE id = ? AND user_id = ?",
+        [key_id, user["id"]],
     )
-    return {"id": key_id, "revoked": True}
+    return {"id": key_id, "deleted": True}
