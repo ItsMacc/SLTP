@@ -48,6 +48,7 @@ app/database/symbol_data/missing_symbols.json
 app/database/symbol_data/update_state.json
 app/database/symbol_data/symbol_status.parquet
 app/database/symbol_data/symbol_status.parquet.*
+app/database/symbol_data/split_audit.json
 
 # Database tests stay local; they are not part of the shipped app.
 app/database/tests/

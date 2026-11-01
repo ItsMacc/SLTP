@@ -446,6 +446,27 @@ def price_alert_email(receiver: str, user_name: str, ticker: str,
     return send_email(receiver, subject, _shell(f"{ticker} {change_pct:+.1f}%", "Price Alert", accent, inner))
 
 
+# -------- Split Seam Email --------
+# Ops email: symbols whose stored history jumps on a split because the source never restated it.
+def split_seam_email(receiver: str, seams: list[tuple[str, str, float, float]]) -> tuple[bool, str | None]:
+    subject = f"{BRAND} Split Audit: {len(seams)} new seam{'s' if len(seams) != 1 else ''}"
+
+    rows = [
+        (f"{symbol} {ex_date}", f"ratio {ratio:.4f} → jump {observed:.4f}", C_RED)
+        for symbol, ex_date, ratio, observed in seams[:20]
+    ]
+    if len(seams) > 20:
+        rows.append(("…", f"{len(seams) - 20} more", C_MUTED))
+
+    greeting: str = _greeting("admin")
+    inner = f"""{greeting}
+<p style="margin:0 0 20px;">The nightly audit found symbols whose price jumps across a split date, so those bars were never restated at the source. A backtest would read the jump as a real move.</p>
+{_panel("Flagged Symbols", rows)}
+<p style="margin:20px 0 0;">Refetch a symbol once the source corrects its history, or rebuild with <code>init --force</code>. Run <code>python -m app.database.market.market_data audit</code> for the full list.</p>"""
+
+    return send_email(receiver, subject, _shell(f"{len(seams)} new split seam(s)", "Split Audit", C_RED, inner))
+
+
 # -------- Dispatch Helper --------
 def send_notification_email(kind: str, receiver: str, user_name: str,
                             payload: dict[str, Any] | None = None) -> tuple[bool, str | None]:
@@ -472,6 +493,8 @@ def send_notification_email(kind: str, receiver: str, user_name: str,
         )
     if kind == "daily_summary":
         return daily_summary_email(receiver, user_name, p.get("summary_data"))
+    if kind == "split_seam":
+        return split_seam_email(receiver, p.get("seams", []))
     if kind == "price_alert":
         return price_alert_email(
             receiver, user_name, p.get("ticker", "?"),

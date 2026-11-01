@@ -25,11 +25,11 @@ from app.strategies import REGISTRY
 
 # Database imports
 from app.database.turso import turso
-from app.database.market.market_data import update_market_data
+from app.database.market.market_data import SplitSeamReport, update_market_data, report_new_split_seams
 from app.database.market.market_data_service import get_latest_trading_date
 
 # Notification imports
-from app.notification.mailer import signals_digest_email
+from app.notification.mailer import signals_digest_email, split_seam_email
 
 load_dotenv()
 
@@ -139,9 +139,21 @@ def _signals_for_strategy(strategy_id: str, signal_date: str) -> list[dict[str, 
 # -------- Daily Run --------
 # Refresh market data, evaluate followed strategies, and send one digest per user.
 async def run_daily(*, refresh_market_data: bool = True) -> dict[str, int | str]:
+    split_audit: SplitSeamReport | None = None
     if refresh_market_data:
         print("Refreshing local market data...")
         await asyncio.to_thread(update_market_data)
+
+        # The source does not always restate a split, and no split event can reveal that, so the
+        # prices are checked daily and only the seams that appeared since last night are emailed.
+        split_audit = await asyncio.to_thread(report_new_split_seams)
+        if split_audit.new:
+            admin: str | None = os.environ.get("ADMIN_EMAIL")
+            if admin:
+                sent, error = await asyncio.to_thread(split_seam_email, admin, split_audit.new)
+                print(f"Split seam alert sent to {admin}." if sent else f"Split seam alert failed: {error}")
+            else:
+                print("ADMIN_EMAIL is not set; split seams were only logged.")
 
     await _sync_settings()
     signal_date: str = await asyncio.to_thread(get_latest_trading_date)
@@ -202,11 +214,13 @@ async def run_daily(*, refresh_market_data: bool = True) -> dict[str, int | str]
             emails_failed += 1
             print(f"Signal digest failed for {receiver}: {error}")
 
-    summary = {
+    summary: dict[str, int | str] = {
         "signal_date": signal_date,
         "strategies_run": len(signals_by_strategy),
         "emails_sent": emails_sent,
         "emails_failed": emails_failed,
+        "split_seams": split_audit.flagged if split_audit else 0,
+        "split_seams_new": len(split_audit.new) if split_audit else 0,
     }
     print(f"Daily signal run complete: {summary}")
     return summary

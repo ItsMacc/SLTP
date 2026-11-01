@@ -26,6 +26,10 @@ TURSO_AUTH_TOKEN=<your-turso-auth-token>
 ```
 
 > Get these from the Supabase dashboard (Settings → API) and the Turso dashboard (Database → Connect).
+>
+> Optional: set `ADMIN_EMAIL` to receive the nightly split-audit alert. Without it, newly
+> flagged symbols are only written to the log.
+> Optional: set `SENDER_EMAIL` and `APP_PASSWORD` (a Gmail app password) to send any mail.
 
 ### 3. Initialize the Turso schema and the market data
 
@@ -60,6 +64,14 @@ the old prices: when a split is newer than a symbol's last stored bar, that symb
 refetched whole instead of appended to. That is the only time the update rewrites the
 main file. Dividends are readable with `get_dividends(ticker, start, end)` in
 `market_data_service.py`.
+
+Each symbol also records the newest split its bars already include, so an event that only
+reaches the feed after the bar for its own ex-date was stored still triggers that refetch.
+The source does not always restate an adjusted history, and no split event can reveal that,
+so `python -m app.database.market.market_data audit` compares the closes either side of every
+stored split and names the symbols where the jump still shows. The nightly run performs the
+same check after the refresh, remembers the result in `split_audit.json` next to the ledger,
+and emails only the seams that are new since the previous run to `ADMIN_EMAIL`.
 
 ### 4. Install Node deps and build the frontend
 
@@ -131,7 +143,7 @@ See `app/main.py` and `app/auth/auth.py` for full route documentation.
 | **Supabase** | Enable RLS on `users` and `portfolios` tables. The anon key + RLS is the security boundary. |
 | **Turso** | The database URL + auth token must be reachable from the backend host. No firewall changes needed if both are cloud-hosted. |
 | **Market data** | `python -m app.database.market.market_data init` creates `app/database/market/market_data.parquet` once; `... update` adds a small `market_data_recent.parquet` and `market_actions.parquet` next to it each night. The backend reads all three files and `app/database/symbol_data/symbols.parquet` on every start, so keep every one of them in your deployment volume. |
-| **Daily runner** | `python -m app.notification.daily_runner` — runs nightly, syncs settings from Supabase into Turso and can refresh market data. |
+| **Daily runner** | `python -m app.notification.daily_runner` — runs nightly, refreshes market data, audits splits, syncs settings from Supabase into Turso and sends the signal digests. |
 | **CI/CD** | If you push to GitHub, add a GitHub Actions workflow that runs `pip install -r requirements.txt`, `npm ci`, and `npm run build`. Downloading market data in CI is wasteful: build the parquet once and ship it as an artifact. |
 
 ---
