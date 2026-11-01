@@ -41,10 +41,6 @@ SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://jqyqfkrzwimxuzugyuiw.supa
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE")
 SUPABASE_PAGE_SIZE: int = 1000
 
-# Which users already got which session, so a rerun of that session sends nothing.
-DIGEST_STATE_FILE: str = os.path.join(os.path.dirname(os.path.abspath(__file__)), "digest_state.json")
-DIGEST_STATE_SAVE_EVERY: int = 200
-
 
 # -------- Settings Mirror --------
 # Read the authoritative notification settings from the Supabase profile table, one page at a time.
@@ -190,8 +186,8 @@ async def run_daily(*, refresh_market_data: bool = True) -> dict[str, int | str]
             signals_by_strategy[strategy_id] = []
 
     # A weekend run reads the same session as Friday, so an unguarded rerun re-sends the same
-    # signals. Each user is remembered per session, and only a sent email is remembered.
-    digest_state: dict[str, str] = {user_id: date for user_id, date in _load_digest_state().items() if date == signal_date}
+    # signals. The send markers live in Turso, and only a delivered email is recorded.
+    already_sent: set[str] = await turso.get_digest_sends(signal_date)
 
     emails_sent: int = 0
     emails_failed: int = 0
@@ -201,8 +197,8 @@ async def run_daily(*, refresh_market_data: bool = True) -> dict[str, int | str]
         if not settings.get("tradeSignals", True):
             continue
 
-        already_sent: bool = digest_state.get(_digest_key(user), "") == signal_date
-        if already_sent:
+        recipient_key: str = _digest_key(user)
+        if recipient_key in already_sent:
             emails_skipped += 1
             continue
 
@@ -228,21 +224,21 @@ async def run_daily(*, refresh_market_data: bool = True) -> dict[str, int | str]
         )
         if sent:
             emails_sent += 1
-            digest_state[_digest_key(user)] = signal_date
-            if emails_sent % DIGEST_STATE_SAVE_EVERY == 0:
-                _save_digest_state(digest_state)
+            already_sent.add(recipient_key)
+            await turso.record_digest_send(recipient_key, signal_date)
         else:
             emails_failed += 1  # left unrecorded, so the next run retries this user
             print(f"Signal digest failed for {receiver}: {error}")
 
-    _save_digest_state(digest_state)
+    # Sessions past the retention window can no longer be re-sent, so drop them.
+    await turso.prune_digest_sends()
 
     # One ops report per day: the scheduler fires this job again on weekends, and a
     # second copy of the same numbers would just be noise in the inbox.
     ops_report_sent: int = 0
     if not admin_recipient():
         print("No admin address set; ops report skipped.")
-    elif ops_report_sent_today():
+    elif await ops_report_sent_today():
         print("Ops report already sent today.")
     else:
         sent, error, report = await send_usage_report()
@@ -266,26 +262,7 @@ async def run_daily(*, refresh_market_data: bool = True) -> dict[str, int | str]
     return summary
 
 
-# -------- Digest State --------
-# The session each user was last emailed, so the same session is never sent twice.
-def _load_digest_state() -> dict[str, str]:
-    if not os.path.exists(DIGEST_STATE_FILE):
-        return {}
-    try:
-        with open(DIGEST_STATE_FILE, "r", encoding="utf-8") as handle:
-            return {str(key): str(value) for key, value in json.load(handle).items()}
-    except (OSError, ValueError, TypeError):
-        return {}
-
-
-# Written in one step, so a crash cannot truncate the record.
-def _save_digest_state(state: dict[str, str]) -> None:
-    tmp_file: str = DIGEST_STATE_FILE + ".tmp"
-    with open(tmp_file, "w", encoding="utf-8") as handle:
-        json.dump(state, handle, indent=2, sort_keys=True)
-    os.replace(tmp_file, DIGEST_STATE_FILE)
-
-
+# -------- Digest Key --------
 # A recipient key that falls back to the address when a row has no id.
 def _digest_key(user: dict[str, Any]) -> str:
     return str(user.get("id") or user.get("email") or "")

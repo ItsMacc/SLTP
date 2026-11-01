@@ -61,7 +61,3 @@ archive/
 
 # Freebuff local workspace state
 .freebuff/
-app/notification/digest_state.json
-app/notification/digest_state.json.*
-app/notification/ops_report_state.json
-app/notification/ops_report_state.json.*

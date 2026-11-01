@@ -1,11 +1,13 @@
 -- ============================================================
 -- SLTP — Turso schema (bootstrap)
 --
--- ONE file, built for a fresh database. Three tables exist now:
+-- ONE file, built for a fresh database. Five tables exist now:
 --
 --   users             — mirror of Supabase auth (name, email, settings_json)
 --   portfolios        — setup wizard answers (onboarding)
 --   account_deletions — churn log; the account wipe leaves nothing else behind
+--   digest_sends      — who was already emailed which session
+--   ops_report_sent   — the last UTC day the operator report went out
 --
 -- IMPORTANT — this script DROPS every table before recreating it. That is
 -- deliberate for now (no real users yet) and destroys all data in the
@@ -133,6 +135,21 @@ CREATE TABLE IF NOT EXISTS account_deletions (
   deleted_at TEXT NOT NULL
 );
 
+-- -------- Notification markers (what already went out) --------
+-- Also NOT dropped above: rerunning this file must never let the nightly job re-send a
+-- digest or mail a second ops report. The runner creates these on an existing database too.
+CREATE TABLE IF NOT EXISTS digest_sends (
+  recipient_key TEXT NOT NULL,          -- user id, falling back to the email address
+  session_date TEXT NOT NULL,           -- the trading session the digest covered
+  sent_at TEXT NOT NULL,
+  PRIMARY KEY (recipient_key, session_date)
+);
+
+CREATE TABLE IF NOT EXISTS ops_report_sent (
+  sent_date TEXT PRIMARY KEY,           -- UTC date of the operator report
+  sent_at TEXT NOT NULL
+);
+
 
 -- ============================================================
 -- Indexes
@@ -142,3 +159,4 @@ CREATE INDEX IF NOT EXISTS idx_lab_workspaces_user ON lab_workspaces(user_id);
 CREATE INDEX IF NOT EXISTS idx_lab_projects_workspace ON lab_projects(workspace_id);
 CREATE INDEX IF NOT EXISTS idx_lab_files_project ON lab_files(project_id);
 CREATE INDEX IF NOT EXISTS idx_lab_folders_project ON lab_folders(project_id);
+CREATE INDEX IF NOT EXISTS idx_digest_sends_session ON digest_sends(session_date);

@@ -1,10 +1,12 @@
 # -------- turso.py --------
 # Data layer over Turso (LibSQL HTTP pipeline).
 #
-# Three tables live here:
+# Five tables live here:
 #   users             - Supabase auth mirror, refreshed by the runner and the settings-sync endpoint.
 #   portfolios        - setup wizard answers (onboarding).
 #   account_deletions - churn log, the only trace left once an account is erased.
+#   digest_sends      - who was already emailed which session, so a rerun stays quiet.
+#   ops_report_sent   - the last day the operator report went out.
 #
 # Every function is a small focused read or write shared by the API and the daily runner.
 
@@ -16,7 +18,7 @@ import aiohttp
 
 from typing import Any
 from pathlib import Path
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
 
 
@@ -276,6 +278,60 @@ async def get_account_deletions() -> list[dict[str, Any]]:
     )
 
 
+# -------- Notification State (what already went out) --------
+# The nightly job must be runnable twice without mailing anyone twice. These markers live
+# in the database rather than a local file, so a redeploy or a second host reads the same
+# rows and stays quiet.
+
+# How many days of send records are kept before the oldest are pruned.
+DIGEST_RETENTION_DAYS: int = 30
+
+_notification_tables_ready: bool = False
+
+
+# Every recipient already mailed for one session.
+async def get_digest_sends(session_date: str) -> set[str]:
+    await _ensure_notification_tables()
+    rows = await execute("SELECT recipient_key FROM digest_sends WHERE session_date = ?", [session_date])
+    return {str(row.get("recipient_key") or "") for row in rows}
+
+
+# Remember one recipient for a session; a repeated call changes nothing.
+async def record_digest_send(recipient_key: str, session_date: str) -> None:
+    await _ensure_notification_tables()
+    await execute(
+        """INSERT INTO digest_sends (recipient_key, session_date, sent_at)
+           VALUES (?, ?, ?)
+           ON CONFLICT(recipient_key, session_date) DO NOTHING""",
+        [recipient_key, session_date, _now()],
+    )
+
+
+# Drop send records older than the retention window, so the table cannot grow forever.
+async def prune_digest_sends(keep_days: int = DIGEST_RETENTION_DAYS) -> None:
+    await _ensure_notification_tables()
+    cutoff: str = (datetime.now(timezone.utc) - timedelta(days=keep_days)).date().isoformat()
+    await execute("DELETE FROM digest_sends WHERE session_date < ?", [cutoff])
+
+
+# True when the operator report already went out on this UTC date.
+async def ops_report_sent_on(sent_date: str) -> bool:
+    await _ensure_notification_tables()
+    rows = await execute("SELECT sent_date FROM ops_report_sent WHERE sent_date = ?", [sent_date])
+    return bool(rows)
+
+
+# Record one operator report for a UTC date; a repeated call changes nothing.
+async def record_ops_report(sent_date: str) -> None:
+    await _ensure_notification_tables()
+    await execute(
+        """INSERT INTO ops_report_sent (sent_date, sent_at)
+           VALUES (?, ?)
+           ON CONFLICT(sent_date) DO NOTHING""",
+        [sent_date, _now()],
+    )
+
+
 # -------- Helpers --------
 # Create the churn log once per process; an existing database picks it up here, a fresh
 # one already has it from migrations.sql.
@@ -295,3 +351,32 @@ async def _ensure_deletions_table() -> None:
         """
     )
     _deletions_ready = True
+
+
+# Create the notification markers once per process, on an existing database too.
+async def _ensure_notification_tables() -> None:
+    global _notification_tables_ready
+    if _notification_tables_ready:
+        return
+    await execute(
+        """
+        CREATE TABLE IF NOT EXISTS digest_sends (
+          recipient_key TEXT NOT NULL,
+          session_date TEXT NOT NULL,
+          sent_at TEXT NOT NULL,
+          PRIMARY KEY (recipient_key, session_date)
+        )
+        """
+    )
+    await execute(
+        "CREATE INDEX IF NOT EXISTS idx_digest_sends_session ON digest_sends(session_date)"
+    )
+    await execute(
+        """
+        CREATE TABLE IF NOT EXISTS ops_report_sent (
+          sent_date TEXT PRIMARY KEY,
+          sent_at TEXT NOT NULL
+        )
+        """
+    )
+    _notification_tables_ready = True

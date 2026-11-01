@@ -38,10 +38,6 @@ SUPABASE_SERVICE_KEY: str | None = os.environ.get("SUPABASE_SERVICE_ROLE")
 SUPABASE_PAGE_SIZE: int = 1000
 SUPABASE_TIMEOUT: int = 30
 
-# The date of the last report that actually sent, so a rerun cannot mail a second copy.
-OPS_REPORT_STATE_FILE: str = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ops_report_state.json")
-
-
 # -------- Accounts (Supabase) --------
 # Every auth account, one page at a time. Paging matters: per_page caps at 1000 and the
 # endpoint silently returns the first page again if the page is never advanced.
@@ -206,17 +202,13 @@ async def send_usage_report(receiver: str | None = None) -> tuple[bool, str | No
     report: dict[str, Any] = await collect_usage_report()
     sent, error = await asyncio.to_thread(usage_report_email, admin, report)
     if sent:
-        _mark_sent()
+        await turso.record_ops_report(_today())
     return sent, error, report
 
 
 # True when today's report already went out, so a repeated nightly run stays quiet.
-def sent_today() -> bool:
-    try:
-        with open(OPS_REPORT_STATE_FILE, "r", encoding="utf-8") as handle:
-            return json.load(handle).get("date") == _today()
-    except (OSError, ValueError, TypeError):
-        return False
+async def sent_today() -> bool:
+    return await turso.ops_report_sent_on(_today())
 
 
 # One line for the runner log and the CLI.
@@ -273,14 +265,6 @@ def _label(value: Any) -> str:
 # The UTC date of the last report that sent.
 def _today() -> str:
     return datetime.now(timezone.utc).date().isoformat()
-
-
-# Written in one step, so a crash cannot truncate the record.
-def _mark_sent() -> None:
-    tmp_file: str = OPS_REPORT_STATE_FILE + ".tmp"
-    with open(tmp_file, "w", encoding="utf-8") as handle:
-        json.dump({"date": _today()}, handle)
-    os.replace(tmp_file, OPS_REPORT_STATE_FILE)
 
 
 # -------- Entry Point --------
