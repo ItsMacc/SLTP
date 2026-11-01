@@ -10,6 +10,7 @@
 #
 #   market_data.parquet         every bar up to the last init or compaction
 #   market_data_recent.parquet  the bars added since, one session a day
+#   market_actions.parquet      splits and dividends, one row per event
 #
 # The update reads and rewrites only the tail, which is a few megabytes. Once the tail
 # holds more sessions than MAX_RECENT_SESSIONS it is folded into the master file and
@@ -17,7 +18,14 @@
 # every night. A bar is only ever written when it is newer than that symbol's newest
 # stored bar, so no bar is stored twice and compaction is a plain concatenation.
 #
-# Neither file ever drops a bar. A symbol that stops trading keeps everything it had;
+# Splits and dividends come down with the same download as the bars, so they cost no
+# extra request. They go to market_actions.parquet as one row per event: a ratio for a
+# split (4.0 is 4-for-1, 0.125 is 1-for-8, 1.253 is a spin-off) and a per-share amount for
+# a dividend, both already split-adjusted by the source. A split newer than a symbol's
+# last stored bar means the stored bars sit at the old prices, so that symbol is refetched
+# whole: the one time the update rewrites the master file, and the only bars ever dropped.
+#
+# No bar is ever dropped for being old. A symbol that stops trading keeps everything it had;
 # only its state changes, and that state lives in symbol_status.parquet, the single
 # tracking file: status, bar count, first and last bar, sessions behind, attempts, last
 # attempt and the last error.
@@ -39,6 +47,7 @@ import shutil
 import numpy as np
 import pandas as pd
 import pyarrow as pa
+import pyarrow.compute as pc
 import pyarrow.parquet as pq
 import yfinance as yf
 
@@ -50,7 +59,8 @@ from app.engine.utils.Dates import CALENDAR, codes_from_labels, labels_from_code
 
 # Database imports
 from app.database.market.market_data_service import (
-    RECENT_FILE, data_files, get_all_ticker_names, get_latest_trading_date, get_symbol_categories, refresh_market_data_cache,
+    ACTIONS_FILE, ACTION_DIVIDEND, ACTION_SPLIT, RECENT_FILE, data_files, get_all_ticker_names,
+    get_latest_trading_date, get_symbol_categories, refresh_market_data_cache,
 )
 
 
@@ -74,6 +84,10 @@ MAX_RECENT_SESSIONS: int = 500
 # bars for five days, so a miss is always retried on a month before we believe it.
 PROBE_PERIOD: str = "5d"
 WIDE_PERIOD: str = "1mo"
+
+# Recent symbols look back a month, not a week: a split is only reported on its own
+# session, so a week-long gap between runs would hide the event that caused the seam.
+RECENT_PERIOD: str = "1mo"
 
 # Status thresholds. Sessions are counted on the calendar stored in the master file.
 STOPPED_AFTER_SESSIONS: int = 5
@@ -100,6 +114,17 @@ MASTER_SCHEMA: pa.Schema = pa.schema([
     ("Low", pa.float32()),
     ("Close", pa.float32()),
     ("Volume", pa.float32()),
+])
+
+# Splits and dividends live in their own file: one row per event, not one per bar, so it
+# stays a few megabytes while the bar files carry 30M rows. Amount is a ratio (4.0 is
+# 4-for-1, 0.125 is 1-for-8, 1.253 is a spin-off) or a dividend per share. Both are
+# already split-adjusted by the source, so they line up with the stored closes.
+ACTIONS_SCHEMA: pa.Schema = pa.schema([
+    ("Symbol", pa.string()),
+    ("Date", pa.int32()),
+    ("Kind", pa.int8()),
+    ("Amount", pa.float32()),
 ])
 
 LEDGER_COLUMNS: list[str] = [
@@ -211,6 +236,7 @@ def _download(tickers: list[str], **range_kwargs) -> pd.DataFrame | None:
             interval="1d",
             group_by="ticker",
             auto_adjust=False,
+            actions=True,
             threads=True,
             progress=False,
             **range_kwargs,
@@ -264,86 +290,139 @@ def _extract_bars(frame: pd.DataFrame, ticker: str, name: str) -> pd.DataFrame |
     return bars.reset_index(drop=True)
 
 
-# Turn one downloaded frame into per-ticker data frames, splitting received from missed.
-def _split_frame(frame: pd.DataFrame | None, tickers: list[str], names: dict[str, str]) -> tuple[list[pd.DataFrame], list[str], list[str]]:
+# One ticker's split and dividend rows from a download, in actions-file layout, or None
+# when the window held no event. The source only fills these columns on the event date.
+def _extract_actions(frame: pd.DataFrame, ticker: str) -> pd.DataFrame | None:
+    try:
+        stock: pd.DataFrame = frame[_yf_symbol(ticker)] if isinstance(frame.columns, pd.MultiIndex) else frame
+    except KeyError:
+        return None
+    if stock is None or stock.empty:
+        return None
+
+    block: pd.DataFrame = stock.dropna(how="all").copy()
+    try:
+        block.index = pd.to_datetime(block.index)
+    except (TypeError, ValueError):
+        return None
+    block.index.name = "Date"
+
+    events: pd.DataFrame = block.reset_index()
+    events.columns = [str(column).strip().capitalize() for column in events.columns]
+    if any(column not in events.columns for column in ("Date", "Dividends", "Stock splits")):
+        return None
+
+    rows: list[pd.DataFrame] = []
+    for column, kind in (("Stock splits", ACTION_SPLIT), ("Dividends", ACTION_DIVIDEND)):
+        picked: pd.DataFrame = events[events[column] > 0][["Date", column]]
+        if picked.empty:
+            continue
+        picked = picked.rename(columns={column: "Amount"})
+        picked["Symbol"] = ticker
+        picked["Kind"] = np.int8(kind)
+        picked["Amount"] = picked["Amount"].astype("float32")
+        rows.append(picked[["Symbol", "Date", "Kind", "Amount"]])
+    if not rows:
+        return None
+
+    combined: pd.DataFrame = pd.concat(rows, ignore_index=True)
+    combined["Date"] = codes_from_labels(combined["Date"].to_numpy())
+    combined = combined[(combined["Date"] >= START_CODE) & (combined["Date"] <= to_code(_today()))]
+    return combined.reset_index(drop=True)
+
+
+# Turn one downloaded frame into per-ticker data frames, splitting received from missed,
+# and collect the split and dividend rows that came with the same download.
+def _split_frame(frame: pd.DataFrame | None, tickers: list[str], names: dict[str, str]) -> tuple[list[pd.DataFrame], list[str], list[str], list[pd.DataFrame]]:
     frames: list[pd.DataFrame] = []
     received: list[str] = []
     missed: list[str] = []
+    actions: list[pd.DataFrame] = []
     for ticker in tickers:
         bars: pd.DataFrame | None = _extract_bars(frame, ticker, names.get(ticker, ticker)) if frame is not None else None
         if bars is None:
             missed.append(ticker)
-        else:
-            frames.append(bars)
-            received.append(ticker)
-    return frames, received, missed
+            continue
+        frames.append(bars)
+        received.append(ticker)
+        events: pd.DataFrame | None = _extract_actions(frame, ticker) if frame is not None else None
+        if events is not None:
+            actions.append(events)
+    return frames, received, missed, actions
 
 
 # One batch attempt over a ticker list, split into chunk-sized requests.
-def _probe(tickers: list[str], names: dict[str, str], range_kwargs: dict) -> tuple[list[pd.DataFrame], list[str], list[str]]:
+def _probe(tickers: list[str], names: dict[str, str], range_kwargs: dict) -> tuple[list[pd.DataFrame], list[str], list[str], list[pd.DataFrame]]:
     frames: list[pd.DataFrame] = []
     received: list[str] = []
     missed: list[str] = []
+    actions: list[pd.DataFrame] = []
     for chunk in _chunks(tickers):
         frame: pd.DataFrame | None = _download(chunk, **range_kwargs)
-        chunk_frames, chunk_received, chunk_missed = _split_frame(frame, chunk, names)
+        chunk_frames, chunk_received, chunk_missed, chunk_actions = _split_frame(frame, chunk, names)
         frames += chunk_frames
         received += chunk_received
         missed += chunk_missed
-    return frames, received, missed
+        actions += chunk_actions
+    return frames, received, missed, actions
 
 
 # Download a list of tickers with the fallbacks that make a run trustworthy:
 # the batch is tried twice, a short window is widened to a month, whatever is left
 # is retried in small batches, and a small remainder is asked one ticker at a time.
-def _download_group(tickers: list[str], names: dict[str, str], range_kwargs: dict) -> tuple[list[pd.DataFrame], list[str], list[str]]:
+def _download_group(tickers: list[str], names: dict[str, str], range_kwargs: dict) -> tuple[list[pd.DataFrame], list[str], list[str], list[pd.DataFrame]]:
     if not tickers:
-        return [], [], []
+        return [], [], [], []
 
     frames: list[pd.DataFrame] = []
     received: list[str] = []
     missed: list[str] = list(tickers)
+    actions: list[pd.DataFrame] = []
 
     for _ in range(BATCH_ATTEMPTS):
-        batch_frames, batch_received, missed = _probe(missed, names, range_kwargs)
+        batch_frames, batch_received, missed, batch_actions = _probe(missed, names, range_kwargs)
         frames += batch_frames
         received += batch_received
+        actions += batch_actions
         if not missed:
-            return frames, received, missed
+            return frames, received, missed, actions
 
     # A five-day window is unreliable for thin symbols; ask for a month before believing it.
     if "period" in range_kwargs:
-        wide_frames, wide_received, missed = _probe(missed, names, {"period": WIDE_PERIOD})
+        wide_frames, wide_received, missed, wide_actions = _probe(missed, names, {"period": WIDE_PERIOD})
         frames += wide_frames
         received += wide_received
+        actions += wide_actions
         if not missed:
-            return frames, received, missed
+            return frames, received, missed, actions
 
     # Small batches first: this is what rescues a whole chunk that failed as one request.
     leftover: list[str] = list(missed)
     missed = []
     for batch in _chunks(leftover, RETRY_BATCH_SIZE):
-        batch_frames, batch_received, batch_missed = _probe(batch, names, range_kwargs)
+        batch_frames, batch_received, batch_missed, batch_actions = _probe(batch, names, range_kwargs)
         frames += batch_frames
         received += batch_received
         missed += batch_missed
+        actions += batch_actions
     if not missed:
-        return frames, received, missed
+        return frames, received, missed, actions
 
     # Individual requests: a malformed symbol in a batch shows up here and nowhere else.
     limit: int = PER_TICKER_LIMIT_DAILY if "period" in range_kwargs else PER_TICKER_LIMIT_INIT
     if len(missed) > limit:
-        return frames, received, missed
+        return frames, received, missed, actions
 
     singles: list[str] = list(missed)
     missed = []
     for ticker in singles:
-        single_frames, single_received, single_missed = _probe([ticker], names, range_kwargs)
+        single_frames, single_received, single_missed, single_actions = _probe([ticker], names, range_kwargs)
         frames += single_frames
         received += single_received
         missed += single_missed
+        actions += single_actions
 
-    return frames, received, missed
+    return frames, received, missed, actions
 
 
 # -------- Master File --------
@@ -531,8 +610,12 @@ def init_market_data(force: bool = False) -> None:
             print(f"  chunk {index + 1}/{len(chunks)}: already downloaded, keeping it")
             continue
 
-        frames, received, missed = _download_group(chunk, names, {"start": START_DATE})
+        frames, received, missed, actions = _download_group(chunk, names, {"start": START_DATE})
         if frames:
+            # Events first: a run interrupted before the part lands re-downloads the chunk,
+            # and re-appending the same events is harmless because they are deduplicated.
+            if actions:
+                _append_actions(actions)
             _write_part(path, frames)
         _mark_attempted(ledger, chunk, received, missed, today)
         _save_ledger(ledger)
@@ -559,9 +642,105 @@ def init_market_data(force: bool = False) -> None:
     _print_ledger_summary(ledger)
 
 
+# -------- Actions File --------
+# Merge split and dividend rows into the actions file. A symbol in `replaced` loses its
+# old rows first, because a split restates every dividend that came before it.
+def _append_actions(frames: list[pd.DataFrame], replaced: set[str] | None = None) -> int:
+    parts: list[pd.DataFrame] = []
+    if os.path.exists(ACTIONS_FILE):
+        existing: pd.DataFrame = pd.read_parquet(ACTIONS_FILE)
+        if replaced:
+            existing = existing[~existing["Symbol"].isin(replaced)]
+        parts.append(existing)
+    parts += frames
+    if not parts:
+        return 0
+
+    combined: pd.DataFrame = pd.concat(parts, ignore_index=True).dropna(subset=["Symbol", "Date"])
+    combined = (
+        combined.drop_duplicates(subset=["Symbol", "Date", "Kind"], keep="last")
+        .sort_values(["Symbol", "Date", "Kind"])
+        .reset_index(drop=True)
+    )
+    combined["Date"] = combined["Date"].astype("int32")
+    combined["Kind"] = combined["Kind"].astype("int8")
+    combined["Amount"] = combined["Amount"].astype("float32")
+
+    table: pa.Table = pa.Table.from_pandas(combined, schema=ACTIONS_SCHEMA, preserve_index=False)
+    tmp_file: str = ACTIONS_FILE + ".tmp"
+    pq.write_table(table, tmp_file, compression="snappy")
+    os.replace(tmp_file, ACTIONS_FILE)
+    return len(combined)
+
+
+# Symbols whose download reported a split after their last stored bar. Their stored bars
+# sit at the old prices, so appending restated ones would leave a cliff in the history.
+def _split_symbols(actions: list[pd.DataFrame], stats: dict[str, tuple[int, str, str]]) -> set[str]:
+    split: set[str] = set()
+    for events in actions:
+        symbol: str = str(events["Symbol"].iloc[0])
+        last_bar: str = stats.get(symbol, (0, "", ""))[2]
+        if not last_bar:
+            continue
+        dates = events[events["Kind"] == ACTION_SPLIT]["Date"].to_numpy()
+        if dates.size and int(dates.max()) > to_code(last_bar):
+            split.add(symbol)
+    return split
+
+
+# One symbol's whole history again, with every event it ever had.
+def _refetch_symbol(symbol: str, names: dict[str, str]) -> tuple[pd.DataFrame | None, list[pd.DataFrame]]:
+    frames, _, _, actions = _probe([symbol], names, {"start": START_DATE})
+    return (frames[0] if frames else None), actions
+
+
+# Rewrite the bar files without the given symbols, then write their whole history back.
+# A symbol must never hold its pre-split and post-split bars together, so this is the one
+# update path that rewrites the master file. The tail is folded in on the way through.
+def _replace_symbols(frames: list[pd.DataFrame]) -> int:
+    value_set = pa.array([str(frame["Symbol"].iloc[0]) for frame in frames], type=pa.string())
+    tmp_file: str = MASTER_FILE + ".tmp"
+    writer: pq.ParquetWriter | None = None
+    rows: int = 0
+    try:
+        for path in data_files():
+            for batch in pq.ParquetFile(path).iter_batches(batch_size=1_000_000):
+                table: pa.Table = pa.Table.from_batches([batch]).cast(MASTER_SCHEMA)
+                table = table.filter(pc.invert(pc.is_in(table["Symbol"], value_set=value_set)))
+                if table.num_rows == 0:
+                    continue
+                if writer is None:
+                    writer = pq.ParquetWriter(tmp_file, MASTER_SCHEMA, compression="snappy")
+                writer.write_table(table)
+                rows += table.num_rows
+
+        # The fresh history goes in as one block per symbol, so runs stay contiguous.
+        for frame in frames:
+            if writer is None:
+                writer = pq.ParquetWriter(tmp_file, MASTER_SCHEMA, compression="snappy")
+            table = pa.Table.from_pandas(frame, schema=MASTER_SCHEMA, preserve_index=False)
+            writer.write_table(table)
+            rows += table.num_rows
+
+        if writer is not None:
+            writer.close()
+            writer = None
+        os.replace(tmp_file, MASTER_FILE)
+    finally:
+        if writer is not None:
+            writer.close()
+        if os.path.exists(tmp_file):
+            os.remove(tmp_file)
+
+    if os.path.exists(RECENT_FILE):
+        os.remove(RECENT_FILE)
+    return rows
+
+
 # -------- Daily Update --------
-# Append the newest bars to the recent tail. Misses are retried, stopped symbols are
-# left alone for a month, and nothing is ever deleted.
+# Append the newest bars to the recent tail and record the splits and dividends that came
+# with them. Misses are retried, stopped symbols are left alone for a month, and a symbol
+# that split is refetched whole instead of being appended to.
 def update_market_data() -> None:
     today: str = _today()
     if date.today().weekday() >= 5:  # Saturday or Sunday
@@ -605,17 +784,47 @@ def update_market_data() -> None:
     print(f"Updating: {len(recent)} recent, {len(stale)} stale, {len(new)} never seen, {skipped} skipped.")
 
     frames: list[pd.DataFrame] = []
+    actions: list[pd.DataFrame] = []
+    split_symbols: set[str] = set()
     for group, range_kwargs in (
-        (recent, {"period": PROBE_PERIOD}),
+        (recent, {"period": RECENT_PERIOD}),
         (stale, {"start": _earliest_last_bar(ledger, stale)}),
         (new, {"start": START_DATE}),
     ):
-        group_frames, received, missed = _download_group(group, names, range_kwargs)
+        group_frames, received, missed, group_actions = _download_group(group, names, range_kwargs)
+        actions += group_actions
+        split_symbols |= _split_symbols(group_actions, stats)
         for frame in group_frames:
+            if str(frame["Symbol"].iloc[0]) in split_symbols:
+                continue
             kept: pd.DataFrame = _trim_to_new_bars(frame, stats)
             if not kept.empty:
                 frames.append(kept)
         _mark_attempted(ledger, group, received, missed, today)
+
+    if split_symbols:
+        actions = [events for events in actions if str(events["Symbol"].iloc[0]) not in split_symbols]
+        refreshed: list[pd.DataFrame] = []
+        refreshed_actions: list[pd.DataFrame] = []
+        for symbol in sorted(split_symbols):
+            history, events = _refetch_symbol(symbol, names)
+            if history is None:
+                continue
+            refreshed.append(history)
+            refreshed_actions += events
+            print(f"  {symbol}: split since its last bar; refetched {len(history)} bars.")
+        if refreshed:
+            replaced: set[str] = {str(frame["Symbol"].iloc[0]) for frame in refreshed}
+            rows: int = _replace_symbols(refreshed)
+            _append_actions(refreshed_actions, replaced=replaced)
+            ledger = _refresh_ledger(ledger, today)
+            _save_ledger(ledger)
+            _refresh_api_cache()
+            print(f"Splits: rebuilt {os.path.basename(MASTER_FILE)} without {len(refreshed)} old history(ies); {rows} rows.")
+
+    if actions:
+        total: int = _append_actions(actions)
+        print(f"Actions: {total} split(s) and dividend(s) on file.")
 
     if not frames:
         print("No new bars came back; market data was left untouched.")

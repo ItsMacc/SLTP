@@ -6,11 +6,14 @@
 # stored stock / etf / gold categories. Histories: get_stock_history(ticker, start,
 # end) and get_stock_histories(tickers, start, end), where start defaults to
 # 1998-01-01 (None means the same) and end defaults to the end of the data.
+# Dividends: get_dividends(ticker, start, end) returns day codes and amount per share, so
+# a backtest can account for them without reading a bar.
 #
 # Bars live in two files so a daily update never rewrites history:
 #
 #   market_data.parquet         every bar up to the last init or compaction
 #   market_data_recent.parquet  the bars added since, growing by one session a day
+#   market_actions.parquet      splits and dividends, one row per event
 #
 # Readers treat the pair as one table. A symbol's bars are never stored twice: a new
 # bar is only written when it is newer than that symbol's newest stored bar.
@@ -46,6 +49,11 @@ MARKET_DIR: str = os.path.dirname(os.path.abspath(__file__))
 SYMBOL_DATA_DIR: str = os.path.join(MARKET_DIR, "..", "symbol_data")
 MASTER_FILE: str = os.path.join(MARKET_DIR, "market_data.parquet")
 RECENT_FILE: str = os.path.join(MARKET_DIR, "market_data_recent.parquet")
+ACTIONS_FILE: str = os.path.join(MARKET_DIR, "market_actions.parquet")
+
+# Event kinds in the actions file. One row per event, never one per bar.
+ACTION_SPLIT: int = 0
+ACTION_DIVIDEND: int = 1
 SYMBOLS_FILE: str = os.path.join(SYMBOL_DATA_DIR, "symbols.parquet")
 STATUS_FILE: str = os.path.join(SYMBOL_DATA_DIR, "symbol_status.parquet")
 DEFAULT_START: str = "1998-01-01"
@@ -204,6 +212,16 @@ def get_stock_histories(tickers: list[str], start: str | None = None, end: str |
         if sliced is not None:
             result[symbol] = sliced
     return result
+
+
+# Dividends for one ticker between start and end: day codes and amount per share.
+# Empty arrays when the symbol never paid one. Amounts are split-adjusted by the source,
+# so they line up with the closes in the bar files.
+def get_dividends(ticker: str, start: str | None = None, end: str | None = None) -> tuple[np.ndarray, np.ndarray]:
+    entry: tuple[np.ndarray, np.ndarray] | None = _actions_index(ACTION_DIVIDEND).get(ticker.strip().upper())
+    if entry is None:
+        return np.empty(0, dtype=np.int32), np.empty(0, dtype=np.float32)
+    return _actions_in_range(entry[0], entry[1], start, end)
 
 
 # Drop every cached value so the next read reloads from disk.
@@ -471,6 +489,46 @@ def _iter_batches(paths: list[str]):
 # Total bars across the given files.
 def _row_count(paths: list[str]) -> int:
     return sum(pq.ParquetFile(path).metadata.num_rows for path in paths)
+
+
+# Every event of one kind grouped by symbol, built once per file signature. The file is a
+# few megabytes, so loading it whole beats reopening it for every symbol a backtest asks
+# about: get_dividends becomes a dict lookup instead of a parquet read.
+def _actions_index(kind: int) -> dict[str, tuple[np.ndarray, np.ndarray]]:
+    return _cached(f"actions_{kind}", _file_signature(ACTIONS_FILE, required=False), lambda: _build_actions_index(kind))
+
+
+# Group one kind's events by symbol. The file is sorted by Symbol, so each run of equal
+# symbols is one ticker's series.
+def _build_actions_index(kind: int) -> dict[str, tuple[np.ndarray, np.ndarray]]:
+    if not os.path.exists(ACTIONS_FILE):
+        return {}
+
+    table: pa.Table = pq.read_table(
+        ACTIONS_FILE, columns=["Symbol", "Date", "Amount"], filters=[("Kind", "=", kind)]
+    )
+    if table.num_rows == 0:
+        return {}
+
+    codes = table.column("Date").combine_chunks().to_numpy(zero_copy_only=False).astype(np.int32)
+    amounts = table.column("Amount").combine_chunks().to_numpy(zero_copy_only=False).astype(np.float32)
+    symbols: np.ndarray = np.array(table.column("Symbol").combine_chunks().to_pylist(), dtype=object)
+
+    edges = np.flatnonzero(symbols[1:] != symbols[:-1]) + 1
+    starts = np.concatenate((np.zeros(1, dtype=np.int64), edges)).tolist()
+    ends = np.concatenate((edges, np.array([len(symbols)], dtype=np.int64))).tolist()
+    return {str(symbols[start]): (codes[start:end], amounts[start:end]) for start, end in zip(starts, ends)}
+
+
+# Cut an event series to the requested range. start=None means from DEFAULT_START.
+def _actions_in_range(codes: np.ndarray, amounts: np.ndarray, start: str | None, end: str | None) -> tuple[np.ndarray, np.ndarray]:
+    if codes.size == 0:
+        return codes, amounts
+
+    start_code: np.int32 = to_code(start or DEFAULT_START)
+    end_code: np.int32 = to_code(end) if end is not None else np.iinfo(np.int32).max
+    keep = (codes >= start_code) & (codes <= end_code)
+    return codes[keep], amounts[keep]
 
 
 # Turn streamed bars into one StockData per symbol. Every bar lands in a preallocated
