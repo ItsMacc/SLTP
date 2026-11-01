@@ -120,85 +120,90 @@ class Strategy:
         return False
 
     # -------- Indicator Helpers --------
+    # TA-Lib only accepts float64 arrays and market data is stored float32, so widen here.
+    @staticmethod
+    def _widen(*arrays) -> tuple:
+        return tuple(np.asarray(array, dtype=np.float64) if isinstance(array, np.ndarray) else array for array in arrays)
+
     # Simple Moving Average: the average price over a fixed window.
     def _sma(self, values, window):
-        return ta.SMA(values, window)
+        return ta.SMA(*self._widen(values), window)
 
     # Exponential Moving Average: weights recent prices more heavily.
     def _ema(self, values, window):
-        return ta.EMA(values, window)
+        return ta.EMA(*self._widen(values), window)
 
     # Double Exponential Moving Average: less lag than a standard EMA.
     def _dema(self, values, window):
-        return ta.DEMA(values, window)
+        return ta.DEMA(*self._widen(values), window)
 
     # Relative Strength Index: momentum on a 0 to 100 scale.
     def _rsi(self, values, window):
-        return ta.RSI(values, window)
+        return ta.RSI(*self._widen(values), window)
 
     # Moving Average Convergence Divergence: trend momentum and direction.
     def _macd(self, values, fast_period=12, slow_period=26, signal_period=9):
-        return ta.MACD(values, fast_period, slow_period, signal_period)
+        return ta.MACD(*self._widen(values), fast_period, slow_period, signal_period)
 
     # Bollinger Bands: volatility bands above and below a moving average.
     def _bollinger_bands(self, values, window, deviations=2):
-        return ta.BBANDS(values, window, deviations, deviations)
+        return ta.BBANDS(*self._widen(values), window, deviations, deviations)
 
     # Average True Range: volatility over time.
     def _atr(self, high, low, close, window):
-        return ta.ATR(high, low, close, window)
+        return ta.ATR(*self._widen(high, low, close), window)
 
     # Average Directional Index: the strength of a trend.
     def _adx(self, high, low, close, window):
-        return ta.ADX(high, low, close, window)
+        return ta.ADX(*self._widen(high, low, close), window)
 
     # Stochastic Oscillator: the close relative to its recent range.
     def _stochastic(self, high, low, close, fast_k=5, slow_k=3, slow_d=3):
-        return ta.STOCH(high, low, close, fastk_period=fast_k, slowk_period=slow_k, slowd_period=slow_d)
+        return ta.STOCH(*self._widen(high, low, close), fastk_period=fast_k, slowk_period=slow_k, slowd_period=slow_d)
 
     # Williams %R: overbought and oversold conditions.
     def _williams_r(self, high, low, close, window):
-        return ta.WILLR(high, low, close, window)
+        return ta.WILLR(*self._widen(high, low, close), window)
 
     # Commodity Channel Index: price relative to its statistical average.
     def _cci(self, high, low, close, window):
-        return ta.CCI(high, low, close, window)
+        return ta.CCI(*self._widen(high, low, close), window)
 
     # Rate of Change: percentage difference from `window` bars ago.
     def _roc(self, values, window):
-        return ta.ROC(values, window)
+        return ta.ROC(*self._widen(values), window)
 
     # Price momentum: absolute difference from `window` bars ago.
     def _momentum(self, values, window):
-        return ta.MOM(values, window)
+        return ta.MOM(*self._widen(values), window)
 
     # On-Balance Volume: volume flow as a predictor of price shifts.
     def _obv(self, close, volume):
-        return ta.OBV(close, volume)
+        return ta.OBV(*self._widen(close, volume))
 
     # Money Flow Index: price and volume as buying or selling pressure.
     def _mfi(self, high, low, close, volume, window):
-        return ta.MFI(high, low, close, volume, window)
+        return ta.MFI(*self._widen(high, low, close, volume), window)
 
     # Accumulation/Distribution Line: underlying supply and demand.
     def _ad(self, high, low, close, volume):
-        return ta.AD(high, low, close, volume)
+        return ta.AD(*self._widen(high, low, close, volume))
 
     # Triple Exponential Average: noise-filtered momentum.
     def _trix(self, values, window):
-        return ta.TRIX(values, window)
+        return ta.TRIX(*self._widen(values), window)
 
     # Triple Exponential Moving Average: very low lag.
     def _tema(self, values, window):
-        return ta.TEMA(values, window)
+        return ta.TEMA(*self._widen(values), window)
 
     # Parabolic SAR: trend direction and potential reversal points.
     def _parabolic_sar(self, high, low, acceleration=0.02, maximum=0.2):
-        return ta.SAR(high, low, acceleration, maximum)
+        return ta.SAR(*self._widen(high, low), acceleration, maximum)
 
     # Stochastic RSI: the Stochastic formula applied to RSI values.
     def _stochastic_rsi(self, values, window, fast_k=5, fast_d=3):
-        return ta.STOCHRSI(values, window, fast_k, fast_d)
+        return ta.STOCHRSI(*self._widen(values), window, fast_k, fast_d)
 
     # -------- Exit Helpers --------
     # True once the trade has been held for the allowed number of days.

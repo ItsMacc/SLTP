@@ -482,7 +482,7 @@ def _histories_from_batches(batches, rows: int) -> dict[str, StockData]:
 
     date = np.empty(rows, dtype=np.int32)
     prices = {name: np.empty(rows, dtype=np.float32) for name in ("Open", "High", "Low", "Close")}
-    volume = np.empty(rows, dtype=np.float64)
+    volume = np.empty(rows, dtype=np.float32)
     symbols = np.empty(rows, dtype=np.int32)
     ids: dict[str, int] = {}
     at: int = 0

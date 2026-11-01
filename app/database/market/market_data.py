@@ -90,7 +90,7 @@ RETRY_BATCH_SIZE: int = 50
 PER_TICKER_LIMIT_DAILY: int = 150
 PER_TICKER_LIMIT_INIT: int = 40
 
-# Dates are int32 day numbers and prices float32, which costs 28 bytes a bar.
+# Dates are int32 day numbers and every price column float32: 24 bytes a bar.
 MASTER_SCHEMA: pa.Schema = pa.schema([
     ("Symbol", pa.string()),
     ("Name", pa.string()),
@@ -99,7 +99,7 @@ MASTER_SCHEMA: pa.Schema = pa.schema([
     ("High", pa.float32()),
     ("Low", pa.float32()),
     ("Close", pa.float32()),
-    ("Volume", pa.float64()),
+    ("Volume", pa.float32()),
 ])
 
 LEDGER_COLUMNS: list[str] = [
@@ -257,9 +257,8 @@ def _extract_bars(frame: pd.DataFrame, ticker: str, name: str) -> pd.DataFrame |
     if bars.empty:
         return None
 
-    for column in ("Open", "High", "Low", "Close"):
+    for column in PRICE_COLS:
         bars[column] = bars[column].astype("float32")
-    bars["Volume"] = bars["Volume"].astype("float64")
     bars.insert(0, "Name", name)
     bars.insert(0, "Symbol", ticker)
     return bars.reset_index(drop=True)
