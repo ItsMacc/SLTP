@@ -108,6 +108,15 @@ async def delete_account(
             detail=f"Could not delete your sign-in credentials, so the account is still active. {e}",
         ) from e
 
+    # -------- Churn Log --------
+    # The wipe below leaves no trace of this account, so the operator report reads from
+    # this log instead. Best-effort: the credential is already gone, so a failed log
+    # entry must not turn a completed deletion into an error.
+    try:
+        await turso.record_account_deletion(user_id, email=user.get("email"), name=user.get("name"))
+    except Exception as e:  # noqa: BLE001
+        warnings.append(f"Churn log entry not written: {e}")
+
     # -------- Supabase: The Profile Row --------
     try:
         resp = requests.delete(

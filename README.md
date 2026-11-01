@@ -27,8 +27,8 @@ TURSO_AUTH_TOKEN=<your-turso-auth-token>
 
 > Get these from the Supabase dashboard (Settings → API) and the Turso dashboard (Database → Connect).
 >
-> Optional: set `ADMIN_EMAIL` to receive the nightly split-audit alert. Without it, newly
-> flagged symbols are only written to the log.
+> Ops mail (the nightly split audit and the daily ops report) goes to `ADMIN_EMAIL` when
+> set, otherwise to `SENDER_EMAIL`: the account that sends also receives.
 > Optional: set `SENDER_EMAIL` and `APP_PASSWORD` (a Gmail app password) to send any mail.
 
 ### 3. Initialize the Turso schema and the market data
@@ -143,7 +143,8 @@ See `app/main.py` and `app/auth/auth.py` for full route documentation.
 | **Supabase** | Enable RLS on `users` and `portfolios` tables. The anon key + RLS is the security boundary. |
 | **Turso** | The database URL + auth token must be reachable from the backend host. No firewall changes needed if both are cloud-hosted. |
 | **Market data** | `python -m app.database.market.market_data init` creates `app/database/market/market_data.parquet` once; `... update` adds a small `market_data_recent.parquet` and `market_actions.parquet` next to it each night. The backend reads all three files and `app/database/symbol_data/symbols.parquet` on every start, so keep every one of them in your deployment volume. |
-| **Daily runner** | `python -m app.notification.daily_runner` — runs nightly, refreshes market data, audits splits, syncs settings from Supabase into Turso and sends the signal digests. |
+| **Daily runner** | `python -m app.notification.daily_runner` — runs nightly, refreshes market data, audits splits, syncs settings from Supabase into Turso and sends the signal digests. Each user is emailed once per session, recorded in `digest_state.json`, so a weekend or retried run never sends the same digest twice. |
+| **Ops report** | `python -m app.notification.usage_report` emails `ADMIN_EMAIL` (or `SENDER_EMAIL`) the state of the user base: signups, who signed in this week, who finished onboarding, Lab and API usage, most-followed strategies and deletions. The nightly runner sends it once a day, recorded in `ops_report_state.json` so a rerun stays quiet. A deleted account is appended to the `account_deletions` table first, because the wipe leaves nothing else behind. |
 | **CI/CD** | If you push to GitHub, add a GitHub Actions workflow that runs `pip install -r requirements.txt`, `npm ci`, and `npm run build`. Downloading market data in CI is wasteful: build the parquet once and ship it as an artifact. |
 
 ---

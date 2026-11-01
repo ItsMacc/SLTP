@@ -1,10 +1,11 @@
 -- ============================================================
 -- SLTP — Turso schema (bootstrap)
 --
--- ONE file, built for a fresh database. Only two tables exist now:
+-- ONE file, built for a fresh database. Three tables exist now:
 --
---   users      — mirror of Supabase auth (name, email, settings_json)
---   portfolios — setup wizard answers (onboarding)
+--   users             — mirror of Supabase auth (name, email, settings_json)
+--   portfolios        — setup wizard answers (onboarding)
+--   account_deletions — churn log; the account wipe leaves nothing else behind
 --
 -- IMPORTANT — this script DROPS every table before recreating it. That is
 -- deliberate for now (no real users yet) and destroys all data in the
@@ -118,6 +119,18 @@ CREATE TABLE IF NOT EXISTS lab_folders (
   name TEXT NOT NULL,
   created_at TEXT NOT NULL,
   UNIQUE (project_id, name)
+);
+
+-- -------- Account deletions (churn log) --------
+-- Delete account erases the users row and the Supabase account, so this is the only
+-- record that the person ever signed up. Unlike everything above, it is NOT dropped
+-- above: rerunning this file must not erase the operator's churn history.
+CREATE TABLE IF NOT EXISTS account_deletions (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL UNIQUE,
+  email TEXT,
+  name TEXT,
+  deleted_at TEXT NOT NULL
 );
 
 

@@ -1,9 +1,10 @@
 # -------- turso.py --------
 # Data layer over Turso (LibSQL HTTP pipeline).
 #
-# Two tables live here:
-#   users      - Supabase auth mirror, refreshed by the runner and the settings-sync endpoint.
-#   portfolios - setup wizard answers (onboarding).
+# Three tables live here:
+#   users             - Supabase auth mirror, refreshed by the runner and the settings-sync endpoint.
+#   portfolios        - setup wizard answers (onboarding).
+#   account_deletions - churn log, the only trace left once an account is erased.
 #
 # Every function is a small focused read or write shared by the API and the daily runner.
 
@@ -243,3 +244,54 @@ async def upsert_portfolio(user_id: str, *, name: str, base_currency: str,
             [_id(), user_id, name, base_currency, starting_cash,
              json.dumps(preferences), int(onboarded), now, now],
         )
+
+
+# -------- Account Deletions (churn log) --------
+# Deletion erases the users row and the Supabase account, so without this log there is
+# no evidence the person ever signed up. Rows are only ever inserted, never removed.
+_deletions_ready: bool = False
+
+
+# Append one deletion; a repeat call for the same account is ignored.
+async def record_account_deletion(user_id: str, *, email: str | None = None,
+                                  name: str | None = None) -> None:
+    await _ensure_deletions_table()
+    existing = await execute("SELECT id FROM account_deletions WHERE user_id = ?", [user_id])
+    if existing:
+        return
+    await execute(
+        """INSERT INTO account_deletions (id, user_id, email, name, deleted_at)
+           VALUES (?, ?, ?, ?, ?)""",
+        [_id(), user_id, email, name, _now()],
+    )
+
+
+# Every recorded deletion, newest first, for the operator report.
+async def get_account_deletions() -> list[dict[str, Any]]:
+    await _ensure_deletions_table()
+    return await execute(
+        """SELECT user_id, email, name, deleted_at
+             FROM account_deletions
+            ORDER BY deleted_at DESC"""
+    )
+
+
+# -------- Helpers --------
+# Create the churn log once per process; an existing database picks it up here, a fresh
+# one already has it from migrations.sql.
+async def _ensure_deletions_table() -> None:
+    global _deletions_ready
+    if _deletions_ready:
+        return
+    await execute(
+        """
+        CREATE TABLE IF NOT EXISTS account_deletions (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL UNIQUE,
+          email TEXT,
+          name TEXT,
+          deleted_at TEXT NOT NULL
+        )
+        """
+    )
+    _deletions_ready = True

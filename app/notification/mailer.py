@@ -42,6 +42,26 @@ C_RED = "#dc2626"
 C_BORDER = "#e6e0d4"
 C_PANEL = "#faf8f2"
 
+# Ops emails go to the operator, so they must not claim the reader is a customer.
+OPS_FOOTER_HTML = (
+    '<p style="margin:24px 0 0;color:#968f88;font-size:12px;line-height:1.5;'
+    'border-top:1px solid #e6e0d4;padding-top:16px;">'
+    "Internal SLTP report, sent only to the operator address."
+    "</p>"
+)
+
+
+# -------- Admin Recipient --------
+# Ops mail (split audit, usage report) goes to ADMIN_EMAIL when set, otherwise to
+# SENDER_EMAIL. The Gmail account that authenticates the send is the one address we know
+# exists, so an unconfigured install simply mails itself instead of dropping the report.
+def admin_recipient() -> str | None:
+    for name in ("ADMIN_EMAIL", "SENDER_EMAIL"):
+        value = (os.environ.get(name) or "").strip()
+        if value:
+            return value
+    return None
+
 
 # -------- Low-Level Sender --------
 # Send an HTML email over Gmail SMTP; returns (success, error_message).
@@ -70,7 +90,8 @@ def send_email(receiver: str, subject: str, html: str) -> tuple[bool, str | None
 
 # -------- Shared Boilerplate --------
 # Wrap content in the common branded frame; tables keep the layout email-safe.
-def _shell(preheader: str, title: str, accent: str, inner_html: str) -> str:
+def _shell(preheader: str, title: str, accent: str, inner_html: str,
+           footer_html: str = FOOTER_HTML) -> str:
     return f"""<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
@@ -91,7 +112,7 @@ def _shell(preheader: str, title: str, accent: str, inner_html: str) -> str:
     <tr>
       <td style="padding:28px;color:{C_TEXT};font-size:15px;line-height:1.6;">
         {inner_html}
-        {FOOTER_HTML}
+        {footer_html}
       </td>
     </tr>
   </table>
@@ -467,11 +488,96 @@ def split_seam_email(receiver: str, seams: list[tuple[str, str, float, float]]) 
     return send_email(receiver, subject, _shell(f"{len(seams)} new split seam(s)", "Split Audit", C_RED, inner))
 
 
+# -------- Usage Report Email --------
+# Ops email: the state of the whole user base, written for the operator rather than one
+# user. Every number is read by usage_report.py; None means "could not be read".
+def usage_report_email(receiver: str, report: dict[str, Any]) -> tuple[bool, str | None]:
+    accounts: dict[str, Any] = report.get("accounts") or {}
+    usage: dict[str, Any] = report.get("usage") or {}
+    churn: dict[str, Any] = report.get("churn") or {}
+    strategies: list[tuple[str, int]] = report.get("strategies") or []
+
+    total = _count(accounts.get("total"))
+    active_week = _count(accounts.get("active_7d"))
+    onboarded = _count(usage.get("onboarded"))
+    deleted = _count(churn.get("total"))
+    has_activity: bool = bool(accounts.get("active_7d"))
+
+    subject = f"{BRAND} Ops: {total} accounts · {active_week} active this week · {deleted} deleted"
+    preheader = f"{total} accounts · {onboarded} onboarded · {deleted} deleted"
+
+    parts: list[str] = [
+        f'<p style="margin:0 0 20px;">State of the user base as of {report.get("generated_at", "now")}. '
+        f'Numbers in the app come from Turso; signups come from Supabase auth.</p>'
+    ]
+
+    parts.append(_panel("Accounts", [
+        ("All signups", total, C_TEXT),
+        ("New in the last 7 days", _count(accounts.get("new_7d")), C_TEXT),
+        ("New in the last 30 days", _count(accounts.get("new_30d")), C_TEXT),
+        ("Signed in in the last 7 days", active_week, C_GREEN if has_activity else C_MUTED),
+        ("Signed in in the last 30 days", _count(accounts.get("active_30d")), C_TEXT),
+        ("Never signed in", _count(accounts.get("never_signed_in")), C_MUTED),
+    ]))
+
+    parts.append('<div style="height:20px;"></div>')
+    parts.append(_panel("Product", [
+        ("Signed up and opened the app", _count(usage.get("provisioned")), C_TEXT),
+        ("Finished onboarding", _count(usage.get("onboarded")), C_TEXT),
+        ("Stuck in onboarding", _count(usage.get("not_onboarded")), C_MUTED),
+        ("Lab projects", _count(usage.get("lab_projects")), C_TEXT),
+        ("People with a Lab project", _count(usage.get("lab_users")), C_TEXT),
+        ("Active API keys", _count(usage.get("api_keys")), C_TEXT),
+    ]))
+
+    parts.append('<div style="height:20px;"></div>')
+    parts.append(_panel("Churn", [
+        ("Accounts deleted, all time", _count(churn.get("total")), C_RED),
+        ("Deleted in the last 30 days", _count(churn.get("last_30d")), C_TEXT),
+    ]))
+
+    recent: list[dict[str, Any]] = churn.get("recent") or []
+    if recent:
+        parts.append('<div style="height:20px;"></div>')
+        parts.append(_panel("Recent deletions", [
+            (row.get("email") or row.get("user_id") or "unknown",
+             str(row.get("deleted_at", ""))[:10], C_MUTED)
+            for row in recent[:10]
+        ]))
+
+    if strategies:
+        parts.append('<div style="height:20px;"></div>')
+        parts.append(_panel("Strategies followed", [
+            (str(strategy_id), f"{count} user{'s' if count != 1 else ''}", C_TEXT)
+            for strategy_id, count in strategies[:8]
+        ]))
+
+    errors: list[str] = report.get("errors") or []
+    if errors:
+        parts.append(
+            f'<p style="margin:20px 0 0;color:{C_RED};font-size:13px;">Partial report:</p>'
+            + "".join(f'<p style="margin:4px 0 0;color:{C_MUTED};font-size:12px;">{e}</p>' for e in errors)
+        )
+
+    inner: str = "".join(parts)
+    return send_email(
+        receiver, subject,
+        _shell(preheader, "Ops Report", C_ACCENT, inner, footer_html=OPS_FOOTER_HTML),
+    )
+
+
+# Thousands separators, or "n/a" when a source could not be read.
+def _count(value: Any) -> str:
+    if value is None:
+        return "n/a"
+    return f"{value:,}" if isinstance(value, int) else str(value)
+
+
 # -------- Dispatch Helper --------
 def send_notification_email(kind: str, receiver: str, user_name: str,
                             payload: dict[str, Any] | None = None) -> tuple[bool, str | None]:
     # kind: trade_signal | signals_digest | security_warning | daily_summary |
-    # market_summary | price_alert
+    # market_summary | price_alert | split_seam | usage_report
     p = payload or {}
     if kind == "trade_signal":
         return trade_signal_email(
@@ -495,6 +601,8 @@ def send_notification_email(kind: str, receiver: str, user_name: str,
         return daily_summary_email(receiver, user_name, p.get("summary_data"))
     if kind == "split_seam":
         return split_seam_email(receiver, p.get("seams", []))
+    if kind == "usage_report":
+        return usage_report_email(receiver, p.get("report", {}))
     if kind == "price_alert":
         return price_alert_email(
             receiver, user_name, p.get("ticker", "?"),
