@@ -59,5 +59,8 @@ app/strategies/test_strategy.py
 # Archived pre-migration market data. Safe to delete once ingestion is verified.
 archive/
 
+# Generated strategy reports: curves and charts, rebuilt by app/reports. Never committed.
+app/reports/artifacts/
+
 # Freebuff local workspace state
 .freebuff/
