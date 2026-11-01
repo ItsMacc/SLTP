@@ -121,6 +121,14 @@ def codes_from_labels(labels: np.ndarray) -> np.ndarray:
     raise TypeError(f"Cannot convert {values.dtype} values to date codes.")
 
 
+# Convert int32 day numbers back to "YYYY-MM-DD" labels.
+def labels_from_codes(codes: np.ndarray) -> np.ndarray:
+    values = np.asarray(codes)
+    if values.size == 0:
+        return np.zeros(0, dtype="<U10")
+    return (EPOCH + values.astype("int64")).astype("<U10")
+
+
 # Convert one "YYYY-MM-DD" label to a code.
 # Returns np.int32 so searchsorted stays on its fast path; a plain Python int makes
 # NumPy widen the key and search roughly 140x slower.

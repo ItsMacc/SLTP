@@ -36,6 +36,7 @@
 import os
 import sys
 import shutil
+import numpy as np
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -43,6 +44,9 @@ import yfinance as yf
 
 from time import time
 from datetime import date
+
+# Engine imports
+from app.engine.utils.Dates import CALENDAR, codes_from_labels, labels_from_codes, to_code
 
 # Database imports
 from app.database.market.market_data_service import (
@@ -58,7 +62,7 @@ STATUS_FILE: str = os.path.join(SYMBOL_DATA_DIR, "symbol_status.parquet")
 PARTS_DIR: str = os.path.join(MARKET_DIR, "init_parts")
 
 START_DATE: str = "1998-01-01"
-DATE_FORMAT: str = "%Y-%m-%d"
+START_CODE: np.int32 = to_code(START_DATE)
 CHUNK_SIZE: int = 500
 PRICE_COLS: list[str] = ["Open", "High", "Low", "Close", "Volume"]
 
@@ -86,14 +90,15 @@ RETRY_BATCH_SIZE: int = 50
 PER_TICKER_LIMIT_DAILY: int = 150
 PER_TICKER_LIMIT_INIT: int = 40
 
+# Dates are int32 day numbers and prices float32, which costs 28 bytes a bar.
 MASTER_SCHEMA: pa.Schema = pa.schema([
     ("Symbol", pa.string()),
     ("Name", pa.string()),
-    ("Date", pa.string()),
-    ("Open", pa.float64()),
-    ("High", pa.float64()),
-    ("Low", pa.float64()),
-    ("Close", pa.float64()),
+    ("Date", pa.int32()),
+    ("Open", pa.float32()),
+    ("High", pa.float32()),
+    ("Low", pa.float32()),
+    ("Close", pa.float32()),
     ("Volume", pa.float64()),
 ])
 
@@ -205,10 +210,7 @@ def _download(tickers: list[str], **range_kwargs) -> pd.DataFrame | None:
             tickers=[_yf_symbol(ticker) for ticker in tickers],
             interval="1d",
             group_by="ticker",
-            # Dividend-adjusted (total-return) closes, matching the legacy dataset.
-            # Measured against 500 random stored tickers: True reproduced ~2x the rows
-            # of False within 1e-4, and matched the latest year exactly.
-            auto_adjust=True,
+            auto_adjust=False,
             threads=True,
             progress=False,
             **range_kwargs,
@@ -249,14 +251,15 @@ def _extract_bars(frame: pd.DataFrame, ticker: str, name: str) -> pd.DataFrame |
         return None
 
     bars = bars[["Date"] + PRICE_COLS].copy()
-    bars["Date"] = bars["Date"].dt.strftime(DATE_FORMAT)
-    bars = bars[(bars["Date"] >= START_DATE) & (bars["Date"] <= _today())]
+    bars["Date"] = codes_from_labels(bars["Date"].to_numpy())
+    bars = bars[(bars["Date"] >= START_CODE) & (bars["Date"] <= to_code(_today()))]
     bars = bars.drop_duplicates(subset=["Date"]).sort_values("Date")
     if bars.empty:
         return None
 
-    for column in PRICE_COLS:
-        bars[column] = bars[column].astype("float64")
+    for column in ("Open", "High", "Low", "Close"):
+        bars[column] = bars[column].astype("float32")
+    bars["Volume"] = bars["Volume"].astype("float64")
     bars.insert(0, "Name", name)
     bars.insert(0, "Symbol", ticker)
     return bars.reset_index(drop=True)
@@ -352,17 +355,17 @@ def _master_stats() -> tuple[dict[str, tuple[int, str, str]], list[str]]:
     if not os.path.exists(MASTER_FILE):
         return {}, []
 
-    table: pa.Table = pq.read_table(data_files(), columns=["Symbol", "Date"], read_dictionary=["Symbol", "Date"])
+    table: pa.Table = pq.read_table(data_files(), columns=["Symbol", "Date"], read_dictionary=["Symbol"])
     frame: pd.DataFrame = table.to_pandas()
+    codes = np.unique(frame["Date"].to_numpy())
 
-    # Both columns arrive as dictionaries. Ordering the date category is a metadata
-    # change only, so min and max work without materialising 30M date strings.
-    sessions: list[str] = sorted(frame["Date"].cat.categories) if isinstance(frame["Date"].dtype, pd.CategoricalDtype) else sorted(frame["Date"].unique().tolist())
-    frame["Date"] = pd.Categorical(frame["Date"], categories=sessions, ordered=True)
+    # Day numbers carry their own labels, so the shared calendar can decode them.
+    CALENDAR.register(labels_from_codes(codes))
+    sessions: list[str] = [CALENDAR.label(int(code)) for code in codes]
 
     grouped = frame.groupby("Symbol", observed=True)["Date"].agg(["size", "min", "max"])
     stats: dict[str, tuple[int, str, str]] = {
-        str(symbol): (int(row["size"]), str(row["min"]), str(row["max"]))
+        str(symbol): (int(row["size"]), CALENDAR.label(int(row["min"])), CALENDAR.label(int(row["max"])))
         for symbol, row in grouped.iterrows()
     }
     return stats, sessions
@@ -449,10 +452,15 @@ def _compact_master() -> int:
 
 
 # Write one chunk's staging file. Chunks are merged in catalog order at the end.
+# The write goes to a temporary name and is renamed into place, because a resumed run
+# treats any existing staging file as finished: a half-written file from an interrupted
+# run would otherwise be merged as if it were complete.
 def _write_part(path: str, frames: list[pd.DataFrame]) -> int:
     part: pd.DataFrame = pd.concat(frames, ignore_index=True).drop_duplicates(subset=["Symbol", "Date"], keep="last").sort_values(["Symbol", "Date"])
     table: pa.Table = pa.Table.from_pandas(part, schema=MASTER_SCHEMA, preserve_index=False)
-    pq.write_table(table, path, compression="snappy")
+    tmp_file: str = path + ".tmp"
+    pq.write_table(table, tmp_file, compression="snappy")
+    os.replace(tmp_file, path)
     return len(part)
 
 
@@ -656,7 +664,7 @@ def _trim_to_new_bars(frame: pd.DataFrame, stats: dict[str, tuple[int, str, str]
     last_bar: str = stats.get(symbol, (0, "", ""))[2]
     if not last_bar:
         return frame
-    return frame[frame["Date"] > last_bar]
+    return frame[frame["Date"] > to_code(last_bar)]
 
 
 # -------- Reporting --------

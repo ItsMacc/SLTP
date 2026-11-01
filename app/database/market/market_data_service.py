@@ -26,6 +26,7 @@ import os
 import threading
 import numpy as np
 import pyarrow as pa
+import pyarrow.compute as pc
 import pyarrow.parquet as pq
 
 from datetime import datetime
@@ -33,7 +34,7 @@ from collections import OrderedDict
 from typing import Literal
 
 # Engine imports
-from app.engine.utils.Dates import CALENDAR, to_code
+from app.engine.utils.Dates import CALENDAR, labels_from_codes, to_code
 from app.engine.utils.StockData import StockData
 
 # Database imports
@@ -50,6 +51,8 @@ STATUS_FILE: str = os.path.join(SYMBOL_DATA_DIR, "symbol_status.parquet")
 DEFAULT_START: str = "1998-01-01"
 DATE_FORMAT: str = "%Y-%m-%d"
 PRICE_COLS: list[str] = ["Open", "High", "Low", "Close", "Volume"]
+BAR_COLS: list[str] = ["Symbol", "Date", *PRICE_COLS]
+BATCH_ROWS: int = 1_000_000
 
 Scope = Literal["all", "stocks", "missing"]
 
@@ -275,6 +278,7 @@ def _histories(symbols: list[str]) -> dict[str, StockData]:
         signature: tuple = _dataset_signature()
         if signature != _HISTORY_SIGNATURE:
             _HISTORY_CACHE.clear()
+            _SYMBOL_CACHE.clear()
             _HISTORY_CACHE.update(_read_histories())
             _HISTORY_SIGNATURE = signature
 
@@ -290,6 +294,10 @@ def _symbol_histories(symbols: list[str]) -> dict[str, StockData]:
         if signature != _SYMBOL_CACHE_SIGNATURE:
             _SYMBOL_CACHE.clear()
             _SYMBOL_CACHE_SIGNATURE = signature
+
+        # A loaded universe already holds every bar, so never keep a second copy of it.
+        if _HISTORY_CACHE and signature == _HISTORY_SIGNATURE:
+            return {symbol: _HISTORY_CACHE[symbol] for symbol in wanted if symbol in _HISTORY_CACHE}
 
         missing: list[str] = [symbol for symbol in wanted if symbol not in _SYMBOL_CACHE]
         if missing:
@@ -369,14 +377,16 @@ def _read_master_tickers() -> list[str]:
     table = pq.read_table(data_files(), columns=["Symbol"], read_dictionary=["Symbol"])
     column = table.column("Symbol")
     if isinstance(column, pa.ChunkedArray):
-        column = column.combine_chunks()
+        if pa.types.is_dictionary(column.type):
+            return sorted({label for chunk in column.chunks for label in chunk.dictionary.to_pylist()})
+        return column.unique().to_pylist()
     if pa.types.is_dictionary(column.type):
         return column.dictionary.to_pylist()
     return column.unique().to_pylist()
 
 
 # The newest Date in one file, from row-group statistics when the file has them.
-def _newest_date_in(path: str) -> str | None:
+def _newest_date_in(path: str) -> int | None:
     metadata = pq.ParquetFile(path).metadata
     if metadata.num_row_groups == 0:
         return None
@@ -396,8 +406,7 @@ def _newest_date_in(path: str) -> str | None:
         statistics = metadata.row_group(group).column(date_index).statistics
         if statistics is None or statistics.max is None:
             return None
-        value = statistics.max
-        value = value.decode() if isinstance(value, bytes) else str(value)
+        value = int(statistics.max)
         if newest is None or value > newest:
             newest = value
     return newest
@@ -405,84 +414,112 @@ def _newest_date_in(path: str) -> str | None:
 
 # Read the newest session across every data file, falling back to the Date column.
 def _read_latest_date() -> str:
-    newest: str | None = None
+    newest: int | None = None
     for path in data_files():
-        value: str | None = _newest_date_in(path)
+        value: int | None = _newest_date_in(path)
         if value is None:
             newest = None
             break
         if newest is None or value > newest:
             newest = value
-    if newest is not None:
-        return newest
-
-    column = _read_table(["Date"]).column("Date")
-    if isinstance(column, pa.ChunkedArray):
-        column = column.combine_chunks()
-    values = column.dictionary if pa.types.is_dictionary(column.type) else column
-    return str(max(values.to_pylist()))
+    if newest is None:
+        newest = int(np.max(_date_codes(_read_table(["Date"]))))
+    CALENDAR.register(labels_from_codes(np.array([newest], dtype=np.int32)))
+    return CALENDAR.label(newest)
 
 
-# Read the requested columns from every data file, keeping Date dictionary-encoded.
-# Arrow then hands over ~7k labels plus an int32 index per bar instead of
-# materialising a string for every bar, and filters still skip row groups.
+# Read the requested columns from every data file. Filters still skip row groups.
 def _read_table(columns: list[str], filters: list | None = None) -> pa.Table:
-    return pq.read_table(data_files(), columns=columns, filters=filters, read_dictionary=["Date"])
+    return pq.read_table(data_files(), columns=columns, filters=filters)
 
 
-# Convert a table's Date column to int32 day codes.
-def _table_date_codes(table: pa.Table) -> np.ndarray:
+# The Date column as int32 day numbers.
+def _date_codes(table: pa.Table) -> np.ndarray:
     column = table.column("Date")
     if isinstance(column, pa.ChunkedArray):
         column = column.combine_chunks()
-    if pa.types.is_dictionary(column.type):
-        labels = column.dictionary.to_numpy(zero_copy_only=False).astype("<U10", copy=False)
-        return CALENDAR.register(labels)[column.indices.to_numpy()]
-    return CALENDAR.register(column.to_numpy(zero_copy_only=False))
+    return column.to_numpy(zero_copy_only=False)
 
 
 # Read every trading day in the file as sorted int32 codes.
 def _read_trading_calendar() -> np.ndarray:
-    column = _read_table(["Date"]).column("Date")
-    if isinstance(column, pa.ChunkedArray):
-        column = column.combine_chunks()
-    if pa.types.is_dictionary(column.type):
-        labels = column.dictionary.to_numpy(zero_copy_only=False).astype("<U10", copy=False)
-        codes = CALENDAR.register(labels)[column.indices.to_numpy()]
-    else:
-        codes = CALENDAR.register(column.to_numpy(zero_copy_only=False))
-    return np.unique(codes)
+    codes: np.ndarray = np.unique(_date_codes(_read_table(["Date"])))
+    CALENDAR.register(labels_from_codes(codes))
+    return codes
 
 
 # Read the whole master file into StockData objects, grouped by symbol.
 def _read_histories() -> dict[str, StockData]:
-    return _table_to_histories(_read_table(["Symbol", "Date", *PRICE_COLS]))
+    paths: list[str] = data_files()
+    return _histories_from_batches(_iter_batches(paths), _row_count(paths))
 
 
 # Read only the requested symbols, using row-group statistics to skip the rest.
 def _read_symbols(symbols: list[str]) -> dict[str, StockData]:
     filters = [("Symbol", "=", symbols[0])] if len(symbols) == 1 else [("Symbol", "in", symbols)]
-    return _table_to_histories(_read_table(["Symbol", "Date", *PRICE_COLS], filters))
+    table: pa.Table = _read_table(BAR_COLS, filters)
+    return _histories_from_batches(table.to_batches(), table.num_rows)
 
 
-# Turn an Arrow table of bars into one StockData per symbol.
-def _table_to_histories(table: pa.Table) -> dict[str, StockData]:
-    codes: np.ndarray = _table_date_codes(table)
-    frame = table.select([name for name in table.column_names if name != "Date"]).to_pandas()
-    frame["date_code"] = codes
-    frame["Symbol"] = frame["Symbol"].astype(str)
-    frame = frame.sort_values(["Symbol", "date_code"])
+# Stream the bars of every file, one row group at a time.
+def _iter_batches(paths: list[str]):
+    for path in paths:
+        for batch in pq.ParquetFile(path).iter_batches(batch_size=BATCH_ROWS, columns=BAR_COLS):
+            yield batch
+
+
+# Total bars across the given files.
+def _row_count(paths: list[str]) -> int:
+    return sum(pq.ParquetFile(path).metadata.num_rows for path in paths)
+
+
+# Turn streamed bars into one StockData per symbol. Every bar lands in a preallocated
+# array once, and each ticker's arrays are slices of those blocks, so a full universe
+# costs one copy of the data instead of one per reading step.
+def _histories_from_batches(batches, rows: int) -> dict[str, StockData]:
+    if rows == 0:
+        return {}
+
+    date = np.empty(rows, dtype=np.int32)
+    prices = {name: np.empty(rows, dtype=np.float32) for name in ("Open", "High", "Low", "Close")}
+    volume = np.empty(rows, dtype=np.float64)
+    symbols = np.empty(rows, dtype=np.int32)
+    ids: dict[str, int] = {}
+    at: int = 0
+
+    for batch in batches:
+        count: int = batch.num_rows
+        encoded = pc.dictionary_encode(batch.column("Symbol"))
+        local = np.array([ids.setdefault(label, len(ids)) for label in encoded.dictionary.to_pylist()], dtype=np.int32)
+        symbols[at:at + count] = local[encoded.indices.to_numpy()]
+        dates = batch.column("Date").to_numpy()
+        date[at:at + count] = dates
+        CALENDAR.register(labels_from_codes(np.unique(dates)))
+        for name, target in prices.items():
+            target[at:at + count] = batch.column(name).to_numpy()
+        volume[at:at + count] = batch.column("Volume").to_numpy()
+        at += count
+
+    names: list[str] = [""] * len(ids)
+    for label, index in ids.items():
+        names[index] = label
+
+    # The file is sorted by symbol, so each run of equal ids is one ticker.
+    edges = np.flatnonzero(symbols[1:] != symbols[:-1]) + 1
+    starts = np.concatenate((np.zeros(1, dtype=np.int64), edges)).tolist()
+    ends = np.concatenate((edges, np.array([at], dtype=np.int64))).tolist()
 
     histories: dict[str, StockData] = {}
-    for symbol, rows in frame.groupby("Symbol", sort=False):
-        histories[symbol] = StockData(
-            ticker=symbol,
-            date_codes=rows["date_code"].to_numpy(dtype=np.int32),
-            open_price=rows["Open"].to_numpy(dtype=float),
-            high=rows["High"].to_numpy(dtype=float),
-            low=rows["Low"].to_numpy(dtype=float),
-            close_price=rows["Close"].to_numpy(dtype=float),
-            volume=rows["Volume"].to_numpy(dtype=float),
+    for start, end in zip(starts, ends):
+        ticker: str = names[symbols[start]]
+        histories[ticker] = StockData(
+            ticker=ticker,
+            date_codes=date[start:end],
+            open_price=prices["Open"][start:end],
+            high=prices["High"][start:end],
+            low=prices["Low"][start:end],
+            close_price=prices["Close"][start:end],
+            volume=volume[start:end],
         )
     return histories
 
