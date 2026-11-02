@@ -30,6 +30,16 @@ from app.database.market.market_data_service import get_stock_histories, get_tra
 MAX_WARMUP_DAYS: int = 1826
 
 
+# Every column of one ticker's history, keyed by the address of its first bar. A day's
+# view of a column starts at that same address, so one dict hit finds the whole series.
+def _series_by_address(history: StockData) -> dict[int, np.ndarray]:
+    return {
+        array.ctypes.data: array
+        for array in (history.open_price, history.high, history.low, history.close_price, history.volume)
+        if isinstance(array, np.ndarray)
+    }
+
+
 # -------- Backtester --------
 # One simulation: a strategy, a date range, and the bars it needs.
 class Backtester:
@@ -318,7 +328,7 @@ class Backtester:
                 "low": history.low,
                 "close": history.close_price,
                 "volume": history.volume,
-                # The run walks days forward, so each ticker keeps a cursor
+                "series": _series_by_address(history),
                 "cursor": 0,
                 "index": None,
                 "index_code": None,
@@ -378,6 +388,14 @@ class Backtester:
             return None
         return data["index"]
 
+    # Hand the strategy the ticker's loaded series, so an indicator helper called from the
+    # hook it is about to run computes over the whole series and cuts today's window from
+    # the result, rather than recomputing the series from scratch.
+    def _publish_series(self, ticker: str) -> None:
+        data = self._data.get(ticker)
+        if data is not None:
+            self.strategy._indicator_series = data["series"]
+
     # Today's view of one loaded ticker.
     def _history_as_of(self, ticker: str, index: int) -> StockData:
         return self._slice_history(self._data[ticker]["history"], index)
@@ -416,6 +434,7 @@ class Backtester:
                 can_add_lot: bool = max_lots is None or len(held) < max_lots
                 has_position_capacity: bool = max_positions is None or bool(held) or self.manager.active_positions < max_positions
                 if can_add_lot and has_position_capacity:
+                    self._publish_series(ticker)
                     history = self._history_for_date(ticker)
                     if len(history.dates) >= self.strategy.MIN_BARS_REQUIRED:
                         order = self.strategy.on_signal(ticker, history)
@@ -429,6 +448,7 @@ class Backtester:
         for ticker in self.manager.open_tickers:
             if ticker not in bars:
                 continue
+            self._publish_series(ticker)
             history = self._history_for_date(ticker)
             if len(history.dates) < self.strategy.MIN_BARS_REQUIRED:
                 continue
