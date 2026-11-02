@@ -2,6 +2,29 @@
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
+export interface StrategyCatalogEntry {
+  id: string;
+  name: string;
+  description?: string;
+  type: 'investing' | 'trading';
+}
+
+/**
+ * The followable strategies, straight from the engine registry.
+ *
+ * This is a read, not a copy: the server owns the list, so a strategy removed
+ * from `app/strategies/REGISTRY` disappears from the site. Keeping a local
+ * fallback here is how a deleted strategy stayed on screen as if it still
+ * existed, so callers should show that the list is unavailable rather than
+ * substituting their own.
+ */
+export async function listStrategies(): Promise<StrategyCatalogEntry[]> {
+  const res = await fetch(`${API_BASE}/api/strategies`);
+  if (!res.ok) throw new Error(`Strategy list request failed (${res.status})`);
+  const data = await res.json();
+  return Array.isArray(data) ? data : [];
+}
+
 export interface PortfolioStatus {
   id?: string | null;
   onboarded: boolean;

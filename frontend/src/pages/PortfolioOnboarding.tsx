@@ -5,29 +5,13 @@ import Input from '../ui/Input';
 import Select from '../ui/Select';
 import RadioGroup from '../ui/RadioGroup';
 import { LoaderInline, LoaderOverlay } from '../ui/Loader';
-import { completeSetup } from '../../lib/api';
+import { completeSetup, listStrategies, type StrategyCatalogEntry } from '../../lib/api';
 import './PortfolioOnboarding.css';
 
 interface PortfolioOnboardingProps {
   defaultName?: string | null;
   onDone: () => void;
 }
-
-/**
- * Strategy catalog for the onboarding wizard. To surface a new strategy here,
- * just add an entry — it shows up automatically based on the user's intent:
- *   invest -> 'investing' strategies | trade -> 'trading' | both -> all
- */
-const STRATEGY_CATALOG: { id: string; name: string; description: string; type: 'investing' | 'trading' }[] = [
-  {
-    id: 'stock-health-filter',
-    name: 'Stock Health Filter',
-    description: 'Momentum breakout strategy targeting high-velocity stocks with strong short-term price health.',
-    type: 'trading',
-  },
-  // Add new strategies here, e.g.:
-  // { id: 'dividend-aristocrats', name: 'Dividend Aristocrats', description: '...', type: 'investing' },
-];
 
 const CURRENCIES = [
   { label: 'USD — US Dollar', value: 'USD' },
@@ -50,14 +34,40 @@ export default function PortfolioOnboarding({ defaultName, onDone }: PortfolioOn
   const [currency, setCurrency] = useState('USD');
   const [selectedStrategies, setSelectedStrategies] = useState<string[]>([]);
 
+  /* The wizard follows the engine registry rather than keeping its own list:
+     a strategy the server no longer registers cannot be offered here. If the
+     list cannot be read the step offers nothing, because following a strategy
+     that does not exist is worse than following none. */
+  const [catalog, setCatalog] = useState<StrategyCatalogEntry[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(true);
+  // A failed read is not an empty registry, and the step says so differently.
+  const [catalogUnavailable, setCatalogUnavailable] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    listStrategies()
+      .catch((): StrategyCatalogEntry[] => {
+        if (!cancelled) setCatalogUnavailable(true);
+        return [];
+      })
+      .then((entries) => {
+        if (cancelled) return;
+        setCatalog(entries);
+        setCatalogLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Strategies matching the chosen intent: invest -> investing, trade -> trading,
-  // both -> everything. Uses the local catalog; server list is a fallback filter.
+  // both -> everything.
   const intentTypes: Record<string, string[]> = {
     invest: ['investing'],
     trade: ['trading'],
     both: ['investing', 'trading'],
   };
-  const visibleStrategies = STRATEGY_CATALOG.filter((s) =>
+  const visibleStrategies = catalog.filter((s) =>
     (intentTypes[intent] ?? ['investing', 'trading']).includes(s.type),
   );
 
@@ -218,7 +228,16 @@ export default function PortfolioOnboarding({ defaultName, onDone }: PortfolioOn
                   <span className="pf-onboard-strategy-desc">{s.description}</span>
                 </button>
               ))}
-              {visibleStrategies.length === 0 && (
+              {catalogLoading && (
+                <p className="pf-onboard-sub">Loading the strategy library…</p>
+              )}
+              {!catalogLoading && catalogUnavailable && (
+                <p className="pf-onboard-sub">
+                  Could not load the strategy library. You can follow strategies later from
+                  Settings.
+                </p>
+              )}
+              {!catalogLoading && !catalogUnavailable && visibleStrategies.length === 0 && (
                 <p className="pf-onboard-sub">No {intent === 'invest' ? 'investing' : 'trading'} strategies available yet — you can follow some later.</p>
               )}
             </div>

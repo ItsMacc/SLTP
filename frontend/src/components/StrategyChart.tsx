@@ -70,6 +70,8 @@ export default function StrategyChart() {
   const [strategies, setStrategies] = useState<StrategyOption[]>([])
   // The strategy library is read from the store on mount.
   const [strategiesLoading, setStrategiesLoading] = useState(true)
+  // The registry could not be read, which is not the same as it being empty.
+  const [strategiesUnavailable, setStrategiesUnavailable] = useState(false)
   const [selectedStrategy, setSelectedStrategy] = useState<string>('')
   const [startDate, setStartDate] = useState<string>('')
   const [endDate, setEndDate] = useState<string>('')
@@ -104,9 +106,12 @@ export default function StrategyChart() {
       })
       .catch(() => {
         if (!cancelled) {
-          setStrategies([
-            { id: 'stock-health-filter', name: 'Stock Health Filter' },
-          ])
+          /* No substitute list. The engine decides what can be run, so a
+             locally invented entry only offers a strategy the server will
+             reject — which is how one deleted from the registry stayed on
+             screen here. An unreachable API shows nothing and says so. */
+          setStrategies([])
+          setStrategiesUnavailable(true)
         }
       })
       .finally(() => {
@@ -357,7 +362,13 @@ export default function StrategyChart() {
               </div>
             )}
 
-            {!strategiesLoading && strategies.length === 0 && (
+            {!strategiesLoading && strategiesUnavailable && (
+              <p className="strategy-library-status">
+                Could not load the strategy library. The backtest server is not responding.
+              </p>
+            )}
+
+            {!strategiesLoading && !strategiesUnavailable && strategies.length === 0 && (
               <p className="strategy-library-status">No published strategies yet.</p>
             )}
 
