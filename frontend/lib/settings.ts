@@ -10,6 +10,8 @@
 // the apply/cache path can be imported from anywhere without dragging a React
 // component along with it.
 
+import { supabase } from './supabase'
+
 export type ResearchTimeframe = '1y' | '2y' | '5y' | 'all'
 
 /** The preferences object stored on the user row. Free-form by design. */
@@ -43,6 +45,51 @@ export function applyAndStoreUserSettings(settings: UserSettings, name?: string,
   } catch {
     // The cache is best-effort: private browsing or a full quota must never be
     // able to break a save.
+  }
+}
+
+/**
+ * Saves the theme on its own, for switches outside the Settings page.
+ *
+ * A theme written only to sessionStorage survived a reload but not a visit to
+ * Settings, which re-reads the account row and paints whatever theme that row
+ * holds. The docs page has its own toggle, so it writes the same key back to
+ * the row: one stored preference, two switches that agree.
+ */
+export async function saveUserTheme(theme: 'light' | 'dark', userId?: string | null): Promise<void> {
+  // The row stores 'Light' / 'Dark'. applyTheme lowercases for the DOM.
+  const stored = theme === 'dark' ? 'Dark' : 'Light'
+  applyTheme(stored)
+
+  const cached = readStoredUserSettings(userId ?? undefined)
+  applyAndStoreUserSettings({ ...cached, theme: stored }, undefined, userId ?? undefined)
+
+  // A visitor who is not signed in gets the local switch and nothing else.
+  if (!userId) return
+
+  try {
+    const { data } = await supabase.from('users').select('settings').eq('id', userId).maybeSingle()
+    // Merge: a theme change must not drop the chart style or the editor prefs.
+    const settings = { ...(data?.settings || {}), theme: stored }
+    const { error } = await supabase.from('users').update({ settings }).eq('id', userId)
+    if (error) throw error
+
+    // Turso keeps a mirror the nightly runner reads; best-effort, like Settings.
+    const { data: sessionData } = await supabase.auth.getSession()
+    const token = sessionData.session?.access_token
+    if (token) {
+      await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/user/sync-settings`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ settings }),
+      })
+    }
+  } catch {
+    // The switch already applied locally. Failing to reach the row must not
+    // take the theme back off the page.
   }
 }
 

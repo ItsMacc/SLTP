@@ -18,11 +18,12 @@ import {
 import { BlockList } from '../docs/Blocks';
 import { DOCS_GROUPS, VERSION } from '../docs';
 import { groupOf, headingsOf, neighbours } from '../docs/types';
-import { applyTheme } from '../../lib/settings';
+import { applyTheme, saveUserTheme } from '../../lib/settings';
 import './DocsPage.css';
 
 interface DocsPageProps {
-  onNavigate?: (tab: string) => void;
+  /** Signed-in account, so the theme switch writes the same row Settings reads. */
+  userId?: string | null;
 }
 
 const ROUTE_PREFIX = '#/docs/';
@@ -116,7 +117,7 @@ function Sidebar({ slug, openGroups, onToggleGroup, onGo }: SidebarProps) {
 
 /* ---------- Page ---------- */
 
-export default function DocsPage({ onNavigate }: DocsPageProps) {
+export default function DocsPage({ userId }: DocsPageProps) {
   const [slug, setSlug] = useState(FIRST_PAGE);
   const [anchor, setAnchor] = useState<string | null>(null);
   const [navOpen, setNavOpen] = useState(false);
@@ -137,6 +138,9 @@ export default function DocsPage({ onNavigate }: DocsPageProps) {
   const articleRef = useRef<HTMLElement | null>(null);
   const sidebarRef = useRef<HTMLElement | null>(null);
   const paletteInput = useRef<HTMLInputElement | null>(null);
+  const paletteOpener = useRef<HTMLElement | null>(null);
+  const paletteScrollY = useRef(0);
+  const searchTrigger = useRef<HTMLButtonElement | null>(null);
 
   const page = useMemo(
     () => DOCS_GROUPS.flatMap((group) => group.pages).find((item) => item.slug === slug)
@@ -218,8 +222,11 @@ export default function DocsPage({ onNavigate }: DocsPageProps) {
 
   const toggleTheme = () => {
     const nextTheme = theme === 'dark' ? 'light' : 'dark';
+    // Paint first, then store. saveUserTheme writes the account row that the
+    // Settings page reads, so the two switches cannot disagree.
     applyTheme(nextTheme);
     setTheme(nextTheme);
+    void saveUserTheme(nextTheme, userId);
   };
 
   /* ----- Scroll spy ----- */
@@ -241,38 +248,122 @@ export default function DocsPage({ onNavigate }: DocsPageProps) {
 
   /* ----- Palette ----- */
 
+  // Opening search must not move the page, and closing it must leave the reader
+  // exactly where they were. Removing a dialog that holds focus makes some
+  // browsers scroll to the focused element, so the offset is saved and put back
+  // by hand, and focus returns to the opener without scrolling to it.
+  const openPalette = useCallback(() => {
+    paletteScrollY.current = window.scrollY;
+    paletteOpener.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    setQuery('');
+    setCursor(0);
+    setPaletteOpen(true);
+  }, []);
+
+  const closePalette = useCallback((restoreScroll = true) => {
+    // Safari scrolls to the document when the focused input is removed with the
+    // dialog. `blur()` is what actually prevents it: focusing another element is
+    // not enough, because the opener is often not focusable at all (Safari does
+    // not focus a button on click), and a body that refuses focus leaves the
+    // caret in the input. Blur first, then hand focus back if there is somewhere
+    // real to put it.
+    const active = document.activeElement;
+    if (active instanceof HTMLElement && active !== document.body) active.blur();
+
+    const opener = paletteOpener.current;
+    const fallback = searchTrigger.current;
+    if (opener?.isConnected && opener !== document.body) opener.focus({ preventScroll: true });
+    else fallback?.focus({ preventScroll: true });
+
+    setPaletteOpen(false);
+    setQuery('');
+    setCursor(0);
+
+    if (!restoreScroll) return;
+    // A backstop for engines that move the page anyway: put the offset back on
+    // the next frame, once the dialog has been unmounted.
+    const saved = paletteScrollY.current;
+    requestAnimationFrame(() => window.scrollTo(0, saved));
+  }, []);
+
+  // Ranking: a title that starts with what was typed beats a title that starts
+  // a word, which beats a match buried inside a word, which beats a match in the
+  // group name. Without this, "h" surfaced "What is..." ahead of "Hooks".
   const hits = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    const source = needle
-      ? SEARCH_INDEX.filter((hit) => `${hit.title} ${hit.context}`.toLowerCase().includes(needle))
-      : SEARCH_INDEX.filter((hit) => hit.kind === 'page');
-    return source.slice(0, 14);
+    if (!needle) return SEARCH_INDEX.filter((hit) => hit.kind === 'page').slice(0, 14);
+
+    const scored = SEARCH_INDEX.map((hit, order) => {
+      const title = hit.title.toLowerCase();
+      let score = -1;
+      if (title.startsWith(needle)) score = 0;
+      else if (title.includes(` ${needle}`)) score = 1;
+      else if (title.includes(needle)) score = 2;
+      else if (hit.context.toLowerCase().includes(needle)) score = 3;
+      return { hit, order, score };
+    });
+
+    return scored
+      .filter((entry) => entry.score >= 0)
+      .sort((a, b) => a.score - b.score || a.order - b.order)
+      .slice(0, 14)
+      .map((entry) => entry.hit);
   }, [query]);
+
+  // Keep the highlight on a real row when the result list shrinks under it.
+  const activeHit = hits.length === 0 ? -1 : Math.min(cursor, hits.length - 1);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
-        setPaletteOpen((open) => !open);
-        setQuery('');
+        if (paletteOpen) closePalette();
+        else openPalette();
       }
       if (event.key === 'Escape') {
-        setPaletteOpen(false);
+        if (paletteOpen) {
+          // Keep the browser from treating Escape as its own command on top of
+          // the close, which is another way the page can jump.
+          event.preventDefault();
+          closePalette();
+        }
         setNavOpen(false);
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, []);
+  }, [paletteOpen, openPalette, closePalette]);
 
+  // While the dialog is open the page cannot scroll, so no engine can move it
+  // when the input loses focus. The scrollbar gutter becomes padding so the
+  // layout does not shift sideways as the bar disappears.
   useEffect(() => {
-    if (paletteOpen) paletteInput.current?.focus();
+    if (!paletteOpen) return;
+    const root = document.documentElement;
+    const gutter = window.innerWidth - root.clientWidth;
+    const previousOverflow = root.style.overflow;
+    const previousPadding = document.body.style.paddingRight;
+
+    root.style.overflow = 'hidden';
+    if (gutter > 0) document.body.style.paddingRight = `${gutter}px`;
+    paletteInput.current?.focus({ preventScroll: true });
+
+    return () => {
+      root.style.overflow = previousOverflow;
+      document.body.style.paddingRight = previousPadding;
+      // Unlocking is the one moment the page can still be given a position by
+      // the browser, so state it explicitly. A page change runs its own scroll
+      // effect afterwards and wins.
+      window.scrollTo(0, paletteScrollY.current);
+    };
   }, [paletteOpen]);
 
   const openHit = (hit: PaletteHit) => {
+    // The new page brings its own scroll position, so do not put the old one back.
+    closePalette(false);
     go(hit.slug, hit.anchor);
-    setPaletteOpen(false);
-    setQuery('');
   };
 
   const onPaletteKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -284,9 +375,9 @@ export default function DocsPage({ onNavigate }: DocsPageProps) {
       event.preventDefault();
       setCursor((value) => Math.max(value - 1, 0));
     }
-    if (event.key === 'Enter' && hits[cursor]) {
+    if (event.key === 'Enter' && activeHit >= 0) {
       event.preventDefault();
-      openHit(hits[cursor]);
+      openHit(hits[activeHit]);
     }
   };
 
@@ -320,8 +411,8 @@ export default function DocsPage({ onNavigate }: DocsPageProps) {
           <button
             type="button"
             className="docs-brand"
-            onClick={() => onNavigate?.('home')}
-            title="Back to SLTP"
+            onClick={() => go(FIRST_PAGE)}
+            title="Start at the introduction"
           >
             <span className="docs-brand-name">SLTP Engine</span>
             <span className="docs-brand-version">{VERSION}</span>
@@ -331,8 +422,9 @@ export default function DocsPage({ onNavigate }: DocsPageProps) {
         <div className="docs-bar-right">
           <button
             type="button"
+            ref={searchTrigger}
             className="docs-search-trigger"
-            onClick={() => setPaletteOpen(true)}
+            onClick={openPalette}
             aria-label="Search documentation"
           >
             <Search size={14} aria-hidden />
@@ -462,7 +554,7 @@ export default function DocsPage({ onNavigate }: DocsPageProps) {
 
       {/* ---------- Command palette ---------- */}
       {paletteOpen ? (
-        <div className="docs-palette-scrim" onClick={() => setPaletteOpen(false)} role="presentation">
+        <div className="docs-palette-scrim" onClick={() => closePalette()} role="presentation">
           <div
             className="docs-palette"
             role="dialog"
@@ -491,8 +583,10 @@ export default function DocsPage({ onNavigate }: DocsPageProps) {
                 <li key={`${hit.kind}-${hit.slug}-${hit.anchor ?? 'page'}`}>
                   <button
                     type="button"
-                    className={index === cursor ? 'docs-palette-hit is-active' : 'docs-palette-hit'}
-                    onMouseEnter={() => setCursor(index)}
+                    className={index === activeHit ? 'docs-palette-hit is-active' : 'docs-palette-hit'}
+                    // onMouseMove, not onMouseEnter: a list re-rendered under a
+                    // resting pointer would steal the highlight from the keyboard.
+                    onMouseMove={() => setCursor(index)}
                     onClick={() => openHit(hit)}
                   >
                     <span className="docs-palette-hit-title">{hit.title}</span>

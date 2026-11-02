@@ -1154,7 +1154,13 @@
     min-width: 0;
   }
 
-  .docs-search-label {
+  /* No keyboard, no key caps. The word "Search" stays: an icon on its own is
+     a weaker target than a label, and ⌘K meant nothing on a phone anyway. */
+  .docs-kbd {
+    display: none;
+  }
+
+  .docs-palette-foot {
     display: none;
   }
 
@@ -1185,6 +1191,16 @@
   }
 
   .docs-brand-version {
+    display: none;
+  }
+}
+
+/* A coarse pointer means touch at any width: ⌘K, arrow keys and Enter cannot
+   be pressed, so the hints only take up room. Kept last so it wins over the
+   declarations above. */
+@media (hover: none), (pointer: coarse) {
+  .docs-kbd,
+  .docs-palette-foot {
     display: none;
   }
 }

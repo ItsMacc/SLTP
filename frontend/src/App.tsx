@@ -258,7 +258,7 @@ export default function App() {
             ) : activeTab === 'strategies' ? (
               <StrategiesPage />
             ) : activeTab === 'docs' ? (
-              <DocsPage onNavigate={handleTabChange} />
+              <DocsPage userId={user?.id} />
             ) : activeTab === 'learn' ? (
               <LearnPage onNavigate={handleTabChange} />
             ) : activeTab === 'portfolio' && user?.id ? (
