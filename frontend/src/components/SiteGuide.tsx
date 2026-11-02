@@ -387,7 +387,7 @@ const PAGE_TOURS: PageTour[] = [
     blurb: 'Price charts for any stock, plus the strategy backtest runner.',
     steps: () => [
       {
-        element: '.perf-hero-copy',
+        element: '.research-top',
         popover: {
           title: 'Research page',
           description:
@@ -397,7 +397,7 @@ const PAGE_TOURS: PageTour[] = [
         },
       },
       {
-        element: '.perf-search',
+        element: '.ticker-search',
         popover: {
           title: 'Search a ticker',
           description:
@@ -407,7 +407,7 @@ const PAGE_TOURS: PageTour[] = [
         },
       },
       {
-        element: '.timeframe-group',
+        element: '.is-timeframe',
         popover: {
           title: 'Timeframe',
           description:
@@ -417,7 +417,7 @@ const PAGE_TOURS: PageTour[] = [
         },
       },
       {
-        element: '.perf-quote-card',
+        element: '.quote-panel',
         popover: {
           title: 'Price chart',
           description:
@@ -427,17 +427,17 @@ const PAGE_TOURS: PageTour[] = [
         },
       },
       {
-        element: '.guide',
+        element: '.research-guide',
         popover: {
           title: 'Chart guide',
           description:
-            'A written guide to candlesticks sits under the chart, with diagrams.',
+            'A written guide to candles and the six numbers sits under the chart.',
           side: 'top',
           align: 'center',
         },
       },
       {
-        element: '.perf-tabs',
+        element: '.research-top [role="tablist"]',
         popover: {
           title: 'Two modes',
           description:
@@ -447,7 +447,7 @@ const PAGE_TOURS: PageTour[] = [
           onNextClick: (_el, _step, opts) => {
             /* Flip the Research page into Strategies mode, then advance
                once the strategy view has mounted. */
-            const buttons = document.querySelectorAll('.perf-tab');
+            const buttons = document.querySelectorAll('[role="tab"]');
             (buttons[1] as HTMLElement | undefined)?.click();
             window.setTimeout(() => opts.driver.moveNext(), 250);
           },
@@ -471,7 +471,7 @@ const PAGE_TOURS: PageTour[] = [
         popover: {
           title: 'Set up the run',
           description:
-            'Pick a strategy from the list on the left, choose a start date, optionally an end date, then press Run Analysis.',
+            'Pick a strategy from the list on the left, choose a start date, optionally an end date, then press Run backtest.',
           side: 'bottom',
           align: 'start',
         },

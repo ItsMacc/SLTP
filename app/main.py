@@ -22,7 +22,7 @@ from app.engine.utils.PositionType import PositionType
 from app.strategies import REGISTRY
 
 # Database imports
-from app.database.market.market_data_service import get_stock_history, get_all_tickers as fetch_all_tickers, get_ticker_directory, get_stock_name
+from app.database.market.market_data_service import get_stock_history, get_all_tickers as fetch_all_tickers, get_tradable_ticker_directory, get_stock_name
 from app.database.users.provision import router as provision_router
 from app.database.users.account_delete import router as account_delete_router
 from app.database.users.api_keys import router as api_keys_router
@@ -177,11 +177,11 @@ def read_stock_history(
         raise HTTPException(status_code=404, detail=str(e))
 
 
-# Retrieve available symbols with their company or fund display names.
+# Symbols a chart can actually draw, with their company or fund display names.
 @app.get("/api/stock/ticker-details")
 def get_ticker_details():
     try:
-        return get_ticker_directory()
+        return get_tradable_ticker_directory()
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"Ticker details are temporarily unavailable: {e}") from e
 

@@ -1,10 +1,20 @@
 // ResearchPage.tsx — Price history workspace: ticker list, chart, stats
-import { useEffect, useMemo, useRef, useState, type UIEvent } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type UIEvent,
+} from 'react'
 import { Search, X } from 'lucide-react'
 import CandlestickGuide from '../components/CandlestickGuide'
 import Chart, { type Bar } from '../components/Chart'
 import StrategyChart from '../components/StrategyChart'
-import { LoaderRow, LoaderScreen } from '../ui/Loader'
+import { LoaderRow } from '../ui/Loader'
+import { GlossaryText } from '../components/GlossaryText'
+import { STRATEGY_GLOSSARY } from '../../lib/glossary'
 import './ResearchPage.css'
 import type { ResearchTimeframe } from '../../lib/settings'
 
@@ -22,7 +32,6 @@ const TIMEFRAME_LABEL: Record<ResearchTimeframe, string> = {
 // in another batch, and the batch is read a few tickers at a time.
 const QUOTE_BATCH = 24
 const QUOTE_CONCURRENCY = 6
-const SPARK_POINTS = 24
 
 /* Stable empty series so the derived stats below do not recompute per render. */
 const NO_BARS: Bar[] = []
@@ -38,17 +47,11 @@ interface StockHistoryResponse {
 type Mode = 'stocks' | 'strategies'
 type ChartStyle = 'candles' | 'line'
 
-const TABS: { id: Mode; label: string; meta: string }[] = [
-  { id: 'stocks', label: 'Stocks', meta: 'Price history' },
-  { id: 'strategies', label: 'Strategies', meta: 'Backtests' },
-]
-
-// A one-line summary of a ticker for the watchlist: last close, the day's
-// move, and a downsampled close series for the sparkline.
+// A one-line summary of a ticker for the watchlist: last close and the move
+// since the previous session.
 interface Quote {
   price: number
   changePct: number
-  spark: number[]
 }
 
 interface ResearchPageProps {
@@ -59,8 +62,8 @@ interface ResearchPageProps {
 // Hard ceiling on the bars handed to the chart. A long history is trimmed to
 // its most recent stretch and reached by scrolling, which keeps the series
 // bounded however far back a ticker goes. Deliberately not a user setting, and
-// not surfaced anywhere in the UI — the analytics below still read every bar,
-// so the summary cards cover the whole timeframe the reader picked.
+// not surfaced anywhere in the UI — the stats below still read every bar, so
+// the strip covers the whole timeframe the reader picked.
 const CHART_MAX_BARS = 1000
 
 const priceText = (value: number) =>
@@ -87,16 +90,10 @@ const buildQuote = (bars: Bar[]): Quote | null => {
   const last = bars[bars.length - 1]!
   const previous = bars.length > 1 ? bars[bars.length - 2]! : last
   const changePct = previous.close !== 0 ? ((last.close - previous.close) / previous.close) * 100 : 0
-
-  const step = Math.max(1, Math.ceil(bars.length / SPARK_POINTS))
-  const spark: number[] = []
-  for (let i = 0; i < bars.length; i += step) spark.push(bars[i]!.close)
-  if (spark[spark.length - 1] !== last.close) spark.push(last.close)
-
-  return { price: last.close, changePct, spark }
+  return { price: last.close, changePct }
 }
 
-// Range return, extremes, annualised volatility, deepest drawdown, and the
+// Range return, extremes, yearly volatility, deepest drawdown, and the
 // average day's volume — all read off the bars already on screen.
 const computeStats = (bars: Bar[]) => {
   if (bars.length < 2) return null
@@ -139,44 +136,113 @@ const computeStats = (bars: Bar[]) => {
   }
 }
 
-function Sparkline({ values, up }: { values: number[]; up: boolean }) {
-  if (values.length < 2) return null
-
-  const min = Math.min(...values)
-  const max = Math.max(...values)
-  const span = max - min || 1
-  const points = values
-    .map((value, index) => {
-      const x = (index / (values.length - 1)) * 100
-      const y = 25 - ((value - min) / span) * 22
-      return `${x.toFixed(1)},${y.toFixed(1)}`
-    })
-    .join(' ')
-
-  return (
-    <svg
-      className={`perf-spark ${up ? 'is-up' : 'is-down'}`}
-      viewBox="0 0 100 28"
-      preserveAspectRatio="none"
-      aria-hidden="true"
-    >
-      <polyline
-        points={points}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinejoin="round"
-        strokeLinecap="round"
-        vectorEffect="non-scaling-stroke"
-      />
-    </svg>
-  )
-}
-
 interface TickerInfo {
   ticker: string
   name: string
 }
+
+/* ---------- Segmented control ---------- */
+
+interface SegmentedOption<T extends string> {
+  id: T
+  label: string
+}
+
+/**
+ * One control renders both the page's tab pair and the two option groups in
+ * the chart panel. Tabs move with the arrow keys and expose aria-selected;
+ * the smaller groups are plain pressed buttons, which is what they are.
+ */
+function Segmented<T extends string>({
+  options,
+  value,
+  onChange,
+  ariaLabel,
+  kind = 'group',
+  size = 'sm',
+  className = '',
+}: {
+  options: SegmentedOption<T>[]
+  value: T
+  onChange: (next: T) => void
+  ariaLabel: string
+  kind?: 'tabs' | 'group'
+  size?: 'sm' | 'md'
+  className?: string
+}) {
+  const buttons = useRef<Array<HTMLButtonElement | null>>([])
+
+  const move = (from: number, step: number) => {
+    const next = (from + step + options.length) % options.length
+    const option = options[next]
+    if (!option) return
+    onChange(option.id)
+    buttons.current[next]?.focus()
+  }
+
+  const onKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>, index: number) => {
+    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+      event.preventDefault()
+      move(index, 1)
+    } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+      event.preventDefault()
+      move(index, -1)
+    } else if (event.key === 'Home') {
+      event.preventDefault()
+      onChange(options[0]!.id)
+      buttons.current[0]?.focus()
+    } else if (event.key === 'End') {
+      event.preventDefault()
+      onChange(options[options.length - 1]!.id)
+      buttons.current[options.length - 1]?.focus()
+    }
+  }
+
+  return (
+    <div
+      className={`seg-control is-${size} ${className}`.trim()}
+      role={kind === 'tabs' ? 'tablist' : 'group'}
+      aria-label={ariaLabel}
+    >
+      {options.map((option, index) => {
+        const active = option.id === value
+        return (
+          <button
+            key={option.id}
+            ref={(element) => {
+              buttons.current[index] = element
+            }}
+            type="button"
+            role={kind === 'tabs' ? 'tab' : undefined}
+            aria-selected={kind === 'tabs' ? active : undefined}
+            aria-pressed={kind === 'tabs' ? undefined : active}
+            tabIndex={kind === 'tabs' && !active ? -1 : undefined}
+            className={`seg-option${active ? ' is-active' : ''}`}
+            onClick={() => onChange(option.id)}
+            onKeyDown={(event) => onKeyDown(event, index)}
+          >
+            {option.label}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+const MODE_OPTIONS: SegmentedOption<Mode>[] = [
+  { id: 'stocks', label: 'Stocks' },
+  { id: 'strategies', label: 'Strategies' },
+]
+
+const STYLE_OPTIONS: SegmentedOption<ChartStyle>[] = [
+  { id: 'candles', label: 'Candles' },
+  { id: 'line', label: 'Line' },
+]
+
+const TIMEFRAME_OPTIONS: SegmentedOption<ResearchTimeframe>[] = TIMEFRAMES.map((tf) => ({
+  id: tf,
+  label: tf.toUpperCase(),
+}))
 
 export default function ResearchPage({ initialSettings }: ResearchPageProps) {
   const [mode, setMode] = useState<Mode>('stocks')
@@ -197,11 +263,30 @@ export default function ResearchPage({ initialSettings }: ResearchPageProps) {
   const [stockData, setStockData] = useState<StockHistoryResponse | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Bumped by "Try again" so the fetch effect runs again for the same ticker.
+  const [reloadKey, setReloadKey] = useState(0)
 
   const [quotes, setQuotes] = useState<Record<string, Quote>>({})
   const [quoteLimit, setQuoteLimit] = useState(QUOTE_BATCH)
   const quotesRef = useRef<Record<string, Quote>>({})
   const pendingQuotes = useRef<Set<string>>(new Set())
+  // On phones the list is a sheet over the chart, opened from the search bar.
+  const [listOpen, setListOpen] = useState(false)
+  const searchRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (!listOpen) return
+    searchRef.current?.focus()
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setListOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    document.body.style.overflow = 'hidden'
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.body.style.overflow = ''
+    }
+  }, [listOpen])
 
   useEffect(() => {
     if (initialSettings?.defaultTimeframe) {
@@ -337,10 +422,11 @@ export default function ResearchPage({ initialSettings }: ResearchPageProps) {
       .finally(() => setLoading(false))
 
     return () => controller.abort()
-  }, [selectedTicker, timeframe, mode])
+  }, [selectedTicker, timeframe, mode, reloadKey])
 
   const handleSelectTicker = (symbol: string) => {
     setSelectedTicker(symbol)
+    setListOpen(false)
   }
 
   const handleSearch = (value: string) => {
@@ -354,7 +440,7 @@ export default function ResearchPage({ initialSettings }: ResearchPageProps) {
     setQuoteLimit((limit) => (limit >= filteredTickers.length ? limit : limit + QUOTE_BATCH))
   }
 
-  const switchMode = (next: Mode) => {
+  const switchMode = useCallback((next: Mode) => {
     // The chosen ticker survives a trip to the backtest view and back; only
     // the loaded bars are dropped so they are fetched fresh on return.
     setMode(next)
@@ -362,7 +448,7 @@ export default function ResearchPage({ initialSettings }: ResearchPageProps) {
     setError(null)
     setQuery('')
     setQuoteLimit(QUOTE_BATCH)
-  }
+  }, [])
 
   const bars = stockData?.data ?? NO_BARS
   const lastBar = bars.length > 0 ? bars[bars.length - 1] : null
@@ -379,113 +465,119 @@ export default function ResearchPage({ initialSettings }: ResearchPageProps) {
     [bars]
   )
 
+  const searching = query.trim().length > 0
+  const quoteName =
+    stockData?.name || allTickers.find((item) => item.ticker === selectedTicker)?.name
+
   return (
-    <div className="perf-page">
-      {/* Edge-to-Edge Hero Banner */}
-      <div className="perf-hero-wrapper page-hero-band is-full-bleed is-dot-grid">
-        <div className="perf-hero-inner page-hero-inner">
-          <div className="perf-hero-copy">
-            <span className="page-hero-eyebrow">Charts and backtests</span>
-            <h1 className="page-hero-title">Prices and backtest results</h1>
-            <p className="page-hero-description">
-              Look up price history for any stock, or see how a published strategy would have performed over the same stretch of time.
-            </p>
-          </div>
-        </div>
+    <div className="research-page">
+      <div className="research-top">
+        <h1 className="research-sr-only">Research</h1>
+        <Segmented
+          options={MODE_OPTIONS}
+          value={mode}
+          onChange={switchMode}
+          ariaLabel="Research view"
+          kind="tabs"
+          size="md"
+        />
       </div>
 
-      <div className="perf-section">
-        <div className="perf-tabs" role="tablist" aria-label="Research view">
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              role="tab"
-              aria-selected={mode === tab.id}
-              className={`perf-tab ${mode === tab.id ? 'is-active' : ''}`}
-              onClick={() => switchMode(tab.id)}
-            >
-              <span className="perf-tab-label">{tab.label}</span>
-              <span className="perf-tab-meta">{tab.meta}</span>
-            </button>
-          ))}
-        </div>
-
+      <div className="research-workspace">
         {mode === 'stocks' && (
-          <div className="perf-workspace">
-            <aside className="perf-watchlist" aria-label="Tickers">
-              <div className="perf-search">
-                <span className="perf-search-icon" aria-hidden="true">
-                  <Search size={14} />
-                </span>
+          <>
+            <button
+              type="button"
+              className="ticker-trigger"
+              onClick={() => setListOpen(true)}
+              aria-expanded={listOpen}
+            >
+              <Search size={14} aria-hidden="true" />
+              Search ticker or company
+            </button>
+
+            {listOpen && (
+              <button
+                type="button"
+                className="ticker-backdrop"
+                aria-label="Close ticker list"
+                onClick={() => setListOpen(false)}
+              />
+            )}
+
+            <aside className={`ticker-panel${listOpen ? ' is-open' : ''}`} aria-label="Tickers">
+              <div className="ticker-search">
+                <Search size={14} aria-hidden="true" className="ticker-search-icon" />
                 <input
+                  ref={searchRef}
                   type="text"
                   value={query}
                   onChange={(event) => handleSearch(event.target.value)}
                   placeholder="Search ticker or company"
-                  className="perf-search-input"
-                  aria-label="Filter tickers"
+                  className="ticker-search-input"
+                  aria-label="Search ticker or company"
                 />
                 {query && (
                   <button
                     type="button"
-                    className="perf-search-clear"
+                    className="ticker-search-clear"
                     onClick={() => handleSearch('')}
                     aria-label="Clear search"
                   >
                     <X size={14} aria-hidden="true" />
                   </button>
                 )}
+                <button
+                  type="button"
+                  className="ticker-close"
+                  onClick={() => setListOpen(false)}
+                  aria-label="Close ticker list"
+                >
+                  <X size={16} aria-hidden="true" />
+                </button>
               </div>
 
-              <div className="perf-watchlist-head" aria-hidden="true">
-                <span>Company / symbol</span>
-                <span>Last / 1D</span>
+              <div className="ticker-head" aria-hidden="true">
+                <span>Symbol</span>
+                <span className="is-last">Last</span>
               </div>
 
-              <div className="perf-watchlist-scroll" onScroll={handleWatchlistScroll}>
+              <div className="ticker-scroll" onScroll={handleWatchlistScroll}>
                 {tickersLoading && (
-                  <div className="perf-watchlist-status">
+                  <div className="ticker-status">
                     <LoaderRow label="Loading tickers…" />
                   </div>
                 )}
 
                 {!tickersLoading && filteredTickers.length === 0 && (
-                  <p className="perf-watchlist-status">No ticker matches “{query}”.</p>
+                  <p className="ticker-status">No ticker matches “{query}”.</p>
                 )}
 
                 {!tickersLoading && filteredTickers.length > 0 && (
-                  <ul className="perf-watchlist-list">
+                  <ul className="ticker-list">
                     {visibleTickers.map(({ ticker: symbol, name }) => {
                       const quote = quotes[symbol]
                       const isActive = symbol === selectedTicker
                       const up = quote ? quote.changePct >= 0 : true
 
                       return (
-                        <li key={symbol}>
+                        <li key={symbol} className="ticker-item">
                           <button
                             type="button"
-                            className={`perf-row ${isActive ? 'is-active' : ''}`}
+                            className={`ticker-row${isActive ? ' is-active' : ''}`}
                             aria-pressed={isActive}
                             onClick={() => handleSelectTicker(symbol)}
                           >
-                            <span className="perf-row-identity">
-                              <span className="perf-row-symbol">{symbol}</span>
-                              <span className="perf-row-name">{name}</span>
+                            <span className="ticker-identity">
+                              <span className="ticker-symbol">{symbol}</span>
+                              <span className="ticker-name">{name}</span>
                             </span>
-                            <span className="perf-row-spark">
-                              {quote ? (
-                                <Sparkline values={quote.spark} up={up} />
-                              ) : (
-                                <span className="perf-row-spark-wait" aria-hidden="true" />
-                              )}
-                            </span>
-                            <span className="perf-row-figures">
-                              <span className="perf-row-price">
+                            <span className="ticker-figures">
+                              <span className="ticker-price">
                                 {quote ? priceText(quote.price) : '—'}
                               </span>
                               <span
-                                className={`perf-row-change ${
+                                className={`ticker-change ${
                                   quote ? (up ? 'is-up' : 'is-down') : ''
                                 }`}
                               >
@@ -499,161 +591,164 @@ export default function ResearchPage({ initialSettings }: ResearchPageProps) {
                   </ul>
                 )}
               </div>
+
+              <div className="ticker-foot">
+                {searching
+                  ? `${filteredTickers.length.toLocaleString()} match${filteredTickers.length === 1 ? '' : 'es'}`
+                  : `Showing ${visibleTickers.length.toLocaleString()} of ${filteredTickers.length.toLocaleString()} tickers`}
+              </div>
             </aside>
 
-            <div className="perf-detail">
-              {/* Price history can take a moment, so the panel turns into
-                  the waiting screen until the candles are in. */}
-              {loading && (
-                <LoaderScreen
-                  label={`Loading ${selectedTicker}…`}
-                  sub="Fetching price history from the database."
-                />
-              )}
-              {!loading && error && <p className="status-text is-error">{error}</p>}
+            {loading && selectedTicker && (
+              <section className="quote-panel is-busy" aria-busy="true">
+                <p className="research-sr-only" role="status">Loading {selectedTicker}</p>
+                <div className="quote-skeleton" aria-hidden="true">
+                  <span className="research-skel is-price" />
+                  <span className="research-skel is-block" />
+                </div>
+              </section>
+            )}
 
-              {!loading && !error && lastBar && (
-                <>
-                  <article className="perf-quote-card">
-                    <header className="perf-quote-head">
-                      <div className="perf-quote-identity">
-                        <div className="perf-quote-heading">
-                          <h2 className="perf-quote-ticker">{stockData?.ticker ?? selectedTicker}</h2>
-                          {(stockData?.name || allTickers.find((item) => item.ticker === selectedTicker)?.name) && (
-                            <span className="perf-quote-name">
-                              {stockData?.name || allTickers.find((item) => item.ticker === selectedTicker)?.name}
-                            </span>
-                          )}
-                        </div>
-                        <p className="perf-quote-price-row">
-                          <span className="perf-quote-price">${priceText(lastBar.close)}</span>
-                          <span
-                            className={`perf-quote-range ${rangePct >= 0 ? 'is-up' : 'is-down'}`}
-                          >
-                            {signedText(rangeChange)} ({signedText(rangePct)}%)
-                          </span>
-                          <span className="perf-quote-span">
-                            over {TIMEFRAME_LABEL[timeframe]}
-                          </span>
-                        </p>
-                      </div>
+            {!loading && error && selectedTicker && (
+              <section className="quote-panel">
+                <div className="research-state">
+                  <p className="research-state-title">
+                    Could not load price history for {selectedTicker}.
+                  </p>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => setReloadKey((key) => key + 1)}
+                  >
+                    Try again
+                  </button>
+                </div>
+              </section>
+            )}
 
-                      <div className="perf-quote-controls">
-                        <div className="perf-style-group" role="group" aria-label="Chart style">
-                          <button
-                            type="button"
-                            className={`perf-style-btn ${chartStyle === 'candles' ? 'is-active' : ''}`}
-                            aria-pressed={chartStyle === 'candles'}
-                            onClick={() => setChartStyle('candles')}
-                          >
-                            Candles
-                          </button>
-                          <button
-                            type="button"
-                            className={`perf-style-btn ${chartStyle === 'line' ? 'is-active' : ''}`}
-                            aria-pressed={chartStyle === 'line'}
-                            onClick={() => setChartStyle('line')}
-                          >
-                            Line
-                          </button>
-                        </div>
-
-                        <div className="timeframe-group" role="group" aria-label="Timeframe">
-                          {TIMEFRAMES.map((tf) => (
-                            <button
-                              key={tf}
-                              type="button"
-                              onClick={() => setTimeframe(tf)}
-                              className={`timeframe-btn ${timeframe === tf ? 'is-active' : ''}`}
-                            >
-                              {tf.toUpperCase()}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </header>
-
-                    <p className="perf-quote-ohlc">
-                      <span className="perf-quote-date">{dateText(lastBar.date)}</span>
-                      <span>O <b>{priceText(lastBar.open)}</b></span>
-                      <span>H <b>{priceText(lastBar.high)}</b></span>
-                      <span>L <b>{priceText(lastBar.low)}</b></span>
-                      <span>C <b>{priceText(lastBar.close)}</b></span>
-                      <span>Vol <b>{compactVolume(lastBar.volume)}</b></span>
+            {!loading && !error && lastBar && (
+              <section className="quote-panel" aria-label={`${selectedTicker} price history`}>
+                <header className="quote-head">
+                  <div className="quote-identity">
+                    <div className="quote-naming">
+                      <h2 className="quote-symbol">{stockData?.ticker ?? selectedTicker}</h2>
+                      {quoteName && <span className="quote-name">{quoteName}</span>}
+                    </div>
+                    <p className="quote-price-row">
+                      <span className="quote-price">${priceText(lastBar.close)}</span>
+                      <span className={`quote-change ${rangePct >= 0 ? 'is-up' : 'is-down'}`}>
+                        {signedText(rangeChange)} ({signedText(rangePct)}%)
+                      </span>
+                      <span className="quote-span">over {TIMEFRAME_LABEL[timeframe]}</span>
                     </p>
+                  </div>
 
-                    <Chart
-                      bars={chartBars}
-                      ticker={stockData?.ticker ?? selectedTicker ?? ''}
-                      chartStyle={chartStyle}
-                      defaultZoom={
-                        typeof initialSettings?.defaultZoom === 'number'
-                          ? initialSettings.defaultZoom
-                          : undefined
-                      }
-                      showQuote={false}
+                  <div className="quote-controls">
+                    <Segmented
+                      options={STYLE_OPTIONS}
+                      value={chartStyle}
+                      onChange={setChartStyle}
+                      ariaLabel="Chart style"
                     />
-                  </article>
+                    <Segmented
+                      options={TIMEFRAME_OPTIONS}
+                      value={timeframe}
+                      onChange={setTimeframe}
+                      ariaLabel="Timeframe"
+                      className="is-timeframe"
+                    />
+                  </div>
+                </header>
 
-                  {stats && (
-                    <article className="perf-stats-card">
-                      <div className="perf-stat">
-                        <span className="perf-stat-label">Range return</span>
-                        <span
-                          className={`perf-stat-value ${stats.rangePct >= 0 ? 'is-up' : 'is-down'}`}
-                        >
-                          {signedText(stats.rangePct)}%
-                        </span>
-                        <span className="perf-stat-note">Over {TIMEFRAME_LABEL[timeframe]}</span>
-                      </div>
-                      <div className="perf-stat">
-                        <span className="perf-stat-label">High</span>
-                        <span className="perf-stat-value">{priceText(stats.high)}</span>
-                        <span className="perf-stat-note">Highest print</span>
-                      </div>
-                      <div className="perf-stat">
-                        <span className="perf-stat-label">Low</span>
-                        <span className="perf-stat-value">{priceText(stats.low)}</span>
-                        <span className="perf-stat-note">Lowest print</span>
-                      </div>
-                      <div className="perf-stat">
-                        <span className="perf-stat-label">Volatility</span>
-                        <span className="perf-stat-value">{stats.volatility.toFixed(1)}%</span>
-                        <span className="perf-stat-note">Annualised</span>
-                      </div>
-                      <div className="perf-stat">
-                        <span className="perf-stat-label">Max drawdown</span>
-                        <span className="perf-stat-value is-down">
-                          {stats.maxDrawdown.toFixed(1)}%
-                        </span>
-                        <span className="perf-stat-note">Peak to trough</span>
-                      </div>
-                      <div className="perf-stat">
-                        <span className="perf-stat-label">Avg volume</span>
-                        <span className="perf-stat-value">{compactVolume(stats.avgVolume)}</span>
-                        <span className="perf-stat-note">Shares per day</span>
-                      </div>
-                    </article>
-                  )}
-                </>
-              )}
+                <p className="quote-ohlc">
+                  <span className="quote-date">{dateText(lastBar.date)}</span>
+                  <span><span className="quote-ohlc-label">Open</span> <b>{priceText(lastBar.open)}</b></span>
+                  <span><span className="quote-ohlc-label">High</span> <b>{priceText(lastBar.high)}</b></span>
+                  <span><span className="quote-ohlc-label">Low</span> <b>{priceText(lastBar.low)}</b></span>
+                  <span><span className="quote-ohlc-label">Close</span> <b>{priceText(lastBar.close)}</b></span>
+                  <span><span className="quote-ohlc-label">Volume</span> <b>{compactVolume(lastBar.volume)}</b></span>
+                </p>
 
-              {!loading && !error && !lastBar && (
-                <div className="empty-state">
-                  <p className="empty-state-title">No ticker selected</p>
-                  <p className="empty-state-body">
+                <Chart
+                  bars={chartBars}
+                  ticker={stockData?.ticker ?? selectedTicker ?? ''}
+                  chartStyle={chartStyle}
+                  defaultZoom={
+                    typeof initialSettings?.defaultZoom === 'number'
+                      ? initialSettings.defaultZoom
+                      : undefined
+                  }
+                  showQuote={false}
+                />
+
+                {stats && (
+                  <div className="quote-stats">
+                    <div className="quote-stat">
+                      <span className="quote-stat-label">Range return</span>
+                      <span
+                        className={`quote-stat-value ${stats.rangePct >= 0 ? 'is-up' : 'is-down'}`}
+                      >
+                        {signedText(stats.rangePct)}%
+                      </span>
+                      <span className="quote-stat-note">Over {TIMEFRAME_LABEL[timeframe]}</span>
+                    </div>
+                    <div className="quote-stat">
+                      <span className="quote-stat-label">High</span>
+                      <span className="quote-stat-value">{priceText(stats.high)}</span>
+                      <span className="quote-stat-note">Highest price</span>
+                    </div>
+                    <div className="quote-stat">
+                      <span className="quote-stat-label">Low</span>
+                      <span className="quote-stat-value">{priceText(stats.low)}</span>
+                      <span className="quote-stat-note">Lowest price</span>
+                    </div>
+                    <div className="quote-stat">
+                      <span className="quote-stat-label">
+                        <GlossaryText text="Volatility" glossary={STRATEGY_GLOSSARY} />
+                      </span>
+                      <span className="quote-stat-value">{stats.volatility.toFixed(1)}%</span>
+                      <span className="quote-stat-note">Yearly, from daily moves</span>
+                    </div>
+                    <div className="quote-stat">
+                      <span className="quote-stat-label">
+                        <GlossaryText text="Max drawdown" glossary={STRATEGY_GLOSSARY} />
+                      </span>
+                      <span className="quote-stat-value is-down">
+                        {stats.maxDrawdown.toFixed(1)}%
+                      </span>
+                      <span className="quote-stat-note">Peak to trough</span>
+                    </div>
+                    <div className="quote-stat">
+                      <span className="quote-stat-label">Avg volume</span>
+                      <span className="quote-stat-value">{compactVolume(stats.avgVolume)}</span>
+                      <span className="quote-stat-note">Shares traded per day</span>
+                    </div>
+                  </div>
+                )}
+              </section>
+            )}
+
+            {!loading && !error && !lastBar && !selectedTicker && (
+              <section className="quote-panel">
+                <div className="research-state">
+                  <p className="research-state-title">No ticker selected</p>
+                  <p className="research-state-body">
                     Pick a symbol from the list to load its price history.
                   </p>
                 </div>
-              )}
-            </div>
-          </div>
+              </section>
+            )}
+          </>
         )}
 
         {mode === 'strategies' && <StrategyChart />}
-
-        {mode === 'stocks' && <CandlestickGuide />}
       </div>
+
+      {mode === 'stocks' && <CandlestickGuide />}
+
+      <p className="research-note">
+        Charts and backtests are hypothetical and do not predict future returns.
+      </p>
     </div>
   )
 }

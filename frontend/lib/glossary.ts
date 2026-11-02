@@ -12,6 +12,24 @@
 import type { GlossaryTerm } from '../src/types/strategy';
 
 export const STRATEGY_GLOSSARY: Record<string, GlossaryTerm> = {
+  // --- Reading a price chart ---
+  ticker: {
+    definition: 'A short code for a listed company or fund, like AAPL.',
+    example: 'AAPL is Apple, SPY is the S&P 500 fund.',
+  },
+  candle: {
+    definition: 'One bar on a price chart showing a day’s open, high, low and close.',
+    example: 'A green candle means the close was above the open.',
+  },
+  volume: {
+    definition: 'The number of shares traded in a period.',
+    example: 'A quiet day on a large stock might trade 5 million shares.',
+  },
+  ETF: {
+    definition: 'A fund you can buy and sell like a stock, usually tracking an index or a basket of assets.',
+    example: 'SPY holds every company in the S&P 500, so one share spreads your money across all of them.',
+  },
+
   // --- What a strategy is made of ---
   backtest: {
     definition:
@@ -75,6 +93,11 @@ export const STRATEGY_GLOSSARY: Record<string, GlossaryTerm> = {
     definition:
       'Return earned per unit of risk taken. Above 1.0 is generally considered viable; higher is better.',
     example: 'A strategy returning 10% with 5% volatility has roughly a 2.0 Sharpe ratio.',
+  },
+  'sortino ratio': {
+    definition:
+      'Like the Sharpe ratio, but only losses count as risk, so a strategy is not punished for large gains.',
+    example: 'A strategy that swings up sharply and down gently scores higher here than on the Sharpe ratio.',
   },
   PSR: {
     definition:

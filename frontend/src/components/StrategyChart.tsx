@@ -350,9 +350,11 @@ export default function StrategyChart() {
 
       <div className="strategy-workspace">
         <aside className="strategy-library" aria-label="Strategy library">
-          <div className="strategy-library-head" aria-hidden="true">
-            <span>Strategy</span>
-            <span>{strategiesLoading ? '…' : strategies.length}</span>
+          <div className="strategy-library-head">
+            <span className="strategy-library-title">Strategies</span>
+            <span className="strategy-library-count">
+              {strategiesLoading ? '…' : strategies.length}
+            </span>
           </div>
 
           <div className="strategy-library-scroll">
@@ -408,7 +410,7 @@ export default function StrategyChart() {
             <form className="strategy-date-form" onSubmit={handleRunCalculation}>
               <DatePicker
                 id="start-date"
-                label="Start Date *"
+                label="Start date"
                 value={startDate}
                 onChange={(dateStr) => {
                   setStartDate(dateStr)
@@ -419,14 +421,14 @@ export default function StrategyChart() {
 
               <DatePicker
                 id="end-date"
-                label="End Date (Optional)"
+                label="End date (optional)"
                 value={endDate}
                 onChange={(dateStr) => setEndDate(dateStr)}
                 placeholder="Select end date"
               />
 
               <Button type="submit" variant="primary" size="md" disabled={loading || strategiesLoading}>
-                {loading ? 'Running...' : 'Run Analysis'}
+                {loading ? 'Running…' : 'Run backtest'}
               </Button>
             </form>
           </div>
@@ -434,7 +436,7 @@ export default function StrategyChart() {
           {loading && (
             <LoaderScreen
               label={`Running ${strategies.find((s) => s.id === selectedStrategy)?.name || 'strategy'}…`}
-              sub="Simulating the backtest engine over your date range — this can take a moment."
+              sub="Replaying the engine over your date range. This can take a moment."
             />
           )}
 
@@ -442,7 +444,7 @@ export default function StrategyChart() {
             <div className="empty-state">
               <p className="empty-state-title">No backtest yet</p>
               <p className="empty-state-body">
-                Pick a strategy from the list, set a start date, then run the analysis.
+                Choose a strategy, set a start date and run it.
               </p>
             </div>
           )}

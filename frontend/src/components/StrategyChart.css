@@ -1,42 +1,43 @@
 /* ============================================================
-   StrategyChart.css — Strategy runner layout, metrics sidebar
+   StrategyChart.css — Backtest workspace: strategy list, dates,
+   equity chart, metrics
 
-   Width conventions: % / vw for layout widths; rem for fixed
-   UI atoms. Breakpoints in rem.
+   Same panels as the price-history workspace: 1px border, 10px
+   radius, surface fill, no shadow. Width conventions: % / vw for
+   layout widths; rem for fixed UI atoms. Breakpoints in rem.
    ============================================================ */
 
-/* The backtest view is a workspace, not one card: the strategy list sits on
-   the left and the setup, equity chart and metrics stack on the right, the
-   same shape as the price-history tab on this page. */
 .strategy-card {
   display: flex;
   flex-direction: column;
-  gap: var(--space-lg);
-  font-family: var(--font-sans);
+  gap: 1.5rem;
   min-width: 0;
+  font-family: var(--font-sans);
 }
 
 .strategy-workspace {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--space-lg);
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.5rem; /* 24px */
+  align-items: stretch;
   min-width: 0;
 }
 
 @media (min-width: 64rem) {
   .strategy-workspace {
-    grid-template-columns: minmax(14rem, 17.5rem) minmax(0, 1fr);
-    align-items: start;
+    grid-template-columns: 17.5rem minmax(0, 1fr);
   }
 }
+
+/* ---------- Strategy list ---------- */
 
 .strategy-library {
   display: flex;
   flex-direction: column;
+  min-width: 0;
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
+  border-radius: 0.625rem; /* 10px */
   overflow: hidden;
 }
 
@@ -44,19 +45,29 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-sm) var(--space-md);
+  height: 2.25rem; /* 36px */
+  padding: 0 1rem;
+  box-sizing: border-box;
+  background: var(--bg-surface-hover);
   border-bottom: 1px solid var(--border-subtle);
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  font-size: 0.8125rem; /* 13px */
   color: var(--text-muted);
 }
 
-/* The list keeps its own height no matter how tall the results beside it
-   grow, and scrolls once the library outgrows it. */
+.strategy-library-title {
+  font-weight: 600;
+}
+
+.strategy-library-count {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+
 .strategy-library-scroll {
-  max-height: min(26rem, 55vh);
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: min(34rem, 58vh);
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
@@ -64,8 +75,8 @@
 }
 
 .strategy-library-status {
-  padding: var(--space-lg) var(--space-md);
   margin: 0;
+  padding: 1.5rem 1rem;
   font-size: var(--text-sm);
   color: var(--text-muted);
 }
@@ -73,36 +84,39 @@
 .strategy-library-list {
   list-style: none;
   margin: 0;
-  padding: var(--space-2xs);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3xs);
+  padding: 0;
+}
+
+.strategy-library-list li + li {
+  border-top: 1px solid var(--border-subtle);
 }
 
 .strategy-row {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: var(--space-3xs);
+  gap: 0.125rem;
   width: 100%;
-  border: none;
+  padding: 0.75rem 1rem;
+  box-sizing: border-box;
+  border: 0;
   background: transparent;
-  border-radius: var(--radius-sm);
-  padding: var(--space-sm);
   text-align: left;
+  color: inherit;
+  font: inherit;
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition: background-color 0.15s ease;
 }
 
 .strategy-row-name {
   font-size: var(--text-sm);
   font-weight: 600;
   color: var(--text-primary);
-  transition: color 0.15s ease;
 }
 
 .strategy-row-desc {
-  font-size: var(--text-xs);
-  line-height: 1.45;
+  font-size: 0.8125rem; /* 13px */
+  line-height: 1.5;
   color: var(--text-muted);
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -120,22 +134,38 @@
   }
 }
 
-.strategy-row.is-active .strategy-row-desc {
-  display: block;
-  -webkit-line-clamp: unset;
-  overflow: visible;
-}
-
 .strategy-row.is-active {
   background: var(--accent-muted);
+}
+
+.strategy-row.is-active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--accent);
 }
 
 .strategy-row.is-active .strategy-row-name {
   color: var(--accent);
 }
 
+.strategy-row.is-active .strategy-row-desc {
+  display: block;
+  -webkit-line-clamp: unset;
+  overflow: visible;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .strategy-row:hover:not(:disabled) {
+    background: var(--bg-surface-hover);
+  }
+}
+
 .strategy-row:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus-ring);
   outline-offset: -2px;
 }
 
@@ -145,25 +175,21 @@
   opacity: 0.55;
 }
 
-@media (hover: hover) and (pointer: fine) {
-  .strategy-row:hover:not(:disabled) {
-    background: var(--bg-surface-hover);
-  }
-}
+/* ---------- Right column ---------- */
 
 .strategy-detail {
   display: flex;
   flex-direction: column;
-  gap: var(--space-lg);
+  gap: 1.5rem;
   min-width: 0;
 }
 
 .strategy-controls-bar {
+  padding: 1.5rem;
+  box-sizing: border-box;
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
-  padding: var(--space-lg);
+  border-radius: 0.625rem; /* 10px */
   overflow-x: auto;
   overscroll-behavior-x: contain;
   -webkit-overflow-scrolling: touch;
@@ -176,73 +202,32 @@
   flex-wrap: wrap;
 }
 
-.run-strategy-btn {
-  background: var(--accent);
-  color: var(--text-inverse);
-  border: none;
-  border-radius: var(--radius-sm);
-  font-size: var(--text-sm);
+/* The shared date field labels are small caps elsewhere; here they read as
+   sentences, like every other label on this page. */
+.strategy-date-form .custom-datepicker-label {
+  font-size: 0.8125rem; /* 13px */
   font-weight: 600;
-  padding: 0 var(--space-lg);
-  cursor: pointer;
-  height: 2.375rem; /* ≈38px — fixed-size control */
-  transition: opacity 0.2s ease;
-}
-
-/* An accent button takes the accent shade on hover, like every other
-   primary button in the app. */
-.run-strategy-btn:hover:not(:disabled) {
-  background: var(--accent-hover);
-}
-
-.run-strategy-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.status-text {
-  font-size: var(--text-sm);
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--text-muted);
-  text-align: center;
-  margin: var(--space-md) 0;
 }
 
-.status-text.is-error {
-  color: var(--error);
+.strategy-date-form .custom-datepicker-input-container {
+  box-shadow: none;
 }
 
-/* Empty State Styling */
-.empty-state {
-  text-align: center;
-  padding: var(--space-2xl) var(--space-md);
-  border: 1px dashed var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--bg-surface-hover);
-}
-
-.empty-state-title {
-  font-size: var(--text-base);
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0 0 var(--space-2xs);
-}
-
-.empty-state-body {
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-  margin: 0;
-}
+/* ---------- Chart panel ---------- */
 
 .strategy-chart-container {
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
   min-width: 0;
+  padding: 1.5rem;
+  box-sizing: border-box;
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
-  padding: var(--space-lg);
+  border-radius: 0.625rem; /* 10px */
 }
 
 .strategy-chart-header {
@@ -254,15 +239,24 @@
 }
 
 .strategy-title {
-  font-size: var(--text-lg);
-  font-weight: 600;
   margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
 .strategy-subtext {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
   font-family: var(--font-mono);
+  font-size: 0.75rem; /* 12px */
+  color: var(--text-muted);
+}
+
+.strategy-chart-scroll {
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .strategy-plot-area {
@@ -276,19 +270,11 @@
   display: block;
 }
 
-.strategy-chart-scroll {
-  width: 100%;
-  min-width: 0;
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-  -webkit-overflow-scrolling: touch;
-}
-
 .strategy-scroll-hint {
-  font-size: var(--text-xs);
+  margin: 0;
+  font-size: 0.75rem;
   color: var(--text-muted);
   text-align: center;
-  margin: 0;
 }
 
 .strategy-grid-line {
@@ -297,9 +283,9 @@
 }
 
 .strategy-axis-label {
+  font-family: var(--font-mono);
   font-size: 0.625rem; /* ≈10px — fixed-size SVG text */
   fill: var(--text-muted);
-  font-family: var(--font-mono);
 }
 
 .strategy-crosshair {
@@ -309,54 +295,51 @@
 
 .strategy-tooltip {
   position: absolute;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  padding: var(--space-xs);
-  box-shadow: var(--shadow-md);
-  pointer-events: none;
-  white-space: nowrap;
   display: flex;
   flex-direction: column;
   gap: var(--space-3xs);
+  padding: var(--space-xs);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  pointer-events: none;
+  white-space: nowrap;
   z-index: 10;
 }
 
 .tooltip-date {
-  font-size: 0.625rem; /* ≈10px — fixed-size tooltip text */
-  color: var(--text-muted);
-  margin: 0 0 0.125rem 0;
+  margin: 0;
   font-family: var(--font-mono);
+  font-size: 0.625rem;
+  color: var(--text-muted);
 }
 
 .tooltip-value {
+  margin: 0;
+  font-family: var(--font-mono);
   font-size: var(--text-xs);
   font-weight: 600;
   color: var(--text-primary);
-  margin: 0;
-  font-family: var(--font-mono);
 }
 
-/* Metrics read as a label/value grid under the chart, the way the stats card
-   sits under the price chart on the other tab. */
+/* ---------- Metrics panel ---------- */
+
 .strategy-metrics-card {
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
+  padding: 1.5rem;
+  box-sizing: border-box;
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
-  padding: var(--space-lg);
+  border-radius: 0.625rem; /* 10px */
 }
 
 .strategy-metrics-title {
   margin: 0;
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
+  font-family: var(--font-sans);
+  font-size: 0.8125rem; /* 13px */
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
   color: var(--text-muted);
 }
 
@@ -375,14 +358,14 @@
 }
 
 .strategy-metric-label {
-  font-size: var(--text-xs);
+  font-size: 0.8125rem; /* 13px */
   color: var(--text-muted);
 }
 
 .strategy-metric-value {
-  font-size: var(--text-lg);
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
+  font-size: 1.25rem; /* 20px */
   color: var(--text-primary);
 }
 
@@ -394,8 +377,56 @@
   color: var(--error);
 }
 
-/* ---------- Mobile: the controls stack so the Run button stays visible;
-   the chart keeps its own horizontal scroll. ---------- */
+/* ---------- States ---------- */
+
+.empty-state {
+  padding: 2rem 1.5rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.625rem; /* 10px */
+  text-align: left;
+}
+
+.empty-state-title {
+  margin: 0 0 var(--space-2xs);
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.empty-state-body {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.status-text {
+  margin: var(--space-md) 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.status-text.is-error {
+  color: var(--error);
+}
+
+/* ---------- Wide: the list matches the height of the results ---------- */
+
+@media (min-width: 64rem) {
+  .strategy-library-scroll {
+    max-height: none;
+    contain: size;
+  }
+}
+
+/* ---------- Small screens ---------- */
+
+@media (max-width: 63.999rem) {
+  .strategy-library-scroll {
+    max-height: 20rem; /* 320px */
+  }
+}
+
 @media (max-width: 48rem) {
   .strategy-date-form {
     flex-direction: column;
@@ -411,5 +442,11 @@
 
   .strategy-chart-scroll .strategy-plot-area {
     min-width: 35rem; /* ≈560px — forces horizontal scroll below this */
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .strategy-row {
+    transition: none;
   }
 }

@@ -43,6 +43,13 @@ BULK_READ_THRESHOLD: int = 500
 
 Scope = Literal["all", "stocks", "missing"]
 
+# Statuses that still trade: a current last bar, or one a few sessions behind.
+TRADABLE_STATUSES: tuple[str, ...] = ("active", "lagging")
+
+# Fewest bars before a chart is worth opening. The research list's shortest
+# timeframe is one year, so a symbol listed last month draws an empty frame.
+MIN_TRADABLE_BARS: int = 30
+
 _CACHE: dict[str, tuple[tuple | None, object]] = {}  # key -> (file signature, value)
 _HISTORY_CACHE: dict[str, StockData] = {}  # every ticker's bars, loaded in one pass
 _HISTORY_SIGNATURE: tuple | None = None
@@ -155,6 +162,18 @@ def get_ticker_directory() -> list[dict[str, str]]:
     return [{"ticker": ticker, "name": name} for ticker, name in _names_by_symbol().items()]
 
 
+# Ticker and name pairs for symbols that still trade and carry enough history to
+# chart. The research list uses this: a delisted symbol, or one listed three
+# weeks ago, opens an empty chart and every number under it is meaningless.
+def get_tradable_ticker_directory() -> list[dict[str, str]]:
+    bars: dict[str, int] = _tradable_bars_by_symbol()
+    return [
+        {"ticker": ticker, "name": name}
+        for ticker, name in _names_by_symbol().items()
+        if bars.get(ticker, 0) >= MIN_TRADABLE_BARS
+    ]
+
+
 # One ticker's name, falling back to the symbol when the catalog has no entry.
 def get_stock_name(ticker: str) -> str:
     symbol: str = ticker.strip().upper()
@@ -240,6 +259,11 @@ def _categories_by_symbol() -> dict[str, str]:
 # The symbol to status map, cached per file change.
 def _status_by_symbol() -> dict[str, str]:
     return _cached_value("status", _signature(STATUS_FILE, required=False), _read_symbol_status)
+
+
+# Bar counts for the symbols that still trade, cached per file change.
+def _tradable_bars_by_symbol() -> dict[str, int]:
+    return _cached_value("tradable_bars", _signature(STATUS_FILE, required=False), _read_tradable_bars)
 
 
 # Symbols of the given categories that have bars.
@@ -557,3 +581,19 @@ def _read_symbol_status() -> dict[str, str]:
         return {}
     table = pq.read_table(STATUS_FILE, columns=["Symbol", "Status"])
     return dict(zip(table.column("Symbol").to_pylist(), table.column("Status").to_pylist()))
+
+
+# The status file as symbol -> bar count, for the symbols that still trade.
+def _read_tradable_bars() -> dict[str, int]:
+    if not os.path.exists(STATUS_FILE):
+        return {}
+    table = pq.read_table(STATUS_FILE, columns=["Symbol", "Status", "Bars"])
+    return {
+        symbol: int(count)
+        for symbol, status, count in zip(
+            table.column("Symbol").to_pylist(),
+            table.column("Status").to_pylist(),
+            table.column("Bars").to_pylist(),
+        )
+        if status in TRADABLE_STATUSES
+    }

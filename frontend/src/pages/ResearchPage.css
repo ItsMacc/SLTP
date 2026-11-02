@@ -1,228 +1,250 @@
 /* ============================================================
    ResearchPage.css — Price history workspace
 
-   Width conventions: % / vw for layout widths; rem for fixed
-   UI atoms. Breakpoints in rem.
+   One container with the same edges as Home and Lab. Width
+   conventions: % / vw for layout widths; rem for fixed UI atoms
+   and the section rhythm. Breakpoints in rem.
    ============================================================ */
 
-.perf-page {
+.research-page {
   width: 100%;
+  max-width: 100%;
   margin: 0 auto;
-  padding: var(--space-xl) 0 var(--space-2xl);
-  font-family: var(--font-sans);
-  color: var(--text-primary);
+  /* 2.5% of the viewport on each side: clearly inset, but the chart gets the
+     rest of the width instead of a fixed reading column. */
+  padding: 1.5rem 2.5% 4rem;
   display: flex;
   flex-direction: column;
-  gap: var(--space-xl);
-}
-
-/* Hero visuals and shared content measure come from .page-hero-band and .page-hero-inner. */
-.perf-hero-wrapper {
-  margin-bottom: var(--space-md);
-}
-
-.perf-hero-inner {
-  width: 100%;
-}
-
-.perf-hero-copy {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-  max-width: min(58rem, 100%); /* ≈928px reading measure */
-}
-
-/* The workspace runs wider than the reading pages and sits to the left of the
-   frame, with a clear inset on both sides so the cards never crowd the edge.
-   The padding covers everything inside it, including the closing guide. */
-.perf-section {
-  width: 100%;
-  max-width: min(96rem, 95vw); /* ≈1536px */
-  margin-left: 0;
-  margin-right: auto;
-  padding-inline: var(--space-lg);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-lg);
-}
-
-@media (min-width: 64rem) {
-  .perf-section {
-    padding-inline: var(--space-xl);
-  }
-}
-
-/* ---------- view tabs ---------- */
-
-.perf-tabs {
-  display: flex;
-  gap: var(--space-lg);
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.perf-tab {
-  position: relative;
-  display: inline-flex;
-  align-items: baseline;
-  gap: var(--space-xs);
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
-  font-family: var(--font-sans);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  padding: var(--space-md) var(--space-2xs);
-  cursor: pointer;
-  transition: color 0.2s ease;
-}
-
-.perf-tab::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -1px;
-  height: 0.125rem; /* ≈2px rule */
-  background: var(--accent);
-  transform: scaleX(0);
-  transform-origin: left;
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.perf-tab-label {
-  color: inherit;
-}
-
-.perf-tab-meta {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-muted);
-  transition: color 0.2s ease;
-}
-
-.perf-tab.is-active {
-  color: var(--text-primary);
-}
-
-.perf-tab.is-active::after {
-  transform: scaleX(1);
-}
-
-.perf-tab.is-active .perf-tab-meta {
-  color: var(--accent);
-}
-
-.perf-tab:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-  border-radius: var(--radius-sm);
-}
-
-/* ---------- workspace: list beside the chart ---------- */
-
-.perf-workspace {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--space-lg);
-}
-
-@media (min-width: 64rem) {
-  .perf-workspace {
-    grid-template-columns: minmax(14rem, 17.5rem) minmax(0, 1fr);
-    align-items: stretch;
-  }
-}
-
-.perf-watchlist {
-  display: flex;
-  flex-direction: column;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
-  overflow: hidden;
-  /* Floor for the moments when the panel beside it is only a loader or an
-     empty state, so the list does not collapse to its header. */
-  min-height: 20rem;
-}
-
-/* Search field: the list below is the suggestion surface, so the field
-   never opens a dropdown of its own. */
-.perf-search {
-  position: relative;
-  padding: var(--space-md);
-}
-
-.perf-search-icon {
-  position: absolute;
-  left: calc(var(--space-md) + var(--space-xs));
-  top: 50%;
-  transform: translateY(-50%);
-  display: inline-flex;
-  color: var(--text-muted);
-  pointer-events: none;
-}
-
-.perf-search-input {
-  width: 100%;
   box-sizing: border-box;
-  text-align: left;
-  background: var(--bg-canvas);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  color: var(--text-primary);
   font-family: var(--font-sans);
-  font-size: var(--text-sm);
-  padding: var(--space-sm) var(--space-xl) var(--space-sm) var(--space-lg);
-  outline: none;
-  transition: border-color 0.2s ease, background 0.2s ease;
-}
-
-.perf-search-input::placeholder {
-  color: var(--text-muted);
-}
-
-.perf-search-input:focus {
-  border-color: var(--accent);
-  background: var(--bg-surface);
-}
-
-.perf-search-clear {
-  position: absolute;
-  right: calc(var(--space-md) + var(--space-xs));
-  top: 50%;
-  transform: translateY(-50%);
-  display: inline-flex;
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
-  line-height: 1;
-  padding: 0 var(--space-3xs);
-  cursor: pointer;
-  transition: color 0.15s ease;
-}
-
-.perf-search-clear:hover {
   color: var(--text-primary);
 }
 
-.perf-watchlist-head {
+/* ---------- Top row ---------- */
+
+/* No title block any more: the page opens on the workspace, with the view
+   switch as the only chrome above it. */
+.research-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-sm) var(--space-md);
-  border-bottom: 1px solid var(--border-subtle);
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+  min-height: 2.25rem;
+}
+
+.research-top .seg-option.is-active {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ---------- Segmented control ---------- */
+
+/* Used three times: the page's two views, the chart style, and the
+   timeframe. One shape, one behaviour. */
+.seg-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 2rem;
+  padding: 2px;
+  box-sizing: border-box;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.5rem; /* 8px */
+  background: transparent;
+}
+
+.seg-control.is-md {
+  height: 2.25rem; /* 36px, the page bar */
+}
+
+.seg-option {
+  display: inline-flex;
+  align-items: center;
+  height: 100%;
+  padding: 0 0.75rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: 0.8125rem; /* 13px */
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.seg-control.is-md .seg-option {
+  padding: 0 0.875rem;
+  font-size: 0.875rem; /* 14px */
+}
+
+.seg-option.is-active {
+  background: var(--accent-muted);
+  color: var(--accent);
+}
+
+.seg-option:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+/* ---------- Workspace ---------- */
+
+/* The same floor for both views, so switching tabs does not shift the page
+   and the guide below stays where the reader left it. */
+.research-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.5rem; /* 24px */
+  align-items: stretch;
+  min-height: 32rem;
+  min-width: 0;
+}
+
+@media (min-width: 64rem) {
+  .research-workspace {
+    grid-template-columns: 17.5rem minmax(0, 1fr); /* 280px + chart */
+  }
+}
+
+/* The strategy view lays out its own two columns, so it spans the pair. */
+.research-workspace > .strategy-card {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+/* ---------- Ticker list ---------- */
+
+.ticker-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.625rem; /* 10px */
+  overflow: hidden;
+}
+
+.ticker-search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  height: 2.25rem; /* 36px */
+  margin: 0.75rem; /* 12px, so the field is inset on every side */
+  padding: 0 var(--space-sm);
+  box-sizing: border-box;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-canvas);
+  color: var(--text-muted);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ticker-search:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-muted);
+}
+
+.ticker-search:focus-within .ticker-search-icon {
+  color: var(--accent);
+}
+
+/* Only shown when the list is a sheet over the chart, i.e. on phones. */
+.ticker-close {
+  display: none;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+/* Search bar that opens the list on phones. */
+.ticker-trigger {
+  display: none;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  height: 2.5rem;
+  padding: 0 var(--space-md);
+  box-sizing: border-box;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.5rem;
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.ticker-trigger svg {
+  color: var(--accent);
+}
+
+.ticker-backdrop {
+  display: none;
+}
+
+/* The one colour in the list's top edge, so the panel has a point of focus
+   before a quote has loaded. */
+.ticker-search-icon {
+  flex: 0 0 auto;
+  color: var(--accent);
+}
+
+.ticker-search-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+}
+
+.ticker-search-input::placeholder {
   color: var(--text-muted);
 }
 
-.perf-watchlist-scroll {
+.ticker-search-clear {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.ticker-search-clear:hover {
+  color: var(--text-primary);
+}
+
+.ticker-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 2rem; /* 32px */
+  padding: 0 1rem;
+  box-sizing: border-box;
+  background: var(--bg-surface-hover);
+  border-top: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 0.8125rem; /* 13px */
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.ticker-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
   max-height: min(34rem, 58vh);
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -230,425 +252,581 @@
   scrollbar-color: var(--border-strong) transparent;
 }
 
-.perf-watchlist-scroll::-webkit-scrollbar {
-  width: 0.5rem; /* ≈8px scroll rail */
-}
-
-.perf-watchlist-scroll::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.perf-watchlist-scroll::-webkit-scrollbar-thumb {
-  background: var(--border-strong);
-  border-radius: var(--radius-full);
-}
-
-.perf-watchlist-list {
-  list-style: none;
+.ticker-status {
   margin: 0;
-  padding: var(--space-2xs);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3xs);
-}
-
-.perf-watchlist-status {
-  padding: var(--space-lg) var(--space-md);
+  padding: 1.5rem 1rem;
   font-size: var(--text-sm);
   color: var(--text-muted);
-  margin: 0;
 }
 
-.perf-row {
-  display: grid;
-  /* Symbol and figures size to their content; the sparkline takes the slack
-     in between, the way the rest of the financial UI reads. */
-  grid-template-columns: auto minmax(3.5rem, 1fr) auto;
+.ticker-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ticker-item + .ticker-item {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.ticker-row {
+  position: relative;
+  display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: var(--space-sm);
   width: 100%;
-  border: none;
+  height: 3.5rem; /* 56px */
+  padding: 0 1rem;
+  box-sizing: border-box;
+  border: 0;
   background: transparent;
-  border-radius: var(--radius-sm);
-  padding: var(--space-sm);
   text-align: left;
+  color: inherit;
+  font: inherit;
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition: background-color 0.15s ease;
 }
 
-.perf-row-identity {
-  min-width: 0;
+.ticker-row.is-active {
+  background: var(--accent-muted);
+}
+
+.ticker-row.is-active .ticker-symbol {
+  color: var(--accent);
+}
+
+.ticker-row.is-active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--accent);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ticker-row:hover {
+    background: var(--bg-surface-hover);
+  }
+}
+
+.ticker-row:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.ticker-identity {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  justify-content: center;
+  min-width: 0;
   gap: 0.125rem;
 }
 
-.perf-row-symbol {
+.ticker-symbol {
   font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-size: var(--text-sm);
+  font-size: 0.875rem; /* 14px */
   font-weight: 600;
   color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  transition: color 0.15s ease;
 }
 
-.perf-row-name {
-  max-width: 100%;
-  overflow: hidden;
+.ticker-name {
+  font-size: 0.8125rem; /* 13px */
   color: var(--text-muted);
-  font-size: var(--text-xs);
-  line-height: 1.25;
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.perf-row-spark {
-  display: none;
-}
-
-.perf-spark {
-  display: block;
-  width: 100%;
-  height: 100%;
-  color: var(--accent);
-}
-
-.perf-spark.is-up { color: var(--success); }
-.perf-spark.is-down { color: var(--error); }
-
-.perf-row-spark-wait {
-  display: block;
-  height: 1px;
-  margin-top: 0.8125rem; /* centres the rule in the row */
-  background: var(--border-subtle);
-}
-
-.perf-row-figures {
+.ticker-figures {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: var(--space-3xs);
+  gap: 0.125rem;
+  flex: 0 0 auto;
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 
-.perf-row-price {
-  font-size: var(--text-sm);
+.ticker-price {
+  font-size: 0.875rem; /* 14px */
   color: var(--text-primary);
 }
 
-.perf-row-change {
-  font-size: var(--text-xs);
+.ticker-change {
+  font-size: 0.75rem; /* 12px */
   color: var(--text-muted);
 }
 
-.perf-row-change.is-up { color: var(--success); }
-.perf-row-change.is-down { color: var(--error); }
+.ticker-change.is-up { color: var(--success); }
+.ticker-change.is-down { color: var(--error); }
 
-.perf-row.is-active {
-  background: var(--accent-muted);
-}
-
-.perf-row.is-active .perf-row-symbol {
-  color: var(--accent);
-}
-
-.perf-row:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
-  border-radius: var(--radius-sm);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .perf-row:hover {
-    background: var(--bg-surface-hover);
-  }
-
-  .perf-tab:hover {
-    color: var(--text-primary);
-  }
-}
-
-/* ---------- detail column ---------- */
-
-.perf-detail {
+.ticker-foot {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-lg);
-  min-width: 0;
+  align-items: center;
+  height: 2.25rem; /* 36px */
+  padding: 0 1rem;
+  box-sizing: border-box;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-surface-hover);
+  font-size: 0.8125rem; /* 13px */
+  color: var(--text-muted);
 }
 
-.perf-quote-card {
+/* ---------- Quote / chart panel ---------- */
+
+.quote-panel {
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
+  min-width: 0;
+  padding: 1.5rem;
+  box-sizing: border-box;
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
-  padding: var(--space-lg);
+  border-radius: 0.625rem; /* 10px */
 }
 
-/* The chart component draws its own frame. Inside the quote card that frame
-   is already the card, so the plot sits bare on it. */
-.perf-quote-card .chart-card {
+/* The Chart component draws its own frame. In here the panel is the frame. */
+.quote-panel .chart-card {
   background: transparent;
-  border: none;
+  border: 0;
   border-radius: 0;
   box-shadow: none;
   padding: 0;
 }
 
-.perf-quote-head {
+.quote-head {
   display: flex;
-  flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: var(--space-md);
 }
 
-.perf-quote-identity {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2xs);
+.quote-identity {
   min-width: 0;
 }
 
-.perf-quote-heading {
+.quote-naming {
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
   gap: var(--space-sm);
 }
 
-.perf-quote-name {
-  color: var(--text-secondary);
-  font-size: var(--text-sm);
-}
-
-.perf-quote-ticker {
+.quote-symbol {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
   margin: 0;
   font-family: var(--font-mono);
-  font-size: var(--text-lg);
+  font-size: 1.125rem; /* 18px */
   font-weight: 600;
-  letter-spacing: 0.01em;
   color: var(--text-primary);
 }
 
-.perf-quote-price-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-sm);
-  margin: 0;
+/* Small accent square beside the ticker: the panel's one ornament. */
+.quote-symbol::before {
+  content: '';
+  width: 0.375rem; /* 6px */
+  height: 0.375rem;
+  border-radius: 1px;
+  background: var(--accent);
 }
 
-.perf-quote-price {
+.quote-name {
+  font-size: 0.875rem; /* 14px */
+  color: var(--text-muted);
+}
+
+.quote-price-row {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin: 0.5rem 0 0;
+}
+
+.quote-price {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  font-size: clamp(1.75rem, 3vw, 2.5rem);
+  font-size: 2rem; /* 32px */
   line-height: 1.1;
   color: var(--text-primary);
 }
 
-.perf-quote-range {
+.quote-change {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  font-size: var(--text-sm);
+  font-size: 0.875rem; /* 14px */
 }
 
-.perf-quote-range.is-up { color: var(--success); }
-.perf-quote-range.is-down { color: var(--error); }
+.quote-change.is-up { color: var(--success); }
+.quote-change.is-down { color: var(--error); }
 
-.perf-quote-span {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
+.quote-span {
+  font-size: 0.8125rem; /* 13px */
   color: var(--text-muted);
 }
 
-.perf-quote-controls {
+.quote-controls {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
+  flex-wrap: wrap;
   gap: var(--space-sm);
 }
 
-.perf-style-group {
-  display: inline-flex;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-}
-
-.perf-style-btn {
-  border: none;
-  background: var(--bg-surface);
-  color: var(--text-muted);
-  font-family: var(--font-sans);
-  font-size: var(--text-sm);
-  font-weight: 500;
-  padding: var(--space-sm) var(--space-md);
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-
-.perf-style-btn + .perf-style-btn {
-  border-left: 1px solid var(--border-subtle);
-}
-
-.perf-style-btn.is-active {
-  background: var(--accent-muted);
-  color: var(--accent);
-}
-
-.perf-quote-ohlc {
+/* Plain text row: sans labels, mono numbers, no pill behind it. */
+.quote-ohlc {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   gap: var(--space-md);
   margin: 0;
-  padding: var(--space-xs) var(--space-sm);
-  background: var(--bg-canvas);
-  border-radius: var(--radius-sm);
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-size: var(--text-xs);
+  font-size: 0.8125rem; /* 13px */
   color: var(--text-muted);
 }
 
-.perf-quote-ohlc b {
-  color: var(--text-primary);
+.quote-ohlc-label {
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
+.quote-ohlc b {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-weight: 500;
-}
-
-.perf-quote-date {
   color: var(--text-primary);
 }
 
-/* ---------- stats ---------- */
-
-.perf-stats-card {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
-  overflow: hidden;
+.quote-date {
+  font-family: var(--font-mono);
+  color: var(--text-primary);
 }
 
-.perf-stat {
+/* ---------- Stats strip ---------- */
+
+.quote-stats {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  margin-top: var(--space-2xs);
+  padding-top: 1.25rem;
+  /* A tinted rule instead of a neutral one: the strip reads as the summary
+     of the panel above it, not as another divider. */
+  border-top: 1px solid rgba(var(--accent-rgb), 0.28);
+}
+
+.quote-stat {
   display: flex;
   flex-direction: column;
   gap: var(--space-2xs);
-  padding: var(--space-lg);
-  border-right: 1px solid var(--border-subtle);
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.perf-stat:nth-child(3n) {
-  border-right: none;
-}
-
-.perf-stat:nth-last-child(-n + 3) {
-  border-bottom: none;
-}
-
-.perf-stat-label {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-muted);
-}
-
-.perf-stat-value {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-size: var(--text-xl);
-  color: var(--text-primary);
-}
-
-.perf-stat-value.is-up { color: var(--success); }
-.perf-stat-value.is-down { color: var(--error); }
-
-.perf-stat-note {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-}
-
-/* ---------- states ---------- */
-
-.empty-state {
-  border: 1px dashed var(--border-strong);
-  border-radius: var(--radius-md);
-  padding: var(--space-2xl) var(--space-lg);
-  text-align: center;
-}
-
-.empty-state-title {
-  font-weight: 600;
-  margin: 0 0 var(--space-xs);
-}
-
-.empty-state-body {
-  color: var(--text-muted);
-  font-size: var(--text-sm);
-  margin: 0;
-  max-width: 40ch;
-  margin-inline: auto;
-}
-
-.status-text {
-  color: var(--text-muted);
-  font-size: var(--text-sm);
-  margin: 0;
-}
-
-.status-text.is-error {
-  color: var(--error);
-}
-
-.timeframe-group {
-  display: inline-flex;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-}
-
-.timeframe-btn {
-  border: none;
-  background: var(--bg-surface);
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  font-weight: 500;
-  padding: var(--space-sm) var(--space-md);
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-
-.timeframe-btn + .timeframe-btn {
+  min-width: 0;
+  padding: 0 0.75rem;
   border-left: 1px solid var(--border-subtle);
 }
 
-.timeframe-btn.is-active {
-  background: var(--accent-muted);
-  color: var(--accent);
+.quote-stat:first-child {
+  padding-left: 0;
+  border-left: 0;
 }
 
-/* ---------- Wide: the list matches the chart + stats column ----------
-   Size containment keeps the scrolled rows out of the row's height, so the
-   grid row is as tall as the chart card and stats card together and the list
-   simply fills the remainder. */
+.quote-stat-label {
+  font-family: var(--font-sans);
+  font-size: 0.8125rem; /* 13px */
+  color: var(--text-muted);
+}
+
+.quote-stat-value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 1.25rem; /* 20px */
+  color: var(--text-primary);
+}
+
+.quote-stat-value.is-up { color: var(--success); }
+.quote-stat-value.is-down { color: var(--error); }
+
+.quote-stat-note {
+  font-size: 0.75rem; /* 12px */
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* ---------- States ---------- */
+
+.quote-panel.is-busy {
+  min-height: 32rem;
+}
+
+.quote-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.research-skel {
+  display: block;
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface-hover);
+}
+
+.research-skel.is-price {
+  width: 12rem;
+  height: 2.5rem;
+}
+
+.research-skel.is-block {
+  width: 100%;
+  height: 20rem;
+}
+
+.research-state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: 2rem 0.25rem;
+  text-align: left;
+}
+
+.research-state-title {
+  margin: 0;
+  font-size: 0.9375rem; /* 15px */
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.research-state-body {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.research-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------- Guides ---------- */
+
+/* Same rhythm as the Lab's sections: 56px above the rule, 56px below it.
+   On a wide screen a guide is a spread: reading column on the left, figure
+   rail on the right, both pinned to the page's own edges. */
+.research-guide {
+  display: grid;
+  grid-template-columns: minmax(0, 42.5rem) minmax(0, 26rem);
+  justify-content: space-between;
+  column-gap: var(--space-xl);
+  align-items: start;
+  margin-top: 3.5rem;
+  padding-top: 3.5rem;
+  border-top: 1px solid var(--border-subtle);
+  min-width: 0;
+}
+
+.research-guide-head {
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
+}
+
+/* The rail follows the reader down the long sections instead of scrolling
+   away after the first paragraph. */
+.research-guide-aside {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  position: sticky;
+  top: 5rem;
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  min-width: 0;
+}
+
+.research-guide-title {
+  position: relative;
+  margin: 0;
+  padding-top: 1rem;
+  font-family: var(--font-heading);
+  font-size: 1.75rem; /* 28px */
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: var(--text-primary);
+}
+
+/* The short accent rule above a guide heading, the page's one recurring mark. */
+.research-guide-title::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1.5rem; /* 24px */
+  height: 2px;
+  background: var(--accent);
+}
+
+/* Figures: bordered like a panel, drawing above the caption. */
+.research-guide-figure {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin: 0;
+  padding: 1rem;
+  box-sizing: border-box;
+  border: 1px solid var(--border-subtle);
+  border-top: 2px solid var(--accent);
+  border-radius: 0.625rem; /* 10px */
+  background: var(--bg-surface);
+  min-width: 0;
+}
+
+.research-guide-figure svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.research-guide-figure figcaption {
+  font-size: 0.8125rem; /* 13px */
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.research-guide-figure figcaption strong {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.research-guide-lede {
+  margin: var(--space-sm) 0 0;
+  max-width: 35rem; /* ≈560px */
+  font-size: var(--text-base);
+  line-height: 1.7;
+  color: var(--text-muted);
+}
+
+.research-guide-body {
+  grid-column: 1;
+  grid-row: 2;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  margin-top: 2rem;
+  min-width: 0;
+}
+
+.research-guide-body > p {
+  margin: 0;
+  font-size: 0.9375rem; /* 15px */
+  line-height: 1.7;
+  color: var(--text-muted);
+}
+
+.research-guide-subhead {
+  margin: var(--space-md) 0 0;
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.research-guide-body > p + .research-guide-subhead {
+  margin-top: var(--space-sm);
+}
+
+.research-guide-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin: 0;
+  padding: 0 0 0 1.125rem;
+  font-size: 0.9375rem;
+  line-height: 1.7;
+  color: var(--text-muted);
+}
+
+.research-guide-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-md) var(--space-lg);
+  margin: var(--space-2xs) 0;
+}
+
+.research-guide-term {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3xs);
+}
+
+.research-guide-term-name {
+  font-size: 0.875rem; /* 14px */
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.research-guide-term-text {
+  font-size: var(--text-sm);
+  line-height: 1.65;
+  color: var(--text-muted);
+}
+
+/* The metric dictionary: two columns of name-and-meaning, so the longest
+   definitions still sit on two lines instead of stretching the column. */
+.research-guide-defs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-md) var(--space-xl);
+  margin: var(--space-2xs) 0;
+}
+
+.research-guide-def {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3xs);
+  min-width: 0;
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.research-guide-def-name {
+  font-size: 0.875rem; /* 14px */
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.research-guide-def-text {
+  font-size: var(--text-sm);
+  line-height: 1.65;
+  color: var(--text-muted);
+}
+
+.research-note {
+  margin: 2rem 0 0;
+  font-size: 0.8125rem; /* 13px */
+  color: var(--text-muted);
+}
+
+/* ---------- Tablet ---------- */
+
+/* Wide screens: the list matches the chart panel's height, so the footer sits
+   on the bottom edge and the rows scroll in between. */
 @media (min-width: 64rem) {
-  .perf-watchlist-scroll {
+  .ticker-scroll {
     flex: 1 1 auto;
     min-height: 0;
     max-height: none;
@@ -656,66 +834,167 @@
   }
 }
 
-/* ---------- Small screens: list stacks above the chart ---------- */
+/* Below this the guide cannot hold two columns and a readable measure, so the
+   rail drops under the heading and the prose follows it. */
+@media (max-width: 75.999rem) {
+  .research-guide {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .research-guide-aside {
+    grid-column: 1;
+    grid-row: 2;
+    position: static;
+    flex-direction: row;
+    flex-wrap: wrap;
+    margin-top: 2rem;
+  }
+
+  .research-guide-aside > .research-guide-figure {
+    flex: 1 1 18rem;
+  }
+
+  /* One column: the figures get the full width, the prose keeps its measure. */
+  .research-guide-body {
+    grid-row: 3;
+    max-width: 42.5rem; /* ≈680px */
+  }
+}
+
 @media (max-width: 63.999rem) {
-  .perf-watchlist-scroll {
-    max-height: min(20rem, 45vh);
+  .ticker-scroll {
+    max-height: 20rem; /* 320px */
+  }
+
+  .quote-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    row-gap: 1.5rem;
+  }
+
+  .quote-stat:nth-child(3n + 1) {
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .research-guide-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-@media (max-width: 48rem) {
-  .perf-stats-card {
-    grid-template-columns: repeat(2, 1fr);
+/* ---------- Phone ---------- */
+
+@media (max-width: 47.9375rem) {
+  .research-page {
+    padding: 0.75rem 0.75rem 3rem;
   }
 
-  .perf-stat:nth-child(3n) {
-    border-right: 1px solid var(--border-subtle);
+  .research-top {
+    margin-bottom: 0.75rem;
   }
 
-  .perf-stat:nth-child(2n) {
-    border-right: none;
+  .research-top .seg-control {
+    width: 100%;
   }
 
-  .perf-stat:nth-last-child(-n + 3) {
-    border-bottom: 1px solid var(--border-subtle);
+  .research-top .seg-option {
+    flex: 1 1 0;
+    justify-content: center;
   }
 
-  .perf-stat:nth-last-child(-n + 2) {
-    border-bottom: none;
-  }
-}
-
-/* Only the narrowest phones drop to one column; two fit comfortably and keep
-   the six figures from becoming a very long scroll. */
-@media (max-width: 23rem) {
-  .perf-stats-card {
-    grid-template-columns: 1fr;
+  .research-workspace {
+    min-height: 0;
+    gap: 0.75rem;
   }
 
-  .perf-stat,
-  .perf-stat:nth-child(3n),
-  .perf-stat:nth-child(2n) {
-    border-right: none;
+  /* The chart takes the page. The list is a sheet opened from the search
+     bar, so a phone opens on the graph rather than a wall of tickers. */
+  .ticker-trigger {
+    display: flex;
   }
 
-  .perf-stat:nth-last-child(-n + 2) {
-    border-bottom: 1px solid var(--border-subtle);
+  .ticker-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    border: 0;
+    background: var(--overlay);
   }
 
-  .perf-stat:last-child {
-    border-bottom: none;
+  .ticker-panel {
+    display: none;
+  }
+
+  .ticker-panel.is-open {
+    display: flex;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 80;
+    height: min(80vh, 34rem);
+    border-radius: 0.625rem 0.625rem 0 0;
+    box-shadow: 0 12px 24px -4px rgba(0, 0, 0, 0.18);
+  }
+
+  /* Clear the search and close the sheet are two jobs; a rule between them
+     keeps the pair from reading as one button. */
+  .ticker-panel.is-open .ticker-close {
+    display: inline-flex;
+    height: 1.25rem;
+    margin-left: var(--space-sm);
+    padding-left: var(--space-sm);
+    border-left: 1px solid var(--border-subtle);
+  }
+
+  .ticker-panel.is-open .ticker-scroll {
+    max-height: none;
+  }
+
+  .quote-panel {
+    padding: 1.25rem;
+  }
+
+  .quote-controls {
+    width: 100%;
+  }
+
+  .quote-controls .seg-control {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .quote-price {
+    font-size: 1.75rem;
+  }
+
+  .quote-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .research-guide-defs {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .research-guide-aside {
+    flex-direction: column;
+  }
+
+  .quote-stat:nth-child(3n + 1) {
+    padding-left: 0.75rem;
+    border-left: 1px solid var(--border-subtle);
+  }
+
+  .quote-stat:nth-child(2n + 1) {
+    padding-left: 0;
+    border-left: 0;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .perf-tab,
-  .perf-tab::after,
-  .perf-tab-meta,
-  .perf-row,
-  .perf-row-symbol,
-  .perf-search-input,
-  .perf-style-btn,
-  .timeframe-btn {
+  .seg-option,
+  .ticker-search,
+  .ticker-row {
     transition: none;
   }
 }

@@ -1,197 +1,190 @@
-// CandlestickGuide.tsx — Candlestick pattern guide
+// CandlestickGuide.tsx — How to read the price chart, in plain text.
 
 import { GlossaryText } from './GlossaryText'
 import { STRATEGY_GLOSSARY } from '../../lib/glossary'
-import './CandlestickGuide.css'
 
-interface CandleDiagramProps {
-  variant: 'bull' | 'bear'
-  openPrice: number
-  highPrice: number
-  lowPrice: number
-  closePrice: number
-}
-
+/** One candle with its four prices labelled, drawn from real values. */
 function CandleDiagram({
   variant,
-  openPrice,
-  highPrice,
-  lowPrice,
-  closePrice,
-}: CandleDiagramProps) {
-  const colorVar = variant === 'bull' ? 'var(--success)' : 'var(--error)'
-  const topLabel = variant === 'bull' ? `Close ($${closePrice})` : `Open ($${openPrice})`
-  const bottomLabel = variant === 'bull' ? `Open ($${openPrice})` : `Close ($${closePrice})`
+  open,
+  high,
+  low,
+  close,
+}: {
+  variant: 'bull' | 'bear'
+  open: number
+  high: number
+  low: number
+  close: number
+}) {
+  const color = variant === 'bull' ? 'var(--success)' : 'var(--error)'
+  const top = variant === 'bull' ? 'Close' : 'Open'
+  const bottom = variant === 'bull' ? 'Open' : 'Close'
+  const topValue = variant === 'bull' ? close : open
+  const bottomValue = variant === 'bull' ? open : close
+
+  // Every price in the diagram maps through the same scale, so the labels sit
+  // on the levels they describe. 96 to 106 spans the drawing.
+  const y = (value: number) => 120 - (value - 96) * 10
+  const bodyTop = Math.min(y(open), y(close))
+  const bodyHeight = Math.abs(y(close) - y(open))
 
   return (
-    <svg className="guide-diagram-svg" viewBox="0 0 320 220" xmlns="http://www.w3.org/2000/svg">
-      <line x1={160} x2={160} y1={20} y2={200} stroke={colorVar} strokeWidth={2} />
-      <rect x={142} y={65} width={36} height={75} rx={2} fill={colorVar} />
+    <svg
+      viewBox="0 0 248 140"
+      role="img"
+      aria-label={`${variant === 'bull' ? 'Green' : 'Red'} candle, open ${open}, high ${high}, low ${low}, close ${close}`}
+    >
+      <line x1={118} x2={118} y1={y(high)} y2={y(low)} stroke={color} strokeWidth={2} />
+      <rect x={98} y={bodyTop} width={40} height={bodyHeight} rx={2} fill={color} />
 
-      <circle cx={160} cy={20} r={3} fill="var(--text-primary)" />
-      <line x1={178} x2={215} y1={20} y2={20} stroke="var(--border-strong)" strokeDasharray="2 4" />
-      <text x={220} y={24} fontSize={12} fontWeight={600} fill="var(--text-primary)">
-        High (${highPrice})
+      <line x1={98} x2={82} y1={y(topValue)} y2={y(topValue)} stroke="var(--border-strong)" strokeDasharray="2 4" />
+      <text x={76} y={y(topValue) + 4} textAnchor="end" fontSize={11} fill="var(--text-muted)" fontFamily="var(--font-sans)">
+        {top} {topValue}
       </text>
 
-      <circle cx={160} cy={200} r={3} fill="var(--text-primary)" />
-      <line x1={178} x2={215} y1={200} y2={200} stroke="var(--border-strong)" strokeDasharray="2 4" />
-      <text x={220} y={204} fontSize={12} fontWeight={600} fill="var(--text-primary)">
-        Low (${lowPrice})
+      <line x1={98} x2={82} y1={y(bottomValue)} y2={y(bottomValue)} stroke="var(--border-strong)" strokeDasharray="2 4" />
+      <text x={76} y={y(bottomValue) + 4} textAnchor="end" fontSize={11} fill="var(--text-muted)" fontFamily="var(--font-sans)">
+        {bottom} {bottomValue}
       </text>
 
-      <circle cx={160} cy={65} r={3} fill="var(--text-primary)" />
-      <line x1={142} x2={105} y1={65} y2={65} stroke="var(--border-strong)" strokeDasharray="2 4" />
-      <text x={100} y={69} fontSize={12} fontWeight={600} textAnchor="end" fill="var(--text-primary)">
-        {topLabel}
+      <line x1={138} x2={154} y1={y(high)} y2={y(high)} stroke="var(--border-strong)" strokeDasharray="2 4" />
+      <text x={160} y={y(high) + 4} fontSize={11} fill="var(--text-muted)" fontFamily="var(--font-sans)">
+        High {high}
       </text>
 
-      <circle cx={160} cy={140} r={3} fill="var(--text-primary)" />
-      <line x1={142} x2={105} y1={140} y2={140} stroke="var(--border-strong)" strokeDasharray="2 4" />
-      <text x={100} y={144} fontSize={12} fontWeight={600} textAnchor="end" fill="var(--text-primary)">
-        {bottomLabel}
+      <line x1={138} x2={154} y1={y(low)} y2={y(low)} stroke="var(--border-strong)" strokeDasharray="2 4" />
+      <text x={160} y={y(low) + 4} fontSize={11} fill="var(--text-muted)" fontFamily="var(--font-sans)">
+        Low {low}
       </text>
     </svg>
   )
 }
+
 export default function CandlestickGuide() {
   return (
-    <section className="guide">
-      <div className="guide-layout-grid">
-        <div className="guide-main-column">
-          <div className="guide-intro-block">
-            <h2 className="guide-heading">Reading the chart</h2>
-            <p className="guide-copy">
-              Every listed company has a short code, called a ticker: AAPL for Apple,
-              TSLA for Tesla. Search for one and the chart fills with its price
-              history, drawn as candles. Each candle stands for a single trading day.
-            </p>
-            <p className="guide-copy">
-              A candle compresses a whole session into one shape holding four numbers.
-              Once you know how to read those four, the chart stops being decoration
-              and starts telling you how much the
-              <GlossaryText text="volatility" glossary={STRATEGY_GLOSSARY} /> of each day was.
-            </p>
+    <section className="guide research-guide" aria-labelledby="chart-guide-title">
+      <div className="research-guide-head">
+        <h2 id="chart-guide-title" className="research-guide-title">
+          How to read the chart
+        </h2>
+        <p className="research-guide-lede">
+          Every listed company has a short code called a{' '}
+          <GlossaryText text="ticker" glossary={STRATEGY_GLOSSARY} />, like AAPL for Apple.
+          Search for one and the chart shows its price history, one{' '}
+          <GlossaryText text="candle" glossary={STRATEGY_GLOSSARY} /> for each trading day.
+        </p>
+      </div>
+
+      <aside className="research-guide-aside" aria-label="Candle diagrams">
+        <figure className="research-guide-figure">
+          <CandleDiagram variant="bull" open={100} high={106} low={98} close={104} />
+          <figcaption>
+            <strong>Green candle.</strong> The close (104) is above the open (100), so the body
+            runs up and the top wick reaches 106.
+          </figcaption>
+        </figure>
+        <figure className="research-guide-figure">
+          <CandleDiagram variant="bear" open={104} high={106} low={96} close={100} />
+          <figcaption>
+            <strong>Red candle.</strong> The close (100) is below the open (104), so the body
+            runs down and the bottom wick reaches 96.
+          </figcaption>
+        </figure>
+      </aside>
+
+      <div className="research-guide-body">
+        <p>
+          A candle packs one day into a single shape. It shows four prices: where the price
+          started, where it ended, and the highest and lowest points it reached in between.
+        </p>
+
+        <div className="research-guide-grid">
+          <div className="research-guide-term">
+            <span className="research-guide-term-name">Open</span>
+            <span className="research-guide-term-text">The first price of the day.</span>
           </div>
-
-          <ol className="guide-steps">
-            <li>
-              <span className="guide-step-index">1</span>
-              <div>
-                <p className="guide-step-title">Open price</p>
-                <p className="guide-step-body">The first price traded when the session began.</p>
-              </div>
-            </li>
-            <li>
-              <span className="guide-step-index">2</span>
-              <div>
-                <p className="guide-step-title">High and low</p>
-                <p className="guide-step-body">
-                  The highest and lowest prices reached during the session. The thin
-                  vertical lines, called wicks, mark them.
-                </p>
-              </div>
-            </li>
-            <li>
-              <span className="guide-step-index">3</span>
-              <div>
-                <p className="guide-step-title">Close price</p>
-                <p className="guide-step-body">The last price traded when the session ended.</p>
-              </div>
-            </li>
-            <li>
-              <span className="guide-step-index">4</span>
-              <div>
-                <p className="guide-step-title">Volume</p>
-                <p className="guide-step-body">
-                  The bars below the chart. Taller bars mean more shares changed hands,
-                  which usually means more people were paying attention.
-                </p>
-              </div>
-            </li>
-          </ol>
-
-          <div className="guide-intro-block is-spaced">
-            <h3 className="guide-heading">Choosing a timeframe</h3>
-            <p className="guide-copy">
-              The timeframe buttons (1Y, 2Y, 5Y, ALL) decide how much history the
-              chart shows. A short window makes daily movement easy to see. A long
-              window reveals the larger trend and the cycle the stock sits inside. The
-              span you choose is your <GlossaryText text="horizon" glossary={STRATEGY_GLOSSARY} />, and it changes
-              what the same chart appears to be saying.
-            </p>
+          <div className="research-guide-term">
+            <span className="research-guide-term-name">High</span>
+            <span className="research-guide-term-text">
+              The highest price reached during the day.
+            </span>
+          </div>
+          <div className="research-guide-term">
+            <span className="research-guide-term-name">Low</span>
+            <span className="research-guide-term-text">
+              The lowest price reached during the day.
+            </span>
+          </div>
+          <div className="research-guide-term">
+            <span className="research-guide-term-name">Close</span>
+            <span className="research-guide-term-text">
+              The last price of the day. Returns are usually measured from closing prices.
+            </span>
           </div>
         </div>
 
-        <aside className="guide-sidebar-column">
-          <div className="guide-sidebar-card">
-            <h3 className="guide-sidebar-title">Quick reference</h3>
-            <ul className="guide-sidebar-list">
-              <li>
-                <strong>Body and wick:</strong> The thick block is the body, covering the
-                range between open and close. The thin lines above and below are wicks,
-                showing how far the price wandered before settling.
-              </li>
-              <li>
-                <strong>Size shows conviction:</strong> A tall body means buyers or
-                sellers controlled the session. A small body means the day was a
-                contest that ended near where it started.
-              </li>
-              <li>
-                <strong>Zoom out before zooming in:</strong> Start on 5Y or ALL to see
-                the shape of the stock, then switch to 1Y for the detail.
-              </li>
-              <li>
-                <strong>A chart is a record, not a forecast:</strong> It shows what
-                already happened. Use it to research, not to predict, and check any
-                conclusion against a
-                <GlossaryText text="backtest" glossary={STRATEGY_GLOSSARY} /> before you act on it.
-              </li>
-              <li>
-                <strong>Symbols ending in .TO:</strong> These are listings on the Toronto
-                Stock Exchange, quoted in Canadian dollars. SHOP.TO, for instance, is
-                Shopify's Canadian listing, and it is a different security from SHOP
-                on a U.S. exchange.
-              </li>
-            </ul>
-          </div>
-        </aside>
-</div>
+        <h3 className="research-guide-subhead">Body and wick</h3>
+        <p>
+          The thick part of a candle is the body. It runs from the open to the close. The thin
+          lines above and below are wicks. They reach up to the day's high and down to its low.
+        </p>
+        <p>
+          Take a day that opens at 100, climbs to 106, drops to 98 and closes at 104. The body
+          runs from 100 to 104. The top wick reaches 106 and the bottom wick reaches 98. The
+          close is above the open, so the candle is green. Both diagrams on the right draw
+          exactly those two days.
+        </p>
+        <p>Green means the close was above the open. Red means the close was below it.</p>
 
-      <div className="guide-examples is-spaced">
-        <article className="guide-example">
-          <h3 className="guide-example-title">
-            <span className="dot dot-bull" /> Green candle (price rose)
-          </h3>
-          <p className="guide-copy">
-            A stock opens at $180, trades up to $187, falls back to $179, and closes at
-            $185. Because it closed above where it opened, the candle is green.
-          </p>
-          <p className="guide-copy">
-            Green means buyers had the upper hand by the end of the session, even
-            though the path there included a dip.
-          </p>
-          <div className="guide-diagram-wrap">
-            <CandleDiagram variant="bull" openPrice={180} highPrice={187} lowPrice={179} closePrice={185} />
-          </div>
-        </article>
+        <h3 className="research-guide-subhead">What the shapes tell you</h3>
+        <ul className="research-guide-list">
+          <li>A long body means the price moved a lot in one direction that day.</li>
+          <li>A short body means it ended close to where it started.</li>
+          <li>A long wick means the price went far, then came back.</li>
+        </ul>
 
-        <article className="guide-example">
-          <h3 className="guide-example-title">
-            <span className="dot dot-bear" /> Red candle (price fell)
-          </h3>
-          <p className="guide-copy">
-            A stock opens at $185, reaches $187, drops to $176, and closes at $180. It
-            closed below where it opened, so the candle is red.
-          </p>
-          <p className="guide-copy">
-            Red means sellers had the upper hand by the close, and the day ended
-            below where it started.
-          </p>
-          <div className="guide-diagram-wrap">
-            <CandleDiagram variant="bear" openPrice={185} highPrice={187} lowPrice={176} closePrice={180} />
-          </div>
-        </article>
+        <h3 className="research-guide-subhead">The six numbers under the chart</h3>
+        <ul className="research-guide-list">
+          <li>
+            <strong>Range return:</strong> how much the price changed over the period you
+            picked. If a stock goes from 100 to 128, the range return is +28%.
+          </li>
+          <li>
+            <strong>High and Low:</strong> the highest and lowest prices in the period. They
+            use each day's high and low, so they can sit beyond any closing price.
+          </li>
+          <li>
+            <strong>
+              <GlossaryText text="Volatility" glossary={STRATEGY_GLOSSARY} />:
+            </strong>{' '}
+            how much the price swings, shown as a yearly figure. A higher number means bigger
+            swings. 24% is calmer than 60%.
+          </li>
+          <li>
+            <strong>
+              <GlossaryText text="Max drawdown" glossary={STRATEGY_GLOSSARY} />:
+            </strong>{' '}
+            the biggest fall from a peak to a later low, using closing prices. A value of
+            -13.8% means that at its worst the price was 13.8% below its earlier high.
+          </li>
+          <li>
+            <strong>
+              Average <GlossaryText text="volume" glossary={STRATEGY_GLOSSARY} />:
+            </strong>{' '}
+            the average number of shares traded per day. When many shares trade, it is usually
+            easier to buy or sell without moving the price.
+          </li>
+        </ul>
+
+        <h3 className="research-guide-subhead">Using the chart</h3>
+        <ul className="research-guide-list">
+          <li>Start with 5Y or ALL to see the overall shape, then switch to 1Y for detail.</li>
+          <li>
+            Use the minus and plus buttons to zoom. Use Latest to jump back to the newest day.
+          </li>
+          <li>A chart shows what happened. It does not say what will happen next.</li>
+        </ul>
       </div>
     </section>
   )
