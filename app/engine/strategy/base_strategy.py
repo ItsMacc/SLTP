@@ -3,9 +3,9 @@
 #
 # A strategy makes the decisions and keeps no book. on_signal returns an Order and
 # the manager turns it into a position; the strategy sees a read-only view through
-# open_trades, open_tickers, position() and equity.
+# open_positions, open_tickers and equity.
 #
-# Only on_signal is required. initialize_universe, on_rebalance, on_day and
+# Only on_signal is required. initialize_universe, on_rebalance, run_daily and
 # should_exit are optional and do nothing by default.
 
 # -------- Imports --------
@@ -82,6 +82,11 @@ class Strategy:
     @property
     def open_position_count(self) -> int:
         return len(self.open_tickers)
+
+    # The current index value of the book; 100 before the first mark.
+    @property
+    def equity(self) -> float:
+        return getattr(self, "_equity", 100.0)
 
     # Add one symbol to the universe, ignoring a duplicate.
     def add_ticker(self, ticker: str) -> None:
@@ -222,12 +227,12 @@ class Strategy:
             # Long: track the highest price since entry, stop if the low drops below the peak threshold.
             highest_since_entry = np.max(data.high[entry_idx:])
             trailing_stop = highest_since_entry * (1.0 - pct)
-            return data.low[-1] <= trailing_stop
+            return bool(data.low[-1] <= trailing_stop)
         else:
             # Short: track the lowest price since entry, stop if the high rises above the trough threshold.
             lowest_since_entry = np.min(data.low[entry_idx:])
             trailing_stop = lowest_since_entry * (1.0 + pct)
-            return data.high[-1] >= trailing_stop
+            return bool(data.high[-1] >= trailing_stop)
 
     # True when price has moved against the entry by a multiple of the average true range.
     def _atr_stop(self, trade: Trade, multiplier: float, window: int = 14) -> bool:
@@ -241,16 +246,20 @@ class Strategy:
         low = data.low[start_idx:entry_idx + 1]
         close = data.close_price[start_idx:entry_idx + 1]
 
-        current_atr = self._atr(high, low, close, window)
+        atr_values = self._atr(high, low, close, window)
+        # Only the last value has the full window behind it; the rest are warmup.
+        current_atr: float = float(atr_values[-1]) if len(atr_values) else float("nan")
+        if not np.isfinite(current_atr) or current_atr <= 0:
+            return False
 
         if trade.position_type == PositionType.LONG:
             # Long: the stop sits below the entry by ATR * multiplier.
-            stop_price = trade.entry_price - (current_atr * multiplier)
-            return data.low[-1] <= stop_price
+            stop_price: float = trade.entry_price - (current_atr * multiplier)
+            return bool(data.low[-1] <= stop_price)
         else:
             # Short: the stop sits above the entry by ATR * multiplier.
             stop_price = trade.entry_price + (current_atr * multiplier)
-            return data.high[-1] >= stop_price
+            return bool(data.high[-1] >= stop_price)
 
     # Position of the entry bar, falling back to the nearest bar if the date is absent.
     def _get_entry_index(self, trade: Trade) -> int:

@@ -5,10 +5,10 @@
 # levels onto the resulting Trade, then discards it. Frozen because a queued
 # request must not change underneath the fill.
 #
-# weight is a fraction of equity at fill time (0.11 means 11%), never a percentage
-# and never a currency amount. The manager trims a fill to what the cash can cover
-# after costs, so 1.0 spends the whole book. stop_loss and take_profit are absolute
-# prices, decided from the data available when the order was placed.
+# allocation is a fraction of equity at fill time (0.11 means 11%), never a
+# percentage and never a currency amount. The manager trims a fill to what the cash
+# can cover after costs, so 1.0 spends the whole book. stop_loss and take_profit are
+# absolute prices, decided from the data available when the order was placed.
 
 # -------- Imports --------
 from dataclasses import dataclass

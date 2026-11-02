@@ -6,10 +6,10 @@
 # that was committed. Entry facts are set at fill; an exit Event is attached when
 # the position closes.
 #
-# weight is a fraction of equity at entry (0.11 means 11%) and equity_at_entry is
-# the equity it was measured against. Both are kept because a weight taken from a
-# 10,000 book and one taken from a 20,000 book are not addable: notional exposure
-# and per-trade P&L are only recoverable with the equity alongside.
+# allocation is a fraction of equity at entry (0.11 means 11%) and equity_at_entry
+# is the equity it was measured against. Both are kept because an allocation taken
+# from a 10,000 book and one taken from a 20,000 book are not addable: notional
+# exposure and per-trade P&L are only recoverable with the equity alongside.
 
 # -------- Imports --------
 from dataclasses import dataclass

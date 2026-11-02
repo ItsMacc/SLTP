@@ -45,8 +45,12 @@ const AUTH_TITLES = {
    locked there either. */
 const LAB_PREVIEW = import.meta.env.DEV && import.meta.env.VITE_LAB_PREVIEW === 'true';
 
+/* Docs pages live at #/docs/<slug>. A reload or a shared link has to land on
+   that page, not on the home tab. */
+const isDocsRoute = () => window.location.hash.startsWith('#/docs/');
+
 export default function App() {
-  const [activeTab, setActiveTab] = useState('home');
+  const [activeTab, setActiveTab] = useState(() => (isDocsRoute() ? 'docs' : 'home'));
   const [authMode, setAuthMode] = useState<'login' | 'signup' | null>(null);
   const [legalPage, setLegalPage] = useState<LegalPageKind | null>(null);
   const [authNotice, setAuthNotice] = useState<string | null>(null);
@@ -102,6 +106,13 @@ export default function App() {
     return run;
   }, []);
 
+  // Navigation is manual here (tabs, the docs route, anchor jumps). Leaving the
+  // browser's own scroll restoration on lets it yank a new page back to a saved
+  // offset, which is how a docs link could open halfway down.
+  useEffect(() => {
+    if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+  }, []);
+
   // Signing out closes the session and clears what this browser kept.
   const handleSignOut = useCallback(async () => {
     setSigningOut(true);
@@ -128,6 +139,11 @@ export default function App() {
     }
 
     setActiveTab(tab);
+    // Leaving Docs drops the docs route, so the address bar never claims a page
+    // the visitor is no longer looking at.
+    if (tab !== 'docs' && isDocsRoute()) {
+      history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
     window.scrollTo(0, 0);
     setAuthMode(null);
     setLegalPage(null);
