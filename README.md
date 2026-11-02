@@ -1,170 +1,174 @@
 # SLTP
 
-A full-stack platform for exploring, backtesting, and deploying algorithmic trading strategies with risk management and zero setup.
+A backtesting engine for daily US market data, with a FastAPI service and a React front end built on top of it. It runs on your own machine against a local copy of the price history. No broker account, no data subscription, nothing that reaches a real market.
 
-> **Project status:** Working dev build. The UI is complete and wired to Supabase/Turso. The Python API is functional. A local dev build can run on any machine with Python + Node. The git history has been cleaned of oversized data files so the repo can be pushed to GitHub.
+## What SLTP is
 
----
+You write a trading rule as a Python class. The engine replays every trading day in a date range, fills the orders your code asks for, and hands back the trades, a daily equity curve and a set of metrics. Your code never sees a price it could not have known that day.
 
-## Quickstart — local dev
+Four parts make up the repository:
 
-### 1. Install Python dependencies
+- `app/engine/` is the engine. A `Strategy` subclass declares a universe and returns `Order` objects; everything else (fills, costs, positions, cash, equity) belongs to the portfolio manager.
+- `app/main.py` is the HTTP layer. It exposes the strategy registry, a backtest runner and price history over FastAPI.
+- `frontend/` is the web app: research charts, the strategy library, a portfolio view, and the docs.
+- The Lab is the browser editor, served by the same front end. It edits Python in Monaco, type-checks it in the browser, and runs the saved file through the same engine.
+
+## Run the engine on your laptop
+
+You need Python 3.13 and a C build of TA-Lib, because the indicator layer binds to it. On macOS that is `brew install ta-lib`; on Debian and Ubuntu the library is usually built from source before `pip install`.
 
 ```bash
-python3 -m venv .venv
+git clone <your-fork-url> sltp
+cd sltp
+
+python3.13 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 2. Create a `.env` file at repo root
-
-```env
-SUPABASE_URL=https://<your-project>.supabase.co
-SUPABASE_SERVICE_ROLE=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpxeXFma3J6d2lteHV6dWd5dWl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcwNzg2OTMsImV4cCI6MjEwMjY1NDY5M30.y51b5p_W5hhba94182apC7hlJTnDrA3GoaIZw1moYd4
-TURSO_DATABASE_URL=libsql://<your-turso-database>.turso.io
-TURSO_AUTH_TOKEN=<your-turso-auth-token>
-```
-
-> Get these from the Supabase dashboard (Settings → API) and the Turso dashboard (Database → Connect).
->
-> Ops mail (the nightly split audit and the daily ops report) goes to `ADMIN_EMAIL` when
-> set, otherwise to `SENDER_EMAIL`: the account that sends also receives.
-> Optional: set `SENDER_EMAIL` and `APP_PASSWORD` (a Gmail app password) to send any mail.
-
-### 3. Initialize the Turso schema and the market data
+### Download the market data
 
 ```bash
-# Turso tables, once per database
-turso db shell <your-db> < migrations/migrations.sql
-
-# Market data, once (resumable, about 30-45 minutes for ~11.5k symbols)
 python -m app.database.market.market_data init
 ```
 
-The init command:
-- Downloads daily bars from 1998 for every symbol in the catalog (`symbols.parquet`)
-- Writes `app/database/market/market_data.parquet` (gitignored, ~900MB)
-- Records each symbol's state in `app/database/symbol_data/symbol_status.parquet`
-- Writes `app/database/market/market_actions.parquet` (gitignored, a few MB) with every
-  split and dividend the download carried, one row per event
-- Keeps finished chunks on disk, so an interrupted run continues where it stopped
-
-Afterwards, `python -m app.database.market.market_data update` adds the newest bars
-(once a day, weekends skipped) and `python -m app.database.market.market_data status`
-prints the tracking file without touching any data.
-
-The update writes `market_data_recent.parquet`, a tail holding the bars added since the
-last init or compaction, and leaves the main file alone; readers treat the pair as one
-table. Once the tail covers more sessions than `MAX_RECENT_SESSIONS` (about two years) it
-is folded into the main file and cleared. No bar is ever dropped for being old.
-
-Each download also carries splits and dividends, which land in `market_actions.parquet`.
-A split restates a symbol's whole history at the source, so bars stored before it sit at
-the old prices: when a split is newer than a symbol's last stored bar, that symbol is
-refetched whole instead of appended to. That is the only time the update rewrites the
-main file. Dividends are readable with `get_dividends(ticker, start, end)` in
-`market_data_service.py`.
-
-Each symbol also records the newest split its bars already include, so an event that only
-reaches the feed after the bar for its own ex-date was stored still triggers that refetch.
-The source does not always restate an adjusted history, and no split event can reveal that,
-so `python -m app.database.market.market_data audit` compares the closes either side of every
-stored split and names the symbols where the jump still shows. The nightly run performs the
-same check after the refresh, remembers the result in `split_audit.json` next to the ledger,
-and emails only the seams that are new since the previous run to `ADMIN_EMAIL`.
-
-### 4. Install Node deps and build the frontend
+This pulls daily bars for roughly 11,500 symbols from Yahoo and writes `app/database/market/market_data.parquet` (about 400 MB). It takes 30 to 45 minutes and resumes from the last finished chunk if you stop it. No credentials are involved.
 
 ```bash
-cd frontend
-npm ci   # or: npm install
-npm run build   # produces dist/ — served by any static host
+python -m app.database.market.market_data update   # newest bars, safe to run daily
+python -m app.database.market.market_data status   # what each symbol is holding
 ```
 
-### 5. Start the backend and frontend together
+### Run a backtest
 
-From repo root (two terminals, or use `concurrently`):
+```python
+# backtest.py
+from app.engine.backtesting import Backtester
+from app.strategies import Benchmark
+
+result = Backtester(Benchmark(), start_date="2020-01-01", end_date="2021-12-31").run()
+
+print(result["metrics"]["cagr"])   # 21.57
+print(len(result["trades"]))       # 1
+```
 
 ```bash
-# Terminal A — backend
-cd app
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
-
-# Terminal B — frontend dev server
-cd frontend
-npm run dev   # Vite dev server at http://localhost:5173
+python backtest.py
 ```
 
-Visit <http://localhost:5173> — the app loads, checks Supabase auth, and the API serves at `http://localhost:8000`.
+That is SPY held for the two years: the index goes from 100 to 147.67 with a 34.1% max drawdown. If your numbers match, the data loaded correctly. `run()` returns four keys: `metrics`, `equity`, `trades` and `rejections`.
 
----
+### Write your own
 
-## Directory layout
+```python
+# my_strategy.py
+from app.engine.backtesting import Backtester
+from app.engine.strategy import Strategy
+from app.engine.utils.Order import Order
+from app.engine.utils.PositionType import PositionType
+
+
+class TwoFunds(Strategy):
+    def __init__(self):
+        super().__init__()
+        self.name = "Two funds"
+        self.MAX_POSITIONS = 2
+        self.add_tickers(["QQQ", "TLT"])
+
+    def on_signal(self, ticker, data):
+        if ticker in self.open_tickers:
+            return None
+        close = float(data.close_price[-1])
+        return Order(
+            ticker=ticker,
+            position_type=PositionType.LONG,
+            allocation=0.45,
+            order_date=str(data.dates[-1]),
+            stop_loss=close * 0.95,
+            take_profit=close * 1.10,
+        )
+
+
+result = Backtester(TwoFunds(), start_date="2015-01-01", end_date="2024-12-31").run()
+print(result["metrics"])
+```
+
+`stop_loss` and `take_profit` are prices, not percentages. `allocation` is a fraction of equity.
+
+## Run the whole app (optional)
+
+The web app needs accounts and saved projects, so it also needs a database. The public routes (`/api/strategies`, `/api/backtest/run`, `/api/stock/*`) read the parquet files and work without one, so the engine path above needs nothing else.
+
+Create `.env` at the repository root:
+
+```env
+SUPABASE_URL=https://<your-project>.supabase.co
+SUPABASE_SERVICE_ROLE=<service-role-key>
+TURSO_DATABASE_URL=libsql://<your-database>.turso.io
+TURSO_AUTH_TOKEN=<token>
+
+# Only for older projects that still sign sessions with the HS256 secret.
+SUPABASE_JWT=
+```
+
+Then create the schema once, and start both halves:
+
+```bash
+turso db shell <your-db> < migrations/migrations.sql
+
+uvicorn app.main:app --reload --port 8000        # API
+cd frontend && npm ci && npm run dev             # web app on :5173
+```
+
+The front end talks to `http://localhost:8000` by default; set `VITE_API_BASE_URL` to point it elsewhere. Mail is off unless you also set `SENDER_EMAIL` and `APP_PASSWORD`.
+
+## Tech stack
+
+**Engine.** `app/engine/backtesting/backtester.py` walks the trading calendar one session at a time and `app/engine/portfolio/portfolio_manager.py` keeps the book. The rules that matter:
+
+- Orders and signal exits fill at the next session's open, never at the close that produced the signal.
+- Slippage is 0.05% against the position on every fill and the fee is 0.1% of notional per side. They are applied for you.
+- Stops are checked before targets, against the day's high and low, so a bar that touches both takes the stop. A gap through a level fills at the open, not at the level.
+- Equity is an index that starts at 100. Position sizing is a fraction of that equity, and short exposure is not cash funded.
+- Rejections are counted by reason instead of raising: too many positions, too many lots on one ticker, an allocation over `MAX_ALLOCATION_PER_TICKER`, no cash left, or a missing bar.
+- Callbacks receive arrays sliced to the current day, which is how lookahead is prevented at the source rather than by convention.
+
+A `Strategy` overrides `initialize_universe`, `on_signal`, `on_rebalance`, `should_exit` and `run_daily`, and exposes `_sma`, `_ema`, `_rsi`, `_macd`, `_atr`, `_adx` and the rest of the indicator set, plus exit helpers such as `_time_stop_days`, `_trailing_stop` and `_atr_stop`. Constraints are class attributes: `MAX_POSITIONS`, `MAX_LOTS_PER_TICKER`, `MAX_ALLOCATION_PER_TICKER`, `REBALANCE_FREQUENCY`, `MIN_BARS_REQUIRED`, `LIQUIDATE_ON_END`. Because a strategy's warmup can push its start date past the one you asked for, the engine probes forward up to 1,826 calendar days before it gives up.
+
+**Market data.** `app/database/market/` keeps three parquet files: the master (about 30 million bars), a tail file with bars added since the last compaction, and an actions file with every split and dividend the download carried. The service layer caches each file by modification time, so a long-running API reloads once when a file changes instead of on every call. Universes come from `symbols.parquet` (symbol, name, category) and from the bar files, which keep symbols that later stopped trading, so a backtest does not quietly pick today's survivors. A split restates a symbol's whole history at the source, so an update refetches that symbol entirely rather than appending to bars that sit at the old prices.
+
+**API and auth.** FastAPI with routers for users, portfolios, the Lab, API keys and account deletion. Protected routes depend on `get_current_user`, which verifies the Supabase session token against the project's JWKS endpoint (ES256) and falls back to the legacy HS256 secret. Turso queries are always scoped by the user id from that token.
+
+**Storage.** Turso (libsql) holds user rows, portfolios, Lab workspaces, projects and files, and the bookkeeping tables that stop a digest or an ops report from sending twice. `migrations/migrations.sql` creates the schema and is create-only: it is for a fresh database, not for upgrading one. Supabase owns identity; the browser uses the anon key, and row-level security is the boundary.
+
+**Front end.** React 19 and TypeScript on Vite 8, with plain CSS built on the design tokens in `frontend/src/index.css`. TanStack Query backs the Lab editor's cached reads; the other pages use plain `fetch` against the API base URL. The Lab runs Monaco with a Pyright language server compiled to the browser (`monaco-pyright-lsp`), so the editor reports type errors without a Python process. The interactive tours use driver.js against the live pages.
+
+**Scheduled jobs.** `python -m app.notification.daily_runner` refreshes prices, audits stored splits, syncs settings and sends signal digests. `python -m app.notification.usage_report` emails a summary of signups and usage. Both record what they sent in Turso so a rerun stays quiet.
+
+## Repository layout
 
 ```
-app/              — FastAPI backend (API routes, DB access, backtester)
-frontend/         — Vite + React 19 frontend (UI, pages, components)
-migrations/       — SQL schema (create-only; run once on fresh Turso DB)
-migrations/migrations.sql
-requirements.txt  — pip install this
-README.md         — you are here
+app/
+  engine/          backtester, portfolio manager, Strategy base class, utils
+  database/        market data, Turso access, users, portfolio, Lab
+  api/             request/response helpers for the market routes
+  auth/            JWT verification, login device records
+  notification/    nightly runner, ops report, mail
+  main.py          FastAPI app and public routes
+frontend/
+  src/             pages, components, ui primitives, docs
+  lib/             API client, Supabase client, settings
+  scripts/         docs checker
+migrations/        create-only SQL schema
+requirements.txt
 ```
 
----
+The bar files, `.env` and `frontend/dist` are gitignored. The data has to be downloaded on each machine that runs a backtest.
 
-## Backend API
+## Limits
 
-| Endpoint | Description |
-|---|---|
-| `GET /api/strategies` | Followable strategy catalog |
-| `GET /api/backtest/run` | Full backtest simulation (metrics + equity + trades) |
-| `POST /api/settings` | Sync user settings from Supabase to Turso (daily runner) |
-| `GET /api/users/me` | Return the mirrored user row from Turso |
-
-See `app/main.py` and `app/auth/auth.py` for full route documentation.
-
----
-
-## Frontend notes
-
-- The app assumes `VITE_API_BASE_URL` is set at build time (default `http://localhost:8000`).
-- `VITE_SUPABASE_ANON_KEY` is read from `import.meta.env`; the key is public by design — row-level security in Supabase protects the data.
-- All secrets (`SUPABASE_SERVICE_ROLE`, `TURSO_AUTH_TOKEN`) live in `.env` only; `.env` is gitignored.
-- The interactive tour (SiteGuide) waits for a sign-in on gated pages, then opens the Lab once its file list has loaded.
-
----
-
-## Deployment checklist
-
-| Item | What to do |
-|---|---|
-| **Backend host** | Any platform that runs FastAPI/uvicorn (Render, Railway, Fly.io, Railway, etc.). Set the four env vars above as secrets. |
-| **Frontend host** | Any static host (Netlify, Vercel, Cloudflare Pages). Build with `npm run build`; the output is `dist/`. |
-| **Supabase** | Enable RLS on `users` and `portfolios` tables. The anon key + RLS is the security boundary. |
-| **Turso** | The database URL + auth token must be reachable from the backend host. No firewall changes needed if both are cloud-hosted. |
-| **Market data** | `python -m app.database.market.market_data init` creates `app/database/market/market_data.parquet` once; `... update` adds a small `market_data_recent.parquet` and `market_actions.parquet` next to it each night. The backend reads all three files and `app/database/symbol_data/symbols.parquet` on every start, so keep every one of them in your deployment volume. |
-| **Daily runner** | `python -m app.notification.daily_runner` — runs nightly, refreshes market data, audits splits, syncs settings from Supabase into Turso and sends the signal digests. Each user is emailed once per session, recorded in the `digest_sends` table, so a weekend, retried or rehosted run never sends the same digest twice. |
-| **Ops report** | `python -m app.notification.usage_report` emails `ADMIN_EMAIL` (or `SENDER_EMAIL`) the state of the user base: signups, who signed in this week, who finished onboarding, Lab and API usage, most-followed strategies and deletions. The nightly runner sends it once a day, recorded in the `ops_report_sent` table so a rerun stays quiet. A deleted account is appended to the `account_deletions` table first, because the wipe leaves nothing else behind. |
-| **CI/CD** | If you push to GitHub, add a GitHub Actions workflow that runs `pip install -r requirements.txt`, `npm ci`, and `npm run build`. Downloading market data in CI is wasteful: build the parquet once and ship it as an artifact. |
-
----
-
-## Getting a job-ready demo today
-
-If you just want to show something working today:
-
-1. **Create a free Supabase project** and a free Turso database.
-2. **Set the four env vars** in a local `.env` file and run `python -m app.database.db` to create the parquet.
-3. **Run the dev build** with `uvicorn main:app --reload` + `npm run dev`.
-4. **Navigate** and confirm the UI works, the lab opens, and the tour functions.
-5. **Push the repo to GitHub** — the history is now clean (no 517 MB blobs), and the `README.md` + `requirements.txt` make it easy for a reviewer to spin it up locally.
-
-The code is structurally complete: the Lab page, the nav-page UI rewrite, the interactive tour, the design-token migration, and the API models are all in the current `main` commit. What remains is infra (hosting, env vars, a Turso database) rather than code.
-
----
+This is a research tool. It does not connect to a broker, hold positions or place orders, and it has no path to live trading. Backtest results are hypothetical: fills assume the open, costs are fixed at the rates above, and dividends are recorded but not paid into a position. Data starts in 1998 and covers US listings, so results outside that window are not available. `app/database/tests/test_market_service.py` is the only automated test, and there is no CI pipeline.
 
 ## Credits
 
-- Built with FastAPI, Vite, React 19, Supabase, and Turso.
-- UI design tokens and theme conventions follow the existing design system.
-- Migrations are create-only and safe for new databases only.
+FastAPI, pandas, pyarrow, Turso, Supabase, React, Vite, Monaco, driver.js.
