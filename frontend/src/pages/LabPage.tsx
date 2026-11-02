@@ -1,7 +1,7 @@
 // LabPage.tsx — Lab home: a hero in the Home page's voice, the workspace
-// table, and the notes that explain how a project runs.
+// panel, and the notes that explain what a run returns.
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowRight, ChevronRight, FileCode, Search, Trash2 } from 'lucide-react';
+import { ArrowRight, ChevronRight, FileCode, Folder, Search, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import {
   createLabProject,
@@ -15,6 +15,7 @@ import {
 import type { LabTemplateId } from '../lab/templates';
 import type { NewProjectInput } from './LabNewProject';
 import Button from '../ui/Button';
+import Select from '../ui/Select';
 import ConfirmDeleteDialog from '../ui/ConfirmDeleteDialog';
 import SuccessToast from '../ui/SuccessToast';
 import { LoaderScreen } from '../ui/Loader';
@@ -43,16 +44,14 @@ function Highlight({ text, query }: { text: string; query: string }) {
 }
 
 /**
- * A browser network failure says nothing a reader can act on, so it becomes a
- * sentence they can. Anything the API said itself is passed through.
+ * A browser network failure says nothing a reader can act on, so it is
+ * dropped. A message the API wrote itself is shown as it came.
  */
-function describeLoadError(message: string): string {
-  const fallback = 'Could not load your workspaces. Check your connection and try again.';
+function apiErrorMessage(message: string): string | null {
   const raw = message.trim();
-  if (!raw) return fallback;
+  if (!raw) return null;
   const browserLevel = ['failed to fetch', 'load failed', 'networkerror', 'network error', 'fetch failed'];
-  if (browserLevel.some((phrase) => raw.toLowerCase().includes(phrase))) return fallback;
-  return raw;
+  return browserLevel.some((phrase) => raw.toLowerCase().includes(phrase)) ? null : raw;
 }
 
 /** "Oct 21, 2026" from the ISO timestamps Turso stores. */
@@ -60,6 +59,25 @@ function formatDate(iso: string): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return '—';
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+/** "1 project" / "3 projects". */
+function plural(count: number, word: string): string {
+  return `${count} ${word}${count === 1 ? '' : 's'}`;
+}
+
+/** The workspace's own date, or its newest project's when that is later. */
+function lastTouched(workspace: LabWorkspace): number {
+  const times = [
+    new Date(workspace.created_at).getTime(),
+    ...workspace.projects.map((project) => new Date(project.created_at).getTime()),
+  ].filter((time) => !Number.isNaN(time));
+  return times.length ? Math.max(...times) : 0;
+}
+
+/** Every file in the workspace's projects. */
+function filesIn(workspace: LabWorkspace): number {
+  return workspace.projects.reduce((total, project) => total + (project.file_count ?? 0), 0);
 }
 
 /* ---------- Rules the engine applies for you ---------- */
@@ -117,6 +135,14 @@ const LEARN: { title: string; text: string; slug: string }[] = [
   { title: 'Gotchas', text: 'The behaviors that most often surprise people.', slug: 'gotchas' },
 ];
 
+/* ---------- Sort ---------- */
+type SortOrder = 'newest' | 'name';
+
+const SORT_OPTIONS: { label: string; value: SortOrder }[] = [
+  { label: 'Newest', value: 'newest' },
+  { label: 'Name', value: 'name' },
+];
+
 /** What a pending delete will remove. */
 type DeleteTarget = {
   kind: 'workspace' | 'project';
@@ -144,6 +170,7 @@ export default function LabPage({ onNavigate }: LabPageProps) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
+  const [sort, setSort] = useState<SortOrder>('newest');
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -188,16 +215,26 @@ export default function LabPage({ onNavigate }: LabPageProps) {
 
   const q = query.trim().toLowerCase();
 
+  const orderedWorkspaces = useMemo(() => {
+    const next = [...workspaces];
+    next.sort((a, b) =>
+      sort === 'name' ? a.name.localeCompare(b.name) : lastTouched(b) - lastTouched(a),
+    );
+    return next;
+  }, [workspaces, sort]);
+
   const visibleWorkspaces = useMemo(() => {
-    if (!q) return workspaces;
-    return workspaces.filter(
+    if (!q) return orderedWorkspaces;
+    return orderedWorkspaces.filter(
       (w) =>
         w.name.toLowerCase().includes(q) ||
         w.projects.some((p) => p.name.toLowerCase().includes(q)),
     );
-  }, [workspaces, q]);
+  }, [orderedWorkspaces, q]);
 
   const projectCount = workspaces.reduce((n, w) => n + w.projects.length, 0);
+  const fileCount = workspaces.reduce((n, w) => n + filesIn(w), 0);
+  const panelState = loading ? 'loading' : loadError ? 'error' : 'ready';
 
   const toggleWorkspace = (id: string) =>
     setExpanded((prev) => {
@@ -328,7 +365,7 @@ export default function LabPage({ onNavigate }: LabPageProps) {
           </p>
 
           <div className="lab-hero-actions">
-            <Button variant="primary" size="lg" onClick={() => startWizard()}>
+            <Button variant="primary" size="lg" className="lab-hero-new" onClick={() => startWizard()}>
               New project
               <ArrowRight size={18} className="lab-btn-icon" />
             </Button>
@@ -350,140 +387,206 @@ export default function LabPage({ onNavigate }: LabPageProps) {
           <div className="lab-ws-header">
             <h2 id="workspace-title" className="lab-ws-title">Workspaces</h2>
             <span className="lab-ws-count">
-              {workspaces.length} workspace{workspaces.length === 1 ? '' : 's'}, {projectCount} project
-              {projectCount === 1 ? '' : 's'}
+              {plural(workspaces.length, 'workspace')}, {plural(projectCount, 'project')}
             </span>
           </div>
 
-          <div className="lab-ws-toolbar">
-            <label className="lab-ws-search">
-              <Search size={14} aria-hidden="true" className="lab-ws-search-icon" />
-              <input
-                ref={searchRef}
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search workspaces and projects"
-                aria-label="Search workspaces and projects"
-              />
-              <kbd className="lab-ws-kbd" aria-hidden="true">/</kbd>
-            </label>
-            <Button variant="secondary" size="sm" className="lab-ws-new" onClick={() => startWizard('blank', 'new')}>
-              New workspace
-            </Button>
-          </div>
+          <div className="lab-ws-panel">
+            <div className="lab-ws-toolbar">
+              <label className="lab-ws-search">
+                <Search size={14} aria-hidden="true" className="lab-ws-search-icon" />
+                <input
+                  ref={searchRef}
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search workspaces and projects"
+                  aria-label="Search workspaces and projects"
+                />
+                <kbd className="lab-ws-kbd" aria-hidden="true">/</kbd>
+              </label>
 
-          <div className="lab-ws-scroll">
-            <div className="lab-ws-columns" aria-hidden="true">
-              <span>Project</span>
-              <span className="lab-ws-col is-files">Files</span>
-              <span className="lab-ws-col is-created">Created</span>
-              <span />
+              <div className="lab-ws-toolbar-end">
+                <div className="lab-ws-sort">
+                  <Select
+                    options={SORT_OPTIONS}
+                    value={sort}
+                    onChange={(value) => setSort(value as SortOrder)}
+                  />
+                </div>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="lab-ws-new"
+                  onClick={() => startWizard('blank', 'new')}
+                >
+                  New workspace
+                </Button>
+              </div>
             </div>
 
-            <ul className="lab-ws-list">
-              {loading && (
-                <li className="lab-ws-empty">Loading workspaces…</li>
-              )}
+            <div className="lab-ws-scroll">
+              <div className="lab-ws-columns" aria-hidden="true">
+                <span className="is-name">Name</span>
+                <span className="is-projects">Projects</span>
+                <span className="is-files">Files</span>
+                <span className="is-created">Created</span>
+                <span />
+              </div>
 
-              {!loading && loadError && (
-                <li className="lab-ws-empty">
-                  <span>{describeLoadError(loadError)}</span>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    className="lab-ws-retry"
-                    onClick={() => void loadWorkspaces()}
-                  >
-                    Try again
-                  </Button>
-                </li>
-              )}
+              <ul className="lab-ws-list" data-lab-state={panelState} aria-busy={loading}>
+                {loading &&
+                  [0, 1, 2].map((row) => (
+                    <li key={row} className="lab-ws-skeleton" aria-hidden="true">
+                      <span className="lab-skel is-name" />
+                      <span className="lab-skel is-projects" />
+                      <span className="lab-skel is-files" />
+                      <span className="lab-skel is-created" />
+                    </li>
+                  ))}
 
-              {!loading && !loadError && workspaces.length === 0 && (
-                <li className="lab-ws-empty">
-                  <span className="lab-ws-empty-title">No workspaces yet.</span>
-                  <span>Create a project and it will appear here.</span>
-                </li>
-              )}
+                {loading && <li className="lab-sr-only" role="status">Loading workspaces…</li>}
 
-              {!loading && !loadError && workspaces.length > 0 && visibleWorkspaces.length === 0 && (
-                <li className="lab-ws-empty">No workspaces match “{query.trim()}”.</li>
-              )}
-
-              {visibleWorkspaces.map((ws) => {
-                const isOpen =
-                  expanded.has(ws.id) || (q !== '' && ws.projects.some((p) => p.name.toLowerCase().includes(q)));
-                return (
-                  <li key={ws.id} className={`lab-ws-group${isOpen ? ' is-expanded' : ''}`}>
-                    <div className="lab-ws-row">
-                      <button
-                        type="button"
-                        className="lab-ws-row-main"
-                        onClick={() => toggleWorkspace(ws.id)}
-                        aria-expanded={isOpen}
-                      >
-                        <span className="lab-ws-name"><Highlight text={ws.name} query={q} /></span>
-                        <span className="lab-ws-badge">
-                          {ws.projects.length} project{ws.projects.length === 1 ? '' : 's'}
-                        </span>
-                        <ChevronRight size={14} aria-hidden="true" className="lab-ws-caret" />
-                      </button>
-                      <Button
-                        variant="danger"
-                        size="icon"
-                        className="lab-icon-button lab-icon-button-danger"
-                        aria-label={`Delete workspace ${ws.name}`}
-                        onClick={() => askDelete({ kind: 'workspace', id: ws.id, name: ws.name })}
-                      >
-                        <Trash2 size={14} aria-hidden="true" />
-                      </Button>
-                    </div>
-
-                    {/* Always mounted so closing animates too. Visibility
-                        removes a closed list from the tab order. */}
-                    <div className={`lab-ws-fold${isOpen ? ' is-open' : ''}`}>
-                      <div className="lab-ws-fold-inner">
-                        <ul className="lab-ws-strategies">
-                          {ws.projects.length === 0 && (
-                            <li className="lab-ws-empty">No projects in this workspace yet.</li>
-                          )}
-                          {ws.projects.map((p) => (
-                            <li key={p.id}>
-                              <div className="lab-ws-strategy">
-                                <button
-                                  type="button"
-                                  className="lab-ws-strategy-open"
-                                  onClick={() => openInEditor(p, ws.name)}
-                                >
-                                  <span className="lab-ws-strategy-name">
-                                    <FileCode size={14} aria-hidden="true" />
-                                    <span><Highlight text={p.name} query={q} /></span>
-                                  </span>
-                                </button>
-                                <span className="lab-ws-cell is-files">
-                                  {p.file_count ?? 0} file{(p.file_count ?? 0) === 1 ? '' : 's'}
-                                </span>
-                                <span className="lab-ws-cell is-created">{formatDate(p.created_at)}</span>
-                                <Button
-                                  variant="danger"
-                                  size="icon"
-                                  className="lab-icon-button lab-icon-button-danger"
-                                  aria-label={`Delete project ${p.name}`}
-                                  onClick={() => askDelete({ kind: 'project', id: p.id, name: p.name })}
-                                >
-                                  <Trash2 size={14} aria-hidden="true" />
-                                </Button>
-                              </div>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
+                {!loading && loadError && (
+                  <li className="lab-ws-state">
+                    <span className="lab-ws-state-title">Could not load your workspaces</span>
+                    <span>{apiErrorMessage(loadError) ?? 'Check your connection and try again.'}</span>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="lab-ws-state-action"
+                      onClick={() => void loadWorkspaces()}
+                    >
+                      Try again
+                    </Button>
                   </li>
-                );
-              })}
-            </ul>
+                )}
+
+                {!loading && !loadError && workspaces.length === 0 && (
+                  <li className="lab-ws-state">
+                    <span className="lab-ws-state-title">No workspaces yet</span>
+                    <span>Create a project and it will appear here.</span>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      className="lab-ws-state-action"
+                      onClick={() => startWizard()}
+                    >
+                      New project
+                    </Button>
+                  </li>
+                )}
+
+                {!loading && !loadError && workspaces.length > 0 && visibleWorkspaces.length === 0 && (
+                  <li className="lab-ws-nomatch">
+                    <span>No workspaces match “{query.trim()}”.</span>
+                    <button type="button" className="lab-ws-clear" onClick={() => setQuery('')}>
+                      Clear search
+                    </button>
+                  </li>
+                )}
+
+                {!loading &&
+                  !loadError &&
+                  visibleWorkspaces.map((ws) => {
+                    const isOpen =
+                      expanded.has(ws.id) ||
+                      (q !== '' && ws.projects.some((p) => p.name.toLowerCase().includes(q)));
+                    return (
+                      <li key={ws.id} className={`lab-ws-group${isOpen ? ' is-expanded' : ''}`}>
+                        <div className="lab-ws-row" data-projects={ws.projects.length}>
+                          <button
+                            type="button"
+                            className="lab-ws-row-main"
+                            onClick={() => toggleWorkspace(ws.id)}
+                            aria-expanded={isOpen}
+                          >
+                            <ChevronRight size={14} aria-hidden="true" className="lab-ws-caret" />
+                            <span className="lab-ws-folder" aria-hidden="true">
+                              <Folder size={14} />
+                            </span>
+                            <span className="lab-ws-name-wrap">
+                              <span className="lab-ws-name"><Highlight text={ws.name} query={q} /></span>
+                              <span className="lab-ws-badge">{plural(ws.projects.length, 'project')}</span>
+                            </span>
+                          </button>
+
+                          <span className="lab-ws-cell is-projects">{ws.projects.length}</span>
+                          <span className="lab-ws-cell is-files">{filesIn(ws)}</span>
+                          <span className="lab-ws-cell is-created">{formatDate(ws.created_at)}</span>
+
+                          <span className="lab-ws-actions">
+                            <Button
+                              variant="danger"
+                              size="icon"
+                              className="lab-icon-button lab-icon-button-danger"
+                              aria-label={`Delete workspace ${ws.name}`}
+                              onClick={() => askDelete({ kind: 'workspace', id: ws.id, name: ws.name })}
+                            >
+                              <Trash2 size={14} aria-hidden="true" />
+                            </Button>
+                          </span>
+                        </div>
+
+                        {/* Always mounted so closing animates too. Visibility
+                            removes a closed list from the tab order. */}
+                        <div className={`lab-ws-fold${isOpen ? ' is-open' : ''}`}>
+                          <div className="lab-ws-fold-inner">
+                            <ul className="lab-ws-projects">
+                              {ws.projects.length === 0 && (
+                                <li className="lab-ws-state is-inline">
+                                  No projects in this workspace yet.
+                                </li>
+                              )}
+                              {ws.projects.map((p) => (
+                                <li key={p.id}>
+                                  <div className="lab-ws-project">
+                                    <button
+                                      type="button"
+                                      className="lab-ws-project-open"
+                                      onClick={() => openInEditor(p, ws.name)}
+                                    >
+                                      <FileCode size={14} aria-hidden="true" />
+                                      <span><Highlight text={p.name} query={q} /></span>
+                                    </button>
+                                    <span className="lab-ws-cell is-projects" />
+                                    <span className="lab-ws-cell is-files">{p.file_count ?? 0}</span>
+                                    <span className="lab-ws-cell is-created">{formatDate(p.created_at)}</span>
+                                    <span className="lab-ws-actions">
+                                      <button
+                                        type="button"
+                                        className="lab-ws-open"
+                                        onClick={() => openInEditor(p, ws.name)}
+                                      >
+                                        Open
+                                      </button>
+                                      <Button
+                                        variant="danger"
+                                        size="icon"
+                                        className="lab-icon-button lab-icon-button-danger"
+                                        aria-label={`Delete project ${p.name}`}
+                                        onClick={() => askDelete({ kind: 'project', id: p.id, name: p.name })}
+                                      >
+                                        <Trash2 size={14} aria-hidden="true" />
+                                      </Button>
+                                    </span>
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+              </ul>
+            </div>
+
+            <div className="lab-ws-footer">
+              {q
+                ? `Showing ${visibleWorkspaces.length} of ${plural(workspaces.length, 'workspace')}`
+                : `${plural(workspaces.length, 'workspace')} · ${plural(projectCount, 'project')} · ${plural(fileCount, 'file')}`}
+            </div>
           </div>
         </section>
 

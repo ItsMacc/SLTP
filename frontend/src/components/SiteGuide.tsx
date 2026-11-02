@@ -256,9 +256,12 @@ function waitForLabList(): Promise<void> {
   return new Promise((resolve) => {
     const deadline = Date.now() + 4000;
     const check = () => {
-      const list = document.querySelector('.lab-ws-list');
-      const settled = list && !list.textContent?.includes('Loading');
-      if (settled || Date.now() > deadline) resolve();
+      /* The panel publishes its own state, so this never depends on reading
+         text that a skeleton row does not have. */
+      const state = document
+        .querySelector('[data-lab-state]')
+        ?.getAttribute('data-lab-state');
+      if (state === 'ready' || state === 'error' || Date.now() > deadline) resolve();
       else window.setTimeout(check, 120);
     };
     check();
@@ -267,8 +270,8 @@ function waitForLabList(): Promise<void> {
 
 /** True when at least one workspace holds a project. */
 function labHasProjects(): boolean {
-  return Array.from(document.querySelectorAll('.lab-ws-badge')).some(
-    (badge) => !badge.textContent?.trim().startsWith('0'),
+  return Array.from(document.querySelectorAll<HTMLElement>('.lab-ws-row')).some(
+    (row) => Number(row.dataset.projects ?? '0') > 0,
   );
 }
 
@@ -283,7 +286,7 @@ function openFirstLabProject(instance: Driver): void {
       instance.moveNext();
       return;
     }
-    const open = document.querySelector<HTMLElement>('.lab-ws-strategy-open');
+    const open = document.querySelector<HTMLElement>('.lab-ws-project-open');
     if (open) {
       open.click();
       waitForLabEditor(instance);
@@ -495,10 +498,9 @@ const PAGE_TOURS: PageTour[] = [
     steps: () => {
       const home: DriveStep[] = [
         {
-          element: '.lab-hero-copy',
-          /* The list steps live on the Lab page. Once the tour opens a
-             project the editor takes over, so these steps are skipped
-             instead of pointing at nothing. */
+          element: '.lab-hero',
+          /* Every step in the list survives being missing, because opening a
+             project swaps the page for the editor mid-tour. */
           skipMissingElement: true,
           popover: {
             title: 'The Lab',
@@ -509,13 +511,13 @@ const PAGE_TOURS: PageTour[] = [
           },
         },
         {
-          element: '.lab-start .lab-card',
+          element: '.lab-hero-new',
           skipMissingElement: true,
           popover: {
             title: 'New project',
             description:
               'Create a project: give it a name, pick a workspace, and choose a template.',
-            side: 'right',
+            side: 'bottom',
             align: 'start',
           },
         },
@@ -525,7 +527,7 @@ const PAGE_TOURS: PageTour[] = [
           popover: {
             title: 'Workspaces',
             description:
-              'Your projects are grouped into workspaces. Press / to jump to the search box.',
+              'Your projects are grouped into workspaces. Press / to jump to the search box, or sort the list by newest or by name.',
             side: 'bottom',
             align: 'start',
           },
@@ -536,23 +538,24 @@ const PAGE_TOURS: PageTour[] = [
           popover: {
             title: 'Projects',
             description:
-              'All your projects. Open a workspace, then click a project to open it.',
+              'Every workspace with its project count. Open one, then pick a project to load it.',
             side: 'top',
             align: 'center',
           },
         },
       ];
 
-      /* Nothing to open yet: send the reader to the project card instead of
-         walking them through an editor that has no project behind it. */
+      /* Nothing to open yet: point at the button that makes the first
+         project instead of walking into an empty editor. */
       if (!labHasProjects()) {
         home.push({
-          element: '.lab-start .lab-card',
+          element: '.lab-hero-new',
+          skipMissingElement: true,
           popover: {
             title: 'No projects yet',
             description:
-              'Create one from the card on the left. The next tour walks through the editor.',
-            side: 'right',
+              'Create one with this button. The next tour walks through the editor.',
+            side: 'bottom',
             align: 'start',
           },
         });
