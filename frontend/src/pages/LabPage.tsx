@@ -1,6 +1,7 @@
-// LabPage.tsx — Lab home: start a project, reopen recent work, and manage workspaces and projects.
+// LabPage.tsx — Lab home: a hero in the Home page's voice, the workspace
+// table, and the notes that explain how a project runs.
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowRight, ChevronRight, FileCode, Folder, Plus, Search, Trash2 } from 'lucide-react';
+import { ArrowRight, ChevronRight, FileCode, Search, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import {
   createLabProject,
@@ -41,12 +42,80 @@ function Highlight({ text, query }: { text: string; query: string }) {
   );
 }
 
+/**
+ * A browser network failure says nothing a reader can act on, so it becomes a
+ * sentence they can. Anything the API said itself is passed through.
+ */
+function describeLoadError(message: string): string {
+  const fallback = 'Could not load your workspaces. Check your connection and try again.';
+  const raw = message.trim();
+  if (!raw) return fallback;
+  const browserLevel = ['failed to fetch', 'load failed', 'networkerror', 'network error', 'fetch failed'];
+  if (browserLevel.some((phrase) => raw.toLowerCase().includes(phrase))) return fallback;
+  return raw;
+}
+
 /** "Oct 21, 2026" from the ISO timestamps Turso stores. */
 function formatDate(iso: string): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return '—';
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
+
+/* ---------- Rules the engine applies for you ---------- */
+const FACTS: { title: string; text: string }[] = [
+  {
+    title: 'Next-open fills',
+    text: "A signal after Monday's close fills at Tuesday's open.",
+  },
+  {
+    title: 'Trading costs',
+    text: 'Every fill pays 0.05% slippage and a 0.1% fee. Do not add your own on top.',
+  },
+  {
+    title: 'Cautious exits',
+    text: 'If one day touches both your stop and your target, the stop wins. A gap fills at the open.',
+  },
+  {
+    title: 'No lookahead',
+    text: 'Your code only sees bars up to and including today.',
+  },
+  {
+    title: 'Long and short',
+    text: 'Orders can go either way. Total exposure cannot exceed your equity.',
+  },
+  {
+    title: 'Position limits',
+    text: 'Cap the number of positions, lots per ticker and allocation per ticker.',
+  },
+];
+
+/* ---------- What a run returns ---------- */
+const METRICS: { name: string; note: string }[] = [
+  { name: 'CAGR', note: 'Yearly growth rate' },
+  { name: 'Sharpe ratio', note: 'Return per unit of risk' },
+  { name: 'Sortino ratio', note: 'Return per unit of downside risk' },
+  {
+    name: 'Probabilistic Sharpe',
+    note: 'Chance the Sharpe beats 1.0, adjusted for skew and sample size',
+  },
+  { name: 'Max drawdown', note: 'Largest fall from a peak' },
+  { name: 'Win rate', note: 'Share of closed trades that made money' },
+  { name: 'Expectancy', note: 'Average return per closed trade' },
+  { name: 'Unrealized profit', note: 'Open profit on the last day' },
+];
+
+/* ---------- Docs pages in reading order ---------- */
+const LEARN: { title: string; text: string; slug: string }[] = [
+  { title: 'Quickstart', text: 'Run a first strategy in under 20 lines.', slug: 'quickstart' },
+  {
+    title: 'The Strategy class',
+    text: 'Every hook, constraint and indicator you can use.',
+    slug: 'strategy-overview',
+  },
+  { title: 'Metrics reference', text: 'How each number in a result is calculated.', slug: 'metrics' },
+  { title: 'Gotchas', text: 'The behaviors that most often surprise people.', slug: 'gotchas' },
+];
 
 /** What a pending delete will remove. */
 type DeleteTarget = {
@@ -146,6 +215,13 @@ export default function LabPage({ onNavigate }: LabPageProps) {
     setWizard({ open: true, template, target });
   };
 
+  /* Docs keeps its current page in the hash, so setting it before switching
+     tabs is what opens a specific page rather than the first one. */
+  const goToDocs = (slug?: string) => {
+    if (slug) window.location.hash = `#/docs/${slug}`;
+    onNavigate?.('docs');
+  };
+
   // The wizard reports the target workspace: an existing one (by id) or a brand
   // new one (by name). Either way the project is persisted in Turso.
   const handleCreateFromWizard = async (input: NewProjectInput) => {
@@ -237,136 +313,137 @@ export default function LabPage({ onNavigate }: LabPageProps) {
 
   return (
     <div className="lab-root">
-      <div className="lab-hero-wrapper page-hero-band is-full-bleed is-dot-grid">
-        <div className="lab-hero-inner page-hero-inner">
-          <div className="lab-hero-copy">
-            <span className="page-hero-eyebrow">Lab</span>
-            <h1 className="page-hero-title">Write a strategy in Python and backtest it.</h1>
+      <div className="lab-page">
+        <section className="lab-hero" aria-labelledby="lab-hero-title">
+          <h1 id="lab-hero-title" className="lab-hero-title">
+            A Python-based backtesting engine for your own strategies.
+            {/* The sentence break is the natural one at this size: without it the
+                balance puts "Test" at the end of the first line. Hidden on narrow
+                screens, where the headline wraps on its own. */}
+            <br className="lab-hero-break" />{' '}
+          </h1>
+
+          <p className="lab-hero-lede">
+            The engine handles the trading rules for you, so you can focus on your strategy. See how your ideas perform under real market conditions without writing boilerplate infrastructure.
+          </p>
+
+          <div className="lab-hero-actions">
+            <Button variant="primary" size="lg" onClick={() => startWizard()}>
+              New project
+              <ArrowRight size={18} className="lab-btn-icon" />
+            </Button>
+            <Button variant="link" size="sm" className="lab-hero-link" onClick={() => goToDocs()}>
+              Read the docs
+              <ArrowRight size={14} className="lab-btn-icon" />
+            </Button>
+
+            <p className="lab-hero-note">
+              New to the engine?{' '}
+              <button type="button" className="lab-inline-link" onClick={() => goToDocs('quickstart')}>
+                Start with the quickstart
+              </button>
+            </p>
+          </div>
+        </section>
+
+        <section className="lab-ws" aria-labelledby="workspace-title">
+          <div className="lab-ws-header">
+            <h2 id="workspace-title" className="lab-ws-title">Workspaces</h2>
+            <span className="lab-ws-count">
+              {workspaces.length} workspace{workspaces.length === 1 ? '' : 's'}, {projectCount} project
+              {projectCount === 1 ? '' : 's'}
+            </span>
           </div>
 
-          <div className="lab-hero-docs">
-            <p className="lab-hero-docs-text">
-              See the engine rules and code examples in the docs.
-            </p>
-            <Button variant="link" size="sm" onClick={() => onNavigate?.('docs')}>
-              Read the docs <ArrowRight size={14} aria-hidden="true" />
+          <div className="lab-ws-toolbar">
+            <label className="lab-ws-search">
+              <Search size={14} aria-hidden="true" className="lab-ws-search-icon" />
+              <input
+                ref={searchRef}
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search workspaces and projects"
+                aria-label="Search workspaces and projects"
+              />
+              <kbd className="lab-ws-kbd" aria-hidden="true">/</kbd>
+            </label>
+            <Button variant="secondary" size="sm" className="lab-ws-new" onClick={() => startWizard('blank', 'new')}>
+              New workspace
             </Button>
           </div>
-        </div>
-      </div>
 
-      <div className="lab-page">
-        <div className="lab-top">
-          <aside className="lab-start" aria-label="Start">
-            <section className="lab-card lab-start-card" aria-labelledby="lab-new-title">
-              <p className="lab-eyebrow">New project</p>
-              <h2 id="lab-new-title" className="lab-start-title">Build a strategy</h2>
-              <p className="lab-card-text">
-                Each project opens in its own editor, with the engine classes read-only and your code in{' '}
-                <code>workspace/</code>.
-              </p>
-              <Button variant="primary" size="md" className="lab-full" onClick={() => startWizard()}>
-                <Plus size={15} aria-hidden="true" /> New project
-              </Button>
-            </section>
-          </aside>
-
-          <section className="lab-ws" aria-labelledby="workspace-title">
-            <header className="lab-ws-header">
-              <h2 id="workspace-title" className="lab-ws-title">Workspaces</h2>
-              <span className="lab-ws-meta">
-                {workspaces.length} workspace{workspaces.length === 1 ? '' : 's'} · {projectCount} project
-                {projectCount === 1 ? '' : 's'}
-              </span>
-            </header>
-
-            <div className="lab-ws-toolbar">
-              <label className="lab-ws-search">
-                <Search size={14} aria-hidden="true" className="lab-ws-search-icon" />
-                <input
-                  ref={searchRef}
-                  type="text"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search workspaces and projects"
-                  aria-label="Search workspaces and projects"
-                />
-                <kbd className="lab-ws-kbd" aria-hidden="true">/</kbd>
-              </label>
-              <Button variant="secondary" size="sm" className="lab-ws-new" onClick={() => startWizard('blank', 'new')}>
-                <Plus size={13} aria-hidden="true" /> New workspace
-              </Button>
+          <div className="lab-ws-scroll">
+            <div className="lab-ws-columns" aria-hidden="true">
+              <span>Project</span>
+              <span className="lab-ws-col is-files">Files</span>
+              <span className="lab-ws-col is-created">Created</span>
+              <span />
             </div>
 
-            <div className="lab-ws-scroll">
-              <div className="lab-ws-columns" aria-hidden="true">
-                <span>Project</span>
-                <span className="lab-ws-col is-files">Files</span>
-                <span className="lab-ws-col is-created">Created</span>
-                <span />
-              </div>
+            <ul className="lab-ws-list">
+              {loading && (
+                <li className="lab-ws-empty">Loading workspaces…</li>
+              )}
 
-              <ul className="lab-ws-list">
-                {loading && (
-                  <li className="lab-ws-empty">
-                    <LoaderScreen
-                      label="Loading workspaces…"
-                      sub="Reading your workspaces and projects from the account store."
-                    />
-                  </li>
-                )}
+              {!loading && loadError && (
+                <li className="lab-ws-empty">
+                  <span>{describeLoadError(loadError)}</span>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="lab-ws-retry"
+                    onClick={() => void loadWorkspaces()}
+                  >
+                    Try again
+                  </Button>
+                </li>
+              )}
 
-                {!loading && loadError && (
-                  <li className="lab-ws-empty">
-                    <span className="lab-ws-empty-title">{loadError}</span>
-                    <Button variant="secondary" size="sm" onClick={() => void loadWorkspaces()}>
-                      Try again
-                    </Button>
-                  </li>
-                )}
+              {!loading && !loadError && workspaces.length === 0 && (
+                <li className="lab-ws-empty">
+                  <span className="lab-ws-empty-title">No workspaces yet.</span>
+                  <span>Create a project and it will appear here.</span>
+                </li>
+              )}
 
-                {!loading && !loadError && workspaces.length === 0 && (
-                  <li className="lab-ws-empty">
-                    <span className="lab-ws-empty-title">No workspaces yet</span>
-                    <span>Create a project to get started — it will show up here.</span>
-                  </li>
-                )}
+              {!loading && !loadError && workspaces.length > 0 && visibleWorkspaces.length === 0 && (
+                <li className="lab-ws-empty">No workspaces match “{query.trim()}”.</li>
+              )}
 
-                {!loading && !loadError && workspaces.length > 0 && visibleWorkspaces.length === 0 && (
-                  <li className="lab-ws-empty">No workspaces match “{query.trim()}”.</li>
-                )}
+              {visibleWorkspaces.map((ws) => {
+                const isOpen =
+                  expanded.has(ws.id) || (q !== '' && ws.projects.some((p) => p.name.toLowerCase().includes(q)));
+                return (
+                  <li key={ws.id} className={`lab-ws-group${isOpen ? ' is-expanded' : ''}`}>
+                    <div className="lab-ws-row">
+                      <button
+                        type="button"
+                        className="lab-ws-row-main"
+                        onClick={() => toggleWorkspace(ws.id)}
+                        aria-expanded={isOpen}
+                      >
+                        <span className="lab-ws-name"><Highlight text={ws.name} query={q} /></span>
+                        <span className="lab-ws-badge">
+                          {ws.projects.length} project{ws.projects.length === 1 ? '' : 's'}
+                        </span>
+                        <ChevronRight size={14} aria-hidden="true" className="lab-ws-caret" />
+                      </button>
+                      <Button
+                        variant="danger"
+                        size="icon"
+                        className="lab-icon-button lab-icon-button-danger"
+                        aria-label={`Delete workspace ${ws.name}`}
+                        onClick={() => askDelete({ kind: 'workspace', id: ws.id, name: ws.name })}
+                      >
+                        <Trash2 size={14} aria-hidden="true" />
+                      </Button>
+                    </div>
 
-                {visibleWorkspaces.map((ws) => {
-                  const isOpen =
-                    expanded.has(ws.id) || (q !== '' && ws.projects.some((p) => p.name.toLowerCase().includes(q)));
-                  return (
-                    <li key={ws.id} className={`lab-ws-group${isOpen ? ' is-expanded' : ''}`}>
-                      <div className="lab-ws-row">
-                        <button
-                          type="button"
-                          className="lab-ws-row-main"
-                          onClick={() => toggleWorkspace(ws.id)}
-                          aria-expanded={isOpen}
-                        >
-                          <ChevronRight size={14} aria-hidden="true" className="lab-ws-caret" />
-                          <Folder size={14} aria-hidden="true" className="lab-ws-folder" />
-                          <span className="lab-ws-name"><Highlight text={ws.name} query={q} /></span>
-                          <span className="lab-ws-badge">
-                            {ws.projects.length} strateg{ws.projects.length === 1 ? 'y' : 'ies'}
-                          </span>
-                        </button>
-                        <Button
-                          variant="danger"
-                          size="icon"
-                          className="lab-icon-button lab-icon-button-danger"
-                          aria-label={`Delete workspace ${ws.name}`}
-                          onClick={() => askDelete({ kind: 'workspace', id: ws.id, name: ws.name })}
-                        >
-                          <Trash2 size={14} aria-hidden="true" />
-                        </Button>
-                      </div>
-
-                      {isOpen && (
+                    {/* Always mounted so closing animates too. Visibility
+                        removes a closed list from the tab order. */}
+                    <div className={`lab-ws-fold${isOpen ? ' is-open' : ''}`}>
+                      <div className="lab-ws-fold-inner">
                         <ul className="lab-ws-strategies">
                           {ws.projects.length === 0 && (
                             <li className="lab-ws-empty">No projects in this workspace yet.</li>
@@ -401,39 +478,76 @@ export default function LabPage({ onNavigate }: LabPageProps) {
                             </li>
                           ))}
                         </ul>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          </section>
-        </div>
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </section>
 
-        <div className="lab-meta">            <section className="lab-info" aria-labelledby="lab-confidence-title">
-            <p id="lab-confidence-title" className="lab-info-eyebrow">Backtest workflow</p>
-            <p className="lab-info-body">
-              Run a strategy over historical daily bars and inspect its trades and portfolio
-              results. A backtest is a simulation; it does not include every condition of live trading.
-            </p>
-          </section>
+        <section className="lab-section" aria-labelledby="lab-engine">
+          <header className="lab-section-head">
+            <h2 id="lab-engine" className="lab-section-title">What the engine handles</h2>
+            <p className="lab-section-lede">These rules are built in, so you do not code them yourself.</p>
+          </header>
 
-          <section className="lab-info" aria-labelledby="lab-feeds-title">
-            <p id="lab-feeds-title" className="lab-info-eyebrow">Data feeds &amp; universe</p>
-            <p className="lab-info-body">
-              The local market dataset contains daily history from 1962 for stocks, ETFs, and gold.
-              Available symbols and date ranges depend on the data loaded by the server.
-            </p>
-          </section>
+          <ul className="lab-facts">
+            {FACTS.map((fact) => (
+              <li key={fact.title} className="lab-fact">
+                <h3 className="lab-fact-title">{fact.title}</h3>
+                <p className="lab-fact-text">{fact.text}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
 
-          <section className="lab-info" aria-labelledby="lab-runtime-title">
-            <p id="lab-runtime-title" className="lab-info-eyebrow">Strategy environment</p>
-            <p className="lab-info-body">
-              Engine files are read-only. Your strategy code lives in the project workspace and is
-              run by the Lab's backtest service.
+        <section className="lab-section" aria-labelledby="lab-results">
+          <header className="lab-section-head">
+            <h2 id="lab-results" className="lab-section-title">What each run returns</h2>
+            <p className="lab-section-lede">
+              Equity starts at 100, so a value of 112 means the book is up 12%.
             </p>
-          </section>
-        </div>
+          </header>
+
+          <div className="lab-results">
+            <dl className="lab-metrics">
+              {METRICS.map((metric) => (
+                <div key={metric.name} className="lab-metric">
+                  <dt className="lab-metric-name">{metric.name}</dt>
+                  <dd className="lab-metric-note">{metric.note}</dd>
+                </div>
+              ))}
+            </dl>
+
+            <p className="lab-results-note">
+              You also get every trade with its entry, exit and exit reason, a daily equity curve,
+              and a count of orders the engine rejected and why.
+            </p>
+          </div>
+        </section>
+
+        <section className="lab-section" aria-labelledby="lab-learn">
+          <header className="lab-section-head">
+            <h2 id="lab-learn" className="lab-section-title">Learn the engine</h2>
+            <p className="lab-section-lede">Start here if you are new to the Lab.</p>
+          </header>
+
+          <ul className="lab-learn">
+            {LEARN.map((item) => (
+              <li key={item.slug} className="lab-learn-item">
+                <button type="button" className="lab-learn-link" onClick={() => goToDocs(item.slug)}>
+                  <span className="lab-learn-copy">
+                    <span className="lab-learn-title">{item.title}</span>
+                    <span className="lab-learn-text">{item.text}</span>
+                  </span>
+                  <ArrowRight size={16} aria-hidden="true" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
       </div>
 
       {wizard.open && (
