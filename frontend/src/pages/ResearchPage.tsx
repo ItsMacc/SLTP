@@ -248,6 +248,9 @@ const TIMEFRAME_OPTIONS: SegmentedOption<ResearchTimeframe>[] = TIMEFRAMES.map((
 
 export default function ResearchPage({ initialSettings }: ResearchPageProps) {
   const [mode, setMode] = useState<Mode>('stocks')
+  // Which side the view slides in from after a switch. Empty on first paint, so
+  // opening the page does not animate.
+  const [swap, setSwap] = useState<'' | 'forward' | 'back'>('')
   const [allTickers, setAllTickers] = useState<TickerInfo[]>([])
   // The ticker list is read from the market-data store on mount.
   const [tickersLoading, setTickersLoading] = useState(true)
@@ -443,6 +446,15 @@ export default function ResearchPage({ initialSettings }: ResearchPageProps) {
   }
 
   const switchMode = useCallback((next: Mode) => {
+    if (next === mode) return
+
+    // The view arrives from the side of the tab that was picked: right for
+    // Strategies, left for Stocks.
+    const movingRight =
+      MODE_OPTIONS.findIndex((option) => option.id === next) >
+      MODE_OPTIONS.findIndex((option) => option.id === mode)
+    setSwap(movingRight ? 'forward' : 'back')
+
     // The chosen ticker survives a trip to the backtest view and back; only
     // the loaded bars are dropped so they are fetched fresh on return.
     setMode(next)
@@ -450,7 +462,7 @@ export default function ResearchPage({ initialSettings }: ResearchPageProps) {
     setError(null)
     setQuery('')
     setQuoteLimit(QUOTE_BATCH)
-  }, [])
+  }, [mode])
 
   const bars = stockData?.data ?? NO_BARS
   const lastBar = bars.length > 0 ? bars[bars.length - 1] : null
@@ -484,273 +496,276 @@ export default function ResearchPage({ initialSettings }: ResearchPageProps) {
           ariaLabel="Research view"
           kind="tabs"
           size="md"
+          className="mode-switch"
         />
       </div>
 
-      <div className="research-workspace">
-        {mode === 'stocks' && (
-          <>
-            <button
-              type="button"
-              className="ticker-trigger"
-              onClick={() => setListOpen(true)}
-              aria-expanded={listOpen}
-            >
-              <Search size={14} aria-hidden="true" />
-              Search ticker or company
-            </button>
-
-            {listOpen && (
+      <div className={`research-view${swap ? ` is-${swap}` : ''}`} key={mode}>
+        <div className="research-workspace">
+          {mode === 'stocks' && (
+            <>
               <button
                 type="button"
-                className="ticker-backdrop"
-                aria-label="Close ticker list"
-                onClick={() => setListOpen(false)}
-              />
-            )}
+                className="ticker-trigger"
+                onClick={() => setListOpen(true)}
+                aria-expanded={listOpen}
+              >
+                <Search size={14} aria-hidden="true" />
+                Search ticker or company
+              </button>
 
-            <aside className={`ticker-panel${listOpen ? ' is-open' : ''}`} aria-label="Tickers">
-              <div className="ticker-search">
-                <Search size={14} aria-hidden="true" className="ticker-search-icon" />
-                <input
-                  ref={searchRef}
-                  type="text"
-                  value={query}
-                  onChange={(event) => handleSearch(event.target.value)}
-                  placeholder="Search ticker or company"
-                  className="ticker-search-input"
-                  aria-label="Search ticker or company"
-                />
-                {query && (
-                  <button
-                    type="button"
-                    className="ticker-search-clear"
-                    onClick={() => handleSearch('')}
-                    aria-label="Clear search"
-                  >
-                    <X size={14} aria-hidden="true" />
-                  </button>
-                )}
+              {listOpen && (
                 <button
                   type="button"
-                  className="ticker-close"
-                  onClick={() => setListOpen(false)}
+                  className="ticker-backdrop"
                   aria-label="Close ticker list"
-                >
-                  <X size={16} aria-hidden="true" />
-                </button>
-              </div>
+                  onClick={() => setListOpen(false)}
+                />
+              )}
 
-              <div className="ticker-head" aria-hidden="true">
-                <span>Symbol</span>
-                <span className="is-last">Last</span>
-              </div>
-
-              <div className="ticker-scroll" onScroll={handleWatchlistScroll}>
-                {tickersLoading && (
-                  <div className="ticker-status">
-                    <LoaderRow label="Loading tickers…" />
-                  </div>
-                )}
-
-                {!tickersLoading && filteredTickers.length === 0 && (
-                  <p className="ticker-status">No ticker matches “{query}”.</p>
-                )}
-
-                {!tickersLoading && filteredTickers.length > 0 && (
-                  <ul className="ticker-list">
-                    {visibleTickers.map(({ ticker: symbol, name }) => {
-                      const quote = quotes[symbol]
-                      const isActive = symbol === selectedTicker
-                      const up = quote ? quote.changePct >= 0 : true
-
-                      return (
-                        <li key={symbol} className="ticker-item">
-                          <button
-                            type="button"
-                            className={`ticker-row${isActive ? ' is-active' : ''}`}
-                            aria-pressed={isActive}
-                            onClick={() => handleSelectTicker(symbol)}
-                          >
-                            <span className="ticker-identity">
-                              <span className="ticker-symbol">{symbol}</span>
-                              <span className="ticker-name">{name}</span>
-                            </span>
-                            <span className="ticker-figures">
-                              <span className="ticker-price">
-                                {quote ? priceText(quote.price) : '—'}
-                              </span>
-                              <span
-                                className={`ticker-change ${
-                                  quote ? (up ? 'is-up' : 'is-down') : ''
-                                }`}
-                              >
-                                {quote ? `${signedText(quote.changePct)}%` : '·'}
-                              </span>
-                            </span>
-                          </button>
-                        </li>
-                      )
-                    })}
-                  </ul>
-                )}
-              </div>
-
-              <div className="ticker-foot">
-                {searching
-                  ? `${filteredTickers.length.toLocaleString()} match${filteredTickers.length === 1 ? '' : 'es'}`
-                  : `Showing ${visibleTickers.length.toLocaleString()} of ${filteredTickers.length.toLocaleString()} tickers`}
-              </div>
-            </aside>
-
-            {loading && selectedTicker && (
-              <section className="quote-panel is-busy" aria-busy="true">
-                <p className="research-sr-only" role="status">Loading {selectedTicker}</p>
-                <div className="quote-skeleton" aria-hidden="true">
-                  <span className="research-skel is-price" />
-                  <span className="research-skel is-block" />
-                </div>
-              </section>
-            )}
-
-            {!loading && error && selectedTicker && (
-              <section className="quote-panel">
-                <div className="research-state">
-                  <p className="research-state-title">
-                    Could not load price history for {selectedTicker}.
-                  </p>
+              <aside className={`ticker-panel${listOpen ? ' is-open' : ''}`} aria-label="Tickers">
+                <div className="ticker-search">
+                  <Search size={14} aria-hidden="true" className="ticker-search-icon" />
+                  <input
+                    ref={searchRef}
+                    type="text"
+                    value={query}
+                    onChange={(event) => handleSearch(event.target.value)}
+                    placeholder="Search ticker or company"
+                    className="ticker-search-input"
+                    aria-label="Search ticker or company"
+                  />
+                  {query && (
+                    <button
+                      type="button"
+                      className="ticker-search-clear"
+                      onClick={() => handleSearch('')}
+                      aria-label="Clear search"
+                    >
+                      <X size={14} aria-hidden="true" />
+                    </button>
+                  )}
                   <button
                     type="button"
-                    className="btn btn-secondary btn-sm"
-                    onClick={() => setReloadKey((key) => key + 1)}
+                    className="ticker-close"
+                    onClick={() => setListOpen(false)}
+                    aria-label="Close ticker list"
                   >
-                    Try again
+                    <X size={16} aria-hidden="true" />
                   </button>
                 </div>
-              </section>
-            )}
 
-            {!loading && !error && lastBar && (
-              <section className="quote-panel" aria-label={`${selectedTicker} price history`}>
-                <header className="quote-head">
-                  <div className="quote-identity">
-                    <div className="quote-naming">
-                      <h2 className="quote-symbol">{stockData?.ticker ?? selectedTicker}</h2>
-                      {quoteName && <span className="quote-name">{quoteName}</span>}
+                <div className="ticker-head" aria-hidden="true">
+                  <span>Symbol</span>
+                  <span className="is-last">Last</span>
+                </div>
+
+                <div className="ticker-scroll" onScroll={handleWatchlistScroll}>
+                  {tickersLoading && (
+                    <div className="ticker-status">
+                      <LoaderRow label="Loading tickers…" />
                     </div>
-                    <p className="quote-price-row">
-                      <span className="quote-price">${priceText(lastBar.close)}</span>
-                      <span className={`quote-change ${rangePct >= 0 ? 'is-up' : 'is-down'}`}>
-                        {signedText(rangePct)}%
-                      </span>
-                      <span className="quote-span">over {TIMEFRAME_LABEL[timeframe]}</span>
+                  )}
+
+                  {!tickersLoading && filteredTickers.length === 0 && (
+                    <p className="ticker-status">No ticker matches “{query}”.</p>
+                  )}
+
+                  {!tickersLoading && filteredTickers.length > 0 && (
+                    <ul className="ticker-list">
+                      {visibleTickers.map(({ ticker: symbol, name }) => {
+                        const quote = quotes[symbol]
+                        const isActive = symbol === selectedTicker
+                        const up = quote ? quote.changePct >= 0 : true
+
+                        return (
+                          <li key={symbol} className="ticker-item">
+                            <button
+                              type="button"
+                              className={`ticker-row${isActive ? ' is-active' : ''}`}
+                              aria-pressed={isActive}
+                              onClick={() => handleSelectTicker(symbol)}
+                            >
+                              <span className="ticker-identity">
+                                <span className="ticker-symbol">{symbol}</span>
+                                <span className="ticker-name">{name}</span>
+                              </span>
+                              <span className="ticker-figures">
+                                <span className="ticker-price">
+                                  {quote ? priceText(quote.price) : '—'}
+                                </span>
+                                <span
+                                  className={`ticker-change ${
+                                    quote ? (up ? 'is-up' : 'is-down') : ''
+                                  }`}
+                                >
+                                  {quote ? `${signedText(quote.changePct)}%` : '·'}
+                                </span>
+                              </span>
+                            </button>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  )}
+                </div>
+
+                <div className="ticker-foot">
+                  {searching
+                    ? `${filteredTickers.length.toLocaleString()} match${filteredTickers.length === 1 ? '' : 'es'}`
+                    : `Showing ${visibleTickers.length.toLocaleString()} of ${filteredTickers.length.toLocaleString()} tickers`}
+                </div>
+              </aside>
+
+              {loading && selectedTicker && (
+                <section className="quote-panel is-busy" aria-busy="true">
+                  <p className="research-sr-only" role="status">Loading {selectedTicker}</p>
+                  <div className="quote-skeleton" aria-hidden="true">
+                    <span className="research-skel is-price" />
+                    <span className="research-skel is-block" />
+                  </div>
+                </section>
+              )}
+
+              {!loading && error && selectedTicker && (
+                <section className="quote-panel">
+                  <div className="research-state">
+                    <p className="research-state-title">
+                      Could not load price history for {selectedTicker}.
+                    </p>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => setReloadKey((key) => key + 1)}
+                    >
+                      Try again
+                    </button>
+                  </div>
+                </section>
+              )}
+
+              {!loading && !error && lastBar && (
+                <section className="quote-panel" aria-label={`${selectedTicker} price history`}>
+                  <header className="quote-head">
+                    <div className="quote-identity">
+                      <div className="quote-naming">
+                        <h2 className="quote-symbol">{stockData?.ticker ?? selectedTicker}</h2>
+                        {quoteName && <span className="quote-name">{quoteName}</span>}
+                      </div>
+                      <p className="quote-price-row">
+                        <span className="quote-price">${priceText(lastBar.close)}</span>
+                        <span className={`quote-change ${rangePct >= 0 ? 'is-up' : 'is-down'}`}>
+                          {signedText(rangePct)}%
+                        </span>
+                        <span className="quote-span">over {TIMEFRAME_LABEL[timeframe]}</span>
+                      </p>
+                    </div>
+
+                    <div className="quote-controls">
+                      <Segmented
+                        options={STYLE_OPTIONS}
+                        value={chartStyle}
+                        onChange={setChartStyle}
+                        ariaLabel="Chart style"
+                      />
+                      <Segmented
+                        options={TIMEFRAME_OPTIONS}
+                        value={timeframe}
+                        onChange={setTimeframe}
+                        ariaLabel="Timeframe"
+                        className="is-timeframe"
+                      />
+                    </div>
+                  </header>
+
+                  <p className="quote-ohlc">
+                    <span className="quote-date">{dateText(lastBar.date)}</span>
+                    <span><span className="quote-ohlc-label">Open</span> <b>{priceText(lastBar.open)}</b></span>
+                    <span><span className="quote-ohlc-label">High</span> <b>{priceText(lastBar.high)}</b></span>
+                    <span><span className="quote-ohlc-label">Low</span> <b>{priceText(lastBar.low)}</b></span>
+                    <span><span className="quote-ohlc-label">Close</span> <b>{priceText(lastBar.close)}</b></span>
+                    <span><span className="quote-ohlc-label">Volume</span> <b>{compactVolume(lastBar.volume)}</b></span>
+                  </p>
+
+                  <Chart
+                    bars={chartBars}
+                    ticker={stockData?.ticker ?? selectedTicker ?? ''}
+                    chartStyle={chartStyle}
+                    showAll={timeframe === 'all'}
+                    maxVisible={chartMaxBarsToNumber(readChartMaxBars(initialSettings))}
+                    defaultZoom={
+                      typeof initialSettings?.defaultZoom === 'number'
+                        ? initialSettings.defaultZoom
+                        : undefined
+                    }
+                    showQuote={false}
+                  />
+
+                  {stats && (
+                    <div className="quote-stats">
+                      <div className="quote-stat">
+                        <span className="quote-stat-label">Range return</span>
+                        <span
+                          className={`quote-stat-value ${stats.rangePct >= 0 ? 'is-up' : 'is-down'}`}
+                        >
+                          {signedText(stats.rangePct)}%
+                        </span>
+                        <span className="quote-stat-note">Over {TIMEFRAME_LABEL[timeframe]}</span>
+                      </div>
+                      <div className="quote-stat">
+                        <span className="quote-stat-label">High</span>
+                        <span className="quote-stat-value">{priceText(stats.high)}</span>
+                        <span className="quote-stat-note">Highest price</span>
+                      </div>
+                      <div className="quote-stat">
+                        <span className="quote-stat-label">Low</span>
+                        <span className="quote-stat-value">{priceText(stats.low)}</span>
+                        <span className="quote-stat-note">Lowest price</span>
+                      </div>
+                      <div className="quote-stat">
+                        <span className="quote-stat-label">
+                          <GlossaryText text="Volatility" glossary={STRATEGY_GLOSSARY} />
+                        </span>
+                        <span className="quote-stat-value">{stats.volatility.toFixed(1)}%</span>
+                        <span className="quote-stat-note">Yearly, from daily moves</span>
+                      </div>
+                      <div className="quote-stat">
+                        <span className="quote-stat-label">
+                          <GlossaryText text="Max drawdown" glossary={STRATEGY_GLOSSARY} />
+                        </span>
+                        <span className="quote-stat-value is-down">
+                          {stats.maxDrawdown.toFixed(1)}%
+                        </span>
+                        <span className="quote-stat-note">Peak to trough</span>
+                      </div>
+                      <div className="quote-stat">
+                        <span className="quote-stat-label">Avg volume</span>
+                        <span className="quote-stat-value">{compactVolume(stats.avgVolume)}</span>
+                        <span className="quote-stat-note">Shares traded per day</span>
+                      </div>
+                    </div>
+                  )}
+                </section>
+              )}
+
+              {!loading && !error && !lastBar && !selectedTicker && (
+                <section className="quote-panel">
+                  <div className="research-state">
+                    <p className="research-state-title">No ticker selected</p>
+                    <p className="research-state-body">
+                      Pick a symbol from the list to load its price history.
                     </p>
                   </div>
+                </section>
+              )}
+            </>
+          )}
 
-                  <div className="quote-controls">
-                    <Segmented
-                      options={STYLE_OPTIONS}
-                      value={chartStyle}
-                      onChange={setChartStyle}
-                      ariaLabel="Chart style"
-                    />
-                    <Segmented
-                      options={TIMEFRAME_OPTIONS}
-                      value={timeframe}
-                      onChange={setTimeframe}
-                      ariaLabel="Timeframe"
-                      className="is-timeframe"
-                    />
-                  </div>
-                </header>
+          {mode === 'strategies' && <StrategyChart />}
+        </div>
 
-                <p className="quote-ohlc">
-                  <span className="quote-date">{dateText(lastBar.date)}</span>
-                  <span><span className="quote-ohlc-label">Open</span> <b>{priceText(lastBar.open)}</b></span>
-                  <span><span className="quote-ohlc-label">High</span> <b>{priceText(lastBar.high)}</b></span>
-                  <span><span className="quote-ohlc-label">Low</span> <b>{priceText(lastBar.low)}</b></span>
-                  <span><span className="quote-ohlc-label">Close</span> <b>{priceText(lastBar.close)}</b></span>
-                  <span><span className="quote-ohlc-label">Volume</span> <b>{compactVolume(lastBar.volume)}</b></span>
-                </p>
-
-                <Chart
-                  bars={chartBars}
-                  ticker={stockData?.ticker ?? selectedTicker ?? ''}
-                  chartStyle={chartStyle}
-                  showAll={timeframe === 'all'}
-                  maxVisible={chartMaxBarsToNumber(readChartMaxBars(initialSettings))}
-                  defaultZoom={
-                    typeof initialSettings?.defaultZoom === 'number'
-                      ? initialSettings.defaultZoom
-                      : undefined
-                  }
-                  showQuote={false}
-                />
-
-                {stats && (
-                  <div className="quote-stats">
-                    <div className="quote-stat">
-                      <span className="quote-stat-label">Range return</span>
-                      <span
-                        className={`quote-stat-value ${stats.rangePct >= 0 ? 'is-up' : 'is-down'}`}
-                      >
-                        {signedText(stats.rangePct)}%
-                      </span>
-                      <span className="quote-stat-note">Over {TIMEFRAME_LABEL[timeframe]}</span>
-                    </div>
-                    <div className="quote-stat">
-                      <span className="quote-stat-label">High</span>
-                      <span className="quote-stat-value">{priceText(stats.high)}</span>
-                      <span className="quote-stat-note">Highest price</span>
-                    </div>
-                    <div className="quote-stat">
-                      <span className="quote-stat-label">Low</span>
-                      <span className="quote-stat-value">{priceText(stats.low)}</span>
-                      <span className="quote-stat-note">Lowest price</span>
-                    </div>
-                    <div className="quote-stat">
-                      <span className="quote-stat-label">
-                        <GlossaryText text="Volatility" glossary={STRATEGY_GLOSSARY} />
-                      </span>
-                      <span className="quote-stat-value">{stats.volatility.toFixed(1)}%</span>
-                      <span className="quote-stat-note">Yearly, from daily moves</span>
-                    </div>
-                    <div className="quote-stat">
-                      <span className="quote-stat-label">
-                        <GlossaryText text="Max drawdown" glossary={STRATEGY_GLOSSARY} />
-                      </span>
-                      <span className="quote-stat-value is-down">
-                        {stats.maxDrawdown.toFixed(1)}%
-                      </span>
-                      <span className="quote-stat-note">Peak to trough</span>
-                    </div>
-                    <div className="quote-stat">
-                      <span className="quote-stat-label">Avg volume</span>
-                      <span className="quote-stat-value">{compactVolume(stats.avgVolume)}</span>
-                      <span className="quote-stat-note">Shares traded per day</span>
-                    </div>
-                  </div>
-                )}
-              </section>
-            )}
-
-            {!loading && !error && !lastBar && !selectedTicker && (
-              <section className="quote-panel">
-                <div className="research-state">
-                  <p className="research-state-title">No ticker selected</p>
-                  <p className="research-state-body">
-                    Pick a symbol from the list to load its price history.
-                  </p>
-                </div>
-              </section>
-            )}
-          </>
-        )}
-
-        {mode === 'strategies' && <StrategyChart />}
+        {mode === 'stocks' && <CandlestickGuide />}
       </div>
-
-      {mode === 'stocks' && <CandlestickGuide />}
     </div>
   )
 }
