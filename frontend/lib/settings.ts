@@ -10,7 +10,7 @@
 // the apply/cache path can be imported from anywhere without dragging a React
 // component along with it.
 
-export type PerformanceTimeframe = '1y' | '2y' | '5y' | 'all'
+export type ResearchTimeframe = '1y' | '2y' | '5y' | 'all'
 
 /** The preferences object stored on the user row. Free-form by design. */
 export type UserSettings = { theme?: string; [key: string]: any }

@@ -345,7 +345,7 @@ export function BacktestWalkthroughSection() {
       <Narrator icon={ClipboardList}>
         You now read a performance report the way an analyst does: the curves
         first, the four numbers second, and the benchmark always in view. The
-        Performance page on this site reports the same figures for live
+        Research page on this site reports the same figures for live
         strategies, and you can now interpret all of it.
       </Narrator>
 

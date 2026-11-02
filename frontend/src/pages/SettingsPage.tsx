@@ -309,7 +309,7 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
 
       // Apply right away so the page reflects the click, then persist. The
       // settings go to the parent as well, because every other page reads its
-      // preferences from the app-level user object: without this, Performance
+      // preferences from the app-level user object: without this, Research
       // keeps drawing the previous chart style until the page is reloaded.
       applyAndStoreUserSettings(updatedSettings, updatedName, userId);
       onProfileUpdated(updatedName, updatedSettings);

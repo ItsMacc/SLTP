@@ -210,7 +210,7 @@ function SlideFinal() {
       <h1 className="tsg-title">If you ever need help</h1>
       <span className="tsg-final-icon"><LifeBuoy size={26} strokeWidth={1.75} /></span>
       <p className="tsg-lede">
-        Each page has a written guide at the bottom. The Performance page explains
+        Each page has a written guide at the bottom. The Research page explains
         candlesticks, and the Strategies page explains how to read a backtest.
       </p>
       <p className="tsg-body">
@@ -379,14 +379,14 @@ const PAGE_TOURS: PageTour[] = [
     ],
   },
   {
-    tab: 'performance',
-    label: 'Performance',
+    tab: 'research',
+    label: 'Research',
     blurb: 'Price charts for any stock, plus the strategy backtest runner.',
     steps: () => [
       {
         element: '.perf-hero-copy',
         popover: {
-          title: 'Performance page',
+          title: 'Research page',
           description:
             'Price charts for any stock, and a backtest runner for the built-in strategies.',
           side: 'bottom',
@@ -442,7 +442,7 @@ const PAGE_TOURS: PageTour[] = [
           side: 'bottom',
           align: 'start',
           onNextClick: (_el, _step, opts) => {
-            /* Flip the Performance page into Strategies mode, then advance
+            /* Flip the Research page into Strategies mode, then advance
                once the strategy view has mounted. */
             const buttons = document.querySelectorAll('.perf-tab');
             (buttons[1] as HTMLElement | undefined)?.click();

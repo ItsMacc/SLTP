@@ -66,7 +66,7 @@ export function MetricsSection() {
 
       <p>
         You can now build a strategy and survive it. The last job is judging one,
-        and judging is where most of the vocabulary on the Performance page comes
+        and judging is where most of the vocabulary on the Research page comes
         from.
       </p>
 
@@ -167,7 +167,7 @@ export function MetricsSection() {
       </Narrator>
 
       <p>
-        This is why the Performance page ranks systems{' '}
+        This is why the Research page ranks systems{' '}
         <GlossaryText text="risk-adjusted" glossary={G} /> rather than by raw
         return. Two identical 12 percent returns, one earned steadily and one
         earned through violent swings, are not the same investment, and a table

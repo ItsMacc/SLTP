@@ -241,7 +241,7 @@ self.MIN_BARS_REQUIRED = 21
 self.LIQUIDATE_ON_END = False`}/>
             </Step>
             <Step n="3" title="Run a backtest">
-              <p>Choose a registered strategy and date range in the Performance page. The server constructs a new Backtester for each run. The API form is shown in the reference section below.</p>
+              <p>Choose a registered strategy and date range on the Research page. The server constructs a new Backtester for each run. The API form is shown in the reference section below.</p>
             </Step>
           </section>
 
@@ -438,7 +438,7 @@ return rsi >= exit_threshold`}/>
             </div>
             <div className="docs-api-item">
               <div className="docs-api-route"><span className="docs-api-method">GET</span><code>/api/stock/ticker-details</code></div>
-              <p>Returns symbol and company/fund name pairs for the Performance page search.</p>
+              <p>Returns symbol and company/fund name pairs for the Research page search.</p>
             </div>
             <div className="docs-api-item">
               <div className="docs-api-route"><span className="docs-api-method">GET</span><code>/api/stock/all-tickers</code></div>

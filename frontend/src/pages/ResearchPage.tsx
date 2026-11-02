@@ -1,17 +1,17 @@
-// PerformancePage.tsx — Price history workspace: ticker list, chart, stats
+// ResearchPage.tsx — Price history workspace: ticker list, chart, stats
 import { useEffect, useMemo, useRef, useState, type UIEvent } from 'react'
 import { Search, X } from 'lucide-react'
 import CandlestickGuide from '../components/CandlestickGuide'
 import Chart, { type Bar } from '../components/Chart'
 import StrategyChart from '../components/StrategyChart'
 import { LoaderRow, LoaderScreen } from '../ui/Loader'
-import './PerformancePage.css'
-import type { PerformanceTimeframe } from '../../lib/settings'
+import './ResearchPage.css'
+import type { ResearchTimeframe } from '../../lib/settings'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
-const TIMEFRAMES: PerformanceTimeframe[] = ['1y', '2y', '5y', 'all']
+const TIMEFRAMES: ResearchTimeframe[] = ['1y', '2y', '5y', 'all']
 
-const TIMEFRAME_LABEL: Record<PerformanceTimeframe, string> = {
+const TIMEFRAME_LABEL: Record<ResearchTimeframe, string> = {
   '1y': '1Y',
   '2y': '2Y',
   '5y': '5Y',
@@ -51,7 +51,7 @@ interface Quote {
   spark: number[]
 }
 
-interface PerformancePageProps {
+interface ResearchPageProps {
   userId?: string
   initialSettings?: { defaultTimeframe?: string; [key: string]: any }
 }
@@ -178,7 +178,7 @@ interface TickerInfo {
   name: string
 }
 
-export default function PerformancePage({ initialSettings }: PerformancePageProps) {
+export default function ResearchPage({ initialSettings }: ResearchPageProps) {
   const [mode, setMode] = useState<Mode>('stocks')
   const [allTickers, setAllTickers] = useState<TickerInfo[]>([])
   // The ticker list is read from the market-data store on mount.
@@ -186,8 +186,8 @@ export default function PerformancePage({ initialSettings }: PerformancePageProp
   const [query, setQuery] = useState('')
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null)
 
-  const [timeframe, setTimeframe] = useState<PerformanceTimeframe>(() => {
-    const savedTf = initialSettings?.defaultTimeframe?.toLowerCase() as PerformanceTimeframe
+  const [timeframe, setTimeframe] = useState<ResearchTimeframe>(() => {
+    const savedTf = initialSettings?.defaultTimeframe?.toLowerCase() as ResearchTimeframe
     return TIMEFRAMES.includes(savedTf) ? savedTf : '1y'
   })
   const [chartStyle, setChartStyle] = useState<ChartStyle>(
@@ -205,7 +205,7 @@ export default function PerformancePage({ initialSettings }: PerformancePageProp
 
   useEffect(() => {
     if (initialSettings?.defaultTimeframe) {
-      const savedTf = initialSettings.defaultTimeframe.toLowerCase() as PerformanceTimeframe
+      const savedTf = initialSettings.defaultTimeframe.toLowerCase() as ResearchTimeframe
       if (TIMEFRAMES.includes(savedTf)) {
         setTimeframe(savedTf)
       }
@@ -395,7 +395,7 @@ export default function PerformancePage({ initialSettings }: PerformancePageProp
       </div>
 
       <div className="perf-section">
-        <div className="perf-tabs" role="tablist" aria-label="Performance view">
+        <div className="perf-tabs" role="tablist" aria-label="Research view">
           {TABS.map((tab) => (
             <button
               key={tab.id}

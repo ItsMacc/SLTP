@@ -6,7 +6,7 @@
 // Two rules keep this aligned with the rest of the site:
 //   1. Where a term also lives in lib/glossary.ts (STRATEGY_GLOSSARY), the
 //      definition here is copied VERBATIM. A learner meets "drawdown" in the
-//      course first and again on Strategy/Performance later - it must read as
+//      course first and again on Strategy/Research later - it must read as
 //      the same word, not a slightly different one.
 //   2. Where a term is genuinely beginner-level (share, order book), the
 //      wording stays simpler, but the vocabulary matches what the guides say
@@ -97,7 +97,7 @@ export const LEARN_GLOSSARY: Record<string, string | GlossaryTerm> = {
 
   // ---------------- Tier II - microstructure ----------------
   // "bid-ask spread" / "liquidity" / "order book" are the exact phrases the
-  // Strategy and Performance pages use, so they are keyed the same here.
+  // Strategy and Research pages use, so they are keyed the same here.
   'bid-ask spread': {
     definition:
       'The gap between the highest price a buyer will pay (the bid) and the lowest price a seller will accept (the ask). It is the built-in cost of trading instantly.',

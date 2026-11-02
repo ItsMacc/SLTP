@@ -9,7 +9,7 @@ import 'driver.js/dist/driver.css';
 import SettingsPage from './pages/SettingsPage';
 import { applyAndStoreUserSettings, readStoredUserSettings } from '../lib/settings';
 import LegalPage, { type LegalPageKind } from './pages/LegalPage';
-import PerformancePage from './pages/PerformancePage';
+import ResearchPage from './pages/ResearchPage';
 import StrategiesPage from './pages/StrategiesPage';
 import PortfolioPage from './pages/PortfolioPage';
 import LabPage from './pages/LabPage';
@@ -237,8 +237,8 @@ export default function App() {
                   await handleSignOut();
                 }}
               />
-            ) : activeTab === 'performance' ? (
-              <PerformancePage userId={user?.id} initialSettings={user?.settings} />
+            ) : activeTab === 'research' ? (
+              <ResearchPage userId={user?.id} initialSettings={user?.settings} />
             ) : activeTab === 'strategies' ? (
               <StrategiesPage />
             ) : activeTab === 'docs' ? (

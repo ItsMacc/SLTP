@@ -22,7 +22,7 @@ const navItems = [
   
   { id: 'portfolio', label: 'Portfolio' },
   { id: 'strategies', label: 'Strategies' },
-  { id: 'performance', label: 'Performance' },
+  { id: 'research', label: 'Research' },
   { id: 'lab', label: 'Lab' },
   { id: 'docs', label: 'Docs' },
 ];

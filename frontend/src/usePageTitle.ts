@@ -14,7 +14,7 @@ const PAGE_TITLES: Record<string, string> = {
   learn: `Learn — ${SITE}`,
   portfolio: `Portfolio — ${SITE}`,
   strategies: `Strategies — ${SITE}`,
-  performance: `Performance — ${SITE}`,
+  research: `Research — ${SITE}`,
   lab: `Lab — ${SITE}`,
   docs: `Docs — ${SITE}`,
   settings: `Settings — ${SITE}`,

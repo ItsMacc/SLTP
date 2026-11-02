@@ -931,7 +931,7 @@ function CandlesSection() {
       <p>
         Before the math can mean anything, you need to be able to read the raw material
         every strategy works with: the price chart. And the most common kind of price chart
-        is the candlestick chart, the same style used on the Performance page.
+        is the candlestick chart, the same style used on the Research page.
       </p>
       <p>
         A <GlossaryText text="candlestick chart" glossary={LEARN_GLOSSARY} /> shows each
@@ -1703,11 +1703,11 @@ export default function LearnPage({ onNavigate }: LearnPageProps) {
               <button
                 type="button"
                 className="learn-nextcard"
-                onClick={() => onNavigate?.('performance')}
+                onClick={() => onNavigate?.('research')}
               >
                 <span className="learn-nextcard-icon"><TrendingUp size={17} /></span>
                 <span className="learn-nextcard-body">
-                  <strong>Performance</strong>
+                  <strong>Research</strong>
                   <small>Watch real strategies replay decades of market history, stock by stock.</small>
                 </span>
                 <ArrowRight size={16} />
