@@ -27,6 +27,19 @@ interface TradeResultsProps {
 
 const PAGE_SIZE = 6
 
+/* Prices are on today's share basis, so an old fill in a fund that reverse-split can run
+   into the millions. Past five digits a short suffix keeps the column readable; below
+   that, two decimals are what a quote needs. Same rule as the Research page. */
+const priceText = (value: number) => {
+  if (!Number.isFinite(value)) return '-'
+  const abs = Math.abs(value)
+  if (abs >= 1_000_000_000_000) return `${(value / 1_000_000_000_000).toFixed(1)}T`
+  if (abs >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}B`
+  if (abs >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`
+  if (abs >= 10_000) return `${(value / 1_000).toFixed(1)}K`
+  return value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
 export default function TradeResults({ trades }: TradeResultsProps) {
   const [currentPage, setCurrentPage] = useState(1)
 
@@ -134,10 +147,10 @@ export default function TradeResults({ trades }: TradeResultsProps) {
                 trade.allocation_size !== null && trade.allocation_size !== undefined
                   ? `${(Number(trade.allocation_size) * 100).toFixed(2)}%`
                   : '-'
-              const entryPriceVal = trade.entry_price !== undefined ? `$${Number(trade.entry_price).toFixed(2)}` : '-'
+              const entryPriceVal = trade.entry_price !== undefined ? `$${priceText(Number(trade.entry_price))}` : '-'
               const exitPriceVal =
                 trade.exit_price !== null && trade.exit_price !== undefined
-                  ? `$${Number(trade.exit_price).toFixed(2)}`
+                  ? `$${priceText(Number(trade.exit_price))}`
                   : '-'
 
               return (
@@ -159,13 +172,13 @@ export default function TradeResults({ trades }: TradeResultsProps) {
 
       {/* The fee is paid out of the same cash as the fill, so a fill for the whole
           book lands just under 100% of equity. Say so where the number is read.
-          Prices arrive as traded, while the chart is drawn on today's split basis,
-          so the two can disagree by a factor after a split. */}
+          Prices are the engine's own series, which is restated onto today's share
+          basis, so they agree with the chart at the same date. */}
       <p className="trade-table-note">
         Allocated size is the share of equity the fill took. The 0.1% entry fee is paid
-        from the same cash, so an order for the whole book fills at 99.9%. Prices are as
-        traded on the day, not restated for later splits, so a fund that split after this
-        fill reads lower here than in the chart.
+        from the same cash, so an order for the whole book fills at 99.9%. Prices are on
+        today's share basis, the same series the chart draws, so a fund that reverse-split
+        reads as a large number in its early years.
       </p>
 
       <div className="trade-pagination">

@@ -22,7 +22,7 @@ from app.engine.utils.PositionType import PositionType
 from app.strategies import REGISTRY
 
 # Database imports
-from app.database.market.market_data_service import as_traded_price, get_stock_history, get_all_tickers as fetch_all_tickers, get_tradable_ticker_directory, get_stock_name
+from app.database.market.market_data_service import get_stock_history, get_all_tickers as fetch_all_tickers, get_tradable_ticker_directory, get_stock_name
 from app.database.users.provision import router as provision_router
 from app.database.users.account_delete import router as account_delete_router
 from app.database.users.api_keys import router as api_keys_router
@@ -126,16 +126,17 @@ def run_backtest(
                 EventType.END_OF_BACKTEST: "EXIT",
             }.get(exit_event.type, "EXIT") if exit_event is not None else None
 
-            # The engine works on one series for the whole run, so its prices are on today's
-            # split basis and a pre-split fill reads like a different instrument. Trade prices
-            # go out on the basis they traded on. Returns are ratios of two prices from the
-            # same series, so nothing above this line changes.
-            entry_price: float = as_traded_price(trade.ticker, trade.entry_price, trade.entry_date)
-            stop_loss: float = as_traded_price(trade.ticker, trade.stop_loss, trade.entry_date) if trade.stop_loss else 0.0
-            take_profit: float = as_traded_price(trade.ticker, trade.take_profit, trade.entry_date) if trade.take_profit else 0.0
+            # Trade prices go out exactly as the engine filled them: one continuous series on
+            # today's split basis, the same series the chart draws for that date. A fund that
+            # reverse-split reads as a large number in its early years, which is what a
+            # charting site shows for those bars too. Returns are ratios of two prices from
+            # that series, so nothing above this line changes.
+            entry_price: float = float(trade.entry_price)
+            stop_loss: float = float(trade.stop_loss) if trade.stop_loss else 0.0
+            take_profit: float = float(trade.take_profit) if trade.take_profit else 0.0
             exit_price: float | None = None
             if exit_event is not None:
-                exit_price = as_traded_price(trade.ticker, exit_event.price, exit_event.date)
+                exit_price = float(exit_event.price)
 
             trades.append({
                 "id": trade.id,

@@ -132,33 +132,6 @@ def get_splits(ticker: str, start: str | None = None, end: str | None = None) ->
     return _events_in_range(entry[0], entry[1], start, end)
 
 
-# Multiplier per bar that puts stored prices back on the basis they traded on: the product
-# of every split ratio dated after that bar. A stock that never split comes back as ones.
-def as_traded_factors(ticker: str, codes: np.ndarray) -> np.ndarray:
-    split_codes, ratios = get_splits(ticker)
-    if split_codes.size == 0:
-        return np.ones(codes.shape, dtype=np.float64)
-
-    order: np.ndarray = np.argsort(split_codes, kind="stable")
-    split_codes = split_codes[order]
-    # suffix[i] is the product of every split from i to the end, so one lookup per bar.
-    suffix: np.ndarray = np.cumprod(ratios[order].astype(np.float64)[::-1])[::-1]
-
-    first_after: np.ndarray = np.searchsorted(split_codes, codes, side="right")
-    factors: np.ndarray = np.ones(codes.shape, dtype=np.float64)
-    inside: np.ndarray = first_after < split_codes.size
-    factors[inside] = suffix[first_after[inside]]
-    return factors
-
-
-# A price from the stored series, which is on today's share basis, put back onto the basis
-# it traded on. A fund with seven reverse splits comes back from five figures to a
-# two-digit quote, which is what the tape actually printed.
-def as_traded_price(ticker: str, price: float, date: str) -> float:
-    factor: float = float(as_traded_factors(ticker, np.array([to_code(date)], dtype=np.int32))[0])
-    return round(float(price) * factor, 2)
-
-
 # Drop every cached value so the next read reloads from disk.
 def refresh_market_data_cache() -> None:
     global _HISTORY_SIGNATURE, _SYMBOL_CACHE_SIGNATURE, _SESSIONS
