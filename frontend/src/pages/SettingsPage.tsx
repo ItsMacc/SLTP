@@ -13,7 +13,15 @@ import SuccessToast from '../ui/SuccessToast';
 import ConfirmDeleteDialog from '../ui/ConfirmDeleteDialog';
 import { Check, Copy } from 'lucide-react';
 import { listApiKeys, createApiKey, revokeApiKey, type ApiKeySummary } from '../../lib/api';
-import { applyTheme, applyAndStoreUserSettings, type UserSettings } from '../../lib/settings';
+import {
+  applyTheme,
+  applyAndStoreUserSettings,
+  isHeavyChartLimit,
+  readChartMaxBars,
+  DEFAULT_CHART_MAX_BARS,
+  type ChartMaxBars,
+  type UserSettings,
+} from '../../lib/settings';
 import './SettingsPage.css';
 
 const EDITOR_FONT_SIZE_OPTIONS = Array.from({ length: 11 }, (_, i) => {
@@ -58,6 +66,7 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
   const [defaultTimeframe, setDefaultTimeframe] = useState('1y');
   const [chartStyle, setChartStyle] = useState('candles');
   const [defaultZoom, setDefaultZoom] = useState(90);
+  const [chartMaxBars, setChartMaxBars] = useState<ChartMaxBars>(DEFAULT_CHART_MAX_BARS);
 
   // Notifications & Alerts State
   const [tradeSignals, setTradeSignals] = useState(true);
@@ -120,6 +129,7 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
           if (currentSettings.defaultTimeframe) setDefaultTimeframe(currentSettings.defaultTimeframe);
           if (currentSettings.chartStyle) setChartStyle(currentSettings.chartStyle);
           if (currentSettings.defaultZoom) setDefaultZoom(currentSettings.defaultZoom);
+          setChartMaxBars(readChartMaxBars(currentSettings));
 
           if (currentSettings.tradeSignals !== undefined) setTradeSignals(currentSettings.tradeSignals);
           if (currentSettings.securityWarnings !== undefined) setSecurityWarnings(currentSettings.securityWarnings);
@@ -294,6 +304,7 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
         defaultTimeframe,
         chartStyle,
         defaultZoom,
+        chartMaxBars,
         tradeSignals,
         securityWarnings,
         dailySummary,
@@ -526,6 +537,29 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
                     ]}
                   />
                   <span className="st-settings-hint">How many trading days the chart shows when it first loads. You can always zoom in and out.</span>
+                </div>
+
+                <div className="st-settings-field">
+                  <label className="st-settings-label">Chart history limit</label>
+                  <RadioGroup
+                    name="chartMaxBars"
+                    value={chartMaxBars}
+                    onChange={(val) => setChartMaxBars(readChartMaxBars({ chartMaxBars: String(val) }))}
+                    options={[
+                      { label: '1,000 bars', value: '1000' },
+                      { label: '1,500 bars', value: '1500' },
+                      { label: '2,000 bars', value: '2000' },
+                      { label: 'All', value: 'all' },
+                    ]}
+                  />
+                  <span className="st-settings-hint">
+                    The most candles the price chart draws at once. Older history is still there; pan right to reach it.
+                  </span>
+                  {isHeavyChartLimit(chartMaxBars) && (
+                    <span className="st-settings-hint is-caution" role="status">
+                      Loading this many bars can make the page lag a little.
+                    </span>
+                  )}
                 </div>
               </div>
             )}

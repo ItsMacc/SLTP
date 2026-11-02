@@ -157,6 +157,17 @@ export default function TradeResults({ trades }: TradeResultsProps) {
         </table>
       </div>
 
+      {/* The fee is paid out of the same cash as the fill, so a fill for the whole
+          book lands just under 100% of equity. Say so where the number is read.
+          Prices arrive as traded, while the chart is drawn on today's split basis,
+          so the two can disagree by a factor after a split. */}
+      <p className="trade-table-note">
+        Allocated size is the share of equity the fill took. The 0.1% entry fee is paid
+        from the same cash, so an order for the whole book fills at 99.9%. Prices are as
+        traded on the day, not restated for later splits, so a fund that split after this
+        fill reads lower here than in the chart.
+      </p>
+
       <div className="trade-pagination">
         <Button variant="secondary" size="sm" onClick={handlePrev} disabled={currentPage === 1} aria-label="Previous page">
           &lt;

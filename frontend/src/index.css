@@ -43,6 +43,8 @@
 
   --success: #059669;
   --error: #dc2626;
+  /* A choice that is allowed but costs something, like a heavier chart. */
+  --warning: #a16207;
 
   /* RGB triples for the three semantic colours. Needed wherever an
      alpha other than the token's own is required — e.g. a 0.25
@@ -177,6 +179,7 @@
 
   --success: #059669;
   --error: #dc2626;
+  --warning: #fbbf24;
 
   --accent-rgb: 217, 119, 6;
 

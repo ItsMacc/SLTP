@@ -23,6 +23,9 @@ DEFAULT_SETTINGS: dict[str, object] = {
     "tradeSignals": True,
     "riskTolerance": "Medium",
     "defaultTimeframe": "1y",
+    # Bars the price chart may draw at once; "all" removes the ceiling. Kept as a
+    # string so the row reads the same however it was written.
+    "chartMaxBars": "1500",
     "securityWarnings": True,
     "autoTrackSignals": False,
     "editorFontSize": 14,

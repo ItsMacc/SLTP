@@ -17,6 +17,41 @@ export type ResearchTimeframe = '1y' | '2y' | '5y' | 'all'
 /** The preferences object stored on the user row. Free-form by design. */
 export type UserSettings = { theme?: string; [key: string]: any }
 
+/**
+ * How many bars the price chart may draw at once, or 'all' for no ceiling.
+ *
+ * Stored as a string so the row reads the same whether the setting arrived from
+ * the defaults blob, an older account that predates it, or the radio control.
+ */
+export type ChartMaxBars = '1000' | '1500' | '2000' | 'all'
+
+/** Past this the chart spends more time drawing candles than the pointer does moving. */
+export const CHART_MAX_BARS_WARNING_ABOVE = 1500
+
+/** New accounts, and any account whose row has no usable value yet. */
+export const DEFAULT_CHART_MAX_BARS: ChartMaxBars = '1500'
+
+const CHART_MAX_BARS_VALUES: ChartMaxBars[] = ['1000', '1500', '2000', 'all']
+
+/** Read the stored setting, tolerating a number, a missing key or junk. */
+export function readChartMaxBars(settings?: UserSettings | null): ChartMaxBars {
+  const raw = settings?.chartMaxBars
+  const text = typeof raw === 'number' ? String(raw) : typeof raw === 'string' ? raw.trim().toLowerCase() : ''
+  return (CHART_MAX_BARS_VALUES as string[]).includes(text)
+    ? (text as ChartMaxBars)
+    : DEFAULT_CHART_MAX_BARS
+}
+
+/** True when the choice is heavy enough to warn about before it is saved. */
+export function isHeavyChartLimit(limit: ChartMaxBars): boolean {
+  return limit === 'all' || Number(limit) > CHART_MAX_BARS_WARNING_ABOVE
+}
+
+/** The limit as a number the chart can clamp against; 'all' means no ceiling. */
+export function chartMaxBarsToNumber(limit: ChartMaxBars): number {
+  return limit === 'all' ? Number.POSITIVE_INFINITY : Number(limit)
+}
+
 // Preferences are cached per account so a reload paints the user's choices
 // before Supabase answers, and a failed profile fetch falls back to the last
 // known settings instead of the defaults.

@@ -17,6 +17,11 @@ interface ChartProps {
   ticker: string
   chartStyle?: 'candles' | 'line'
   defaultZoom?: number
+  /** Open with the whole series on screen instead of the last DEFAULT_VISIBLE bars.
+   *  The page uses it for an all-history range, so the range label is truthful. */
+  showAll?: boolean
+  /** Most bars that may be visible at once; Infinity removes the ceiling. */
+  maxVisible?: number
   /** Render the ticker/price line inside the toolbar. Pages that show the
    *  quote themselves in a larger header pass false and keep the actions. */
   showQuote?: boolean
@@ -27,13 +32,25 @@ const PADDING_TOP = 16
 const PADDING_BOTTOM = 24
 const VOLUME_RATIO = 0.18
 const MIN_VISIBLE = 15
+// Ceiling on how many candles can be on screen at once. Past this, the chart stops
+// keeping up with the pointer, so older bars are reached by panning rather than by
+// zooming the whole history out. The reader can raise it in Settings.
+const DEFAULT_MAX_VISIBLE = 1500
 const ZOOM_OPTIONS = [30, 60, 90] as const
 const DEFAULT_VISIBLE = 90
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
 
-const priceLabel = (value: number) =>
-  value >= 1000 ? value.toFixed(0) : value >= 10 ? value.toFixed(1) : value.toFixed(2)
+// A restated price runs into the millions on a fund that reverse-split repeatedly, which
+// an axis tick has no room for. Past five digits the label switches to a short suffix.
+const priceLabel = (value: number) => {
+  const abs = Math.abs(value)
+  if (abs >= 1_000_000_000_000) return `${(value / 1_000_000_000_000).toFixed(1)}T`
+  if (abs >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}B`
+  if (abs >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`
+  if (abs >= 10_000) return `${(value / 1_000).toFixed(1)}K`
+  return abs >= 1000 ? value.toFixed(0) : abs >= 10 ? value.toFixed(1) : value.toFixed(2)
+}
 
 const dateLabel = (iso: string) => {
   if (!iso) return ''
@@ -54,7 +71,17 @@ const volumeLabel = (value: number) => {
  * crosshair tooltip. All the interaction state lives here so the page
  * itself only ever has to pass in a ticker and a list of bars.
  */
-export default function Chart({ bars, ticker, chartStyle = 'candles', defaultZoom, showQuote = true }: ChartProps) {
+export default function Chart({
+  bars,
+  ticker,
+  chartStyle = 'candles',
+  defaultZoom,
+  showAll = false,
+  maxVisible = DEFAULT_MAX_VISIBLE,
+  showQuote = true,
+}: ChartProps) {
+  // One number for every clamp below, whatever the setting resolves to.
+  const ceiling = Math.max(MIN_VISIBLE, Math.min(bars.length || MIN_VISIBLE, maxVisible))
   const containerRef = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(360)
   const [height, setHeight] = useState(420)
@@ -74,9 +101,11 @@ export default function Chart({ bars, ticker, chartStyle = 'candles', defaultZoo
 
   useEffect(() => {
     if (bars.length === 0) return
-    setVisibleState(clamp(preferred.current, MIN_VISIBLE, Math.max(MIN_VISIBLE, bars.length)))
+    const wanted = showAll ? ceiling : clamp(preferred.current, MIN_VISIBLE, ceiling)
+    preferred.current = wanted
+    setVisibleState(wanted)
     setEnd(bars.length)
-  }, [bars])
+  }, [bars, showAll, ceiling])
 
   useLayoutEffect(() => {
     const element = containerRef.current
@@ -115,7 +144,10 @@ export default function Chart({ bars, ticker, chartStyle = 'candles', defaultZoo
       vol = Math.max(vol, bar.volume)
     }
     const pad = (hi - lo) * 0.06 || 1
-    return { min: lo - pad, max: hi + pad, maxVolume: vol || 1 }
+    // A price cannot go below zero, so a penny stock's padding stops at the floor
+    // instead of drawing a negative tick under the axis.
+    const floor = lo >= 0 ? Math.max(0, lo - pad) : lo - pad
+    return { min: floor, max: hi + pad, maxVolume: vol || 1 }
   }, [windowData])
 
   const yPrice = useCallback(
@@ -123,7 +155,10 @@ export default function Chart({ bars, ticker, chartStyle = 'candles', defaultZoo
     [max, min, priceHeight]
   )
   const volumeTop = PADDING_TOP + priceHeight + 10
-  const yVolume = (value: number) => volumeTop + volumeHeight - (value / maxVolume) * volumeHeight
+  const yVolume = useCallback(
+    (value: number) => volumeTop + volumeHeight - (value / maxVolume) * volumeHeight,
+    [volumeTop, volumeHeight, maxVolume]
+  )
 
   const gridLines = useMemo(() => {
     const steps = 4
@@ -141,8 +176,57 @@ export default function Chart({ bars, ticker, chartStyle = 'candles', defaultZoo
     return ticks
   }, [windowData, plotWidth, width])
 
-  const stateRef = useRef({ count, safeEnd, total: bars.length, slot })
-  stateRef.current = { count, safeEnd, total: bars.length, slot }
+  // Built once per view, not once per hover: a full window is thousands of SVG nodes,
+  // and rebuilding them on every pointer move is what made the crosshair stutter.
+  const priceSeries = useMemo(() => {
+    if (chartStyle === 'line') {
+      const points = windowData
+        .map((bar, index) => `${(index * slot + slot / 2).toFixed(1)},${yPrice(bar.close).toFixed(1)}`)
+        .join(' ')
+      return (
+        <g>
+          <polyline points={points} className="chart-line" fill="none" />
+          {/* Volume bars carry the same up/down class as candles, so the line style
+              still reads green/red instead of falling back to the SVG default fill. */}
+          {windowData.map((bar, index) => (
+            <g key={bar.date || index} className={bar.close >= bar.open ? 'candle-up' : 'candle-down'}>
+              <rect
+                x={index * slot + slot / 2 - candleWidth / 2}
+                y={yVolume(bar.volume)}
+                width={candleWidth}
+                height={Math.max(1, volumeTop + volumeHeight - yVolume(bar.volume))}
+                className="candle-volume"
+              />
+            </g>
+          ))}
+        </g>
+      )
+    }
+
+    return windowData.map((bar, index) => {
+      const cx = index * slot + slot / 2
+      const up = bar.close >= bar.open
+      const top = yPrice(Math.max(bar.open, bar.close))
+      const bottom = yPrice(Math.min(bar.open, bar.close))
+
+      return (
+        <g key={bar.date || index} className={up ? 'candle-up' : 'candle-down'}>
+          <line x1={cx} x2={cx} y1={yPrice(bar.high)} y2={yPrice(bar.low)} className="candle-wick" />
+          <rect x={cx - candleWidth / 2} y={top} width={candleWidth} height={Math.max(1, bottom - top)} className="candle-body" />
+          <rect
+            x={cx - candleWidth / 2}
+            y={yVolume(bar.volume)}
+            width={candleWidth}
+            height={Math.max(1, volumeTop + volumeHeight - yVolume(bar.volume))}
+            className="candle-volume"
+          />
+        </g>
+      )
+    })
+  }, [chartStyle, windowData, slot, candleWidth, yPrice, yVolume, volumeTop, volumeHeight])
+
+  const stateRef = useRef({ count, safeEnd, total: bars.length, slot, ceiling })
+  stateRef.current = { count, safeEnd, total: bars.length, slot, ceiling }
 
   useEffect(() => {
     const element = containerRef.current
@@ -154,7 +238,7 @@ export default function Chart({ bars, ticker, chartStyle = 'candles', defaultZoo
       const dx = event.deltaX * factor
       const dy = event.deltaY * factor
       if (event.ctrlKey || Math.abs(dx) < Math.abs(dy)) {
-        const next = clamp(Math.round(s.count * Math.exp(dy * 0.0018)), MIN_VISIBLE, Math.max(MIN_VISIBLE, s.total))
+        const next = clamp(Math.round(s.count * Math.exp(dy * 0.0018)), MIN_VISIBLE, s.ceiling)
         setVisible(next)
         setEnd((e) => clamp(e, next, s.total))
       } else {
@@ -230,8 +314,7 @@ export default function Chart({ bars, ticker, chartStyle = 'candles', defaultZoo
             <button
               type="button"
               aria-label="Zoom out"
-              className="chart-zoom-btn"
-              onClick={() => setVisible((v) => clamp(Math.round(v * 1.3), MIN_VISIBLE, Math.max(MIN_VISIBLE, bars.length)))}
+              className="chart-zoom-btn"                onClick={() => setVisible((v) => clamp(Math.round(v * 1.3), MIN_VISIBLE, ceiling))}
             >
               −
             </button>
@@ -273,53 +356,18 @@ export default function Chart({ bars, ticker, chartStyle = 'candles', defaultZoo
             </g>
           ))}
 
-          {chartStyle === 'line' ? (() => {
-            const points = windowData.map((bar, index) => `${(index * slot + slot / 2).toFixed(1)},${yPrice(bar.close).toFixed(1)}`).join(' ')
-            return (
-              <g>
-                <polyline points={points} className="chart-line" fill="none" />
-                {/* Volume bars carry the same up/down class as candles, so the
-                    line style still reads green/red instead of falling back to
-                    the SVG default fill. */}
-                {windowData.map((bar, index) => (
-                  <g
-                    key={bar.date || index}
-                    className={bar.close >= bar.open ? 'candle-up' : 'candle-down'}
-                  >
-                    <rect
-                      x={index * slot + slot / 2 - candleWidth / 2}
-                      y={yVolume(bar.volume)}
-                      width={candleWidth}
-                      height={Math.max(1, volumeTop + volumeHeight - yVolume(bar.volume))}
-                      className="candle-volume"
-                    />
-                  </g>
-                ))}
-              </g>
-            )
-          })() : windowData.map((bar, index) => {
-            const cx = index * slot + slot / 2
-            const up = bar.close >= bar.open
-            const top = yPrice(Math.max(bar.open, bar.close))
-            const bottom = yPrice(Math.min(bar.open, bar.close))
-
-            return (
-              <g key={bar.date || index} className={up ? 'candle-up' : 'candle-down'}>
-                <line x1={cx} x2={cx} y1={yPrice(bar.high)} y2={yPrice(bar.low)} className="candle-wick" />
-                <rect x={cx - candleWidth / 2} y={top} width={candleWidth} height={Math.max(1, bottom - top)} className="candle-body" />
-                <rect
-                  x={cx - candleWidth / 2}
-                  y={yVolume(bar.volume)}
-                  width={candleWidth}
-                  height={Math.max(1, volumeTop + volumeHeight - yVolume(bar.volume))}
-                  className="candle-volume"
-                />
-              </g>
-            )
-          })}
+          {priceSeries}
 
           {dateTicks.map((tick) => (
-            <text key={tick.index} x={tick.index * slot + slot / 2} y={height - 6} textAnchor="middle" className="chart-axis-label">
+            // The first and last ticks sit half off the plot, so their labels are held
+            // inside the frame instead of being cut in half at the edge.
+            <text
+              key={tick.index}
+              x={clamp(tick.index * slot + slot / 2, 24, plotWidth - 24)}
+              y={height - 6}
+              textAnchor="middle"
+              className="chart-axis-label"
+            >
               {tick.label}
             </text>
           ))}

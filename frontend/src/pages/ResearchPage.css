@@ -637,6 +637,12 @@
   min-width: 0;
 }
 
+/* A guide with no figure rail: one reading column, pinned to the left edge. */
+.research-guide.is-text-only {
+  grid-template-columns: minmax(0, 42.5rem);
+  justify-content: start;
+}
+
 .research-guide-head {
   grid-column: 1;
   grid-row: 1;
@@ -812,12 +818,6 @@
 .research-guide-def-text {
   font-size: var(--text-sm);
   line-height: 1.65;
-  color: var(--text-muted);
-}
-
-.research-note {
-  margin: 2rem 0 0;
-  font-size: 0.8125rem; /* 13px */
   color: var(--text-muted);
 }
 

@@ -10,9 +10,8 @@
   margin-top: var(--space-xl);
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
+  border-radius: 0.625rem; /* 10px, like every other panel on the page */
   padding: var(--space-lg);
-  box-shadow: var(--shadow-md);
   overflow: hidden;
   width: 100%;
   box-sizing: border-box;
@@ -60,6 +59,13 @@
 
 .trade-table tr:last-child td {
   border-bottom: none;
+}
+
+.trade-table-note {
+  margin: var(--space-md) 0 0;
+  font-size: var(--text-xs);
+  line-height: 1.6;
+  color: var(--text-muted);
 }
 
 .trade-ticker-cell {

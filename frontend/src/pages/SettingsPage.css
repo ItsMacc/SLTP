@@ -145,6 +145,12 @@
   margin-bottom: var(--space-md);
 }
 
+/* A choice the reader is allowed to make, with a cost worth naming. Amber, where
+   the plain hint above it stays muted. */
+.st-settings-hint.is-caution {
+  color: var(--warning);
+}
+
 .btn.st-settings-btn-danger {
   border-color: var(--error);
   color: var(--error);

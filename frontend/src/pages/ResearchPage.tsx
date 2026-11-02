@@ -16,7 +16,7 @@ import { LoaderRow } from '../ui/Loader'
 import { GlossaryText } from '../components/GlossaryText'
 import { STRATEGY_GLOSSARY } from '../../lib/glossary'
 import './ResearchPage.css'
-import type { ResearchTimeframe } from '../../lib/settings'
+import { chartMaxBarsToNumber, readChartMaxBars, type ResearchTimeframe } from '../../lib/settings'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 const TIMEFRAMES: ResearchTimeframe[] = ['1y', '2y', '5y', 'all']
@@ -59,15 +59,17 @@ interface ResearchPageProps {
   initialSettings?: { defaultTimeframe?: string; [key: string]: any }
 }
 
-// Hard ceiling on the bars handed to the chart. A long history is trimmed to
-// its most recent stretch and reached by scrolling, which keeps the series
-// bounded however far back a ticker goes. Deliberately not a user setting, and
-// not surfaced anywhere in the UI — the stats below still read every bar, so
-// the strip covers the whole timeframe the reader picked.
-const CHART_MAX_BARS = 1000
-
-const priceText = (value: number) =>
-  value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+// Prices sit on today's share basis, so an old bar in a fund that reverse-split reads as
+// a six-figure number. Past five digits a short suffix keeps the table and the strip from
+// overflowing; below that, two decimals are what a quote needs.
+const priceText = (value: number) => {
+  const abs = Math.abs(value)
+  if (abs >= 1_000_000_000_000) return `${(value / 1_000_000_000_000).toFixed(1)}T`
+  if (abs >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}B`
+  if (abs >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`
+  if (abs >= 10_000) return `${(value / 1_000).toFixed(1)}K`
+  return value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
 
 const signedText = (value: number, digits = 2) => `${value >= 0 ? '+' : ''}${value.toFixed(digits)}`
 
@@ -453,17 +455,19 @@ export default function ResearchPage({ initialSettings }: ResearchPageProps) {
   const bars = stockData?.data ?? NO_BARS
   const lastBar = bars.length > 0 ? bars[bars.length - 1] : null
   const firstBar = bars.length > 0 ? bars[0] : null
-  const rangeChange = firstBar && lastBar ? lastBar.close - firstBar.close : 0
+  // The percentage only. The dollar difference between the first and last bar is
+  // not a real gain or loss for a fund that split inside the range: every price
+  // before the split has been restated, so the two ends are not comparable dollars.
   const rangePct =
-    firstBar && lastBar && firstBar.close !== 0 ? (rangeChange / firstBar.close) * 100 : 0
+    firstBar && lastBar && firstBar.close !== 0
+      ? ((lastBar.close - firstBar.close) / firstBar.close) * 100
+      : 0
   const stats = useMemo(() => computeStats(bars), [bars])
 
-  // Memoised on purpose: Chart resets its zoom and scroll position whenever the
-  // bars array changes identity, so slicing inline would break panning.
-  const chartBars = useMemo(
-    () => (bars.length > CHART_MAX_BARS ? bars.slice(-CHART_MAX_BARS) : bars),
-    [bars]
-  )
+  // The chart gets every bar in the timeframe. It keeps its own zoom and pan state,
+  // and the identity here only changes when a new response lands, which is what tells
+  // it to snap back to the newest bar.
+  const chartBars = bars
 
   const searching = query.trim().length > 0
   const quoteName =
@@ -637,7 +641,7 @@ export default function ResearchPage({ initialSettings }: ResearchPageProps) {
                     <p className="quote-price-row">
                       <span className="quote-price">${priceText(lastBar.close)}</span>
                       <span className={`quote-change ${rangePct >= 0 ? 'is-up' : 'is-down'}`}>
-                        {signedText(rangeChange)} ({signedText(rangePct)}%)
+                        {signedText(rangePct)}%
                       </span>
                       <span className="quote-span">over {TIMEFRAME_LABEL[timeframe]}</span>
                     </p>
@@ -673,6 +677,8 @@ export default function ResearchPage({ initialSettings }: ResearchPageProps) {
                   bars={chartBars}
                   ticker={stockData?.ticker ?? selectedTicker ?? ''}
                   chartStyle={chartStyle}
+                  showAll={timeframe === 'all'}
+                  maxVisible={chartMaxBarsToNumber(readChartMaxBars(initialSettings))}
                   defaultZoom={
                     typeof initialSettings?.defaultZoom === 'number'
                       ? initialSettings.defaultZoom
@@ -745,10 +751,6 @@ export default function ResearchPage({ initialSettings }: ResearchPageProps) {
       </div>
 
       {mode === 'stocks' && <CandlestickGuide />}
-
-      <p className="research-note">
-        Charts and backtests are hypothetical and do not predict future returns.
-      </p>
     </div>
   )
 }

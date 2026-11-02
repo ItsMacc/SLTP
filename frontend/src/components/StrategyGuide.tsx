@@ -3,59 +3,6 @@
 import { GlossaryText } from './GlossaryText'
 import { STRATEGY_GLOSSARY } from '../../lib/glossary'
 
-/** A strategy curve against the benchmark, with the drawdown marked. */
-function EquityDiagram() {
-  return (
-    <svg
-      viewBox="0 0 320 176"
-      role="img"
-      aria-label="A strategy curve above a benchmark curve, with the fall from a peak to a later low marked as the drawdown"
-    >
-      {/* The drawdown: peak, later low, and the band between them. */}
-      <rect x={135} y={64} width={25} height={36} fill="var(--accent-muted)" />
-      <line x1={135} x2={160} y1={64} y2={64} stroke="var(--accent)" strokeDasharray="3 3" />
-      <line x1={160} x2={160} y1={64} y2={100} stroke="var(--accent)" strokeDasharray="3 3" />
-      <text x={134} y={56} textAnchor="middle" fontSize={10} fill="var(--text-muted)" fontFamily="var(--font-sans)">
-        peak
-      </text>
-      <text x={166} y={104} fontSize={10} fill="var(--text-muted)" fontFamily="var(--font-sans)">
-        later low
-      </text>
-
-      {/* SPY: the market the strategy is measured against. */}
-      <polyline
-        points="10,130 70,122 130,112 190,104 250,98 300,94"
-        fill="none"
-        stroke="var(--border-strong)"
-        strokeWidth={2}
-        strokeLinejoin="round"
-        strokeLinecap="round"
-      />
-
-      {/* The strategy. */}
-      <polyline
-        points="10,128 55,116 95,96 135,64 160,100 200,82 250,56 300,34"
-        fill="none"
-        stroke="var(--accent)"
-        strokeWidth={2}
-        strokeLinejoin="round"
-        strokeLinecap="round"
-      />
-
-      <line x1={10} x2={300} y1={140} y2={140} stroke="var(--border-subtle)" />
-
-      <line x1={10} x2={26} y1={162} y2={162} stroke="var(--accent)" strokeWidth={2} />
-      <text x={32} y={166} fontSize={11} fill="var(--text-muted)" fontFamily="var(--font-sans)">
-        Strategy
-      </text>
-      <line x1={98} x2={114} y1={162} y2={162} stroke="var(--border-strong)" strokeWidth={2} />
-      <text x={120} y={166} fontSize={11} fill="var(--text-muted)" fontFamily="var(--font-sans)">
-        SPY
-      </text>
-    </svg>
-  )
-}
-
 /** One metric: the name the panel shows, and what it tells you. */
 function Metric({ name, children }: { name: string; children: React.ReactNode }) {
   return (
@@ -68,7 +15,7 @@ function Metric({ name, children }: { name: string; children: React.ReactNode })
 
 export default function StrategyGuide() {
   return (
-    <section className="guide research-guide" aria-labelledby="results-guide-title">
+    <section className="guide research-guide is-text-only" aria-labelledby="results-guide-title">
       <div className="research-guide-head">
         <h2 id="results-guide-title" className="research-guide-title">
           How to read the results
@@ -79,17 +26,6 @@ export default function StrategyGuide() {
           date and run it.
         </p>
       </div>
-
-      <aside className="research-guide-aside" aria-label="Equity curve diagram">
-        <figure className="research-guide-figure">
-          <EquityDiagram />
-          <figcaption>
-            <strong>Two curves, one date range.</strong> The accent line is the strategy, the
-            grey one is SPY over the same sessions. The band marks the fall from a peak to a
-            later low, which is the drawdown.
-          </figcaption>
-        </figure>
-      </aside>
 
       <div className="research-guide-body">
         <h3 className="research-guide-subhead">What the chart shows</h3>

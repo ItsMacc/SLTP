@@ -410,12 +410,20 @@
   color: var(--error);
 }
 
-/* ---------- Wide: the list matches the height of the results ---------- */
+/* ---------- Wide: the list is a rail that stays in view ----------
+   It is as tall as its rows and no taller, so a long run never leaves an
+   empty bordered box beside the chart. Past the viewport it scrolls itself. */
 
 @media (min-width: 64rem) {
+  .strategy-library {
+    position: sticky;
+    top: 5rem;
+    align-self: start;
+    max-height: calc(100vh - 6.5rem);
+  }
+
   .strategy-library-scroll {
     max-height: none;
-    contain: size;
   }
 }
 

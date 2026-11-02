@@ -13,6 +13,9 @@ interface DatePickerProps {
   placeholder?: string
 }
 
+// days: day grid, months: twelve months of one year, years: one page of years.
+type CalendarView = 'days' | 'months' | 'years'
+
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'
@@ -20,8 +23,21 @@ const MONTH_NAMES = [
 
 const DAYS_OF_WEEK = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
 
+// The price history starts in 1998, so a date before it is reported as its first day.
+const MIN_DATE = '1998-01-01'
+const MIN_YEAR = 1998
+const YEARS_PER_PAGE = 12
+
 const DROPDOWN_WIDTH = 300
-const DROPDOWN_EST_HEIGHT = 320
+const DROPDOWN_EST_HEIGHT = 340
+
+const pad2 = (n: number) => String(n).padStart(2, '0')
+
+const toDateString = (year: number, month: number, day: number) =>
+  `${year}-${pad2(month + 1)}-${pad2(day)}`
+
+// Zero-padded ISO strings compare correctly as text, so the floor is one line.
+const clampToMin = (dateStr: string) => (dateStr < MIN_DATE ? MIN_DATE : dateStr)
 
 export default function DatePicker({
   id,
@@ -32,6 +48,8 @@ export default function DatePicker({
   placeholder = 'YYYY-MM-DD',
 }: DatePickerProps) {
   const [isOpen, setIsOpen] = useState(false)
+  const [view, setView] = useState<CalendarView>('days')
+  const [yearPage, setYearPage] = useState<number>(0)
   const [inputValue, setInputValue] = useState(value || '')
   const containerRef = useRef<HTMLDivElement>(null)
   const inputContainerRef = useRef<HTMLDivElement>(null)
@@ -96,12 +114,25 @@ export default function DatePicker({
     }
   }, [isOpen])
 
+  // Always reopen on the day grid, on the page that holds the year in view.
+  const toggleCalendar = () => {
+    setIsOpen((prev) => {
+      if (!prev) {
+        setView('days')
+        setYearPage(Math.floor((currentYear - MIN_YEAR) / YEARS_PER_PAGE))
+      }
+      return !prev
+    })
+  }
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value
     setInputValue(val)
     if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
-      onChange(val)
-      const d = new Date(val + 'T00:00:00')
+      const clamped = clampToMin(val)
+      setInputValue(clamped)
+      onChange(clamped)
+      const d = new Date(clamped + 'T00:00:00')
       if (!isNaN(d.getTime())) {
         setCurrentMonth(d.getMonth())
         setCurrentYear(d.getFullYear())
@@ -129,6 +160,21 @@ export default function DatePicker({
     }
   }
 
+  const openYears = () => {
+    setYearPage(Math.floor((currentYear - MIN_YEAR) / YEARS_PER_PAGE))
+    setView('years')
+  }
+
+  const handleSelectMonth = (month: number) => {
+    setCurrentMonth(month)
+    setView('days')
+  }
+
+  const handleSelectYear = (year: number) => {
+    setCurrentYear(year)
+    setView('months')
+  }
+
   const firstDayIndex = new Date(currentYear, currentMonth, 1).getDay()
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate()
   const daysInPrevMonth = new Date(currentYear, currentMonth, 0).getDate()
@@ -153,13 +199,16 @@ export default function DatePicker({
   }
 
   const handleSelectDate = (d: number, m: number, y: number) => {
-    const mm = String(m + 1).padStart(2, '0')
-    const dd = String(d).padStart(2, '0')
-    const formatted = `${y}-${mm}-${dd}`
+    const formatted = clampToMin(toDateString(y, m, d))
     setInputValue(formatted)
     onChange(formatted)
+    setView('days')
     setIsOpen(false)
   }
+
+  const yearPageStart = MIN_YEAR + yearPage * YEARS_PER_PAGE
+  const pageYears = Array.from({ length: YEARS_PER_PAGE }, (_, i) => yearPageStart + i)
+  const atFirstMonth = currentYear === MIN_YEAR && currentMonth === 0
 
   return (
     <div className="custom-datepicker-wrapper" ref={containerRef}>
@@ -175,10 +224,11 @@ export default function DatePicker({
           placeholder={placeholder}
         />
         <Button
+          type="button"
           variant="ghost"
           size="icon"
           className="calendar-toggle-btn"
-          onClick={() => setIsOpen((prev) => !prev)}
+          onClick={toggleCalendar}
           aria-label="Toggle calendar"
         >
           <svg className="calendar-icon-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -202,37 +252,151 @@ export default function DatePicker({
             width: DROPDOWN_WIDTH,
           }}
         >
-          <div className="calendar-header">
-            <Button variant="ghost" size="icon" onClick={handlePrevMonth}>&lt;</Button>
-            <span className="cal-month-title">{MONTH_NAMES[currentMonth]} {currentYear}</span>
-            <Button variant="ghost" size="icon" onClick={handleNextMonth}>&gt;</Button>
-          </div>
-
-          <div className="calendar-weekdays">
-            {DAYS_OF_WEEK.map((w) => (
-              <span key={w} className="cal-weekday">{w}</span>
-            ))}
-          </div>
-
-          <div className="calendar-grid">
-            {calendarDays.map(({ day, month, year, isCurrentMonth }, idx) => {
-              const mm = String(month + 1).padStart(2, '0')
-              const dd = String(day).padStart(2, '0')
-              const dateStr = `${year}-${mm}-${dd}`
-              const isSelected = value === dateStr
-
-              return (
-                <button
-                  key={idx}
+          {view === 'days' && (
+            <>
+              <div className="calendar-header">
+                <Button
                   type="button"
-                  className={`cal-day-btn ${!isCurrentMonth ? 'outside-month' : ''} ${isSelected ? 'selected' : ''}`}
-                  onClick={() => handleSelectDate(day, month, year)}
+                  variant="ghost"
+                  size="icon"
+                  onClick={handlePrevMonth}
+                  disabled={atFirstMonth}
+                  aria-label="Previous month"
                 >
-                  {day}
+                  &lt;
+                </Button>
+                <div className="cal-header-titles">
+                  <button
+                    type="button"
+                    className="cal-title-btn"
+                    onClick={() => setView('months')}
+                    aria-label={`Choose month, currently ${MONTH_NAMES[currentMonth]}`}
+                  >
+                    {MONTH_NAMES[currentMonth]}
+                  </button>
+                  <button
+                    type="button"
+                    className="cal-title-btn"
+                    onClick={openYears}
+                    aria-label={`Choose year, currently ${currentYear}`}
+                  >
+                    {currentYear}
+                  </button>
+                </div>
+                <Button type="button" variant="ghost" size="icon" onClick={handleNextMonth} aria-label="Next month">
+                  &gt;
+                </Button>
+              </div>
+
+              <div className="calendar-weekdays">
+                {DAYS_OF_WEEK.map((w) => (
+                  <span key={w} className="cal-weekday">{w}</span>
+                ))}
+              </div>
+
+              <div className="calendar-grid">
+                {calendarDays.map(({ day, month, year, isCurrentMonth }, idx) => {
+                  const dateStr = toDateString(year, month, day)
+                  const isSelected = value === clampToMin(dateStr)
+
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      className={`cal-day-btn ${!isCurrentMonth ? 'outside-month' : ''} ${isSelected ? 'selected' : ''}`}
+                      onClick={() => handleSelectDate(day, month, year)}
+                    >
+                      {day}
+                    </button>
+                  )
+                })}
+              </div>
+            </>
+          )}
+
+          {view === 'months' && (
+            <>
+              <div className="calendar-header">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setCurrentYear((y) => Math.max(MIN_YEAR, y - 1))}
+                  disabled={currentYear === MIN_YEAR}
+                  aria-label="Previous year"
+                >
+                  &lt;
+                </Button>
+                <button type="button" className="cal-title-btn" onClick={openYears}>
+                  {currentYear}
                 </button>
-              )
-            })}
-          </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setCurrentYear((y) => y + 1)}
+                  aria-label="Next year"
+                >
+                  &gt;
+                </Button>
+              </div>
+
+              <div className="cal-option-grid">
+                {MONTH_NAMES.map((name, index) => (
+                  <button
+                    key={name}
+                    type="button"
+                    className={`cal-option-btn ${index === currentMonth ? 'selected' : ''}`}
+                    onClick={() => handleSelectMonth(index)}
+                  >
+                    {name}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
+          {view === 'years' && (
+            <>
+              <div className="calendar-header">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setYearPage((p) => Math.max(0, p - 1))}
+                  disabled={yearPage === 0}
+                  aria-label="Previous years"
+                >
+                  &lt;
+                </Button>
+                <span className="cal-range-label">
+                  {yearPageStart} – {yearPageStart + YEARS_PER_PAGE - 1}
+                </span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setYearPage((p) => p + 1)}
+                  aria-label="Next years"
+                >
+                  &gt;
+                </Button>
+              </div>
+
+              <div className="cal-option-grid">
+                {pageYears.map((year) => (
+                  <button
+                    key={year}
+                    type="button"
+                    className={`cal-option-btn ${year === currentYear ? 'selected' : ''}`}
+                    onClick={() => handleSelectYear(year)}
+                  >
+                    {year}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>
