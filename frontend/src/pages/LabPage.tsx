@@ -623,11 +623,6 @@ export default function LabPage({ onNavigate }: LabPageProps) {
                 </div>
               ))}
             </dl>
-
-            <p className="lab-results-note">
-              You also get every trade with its entry, exit and exit reason, a daily equity curve,
-              and a count of orders the engine rejected and why.
-            </p>
           </div>
         </section>
 

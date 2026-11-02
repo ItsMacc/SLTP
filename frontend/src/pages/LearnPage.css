@@ -214,7 +214,7 @@
 
 .learn-narrator p {
   margin: 0 !important;
-  font-size: 0.9rem;
+  font-size: 1.0625rem; /* 17px, matching the rest of the course prose */
   line-height: 1.6;
 }
 
@@ -454,7 +454,7 @@
 
 @media (max-width: 43.75rem) { /* ≈700px */
   .learn-story { padding: calc(var(--space-md) * 1.125) var(--space-md); }
-  .learn-story-step p { font-size: 0.92rem; }
+  .learn-story-step p { font-size: 1.0625rem; }
   .learn-story-title { font-size: 1.02rem; }
   .learn-quiz { max-width: none; }
 }
@@ -579,7 +579,7 @@
   margin: 0 0 var(--space-2xs) !important;
 }
 
-.learn-beat-body p:last-child { margin: 0 !important; font-size: 0.92rem; }
+.learn-beat-body p:last-child { margin: 0 !important; font-size: 1.0625rem; }
 
 /* ---------- Final scoreboard (step 5) ---------- */
 .learn-scoreboard {

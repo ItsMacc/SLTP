@@ -39,22 +39,22 @@ function CandleDiagram({
       <rect x={98} y={bodyTop} width={40} height={bodyHeight} rx={2} fill={color} />
 
       <line x1={98} x2={82} y1={y(topValue)} y2={y(topValue)} stroke="var(--border-strong)" strokeDasharray="2 4" />
-      <text x={76} y={y(topValue) + 4} textAnchor="end" fontSize={11} fill="var(--text-muted)" fontFamily="var(--font-sans)">
+      <text x={76} y={y(topValue) + 4} textAnchor="end" fontSize={12} fill="var(--text-secondary)" fontFamily="var(--font-ui)">
         {top} {topValue}
       </text>
 
       <line x1={98} x2={82} y1={y(bottomValue)} y2={y(bottomValue)} stroke="var(--border-strong)" strokeDasharray="2 4" />
-      <text x={76} y={y(bottomValue) + 4} textAnchor="end" fontSize={11} fill="var(--text-muted)" fontFamily="var(--font-sans)">
+      <text x={76} y={y(bottomValue) + 4} textAnchor="end" fontSize={12} fill="var(--text-secondary)" fontFamily="var(--font-ui)">
         {bottom} {bottomValue}
       </text>
 
       <line x1={138} x2={154} y1={y(high)} y2={y(high)} stroke="var(--border-strong)" strokeDasharray="2 4" />
-      <text x={160} y={y(high) + 4} fontSize={11} fill="var(--text-muted)" fontFamily="var(--font-sans)">
+      <text x={160} y={y(high) + 4} fontSize={12} fill="var(--text-secondary)" fontFamily="var(--font-ui)">
         High {high}
       </text>
 
       <line x1={138} x2={154} y1={y(low)} y2={y(low)} stroke="var(--border-strong)" strokeDasharray="2 4" />
-      <text x={160} y={y(low) + 4} fontSize={11} fill="var(--text-muted)" fontFamily="var(--font-sans)">
+      <text x={160} y={y(low) + 4} fontSize={12} fill="var(--text-secondary)" fontFamily="var(--font-ui)">
         Low {low}
       </text>
     </svg>

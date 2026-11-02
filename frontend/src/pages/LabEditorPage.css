@@ -127,7 +127,7 @@
   margin: 0;
   padding: var(--space-lg);
   color: var(--ide-muted);
-  font-size: 0.875rem;
+  font-size: 1rem;
 }
 
 /* The editor has its own palette, so the loading screen is centred in the
@@ -178,7 +178,7 @@
   overflow: hidden;
   box-shadow: var(--shadow-md);
   font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
-  font-size: 0.8125rem;
+  font-size: 0.9375rem;
 }
 
 .lab-ide-body {
@@ -222,7 +222,7 @@
 .lab-explorer-title {
   margin: 0;
   color: var(--ide-muted);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -230,7 +230,7 @@
 
 .lab-explorer-count {
   color: var(--ide-muted);
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   line-height: 1.2;
 }
 
@@ -319,7 +319,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-family: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
-  font-size: 0.75rem;
+  font-size: 0.85rem;
 }
 
 .lab-folder-children {
@@ -336,7 +336,7 @@
   min-height: 1.75rem;
   padding: 0 var(--space-xs);
   color: var(--ide-muted);
-  font-size: 0.75rem;
+  font-size: 0.85rem;
 }
 
 .lab-icon-button {
@@ -391,7 +391,7 @@
   background: var(--ide-bg);
   color: var(--ide-text);
   font-family: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
-  font-size: 0.8125rem;
+  font-size: 0.9375rem;
 }
 
 .lab-new-file-input:focus {
@@ -402,7 +402,7 @@
 .lab-new-file-hint {
   margin: 0;
   color: var(--ide-muted);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
 }
 
 .lab-file-tree {
@@ -466,7 +466,7 @@
 .lab-explorer-section-label {
   padding: var(--space-sm) var(--space-md) var(--space-2xs);
   color: var(--ide-muted);
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -497,7 +497,7 @@
   background: transparent;
   color: var(--ide-text);
   font-family: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
-  font-size: 0.8125rem;
+  font-size: 0.9375rem;
   text-align: left;
   cursor: pointer;
 }
@@ -523,7 +523,7 @@
 .lab-file-badge {
   flex: 0 0 auto;
   color: var(--ide-muted);
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   border: 1px solid var(--ide-active);
   border-radius: 3px;
   padding: 0 var(--space-2xs);
@@ -607,7 +607,7 @@
   border-right: 1px solid var(--ide-border);
   color: var(--ide-muted);
   font-family: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
-  font-size: 0.8125rem;
+  font-size: 0.9375rem;
   white-space: nowrap;
 }
 
@@ -675,7 +675,7 @@
   height: 2rem;
   padding: 0 var(--space-xs) 0 var(--space-md);
   border-bottom: 1px solid var(--ide-border);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--ide-muted);
 }
 
@@ -742,7 +742,7 @@
   overflow-y: auto;
   padding: var(--space-xs) var(--space-md);
   font-family: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
-  font-size: 0.8125rem;
+  font-size: 0.9375rem;
   line-height: 1.55;
 }
 
@@ -769,7 +769,7 @@
 .lab-terminal-line.is-info {
   color: var(--ide-muted);
   font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
-  font-size: 0.75rem;
+  font-size: 0.85rem;
 }
 
 /* ---------- Status bar ---------- */
@@ -783,7 +783,7 @@
   padding: 0 var(--space-xs);
   background-color: var(--ide-accent);
   color: var(--ide-on-accent);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
 }
 
 .lab-statusbar-group {

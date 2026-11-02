@@ -63,7 +63,9 @@
 
 .home-hero-lede {
   margin: 0;
-  max-width: 100%;
+  /* A reading measure, not the full column: at the lede's size a 100%-wide
+     line runs past 90 characters. */
+  max-width: min(42rem, 100%);
   color: var(--text-muted);
   font-size: var(--text-lg);
   line-height: 1.6;

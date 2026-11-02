@@ -118,7 +118,7 @@
    option takes .is-active, which is set by the caller. */
 .btn-chip {
   font-family: var(--font-mono);
-  font-size: 0.78rem;
+  font-size: 0.9rem;
   font-weight: 400;
   color: var(--text-muted);
   background-color: transparent;
