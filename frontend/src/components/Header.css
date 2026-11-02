@@ -14,6 +14,10 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  /* A hard floor between the wordmark, the links and the account controls.
+     space-between alone lets those three groups touch as soon as the links
+     fill the bar. */
+  gap: var(--space-lg);
   width: 100%;
   padding: var(--space-md); 
   margin-bottom: var(--space-lg); 
@@ -47,11 +51,24 @@
   letter-spacing: -0.02em;
 }
 
-/* Desktop nav links */
+/* Desktop nav links.
+   The auto margins take the leftover width, so the links sit centred between
+   the brand and the account controls instead of being pushed up against the
+   wordmark whenever the row is tight. */
 .header-nav {
   display: flex;
   align-items: center;
   gap: var(--space-xl);
+  margin-inline: auto;
+}
+
+/* Below this width the same bar carries seven links alongside the brand and
+   the account menu, so the spacing between links drops one step before
+   anything is allowed to touch. */
+@media (max-width: 52rem) {
+  .header-nav {
+    gap: var(--space-lg);
+  }
 }
 
 .nav-link {

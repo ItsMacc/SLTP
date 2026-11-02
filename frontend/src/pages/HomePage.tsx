@@ -1,18 +1,11 @@
-// HomePage.tsx — Landing page: hero, platform module grid, audience paths.
-import { useEffect, type CSSProperties, type ComponentType } from 'react';
-import {
-  FlaskConical,
-  Wallet,
-  Layers,
-  LineChart,
-  FileCode2,
-  ArrowRight,
-  ArrowUpRight,
-  BookOpen,
-  Hourglass,
-  ShieldCheck,
-  Sprout,
-} from 'lucide-react';
+// HomePage.tsx — Landing page: what SLTP is, the five parts of it, and how to
+// read a backtest.
+//
+// Kept deliberately plain: a headline, a sentence, one button, the tools as
+// cards, then the honest note on what a backtest is. No numbered labels, no
+// scroll animations, no decorative bands.
+import { type ComponentType } from 'react';
+import { ArrowRight, FileCode2, FlaskConical, Layers, LineChart, Wallet } from 'lucide-react';
 import Button from '../ui/Button';
 import './HomePage.css';
 
@@ -23,217 +16,139 @@ interface HomePageProps {
 
 type IconType = ComponentType<{ size?: number; className?: string; strokeWidth?: number }>;
 
-interface ModuleData {
+interface ToolData {
   id: string;
   nav: string;
-  index: string;
-  kicker: string;
   title: string;
   description: string;
-  icon: IconType;
-  points?: string[];
   cta: string;
-  feature?: boolean;
+  icon: IconType;
 }
 
-/* ---------- Platform modules ---------- */
-const MODULES: ModuleData[] = [
+/* ---------- The five parts of the site ---------- */
+const TOOLS: ToolData[] = [
   {
     id: 'lab',
     nav: 'lab',
-    index: '01',
-    kicker: 'Build & backtest',
     title: 'Lab',
     description:
-      'Have a rule you want to test? Start with a template or a blank project, then work through it in the Python editor.',
+      'A Python-based environment for building and testing your own strategies, with the same data and backtest engine that runs the site.',
+    cta: 'Open the Lab',
     icon: FlaskConical,
-    points: [
-      'Run it against historical daily prices',
-      'Review the trades and portfolio results',
-      'Keep each project in its own workspace',
-    ],
-    cta: 'Enter the Lab',
-  },
-  {
-    id: 'portfolio',
-    nav: 'portfolio',
-    index: '02',
-    kicker: 'Positions & watchlist',
-    title: 'Portfolio',
-    description:
-      'Choose a strategy to follow and SLTP can email you when its rules flag a possible entry, along with any stop-loss or target levels it sets. It is a prompt to review, not a trade placed for you.',
-    icon: Wallet,
-    cta: 'Manage portfolio',
-    feature: true,
   },
   {
     id: 'strategies',
     nav: 'strategies',
-    index: '03',
-    kicker: 'Strategy library',
     title: 'Strategies',
     description:
-      'Read how each strategy works, from the reasoning behind it to its rebalancing rules, and see how it performed against buy and hold.',
+      'A collection of tested strategies, with the rules that drive them, and the backtest results over eight different market regimes.',
+    cta: 'Open the library',
     icon: Layers,
-    cta: 'Browse strategies',
   },
   {
-    id: 'performance',
-    nav: 'performance',
-    index: '04',
-    kicker: 'Track record',
-    title: 'Performance',
+    id: 'portfolio',
+    nav: 'portfolio',
+    title: 'Portfolio',
     description:
-      'Review historical price charts and compare strategy results using measures such as CAGR, drawdown, and Sharpe ratio.',
+      'A place to track your investments, and receive alerts about market events and signals from the strategies you follow.',
+    cta: 'Manage portfolio',
+    icon: Wallet,
+  },
+  {
+    id: 'research',
+    nav: 'research',
+    title: 'Research',
+    description:
+      'Access daily price data and historical performance spanning across 11,000+ securities and nearly 3 decades of market history along with a backtest engine to see how our strategies have performed in the past.',
+    cta: 'Open research',
     icon: LineChart,
-    cta: 'View performance',
   },
   {
     id: 'docs',
     nav: 'docs',
-    index: '05',
-    kicker: 'Write & extend',
     title: 'Docs',
     description:
-      'Find the strategy class reference, engine data structures, API endpoints, and examples for writing strategies in the Lab.',
+      'A comprehensive reference for implementing your own strategies, including examples and full documentation of the strategy class, historical data access, and API usage.',
+    cta: 'Read the docs',
     icon: FileCode2,
-    cta: 'Open the docs',
   },
 ];
 
-/* ---------- Trust & honesty ---------- */
-const TRUST_POINTS: { icon: IconType; title: string; text: string }[] = [
+/* ---------- How to read the results ---------- */
+const READING: { title: string; text: string }[] = [
   {
-    icon: ShieldCheck,
-    title: 'Research, not advice',
-    text: 'SLTP provides data and tools for your own research. It does not recommend investments.',
+    title: 'A backtest is not a prediction',
+    text: 'Backtests are a way to evaluate a strategy using historical data. They are not a guarantee of future performance, and past results do not predict future outcomes. Always consider the inherent risks and uncertainties of investing.',
   },
   {
-    icon: Hourglass,
-    title: 'Past results have limits',
-    text: 'A backtest uses historical prices and simulated fills. It cannot account for every live-market condition.',
+    title: 'Look at the whole picture',
+    text: 'When evaluating a strategy, it is important you know what principle it is based on. Different strategies take on different levels of risk, so it is crucial to understand how it aligns with your own investment goals and risk tolerance.',
   },
   {
-    icon: Sprout,
-    title: 'Check the assumptions',
-    text: 'Changing the dates, symbols, or trading costs can change the result. Check what each test includes.',
+    title: 'The dates decide a lot',
+    text: 'The performance of a strategy can vary greatly depending on the time period chosen for the backtest. Different market conditions, economic events, and trends can significantly impact results.',
   },
 ];
 
 export default function HomePage({ onNavigate, onOpenGuide }: HomePageProps) {
-  /* Fade elements up as they enter the viewport */
-  useEffect(() => {
-    const targets = Array.from(document.querySelectorAll('.home-reveal'));
-    if (targets.length === 0) return;
-
-    if (typeof IntersectionObserver === 'undefined') {
-      targets.forEach((el) => el.classList.add('is-visible'));
-      return;
-    }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add('is-visible');
-            observer.unobserve(entry.target);
-          }
-        });
-      },
-      { threshold: 0.14, rootMargin: '0px 0px -8% 0px' }
-    );
-
-    targets.forEach((el) => observer.observe(el));
-    return () => observer.disconnect();
-  }, []);
-
-  const revealDelay = (ms: number) => ({ '--reveal-delay': `${ms}ms` } as CSSProperties);
-
   return (
     <div className="home-page">
-      {/* ================= HERO ================= */}
-      <section className="home-hero-wrapper page-hero-band is-full-bleed is-dot-grid">
-        <div className="home-hero-inner page-hero-inner">
-          <div className="home-hero-copy">
-            <span className="page-hero-eyebrow">Stock research platform</span>
-            <h1 className="page-hero-title">
-              Research stocks
-              <br />
-              <em>and track your portfolio.</em>
-            </h1>
-            <p className="page-hero-description">
-              Explore historical market data, read how each strategy works, and use the Lab to
-              write and backtest your own rules.
-            </p>
+      <section className="home-hero">
+        <div className="home-hero-copy">
+          <h1 className="home-hero-title">
+          A Quantitative research platform built for better investing and trading decisions.
+          </h1>
+          <p className="home-hero-lede">
+            SLTP is an open-source platform that provides a comprehensive set of tools for quantitative research, backtesting, investment insights, and portfolio management. Join SLTP to explore our strategies, learn the fundamentals of investing, and make informed decisions with confidence.
+          </p>
 
-            <div className="home-hero-actions">
-              <Button
-                variant="primary"
-                size="lg"
-                className="home-btn-primary"
-                onClick={() => (onOpenGuide ? onOpenGuide() : onNavigate('guide'))}
-              >
-                See how the site works
-                <ArrowRight size={18} className="home-btn-icon" />
-              </Button>
-              <Button variant="link" size="sm" onClick={() => onNavigate('learn')}>
-                <div className="link-text">
-                  <span>New to investing?</span>
-                  <strong>Start from zero</strong>
-                </div>
-                <ArrowRight size={14} />
-              </Button>
-            </div>
+          <div className="home-hero-actions">
+            <Button variant="primary" size="lg" onClick={() => onNavigate('strategies')}>
+              Browse the strategies
+              <ArrowRight size={18} className="home-btn-icon" />
+            </Button>
+            <Button
+              variant="link"
+              size="sm"
+              onClick={() => (onOpenGuide ? onOpenGuide() : onNavigate('guide'))}
+            >
+              Take the site tour
+            </Button>
+
+            <p className="home-hero-note">
+              New to investing?{' '}
+              <button type="button" className="home-inline-link" onClick={() => onNavigate('learn')}>
+                The course starts from zero
+              </button>
+            </p>
           </div>
         </div>
       </section>
 
-      {/* ================= MODULES ================= */}
-      <section className="home-section">
-        <div className="home-section-head home-reveal" style={revealDelay(0)}>
-          <span className="home-section-label">The platform</span>
-          <h2 className="home-section-title">What each part of SLTP does</h2>
-          <p className="home-section-lede">
-            Start by looking through the strategies. When you have a rule of your own to try, the
-            Lab is ready for it.
+      <section className="home-tools">
+        <header className="home-tools-head">
+          <h2 className="home-tools-title">See what SLTP can do, and how you can use it</h2>
+          <p className="home-tools-lede">
+            SLTP brings your entire investing workflow into one place. You can build custom models using our <strong>Python-based Lab</strong>, study the rules behind our <strong>tested strategies</strong>, manage your portfolio while staying informed with our automated entry and exit alerts, and dive into <strong>research</strong> to inspect historical price charts and run backtest simulations. Our <strong>documentation</strong> provides a comprehensive reference for the strategy class, data access, and API usage, helping you to write your own rules and strategies.
           </p>
-        </div>
+        </header>
 
-        <div className="home-modules">
-          {MODULES.map((module, i) => {
-            const Icon = module.icon;
+        <div className="home-cards">
+          {TOOLS.map((tool) => {
+            const Icon = tool.icon;
             return (
               <button
                 type="button"
-                key={module.id}
-                className={`home-module home-reveal ${module.feature ? 'is-feature' : ''}`}
-                style={revealDelay(80 * i)}
-                onClick={() => onNavigate(module.nav)}
+                key={tool.id}
+                className="home-card"
+                onClick={() => onNavigate(tool.nav)}
               >
-                <div className="home-module-top">
-                  <span className="home-module-icon">
-                    <Icon size={20} strokeWidth={1.75} />
-                  </span>
-                  <span className="home-module-index">{module.index}</span>
-                </div>
-
-                <div className="home-module-body">
-                  <span className="home-module-kicker">{module.kicker}</span>
-                  <h3 className="home-module-title">{module.title}</h3>
-                  <p className="home-module-desc">{module.description}</p>
-                </div>
-
-                {module.points && (
-                  <ul className="home-module-list">
-                    {module.points.map((point) => (
-                      <li key={point}>{point}</li>
-                    ))}
-                  </ul>
-                )}
-
-                <span className="home-module-cta">
-                  {module.cta}
-                  <ArrowUpRight size={15} />
+                <Icon size={20} strokeWidth={1.75} className="home-card-icon" />
+                <h3 className="home-card-title">{tool.title}</h3>
+                <p className="home-card-desc">{tool.description}</p>
+                <span className="home-card-cta">
+                  <span className="home-card-cta-label">{tool.cta}</span>
+                  <ArrowRight size={14} />
                 </span>
               </button>
             );
@@ -241,40 +156,21 @@ export default function HomePage({ onNavigate, onOpenGuide }: HomePageProps) {
         </div>
       </section>
 
-      {/* ================= RESEARCH NOTES ================= */}
-      <section className="home-section home-trust">
-        <div className="home-trust-panel home-reveal" style={revealDelay(0)}>
-          <div className="home-trust-head">
-            <h2 className="home-trust-title">How to read backtest results</h2>
-            <p className="home-trust-lede">
-              A backtest applies strategy rules to past prices using assumed costs and fills. It
-              shows how those rules performed over a chosen period, not how they will perform in the
-              future. Dates, symbols, and execution assumptions all affect the result.
-            </p>
-          </div>
+      <section className="home-reading">
+        <header className="home-tools-head">
+          <h2 className="home-tools-title">What SLTP is, and how to read the numbers</h2>
+          <p className="home-tools-lede">
+             SLTP is a research platform designed to support self-directed analysis. While our strategies are rigorously constructed to help inform your market perspective, they are meant to guide your research, not serve as financial advice to follow blindly. Here is how to interpret the data across the platform.
+          </p>
+        </header>
 
-          <div className="home-trust-grid">
-            {TRUST_POINTS.map((point, i) => {
-              const Icon = point.icon;
-              return (
-                <div key={point.title} className="home-trust-item home-reveal" style={revealDelay(90 * (i + 1))}>
-                  <span className="home-trust-icon">
-                    <Icon size={18} strokeWidth={1.75} />
-                  </span>
-                  <h3 className="home-trust-item-title">{point.title}</h3>
-                  <p className="home-trust-item-text">{point.text}</p>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="home-trust-footer">
-            <Button variant="outline" size="sm" onClick={() => onNavigate('learn')}>
-              <BookOpen size={15} />
-              Learn the basics
-              <ArrowRight size={14} />
-            </Button>
-          </div>
+        <div className="home-reading-grid">
+          {READING.map((item) => (
+            <div className="home-reading-item" key={item.title}>
+              <h3 className="home-reading-title">{item.title}</h3>
+              <p className="home-reading-text">{item.text}</p>
+            </div>
+          ))}
         </div>
       </section>
     </div>
