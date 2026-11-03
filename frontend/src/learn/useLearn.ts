@@ -1,27 +1,26 @@
 // useLearn.ts — One hook that joins curriculum (what exists) with
-// progress (what's done): load/save, section completion, milestone
-// evaluation, and the certification gate.
+// progress (what's done): load/save, lesson completion, and the tier quiz.
 //
 // Progression rules:
 //   Tiers unlock in order. Tier I is always open; Tier N opens when Tier N-1
-//   is certified. Locked tiers hide their modules entirely.
-//   Within an open tier, modules reveal one at a time: module N+1 appears
-//   only once module N is complete. That keeps a beginner on exactly one
+//   is finished. Locked tiers hide their lessons entirely.
+//   Within an open tier, lessons reveal one at a time: lesson N+1 appears
+//   only once lesson N is done. That keeps a beginner on exactly one
 //   decision at a time instead of staring at a wall of eight topics.
-//   Completing a module awards its badge automatically; finishing every
-//   real module in a tier opens that tier's validation gate, which awards
-//   the tier trophy (bronze → diamond) and unlocks the tier below.
+//   Marking a lesson done awards its badge; finishing every lesson in a tier
+//   opens that tier's quiz, which awards the tier certificate and unlocks
+//   the tier below.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { TIERS, type GateQuestion, type Tier, type TierSection } from './curriculum';
-import { badgeFor, trophyFor } from './badges';
-import { loadProgress, saveProgress, badgeAwardId, trophyAwardId, type LearnProgress } from './progress';
+import { badgeFor, certificateFor } from './badges';
+import { loadProgress, saveProgress, badgeAwardId, certificateAwardId, type LearnProgress } from './progress';
 
 export type TierStatus = 'locked' | 'open' | 'certified';
 
 /** A reward the learner just earned, for the toast popup. */
 export interface Earned {
-  kind: 'badge' | 'trophy' | 'milestone';
+  kind: 'badge' | 'certificate';
   name: string;
   detail: string;
   metal?: string;
@@ -100,53 +99,27 @@ export function useLearn() {
     return 'locked';
   }, [progress.certifications]);
 
-  /** Completing a section auto-awards its badge plus any milestones it completes. */
+  /** Marking a lesson done auto-awards its badge. One badge, one toast. */
   const completeSection = useCallback((sectionId: string) => {
     if (progress.sections.includes(sectionId)) return;
     const sections = [...progress.sections, sectionId];
-    const milestones = [...progress.milestones];
-    const freshMilestones: string[] = [];
-    for (const tier of TIERS) {
-      for (const m of tier.milestones) {
-        if (m.upcoming || milestones.includes(m.id)) continue;
-        // Only milestones tied to the section just completed may fire. A
-        // milestone unlocks because its LAST required module finished, so it
-        // always includes sectionId. Scanning every milestone instead meant
-        // any already-complete-but-unrecorded milestone (state that fell out
-        // of sync) would pop on a completely unrelated module - badges
-        // "triggered no matter what".
-        if (!m.sections.includes(sectionId)) continue;
-        if (m.sections.every((s) => sections.includes(s))) {
-          milestones.push(m.id);
-          freshMilestones.push(m.name);
-        }
-      }
-    }
     const badge = badgeFor(sectionId);
     const badgeId = badgeAwardId(sectionId);
 
     commit(
-      { ...progress, sections, milestones, awards: [...progress.awards, badgeId] },
+      { ...progress, sections, awards: [...progress.awards, badgeId] },
       [badgeId],
     );
 
-    const awards: Earned[] = [{
+    announce([{
       kind: 'badge',
       name: badge.name,
-      detail: `for completing “${labelForSection(sectionId)}”`,
+      detail: `for finishing “${labelForSection(sectionId)}”`,
       awardId: badgeId,
-    }];
-    for (const name of freshMilestones) {
-      // Milestones share the module's badge row; no separate catalog entry.
-      // They are announced as their own kind so a milestone never reads as a
-      // "badge" that then fails to appear in the badge shelf.
-      awards.push({ kind: 'milestone', name, detail: `for finishing “${labelForSection(sectionId)}”`, awardId: badgeId });
-    }
-    announce(awards);
+    }]);
   }, [progress, commit, announce]);
 
   const isSectionDone = useCallback((id: string) => progress.sections.includes(id), [progress.sections]);
-  const isMilestoneEarned = useCallback((id: string) => progress.milestones.includes(id), [progress.milestones]);
 
   /** Modules of a tier the learner may currently see: revealed one at a time. */
   const visibleSections = useCallback((tier: Tier): TierSection[] => {
@@ -169,42 +142,68 @@ export function useLearn() {
     return real.every((id) => progress.sections.includes(id));
   }, [progress.sections]);
 
-  /** Pass the tier's gate quiz -> certify the tier (trophy) and unlock the next. */
+  /** Pass the tier quiz -> award the tier certificate and unlock the next tier. */
   const certifyTier = useCallback((tier: Tier) => {
     if (progress.certifications.includes(tier.id)) return;
     const idx = TIERS.findIndex((t) => t.id === tier.id);
-    const trophy = trophyFor(idx);
-    const trophyId = trophyAwardId(tier.id);
+    const art = certificateFor(idx);
+    const certificateId = certificateAwardId(tier.id);
     commit(
       {
         ...progress,
         certifications: [...progress.certifications, tier.id],
-        awards: [...progress.awards, trophyId],
+        awards: [...progress.awards, certificateId],
       },
-      [trophyId],
+      [certificateId],
     );
     announce([{
-      kind: 'trophy',
-      name: `${trophy.label} Trophy`,
-      metal: trophy.metal,
-      detail: `tier certified, ${tier.certification}`,
-      awardId: trophyId,
+      kind: 'certificate',
+      name: tier.certification,
+      metal: art.metal,
+      detail: `${tier.name} certificate`,
+      awardId: certificateId,
     }]);
   }, [progress, commit, announce]);
 
   const isCertified = useCallback((id: string) => progress.certifications.includes(id), [progress.certifications]);
 
-  /** Percentage of a tier's real sections completed. */
-  const tierPercent = useCallback((tier: Tier) => {
-    const real = tier.sections.filter((s) => s.content).map((s) => s.id);
-    if (!real.length) return 0;
-    return Math.round((real.filter((id) => progress.sections.includes(id)).length / real.length) * 100);
+  /** Badge count for a tier: how many of its lessons are done, and how many exist. */
+  const tierCounts = useCallback((tier: Tier) => {
+    const real = tier.sections.filter((s) => s.content);
+    return {
+      done: real.filter((s) => progress.sections.includes(s.id)).length,
+      total: real.length,
+    };
   }, [progress.sections]);
 
-  /** Every section completed so far, in curriculum order - drives the badge shelf. */
+  /**
+   * The first unfinished lesson in curriculum order, which is what "Up next"
+   * points at. Null once every lesson is done.
+   */
+  // Cheap to recompute: a handful of lessons, so no memo to keep in sync.
+  const nextLesson = (() => {
+    let index = 0;
+    for (const [tierIndex, tier] of TIERS.entries()) {
+      for (const section of tier.sections.filter((s) => s.content)) {
+        index += 1;
+        if (!progress.sections.includes(section.id)) {
+          return { tier, tierIndex, section, index };
+        }
+      }
+    }
+    return null;
+  })();
+
+  /** Total lessons and badges in the course, derived from the curriculum. */
+  const totals = (() => {
+    const lessons = TIERS.flatMap((t) => t.sections.filter((s) => s.content));
+    return { lessons: lessons.length, done: lessons.filter((s) => progress.sections.includes(s.id)).length };
+  })();
+
+  /** Every lesson completed so far, in curriculum order. */
   const earnedSectionIds = orderedCompleted(progress.sections);
   const earnedBadges = earnedSectionIds.map((id) => ({ id, ...badgeFor(id) }));
-  const earnedTrophies = TIERS.map((tier, i) => ({ tier, ...trophyFor(i) }))
+  const earnedCertificates = TIERS.map((tier, i) => ({ tier, ...certificateFor(i) }))
     .filter(({ tier }) => progress.certifications.includes(tier.id));
 
   return {
@@ -214,17 +213,18 @@ export function useLearn() {
     toast,
     dismissToast,
     earnedBadges,
-    earnedTrophies,
+    earnedCertificates,
+    tierCounts,
+    nextLesson,
+    totals,
     tierStatus,
     visibleSections,
     isSectionRevealed,
     completeSection,
     isSectionDone,
-    isMilestoneEarned,
     gateAvailable,
     certifyTier,
     isCertified,
-    tierPercent,
   };
 }
 

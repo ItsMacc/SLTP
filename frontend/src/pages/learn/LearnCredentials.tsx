@@ -1,11 +1,12 @@
-// LearnCredentials.tsx — The Formative Validation Gate quiz that certifies a
-// tier. Rendered at the END of each tier's modules, not on its own page.
+// LearnCredentials.tsx — The short tier quiz that earns a tier's certificate.
+// Rendered at the END of each tier's lessons, not on its own page.
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Check, Lock, ShieldCheck, Sparkles } from 'lucide-react';
 import Button from '../../ui/Button';
 import type { Tier } from '../../learn/curriculum';
 import { scoreGate, type useLearn } from '../../learn/useLearn';
+import { shuffleQuestions } from '../../learn/quizOrder';
 
 type LearnApi = ReturnType<typeof useLearn>;
 
@@ -15,7 +16,9 @@ type LearnApi = ReturnType<typeof useLearn>;
 export function GateQuiz({ tier, learn }: { tier: Tier; learn: LearnApi }) {
   const [answers, setAnswers] = useState<(number | null)[]>(tier.gate.map(() => null));
   const [submitted, setSubmitted] = useState(false);
-  const { correct, passed } = scoreGate(tier.gate, answers);
+  // Same stable shuffle as the lesson quizzes, so scoring and display agree.
+  const gate = useMemo(() => shuffleQuestions(tier.gate), [tier.gate]);
+  const { correct, passed } = scoreGate(gate, answers);
 
   const answered = answers.every((a) => a !== null);
 
@@ -34,10 +37,10 @@ export function GateQuiz({ tier, learn }: { tier: Tier; learn: LearnApi }) {
     return (
       <div className="learn-gate learn-gate-passed">
         <p className="learn-gate-title">
-          <ShieldCheck size={16} /> Certified: {tier.certification}
+          <ShieldCheck size={16} /> Certificate earned: {tier.certification}
         </p>
         <p className="learn-gate-note">
-          You passed this tier's validation gate. The next tier is now unlocked.
+          You passed the {tier.name} quiz. The next level is open.
         </p>
       </div>
     );
@@ -49,10 +52,10 @@ export function GateQuiz({ tier, learn }: { tier: Tier; learn: LearnApi }) {
     return (
       <div className="learn-gate learn-gate-locked">
         <p className="learn-gate-title">
-          <Lock size={15} /> Validation gate locked: {done}/{total} modules complete
+          <Lock size={15} /> Quiz locked: {done} of {total} lessons done
         </p>
         <p className="learn-gate-note">
-          Finish every module in this tier to open the certification quiz.
+          Finish every lesson in this level to open the quiz.
         </p>
       </div>
     );
@@ -61,14 +64,13 @@ export function GateQuiz({ tier, learn }: { tier: Tier; learn: LearnApi }) {
   return (
     <div className="learn-gate">
       <p className="learn-gate-title">
-        <Sparkles size={16} /> Formative validation gate: {tier.certification}
+        <Sparkles size={16} /> {tier.name} quiz: {tier.certification}
       </p>
       <p className="learn-gate-note">
-        Answer every question correctly to earn the tier certification. Retries allowed:
-        the point is comprehension, not memorization.
+        Get every question right to earn the certificate. Try as often as you need.
       </p>
 
-      {tier.gate.map((q, qi) => (
+      {gate.map((q, qi) => (
         <div key={qi} className="learn-gate-q">
           <p className="learn-gate-q-text">
             {qi + 1}. {q.q}
@@ -111,14 +113,14 @@ export function GateQuiz({ tier, learn }: { tier: Tier; learn: LearnApi }) {
         <div className="learn-gate-result">
           {passed ? (
             <p className="learn-quiz-right">
-              <Check size={14} /> {correct}/{tier.gate.length}, certification earned:{' '}
+              <Check size={14} /> {correct}/{gate.length}. Certificate earned:{' '}
               <strong>{tier.certification}</strong>
             </p>
           ) : (
             <>
               <p className="learn-quiz-wrong">
-                {correct}/{tier.gate.length} correct. Re-read the explanations above and
-                try again. Every question must be right.
+                {correct}/{gate.length} correct. Read the explanations below the
+                questions, then try again. Every answer has to be right.
               </p>
               <Button variant="outline" size="sm" onClick={retry}>
                 Try again

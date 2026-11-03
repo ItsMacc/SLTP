@@ -13,14 +13,14 @@
 // later offline visit still knows your state.
 
 import { supabase } from '../../lib/supabase';
-import { badgeAwardId, loadLearnState, saveLearnState, trophyAwardId } from '../../lib/learnApi';
+import { badgeAwardId, loadLearnState, saveLearnState, certificateAwardId } from '../../lib/learnApi';
 
 export interface LearnProgress {
   sections: string[]; // completed section ids
   milestones: string[]; // earned milestone ids
   certifications: string[]; // certified tier ids
   /** Catalog ids of awards earned - see learnApi for the id format. */
-  awards: string[]; // `badge:stocks`, `trophy:tier1`, ...
+  awards: string[]; // `badge:stocks`, `certificate:beginner`, ...
 }
 
 const EMPTY: LearnProgress = { sections: [], milestones: [], certifications: [], awards: [] };
@@ -134,5 +134,5 @@ export async function saveProgress(p: LearnProgress, justEarned: string[] = []):
   } catch { /* offline: local copy survives */ }
 }
 
-/** Award id for a module badge, re-exported so callers need one import. */
-export { badgeAwardId, trophyAwardId };
+/** Award ids, re-exported so callers need one import. */
+export { badgeAwardId, certificateAwardId };

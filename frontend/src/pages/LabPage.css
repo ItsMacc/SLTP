@@ -771,6 +771,22 @@
   line-height: 1.65;
 }
 
+/* The one assumption worth stating plainly, kept out of the feature list. */
+.lab-engine-note {
+  margin: 2rem 0 0;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: 1.65;
+  max-width: 62ch;
+}
+
+.lab-engine-note strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
 /* ---------- What each run returns ---------- */
 
 /* The list takes exactly the width its longest name and descriptor need, and

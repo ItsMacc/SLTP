@@ -1,71 +1,77 @@
 // badges.ts — Visual rewards for learning progress.
 //
 // Two kinds of reward:
-//   BADGES   - one per module (section), earned the moment that module is
-//              marked complete. Shown as a grid of icons on the shelf.
-//   TROPHIES - one per tier, earned by passing that tier's validation gate.
-//              Bronze → Diamond, in tier order.
+//   SECTION_BADGES  - one per lesson, earned the moment that lesson is marked
+//                     done. Named for what the learner can now do, 2-3 words.
+//   certificateFor  - one per level, earned by passing that level's quiz. This
+//                     file supplies the art and colour only; the certificate's
+//                     NAME lives in curriculum.ts so the two cannot drift.
 //
 // Progress itself lives in Supabase (see progress.ts); this file is pure
 // presentation data so the reward art has exactly one source of truth.
 
 import {
-  Activity, ArrowLeftRight, Award, Binary, BookOpen, Building2, ChartCandlestick,
-  ClipboardList, Compass, FlaskConical, Gauge, Gem, Layers, LineChart, Medal,
-  Receipt, Scale, ShieldAlert, ShieldCheck, Sparkles, TrendingUp, Trophy,
+  Activity, ArrowLeftRight, Award, Binary, BookOpen, Brain, Building2,
+  Calculator, ChartCandlestick, Code, Compass, FileText, FlaskConical, Gauge,
+  Layers, Lightbulb, LineChart, MessageSquare, Puzzle, Receipt, Scale,
+  ShieldCheck, Tag, TrendingUp,
   type LucideIcon,
 } from 'lucide-react';
 
-export type TrophyMetal = 'bronze' | 'silver' | 'gold' | 'emerald' | 'diamond';
+export type TierAccent = 'bronze' | 'silver' | 'gold';
 
-export const TROPHIES: Record<TrophyMetal, { label: string; icon: LucideIcon; blurb: string }> = {
-  bronze: { label: 'Bronze', icon: Trophy, blurb: 'First steps into the market' },
-  silver: { label: 'Silver', icon: Medal, blurb: 'Execution and order flow' },
-  gold: { label: 'Gold', icon: Award, blurb: 'Signals built by rule' },
-  emerald: { label: 'Emerald', icon: Sparkles, blurb: 'Backtests that survive scrutiny' },
-  diamond: { label: 'Diamond', icon: Gem, blurb: 'Portfolio-level mastery' },
+/** Level index → accent (colour only) plus the certificate's icon. */
+const CERTIFICATE_ART: Record<TierAccent, { icon: LucideIcon }> = {
+  bronze: { icon: ChartCandlestick },
+  silver: { icon: Compass },
+  gold: { icon: Code },
 };
 
-/** Tier index → trophy metal. Tiers are certified strictly in order. */
-export const TIER_TROPHY: TrophyMetal[] = ['bronze', 'silver', 'gold', 'emerald', 'diamond'];
+const TIER_ACCENT: TierAccent[] = ['bronze', 'silver', 'gold'];
 
-/** Section id → the badge awarded for completing it. */
+/** Lesson id → the badge awarded for marking that lesson done. */
 export const SECTION_BADGES: Record<string, { name: string; icon: LucideIcon }> = {
-  // Tier I - market mechanics
-  stocks: { name: 'Founder’s Stake', icon: Building2 },
-  prices: { name: 'Demand Reader', icon: TrendingUp },
-  orders: { name: 'Order Router', icon: Receipt },
-  candles: { name: 'Candle Spotter', icon: ChartCandlestick },
-  // Tier II - microstructure
-  'long-short': { name: 'Both Sides', icon: ArrowLeftRight },
-  't2-spreads': { name: 'Spread Whisperer', icon: Layers },
-  't2-orderbook': { name: 'Book Diver', icon: BookOpen },
-  // Tier III - signals
-  't3-style': { name: 'Style Scout', icon: Compass },
-  't3-index': { name: 'Benchmark Reader', icon: LineChart },
-  math: { name: 'Rule Architect', icon: Binary },
-  't3-indicators': { name: 'Trend Tracker', icon: Activity },
-  't3-oscillators': { name: 'Momentum Meter', icon: Gauge },
-  // Tier IV - validation
-  testing: { name: 'Skeptic', icon: FlaskConical },
-  't4-walkthrough': { name: 'Report Reader', icon: ClipboardList },
-  't4-sandbox': { name: 'Overfit Buster', icon: ShieldAlert },
-  't4-audit': { name: 'Bias Auditor', icon: ShieldCheck },
-  // Tier V - portfolio
-  risk: { name: 'Risk Warden', icon: ShieldCheck },
-  't5-metrics': { name: 'Ratio Reader', icon: Activity },
-  't5-allocation': { name: 'Allocator', icon: Scale },
+  // Beginner
+  stocks: { name: 'Part Owner', icon: Building2 },
+  prices: { name: 'Tug of War', icon: TrendingUp },
+  orders: { name: 'First Order', icon: Receipt },
+  candles: { name: 'Chart Reader', icon: ChartCandlestick },
+  'long-short': { name: 'Long & Short', icon: ArrowLeftRight },
+  math: { name: 'Rulebook', icon: Binary },
+  risk: { name: 'Safety Net', icon: ShieldCheck },
+
+  // Intermediate
+  't3-style': { name: 'Trader or Investor', icon: Compass },
+  't3-index': { name: 'Whole Market', icon: LineChart },
+  psychology: { name: 'Crowd Watcher', icon: Brain },
+  ideas: { name: 'Hunch to Hypothesis', icon: Lightbulb },
+  'why-math': { name: 'Numbers, Not Hunches', icon: Calculator },
+  't3-indicators': { name: 'Signal Spotter', icon: Activity },
+  vocabulary: { name: 'Speaks the Language', icon: MessageSquare },
+  anatomy: { name: 'Strategy Anatomy', icon: Puzzle },
+
+  // Advanced
+  'code-read': { name: 'Reads Code', icon: Code },
+  'code-write': { name: 'First Strategy', icon: Code },
+  statements: { name: 'Reads Statements', icon: FileText },
+  valuation: { name: 'Price vs Value', icon: Tag },
+  testing: { name: 'Fair Test', icon: FlaskConical },
+  't4-walkthrough': { name: 'First Backtest', icon: BookOpen },
+  't5-metrics': { name: 'Scorekeeper', icon: Gauge },
+  't5-allocation': { name: 'Spread It Out', icon: Scale },
+  't2-spreads': { name: 'Mind the Gap', icon: Layers },
+  't2-orderbook': { name: 'Order Book Reader', icon: BookOpen },
 };
 
-const FALLBACK_BADGE = { name: 'Module Badge', icon: Award };
+const FALLBACK_BADGE = { name: 'Lesson badge', icon: Award };
 
-/** Badge definition for a section id; stub sections get their own name too. */
+/** Badge definition for a lesson id. */
 export function badgeFor(sectionId: string): { name: string; icon: LucideIcon } {
   return SECTION_BADGES[sectionId] ?? FALLBACK_BADGE;
 }
 
-/** Trophy definition for a tier's position in the ladder (0-indexed). */
-export function trophyFor(tierIndex: number) {
-  const metal = TIER_TROPHY[Math.min(tierIndex, TIER_TROPHY.length - 1)];
-  return { metal, ...TROPHIES[metal] };
+/** Certificate art + accent for a level's position in the ladder (0-indexed). */
+export function certificateFor(tierIndex: number): { metal: TierAccent; icon: LucideIcon } {
+  const metal = TIER_ACCENT[Math.min(tierIndex, TIER_ACCENT.length - 1)];
+  return { metal, ...CERTIFICATE_ART[metal] };
 }

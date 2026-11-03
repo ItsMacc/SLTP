@@ -71,16 +71,14 @@ export function SpreadsSection() {
   return (
     <div>
       <Objective>
-        By the end you will be able to read the two prices a stock quotes at once,
-        measure the spread, and tell cheap-to-trade stocks from expensive ones
-        before you place an order.
+        The two prices every stock quotes at once, and how to tell a cheap stock to trade
+        from an expensive one before you order.
       </Objective>
 
       <p>
-        Module A showed both sides of a trade. This module is about what the trip
-        itself costs. Brokers advertise zero commission, which is true but
-        incomplete. There is a second cost, built into the price itself, that
-        nobody itemises.
+        The long-and-short lesson showed both sides of a trade. This one is about what the
+        trip costs. Brokers advertise zero commission, which is true and incomplete: there
+        is a second cost, built into the price itself, that nobody itemises.
       </p>
       <p>
         Every stock carries <strong>two</strong> prices at any moment, not one:
@@ -101,10 +99,9 @@ export function SpreadsSection() {
       </div>
 
       <Narrator icon={Layers}>
-        Think of a currency exchange at an airport. It buys your dollars at one
-        rate and sells them back at a slightly worse rate. The difference is the
-        shop’s profit, and you never see it itemised. Stocks work the same way: the
-        market maker pocketing the spread is how quotes stay available all day.
+        An airport currency desk buys your dollars at one rate and sells them back at a
+        worse one. The gap is the shop&apos;s profit, and you never see it itemised. The
+        spread is the same idea, and it is how quotes stay available all day.
       </Narrator>
 
       {/* ---------- Interactive: pick a liquidity profile ---------- */}
@@ -176,11 +173,9 @@ export function SpreadsSection() {
         available gets to set the price.
       </p>
       <p>
-        The lesson for a long-term investor is mild. A few cents rarely matter
-        if you hold for years. The lesson for anyone trading frequently is
-        severe: a 30-cent spread crossed on every entry and exit eats into
-        returns that a backtest may never have charged for. Later tiers show
-        that costs are the first thing an honest <GlossaryText text="backtest" glossary={G} /> includes.
+        For a long-term investor a few cents rarely matter. For anyone trading often it
+        is severe: a 30-cent spread crossed on every entry and exit eats into returns that
+        a <GlossaryText text="backtest" glossary={G} /> may never have charged for.
       </p>
 
 
@@ -264,9 +259,8 @@ export function OrderBookSection() {
   return (
     <div>
       <Objective>
-        By the end you will be able to read an order book, predict how a large
-        order walks through it, and explain <GlossaryText text="slippage" glossary={G} /> in
-        your own words.
+        How to read an order book, and why a large order fills at a worse price than the
+        one on screen.
       </Objective>
 
       <p>

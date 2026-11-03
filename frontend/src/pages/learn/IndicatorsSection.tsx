@@ -1,11 +1,14 @@
-// IndicatorsSection.tsx — Tier III module B: trend indicators.
+// IndicatorsSection.tsx — Intermediate lesson: what indicators actually
+// measure.
 //
-// One idea, shown properly: a moving average is an averaging window dragged
-// along price. The slider shows the only real decision you make with it, the
-// window length. SMA and EMA are the two ways of weighting the window.
-//
-// Ends on the point that generalises: every other technical indicator is the
-// same arithmetic over the same OHLCV data.
+// Every definition here matches the engine (app/engine/strategy/base_strategy.py):
+//   _sma(values, window) / _ema(values, window)          - TA-Lib SMA / EMA
+//   _rsi(values, window)                                  - TA-Lib RSI
+//   _bollinger_bands(values, window, deviations = 2)      - TA-Lib BBANDS
+//   _atr(high, low, close, window)                        - TA-Lib ATR
+// The strategy parameters quoted come from the shipped strategies, not from a
+// textbook: Statistical Mean Reversion uses RSI(25) with 30/70 thresholds, a
+// 20-bar z-score, and exits three standard deviations from entry.
 
 import { useState } from 'react';
 import Button from '../../ui/Button';
@@ -14,9 +17,13 @@ import { GlossaryText } from '../../components/GlossaryText';
 import { LEARN_GLOSSARY } from '../../learn/learnGlossary';
 import { Narrator, Objective, Recap } from './parts';
 
-const G = LEARN_GLOSSARY;
 
-// Deterministic price path so the chart tells the same story every render.
+const GText = ({ children }: { children: string }) => (
+  <GlossaryText text={children} glossary={LEARN_GLOSSARY} />
+);
+
+// Deterministic price path (illustrative). Fixed so the description of the
+// chart is always true: a rise, a dip in the middle, then a recovery.
 const PRICES = Array.from({ length: 60 }, (_, i) => {
   const trend = 100 + i * 0.55;
   const wave = Math.sin(i / 4.2) * 4.2 + Math.sin(i / 9.5) * 3;
@@ -63,6 +70,48 @@ function toPoints(vals: (number | null)[], min: number, max: number) {
     .join(' ');
 }
 
+const FAMILIES = [
+  { name: 'Trend', question: 'Which way is it heading?', example: 'Moving averages, MACD, ADX' },
+  { name: 'Momentum', question: 'How strong is the move?', example: 'RSI, Stochastic, rate of change' },
+  { name: 'Volatility', question: 'How big are the swings?', example: 'Bollinger Bands, ATR' },
+  { name: 'Volume', question: 'How many people are involved?', example: 'Volume, On-Balance Volume' },
+];
+
+const INDICATORS = [
+  {
+    name: 'Moving average',
+    engine: '_sma(closes, window) and _ema(closes, window)',
+    question: 'What has the average price been over the last N days?',
+    calculation: 'Add the last N closes and divide by N, then repeat tomorrow with the window shifted one day.',
+    usage: 'Statistical Mean Reversion compares the close with a 20-bar average to measure how far price has stretched. Lab templates use a 50-day average as a trend filter.',
+    misleading: 'It is always behind the price, and the longer the window the later it turns.',
+  },
+  {
+    name: 'RSI',
+    engine: '_rsi(closes, window)',
+    question: 'How one-sided have recent gains and losses been, on a 0–100 scale?',
+    calculation: 'Compare the size of recent up moves with recent down moves, then scale the result to 0–100.',
+    usage: 'The shipped Statistical Mean Reversion strategy uses RSI(25): it buys below 30 and exits at 70. The Lab RSI template uses RSI(14) with the same 30 level.',
+    misleading: 'An oversold stock can stay oversold for months in a downtrend. “30” is a choice, not a law.',
+  },
+  {
+    name: 'Bollinger Bands',
+    engine: '_bollinger_bands(closes, window, deviations = 2)',
+    question: 'How far is price from its average, in units of its own wiggle?',
+    calculation: 'A moving average, plus and minus a set number of standard deviations of the same window.',
+    usage: 'A strategy might buy when price closes below the lower band, betting on a move back to the middle.',
+    misleading: 'In a strong trend price can ride a band for weeks, so “outside the band” is not a reversal signal by itself.',
+  },
+  {
+    name: 'ATR',
+    engine: '_atr(high, low, close, window)',
+    question: 'How much does this stock typically move in a day?',
+    calculation: 'Average the daily true range: the day’s high-to-low span, adjusted for gaps from the previous close.',
+    usage: 'Stops can be placed a multiple of ATR below entry, so a volatile stock gets a wider stop than a calm one.',
+    misleading: 'It measures movement size, never direction, and it jumps after a shock.',
+  },
+];
+
 export function IndicatorsSection() {
   const [window, setWindow] = useState(10);
   const [useEma, setUseEma] = useState(false);
@@ -82,55 +131,59 @@ export function IndicatorsSection() {
   return (
     <div>
       <Objective>
-        By the end of this module you will be able to explain what a moving
-        average is, say what happens when you lengthen or shorten the window, and
-        describe how a crossover becomes a buy signal.
+        What an indicator is, the four families, and what four common ones actually measure.
       </Objective>
 
       <p>
-        Module A said the rules have to be written down. This is the most common
-        rule people write. A{' '}
-        <GlossaryText text="moving average" glossary={G} /> is the average closing
-        price of the last N days, redrawn every day so it follows the price.
+        An <GText>indicator</GText> is a formula applied to prices (and sometimes volume) that
+        answers one question. It adds no new information. It rearranges prices so one thing is
+        easier to see.
       </p>
+
+      <div className="learn-cards">
+        {FAMILIES.map((f) => (
+          <div className="learn-card" key={f.name}>
+            <p className="learn-card-term">{f.name}</p>
+            <p>{f.question}</p>
+            <p className="learn-card-note">{f.example}</p>
+          </div>
+        ))}
+      </div>
+
       <p>
-        If the last ten closes were 100, 102, 99, 101, 103, 100, 104, 102, 101, 105,
-        your 10 day average sits at 101.7. Tomorrow it drops the oldest number and
-        adds the newest, so the line moves. That is the whole idea.
+        Every indicator below is one the engine can compute today. The names in the code are the
+        methods a strategy calls, so this page and the codebase say the same thing.
       </p>
 
       <div className="learn-rules">
-        <div className="learn-rule">
-          <span className="learn-rule-num">1</span>
-          <p><strong>N decides everything.</strong> A 5 day average reacts almost instantly. A 50 day average barely notices a week.</p>
-        </div>
-        <div className="learn-rule">
-          <span className="learn-rule-num">2</span>
-          <p><strong>There are two ways to average.</strong> The <strong>simple moving average (SMA)</strong> gives every day in the window the same weight. The <strong>exponential moving average (EMA)</strong> gives recent days more weight, so it turns sooner and gives a few more false turns.</p>
-        </div>
-        <div className="learn-rule">
-          <span className="learn-rule-num">3</span>
-          <p><strong>Price versus average is the signal.</strong> Price above a rising average means the trend is up. Price below a falling average means it is down.</p>
-        </div>
+        {INDICATORS.map((ind, i) => (
+          <div className="learn-rule" key={ind.name}>
+            <span className="learn-rule-num">{i + 1}</span>
+            <p>
+              <strong>{ind.name}.</strong> {ind.question} <em>In code:</em> {ind.engine}.{' '}
+              {ind.calculation} <em>How a strategy might use it:</em> {ind.usage}{' '}
+              <em>Where it misleads:</em> {ind.misleading}
+            </p>
+          </div>
+        ))}
       </div>
 
-      {/* ---------- The one control that matters ---------- */}
       <div className="learn-fin">
-        <p className="learn-fin-title">Drag the window</p>
+        <p className="learn-fin-title">The one trade-off: smooth versus slow</p>
         <p className="learn-fin-hint">
-          The grey line is the daily close. The coloured line is your average.
-          Change N, then switch between SMA and EMA.
+          The grey line is the daily close; the coloured line is the average. An illustrative
+          fixed series. Change the window and watch it lag.
         </p>
 
         <div className="learn-slider-block">
           <div className="learn-slider-readout">
-            <span>Window N = last {window} days</span>
+            <span>Window = last {window} days</span>
             <strong className="learn-money">{useEma ? 'EMA' : 'SMA'}({window})</strong>
           </div>
           <input
             type="range"
-            min={3}
-            max={40}
+            min={5}
+            max={100}
             step={1}
             value={window}
             onChange={(e) => setWindow(parseInt(e.target.value, 10))}
@@ -138,8 +191,8 @@ export function IndicatorsSection() {
             aria-label="Moving average window in days"
           />
           <div className="learn-slider-scale">
-            <span>3 days (fast)</span>
-            <span>40 days (slow)</span>
+            <span>5 days (fast)</span>
+            <span>100 days (slow)</span>
           </div>
         </div>
 
@@ -203,39 +256,21 @@ export function IndicatorsSection() {
       </div>
 
       <Narrator icon={Activity}>
-        The classic rule built on this is the <strong>crossover</strong>. You watch
-        a fast average (say 10 days) and a slow one (say 50 days). When the fast
-        one crosses above the slow one, recent prices have started beating the
-        long term habit, and that is treated as a buy. SLTP&apos;s Stock Health
-        Filter does the same idea with a 200 day average as its filter, and the
-        SMA Crossover recipe on the Docs page is this idea written as code.
+        Indicators are inputs to rules. &ldquo;Buy when X is above Y&rdquo; is the rule; the
+        indicator is only X and Y.
       </Narrator>
 
       <p>
-        One thing worth being clear about: the moving average is late by design.
-        It needs several days before it can confirm anything, so you will always
-        enter after the move has started. That is the price of not guessing, and
-        it is the whole trade: you give up the first part of the move to avoid
-        reacting to noise.
-      </p>
-
-      <p>
-        <strong>There are many more technical indicators</strong>: momentum gauges,
-        range measures, volume measures, band widths. But every one of them is the
-        same arithmetic you just did, run over the same five numbers a data feed
-        gives you for each day. Those are <strong>OHLCV</strong>: the{' '}
-        <strong>O</strong>pen, the <strong>H</strong>igh, the <strong>L</strong>ow,
-        the <strong>C</strong>lose, and the <strong>V</strong>olume. Learn to
-        average, sum, compare and take ratios of those five columns and you can
-        read any indicator chart you are shown.
+        No indicator predicts. Many are built on the behaviours from the psychology lesson:
+        momentum and trend measures lean on herding and slow absorption, while RSI and Bollinger
+        Bands lean on overreaction. That is a reason to test them, not a promise they work.
       </p>
 
       <Recap points={[
-        <>A <GlossaryText text="moving average" glossary={G} /> is the average close of the last N days, redrawn daily.</>,
-        <>Bigger N is smoother and later. Smaller N is faster and noisier. That tradeoff cannot be avoided.</>,
-        <><strong>SMA</strong> weights all N days equally. <strong>EMA</strong> weights recent days and turns sooner.</>,
-        <>Price above a rising average means uptrend. A fast average crossing above a slow one is the classic buy signal.</>,
-        <>Every other technical indicator is the same maths over the same OHLCV data.</>,
+        <>An indicator is a formula that makes one question easier to answer; it adds no new data.</>,
+        <>Four families: trend, momentum, volatility, volume.</>,
+        <>Longer windows are smoother and slower. That trade-off cannot be removed.</>,
+        <>Indicators feed rules, and every indicator is late by construction.</>,
       ]} />
     </div>
   );

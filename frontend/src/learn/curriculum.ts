@@ -1,9 +1,10 @@
-// curriculum.ts — Five-tier quant-literacy curriculum: tiers, modules,
-// competency milestones (badges), tier certifications (trophies), and the
-// formative validation gates that separate them.
+// curriculum.ts — The course, in three levels: Beginner, Intermediate and
+// Advanced. Each level is one gate: finishing every lesson opens that level's
+// quiz, which awards its certificate and unlocks the next level.
 //
-// Progress against this curriculum is stored in Supabase (auth
-// user_metadata) - see progress.ts. Turso stays out of learning state.
+// Lesson ids are the real ids used by LearnPage's moduleFor() and by badgeFor()
+// in badges.ts. `part` groups the lessons of a long level under a light
+// sub-heading so it does not read as one endless list.
 
 export interface GateQuestion {
   q: string;
@@ -12,61 +13,56 @@ export interface GateQuestion {
   explain: string;
 }
 
-export interface Milestone {
-  id: string;
-  name: string;
-  sections: string[]; // earn by completing ALL of these sections
-  upcoming?: boolean; // true = its module hasn't shipped yet; stays locked
-}
-
 export interface TierSection {
   id: string; // matches LearnPage section ids for real content
   num: string;
   label: string;
-  content: boolean; // true = real module, false = stub awaiting build
+  content: boolean; // true = real lesson, false = stub awaiting build
+  /** Optional sub-heading inside a level ("Part 1: Markets"). */
+  part?: string;
 }
 
 export interface Tier {
   id: string;
-  roman: string;
+  /** Short name used in the stepper and the sidebar. */
+  name: string;
   title: string;
   objective: string;
-  certification: string; // the Tier Certification (trophy) name
+  /** The certificate's name: what the learner can do when the level is done. */
+  certification: string;
   sections: TierSection[];
-  milestones: Milestone[];
-  gate: GateQuestion[]; // Formative Validation Gate, pass to certify the tier
+  gate: GateQuestion[];
 }
 
 export const TIERS: Tier[] = [
   // ---------------------------------------------------------------
-  // Tier I - Foundational Market Mechanics & Price Action
+  // Beginner - what is being bought and sold, and how to read it
   // ---------------------------------------------------------------
   {
-    id: 'tier1',
-    roman: 'I',
-    title: 'Foundational Market Mechanics & Price Action',
+    id: 'beginner',
+    name: 'Beginner',
+    title: 'What you are actually buying',
     objective:
-      'Cover the basics: what a share is, why its price moves, how a trade happens, and how to read a price chart.',
-    certification: 'Foundational Market Practitioner',
+      'A share, a price move, an order, a candle and a stop-loss, each explained from zero.',
+    certification: 'Reads a price chart',
     sections: [
-      { id: 'stocks', num: 'A', label: 'Understanding stocks', content: true },
-      { id: 'prices', num: 'B', label: 'Why prices move', content: true },
-      { id: 'orders', num: 'C', label: 'How trades execute', content: true },
-      { id: 'candles', num: 'D', label: 'Reading a price chart', content: true },
-    ],
-    milestones: [
-      { id: 't1-equity', name: 'Equity Mechanics Verification', sections: ['stocks'] },
-      { id: 't1-chart', name: 'Chart Literacy Badge', sections: ['prices', 'candles'] },
+      { id: 'stocks', num: 'A', label: 'What is a stock?', content: true },
+      { id: 'prices', num: 'B', label: 'Why do prices move?', content: true },
+      { id: 'orders', num: 'C', label: 'How do you actually buy one?', content: true },
+      { id: 'candles', num: 'D', label: 'How to read a price chart', content: true },
+      { id: 'long-short', num: 'E', label: 'Going long and going short', content: true },
+      { id: 'math', num: 'F', label: 'What is a strategy?', content: true },
+      { id: 'risk', num: 'G', label: 'How much can I lose?', content: true },
     ],
     gate: [
       {
         q: 'A company is worth $30,000 and you own 20% of it. Your slice is worth:',
         options: ['$6,000', '$600', '$3,000', 'It depends on the share price'],
         answer: 0,
-        explain: '20% of $30,000 = $6,000. Every slice of a company grows or shrinks with the company itself.',
+        explain: '20% of $30,000 = $6,000. Every slice grows or shrinks with the company itself.',
       },
       {
-        q: 'A stock\'s price rises most directly because:',
+        q: "A stock's price rises most directly because:",
         options: [
           'The company officially raised its price',
           'More buyers show up than sellers, and buyers bid higher until someone sells',
@@ -74,11 +70,11 @@ export const TIERS: Tier[] = [
           'Inflation',
         ],
         answer: 1,
-        explain: 'Price is a running vote: when buyers outnumber sellers, buyers raise their offer until enough owners are tempted to sell.',
+        explain: 'Price is a running vote: when buyers outnumber sellers, buyers raise their offer until enough owners sell.',
       },
       {
-        q: 'You want to buy only at $97 or better, and you\'re willing to wait. Which order?',
-        options: ['Market order', 'Limit order', 'Stop-limit order', 'Market-on-close order'],
+        q: 'You want to buy only at $97 or better, and you are willing to wait. Which order?',
+        options: ['Market order', 'Limit order', 'Stop order', 'Market-on-close order'],
         answer: 1,
         explain: 'A limit order trades only at your price or better: control over price, at the cost of no guarantee it fills.',
       },
@@ -91,207 +87,153 @@ export const TIERS: Tier[] = [
           'Red: the low dipped below the open',
         ],
         answer: 0,
-        explain: 'Green means the close ended higher than the open: $103 > $100. The wick reaches to the high and low, but the body is open-to-close.',
+        explain: 'Green means the close ended higher than the open: $103 > $100. The wick reaches to the high and low; the body is open-to-close.',
       },
-    ],
-  },
-
-  // ---------------------------------------------------------------
-  // Tier II - Market Microstructure & Order Dynamics
-  // ---------------------------------------------------------------
-  {
-    id: 'tier2',
-    roman: 'II',
-    title: 'Market Microstructure & Order Dynamics',
-    objective:
-      'Show what trading actually costs: the spread you cross, the liquidity behind it, the slippage it causes, and how a short works.',
-    certification: 'Market Microstructure Analyst',
-    sections: [
-      { id: 'long-short', num: 'A', label: 'Long vs. short: betting both ways', content: true },
-      { id: 't2-spreads', num: 'B', label: 'Bid-ask spreads & liquidity', content: true },
-      { id: 't2-orderbook', num: 'C', label: 'Order books & slippage', content: true },
-    ],
-    milestones: [
-      { id: 't2-longshort', name: 'Order Mechanics Credential', sections: ['long-short'] },
-      { id: 't2-liquidity', name: 'Liquidity Analysis Badge', sections: ['t2-spreads', 't2-orderbook'] },
-    ],
-    gate: [
-      {
-        q: 'You short a stock at $100. It falls to $90 and you buy it back. Your profit per share is:',
-        options: ['$10', '$90', '-$10', '$100'],
-        answer: 0,
-        explain: 'You sold at $100 and bought back at $90: 100 − 90 = $10 kept. A short profits when the price goes DOWN.',
-      },
-      {
-        q: 'When you short, the share you sell first is:',
-        options: [
-          'One you already owned',
-          'One you borrowed, which you must return later',
-          'One printed by the company',
-          'One the exchange gives you for free',
-        ],
-        answer: 1,
-        explain: 'You borrow a share, sell it, and owe the lender one share back, like a loan. Returning it is non-negotiable.',
-      },
-      {
-        q: 'The unlimited-risk side of a trade is:',
-        options: [
-          'Going long, a stock can only fall to $0',
-          'Going short, a stock can keep rising with no ceiling',
-          'Both sides are equally limited',
-          'Neither side has risk',
-        ],
-        answer: 1,
-        explain: 'A long position loses at most everything (price floor: $0). A short can lose far more than it ever gained, which is why SLTP strategies stay long-only.',
-      },
-    ],
-  },
-
-  // ---------------------------------------------------------------
-  // Tier III - Technical Indicators & Signal Generation
-  // ---------------------------------------------------------------
-  {
-    id: 'tier3',
-    roman: 'III',
-    title: 'Technical Indicators & Signal Generation',
-    objective:
-      'Turn price reading into written rules: what a strategy decides, which indicators it uses, and how a computer applies them.',
-    certification: 'Algorithmic Signal Architect',
-    sections: [
-      { id: 't3-style', num: 'A', label: 'Trading vs. investing', content: true },
-      { id: 't3-index', num: 'B', label: 'Indexes & benchmarks', content: true },
-      { id: 'math', num: 'C', label: 'How strategies are made', content: true },
-      { id: 't3-indicators', num: 'D', label: 'Trend indicators: SMA & EMA', content: true },
-    ],
-    milestones: [
-      { id: 't3-foundations', name: 'Market Perspective Badge', sections: ['t3-style', 't3-index'] },
-      { id: 't3-rules', name: 'Signal Logic Badge', sections: ['math'] },
-      { id: 't3-calibration', name: 'Indicator Calibration Credential', sections: ['t3-indicators'] },
-    ],
-    gate: [
-      {
-        q: 'Every strategy has three jobs. Which is NOT one of them?',
-        options: [
-          'Decide if and when to buy',
-          'Decide how much to buy',
-          'Predict tomorrow\'s exact closing price',
-          'Set the exits (stop-loss and take-profit)',
-        ],
-        answer: 2,
-        explain: 'The three jobs are: when to buy, how much, and where to exit. No strategy, human or computer, knows tomorrow\'s price.',
-      },
-      {
-        q: 'A strategy that trades on patterns in open/high/low/close prices is applying:',
-        options: [
-          'Financial analysis',
-          'Technical analysis',
-          'Insider knowledge',
-          'Random chance',
-        ],
-        answer: 1,
-        explain: 'Technical analysis reads price action itself; financial analysis reads the business (earnings, debt, profit).',
-      },
-      {
-        q: 'Why apply rules by computer instead of by feel?',
-        options: [
-          'Computers predict the market better',
-          'Computers never miss a trade; they apply the same rules every day without fear, excitement or fatigue',
-          'Computers pay no commissions',
-          'Human traders always lose money',
-        ],
-        answer: 1,
-        explain: 'The edge is consistency, not prophecy: identical rules applied identically, every single day.',
-      },
-    ],
-  },
-
-  // ---------------------------------------------------------------
-  // Tier IV - Quantitative Validation & Backtesting
-  // ---------------------------------------------------------------
-  {
-    id: 'tier4',
-    roman: 'IV',
-    title: 'Quantitative Validation & Backtesting',
-    objective:
-      'Show how to test a strategy without fooling yourself, and how to read a backtest for the mistakes that flatter it.',
-    certification: 'Quantitative Validation Specialist',
-    sections: [
-      { id: 'testing', num: 'A', label: 'Testing a strategy', content: true },
-      { id: 't4-walkthrough', num: 'B', label: 'Reading a real backtest', content: true },
-    ],
-    milestones: [
-      { id: 't4-integrity', name: 'Backtest Integrity Credential', sections: ['testing'] },
-      { id: 't4-evidence', name: 'Evidence Reader Badge', sections: ['t4-walkthrough'] },
-    ],
-    gate: [
-      {
-        q: 'You tune a strategy\'s stops and targets until it looks perfect on past data, and it then flops live. That failure is called:',
-        options: ['Look-ahead bias', 'Overfitting', 'Survivorship bias', 'Slippage'],
-        answer: 1,
-        explain: 'The rules memorized one slice of history instead of learning anything transferable, classic overfitting.',
-      },
-      {
-        q: 'A backtest buys at today\'s close using a signal computed from today\'s close. That is:',
-        options: [
-          'Perfectly valid',
-          'Look-ahead bias, nobody knew the close while the market was still open',
-          'Overfitting',
-          'Good practice for accuracy',
-        ],
-        answer: 1,
-        explain: 'Real traders act during the day with information available then. Using the close to trade the close is grading with the answer sheet.',
-      },
-      {
-        q: 'Testing on only the companies that still exist today deletes the losers from the sample before the test starts. That is:',
-        options: ['Look-ahead bias', 'Overfitting', 'Survivorship bias', 'Compound expectancy'],
-        answer: 2,
-        explain: 'Bankrupt and delisted names vanish from today\'s lists, making the past look far safer than it was.',
-      },
-    ],
-  },
-
-  // ---------------------------------------------------------------
-  // Tier V - Execution & Portfolio Construction
-  // ---------------------------------------------------------------
-  {
-    id: 'tier5',
-    roman: 'V',
-    title: 'Execution & Portfolio Construction',
-    objective:
-      'Understand the vocabulary and the metrics needed to judge a strategy on its own terms.',
-    certification: 'Systematic Portfolio Strategist',
-    sections: [
-      { id: 'risk', num: 'A', label: 'Risk management', content: true },
-      { id: 't5-metrics', num: 'B', label: 'Sharpe, Sortino & drawdown', content: true },
-      { id: 't5-allocation', num: 'C', label: 'Position sizing & allocation', content: true },
-    ],
-    milestones: [
-      { id: 't5-risk', name: 'Risk-Adjusted Performance Credential', sections: ['risk'] },
-      { id: 't5-portfolio', name: 'Portfolio Architecture Badge', sections: ['t5-allocation'] },
-    ],
-    gate: [
       {
         q: 'Entry $100, stop-loss $92, take-profit $116. Your risk-reward ratio is:',
         options: ['1:1', '1:2', '1:1.5', '2:1'],
         answer: 1,
-        explain: 'Risk $8 to make $16, every dollar of loss is backed by two dollars of potential gain: 1:2.',
+        explain: 'Risk $8 to make $16: every dollar of loss is backed by two dollars of potential gain, so 1:2.',
       },
+    ],
+  },
+
+  // ---------------------------------------------------------------
+  // Intermediate - where ideas come from and how they become rules
+  // ---------------------------------------------------------------
+  {
+    id: 'intermediate',
+    name: 'Intermediate',
+    title: 'Where ideas become rules',
+    objective:
+      'How crowds move prices, how a hunch becomes a testable rule, and how to read a real strategy.',
+    certification: 'Can read and judge a strategy',
+    sections: [
+      { id: 't3-style', num: 'A', label: 'Trader or investor?', content: true, part: 'Part 1: How markets behave' },
+      { id: 't3-index', num: 'B', label: 'What is an index?', content: true, part: 'Part 1: How markets behave' },
+      { id: 'psychology', num: 'C', label: 'Why crowds move prices', content: true, part: 'Part 1: How markets behave' },
+      { id: 'ideas', num: 'D', label: 'Where strategy ideas come from', content: true, part: 'Part 2: Where ideas come from' },
+      { id: 'why-math', num: 'E', label: 'Why maths helps', content: true, part: 'Part 2: Where ideas come from' },
+      { id: 't3-indicators', num: 'F', label: 'What indicators actually measure', content: true, part: 'Part 3: Indicators and language' },
+      { id: 'vocabulary', num: 'G', label: 'Talking like a professional', content: true, part: 'Part 3: Indicators and language' },
+      { id: 'anatomy', num: 'H', label: 'Anatomy of an SLTP strategy', content: true, part: 'Part 3: Indicators and language' },
+    ],
+    gate: [
       {
-        q: 'With a $10,000 account risking 2% per trade and a stop $8 below entry, how many shares?',
-        options: ['25 shares', '125 shares', '1,250 shares', '2 shares'],
-        answer: 0,
-        explain: '2% of $10,000 = $200 max loss. $200 ÷ $8 risk per share = 25 shares. Sizing keeps any single mistake affordable.',
-      },
-      {
-        q: 'A stop-loss placed exactly at your entry price usually:',
+        q: 'Which statement can actually be tested?',
         options: [
-          'Protects you perfectly',
-          'Gets hit by the first ordinary downward wiggle and sells you out before the trade can be right',
-          'Is required by regulation',
-          'Converts every trade into a profit',
+          'Tech stocks are good',
+          'A stock that has fallen 10% in five days tends to bounce over the next ten',
+          'Markets are irrational',
+          'Everyone should own stocks',
         ],
         answer: 1,
-        explain: 'The stop must sit BELOW entry, it marks where the trade is declared failed, not where it merely paused.',
+        explain: 'It names a measurable condition and a measurable outcome, so a test could prove it wrong. The others cannot fail.',
+      },
+      {
+        q: 'An indicator such as RSI adds:',
+        options: [
+          'New information the price does not contain',
+          'A prediction of tomorrow',
+          'Nothing new: it rearranges prices so one question is easier to answer',
+          'A guarantee when it reaches 30',
+        ],
+        answer: 2,
+        explain: 'Indicators are formulas over price and volume. They make one thing easier to see, and predict nothing.',
+      },
+      {
+        q: 'Why does hedging against the obvious matter?',
+        options: [
+          'Because obvious patterns are usually illegal',
+          'Because if a pattern were easy and widely known, trading it would tend to remove it',
+          'Because charts are unreliable',
+          'Because only professionals may trade',
+        ],
+        answer: 1,
+        explain: 'Crowded ideas get competed away. That is why researchers test everything and expect most ideas to fail.',
+      },
+      {
+        q: 'In the SLTP engine, which method must a strategy implement?',
+        options: ['initialize_universe', 'on_signal', 'run_daily', 'should_exit'],
+        answer: 1,
+        explain: 'on_signal(ticker, data) is the only required hook: it returns an Order, or None for no trade.',
+      },
+      {
+        q: 'A parameter is:',
+        options: [
+          'A number the rules use, which you can change',
+          'A type of order',
+          'The name of a strategy',
+          'A measure of profit',
+        ],
+        answer: 0,
+        explain: 'Parameters are the adjustable numbers, like a 25-day RSI period. Tuning too many of them is how overfitting starts.',
+      },
+    ],
+  },
+
+  // ---------------------------------------------------------------
+  // Advanced - code, companies, evidence
+  // ---------------------------------------------------------------
+  {
+    id: 'advanced',
+    name: 'Advanced',
+    title: 'Code, companies and evidence',
+    objective:
+      'Read and write a strategy, read a company, and judge a result without being fooled.',
+    certification: 'Can read, write and test a strategy',
+    sections: [
+      { id: 'code-read', num: 'A', label: 'Reading a strategy in code', content: true, part: 'Part 1: Code' },
+      { id: 'code-write', num: 'B', label: 'Writing your first strategy', content: true, part: 'Part 1: Code' },
+      { id: 'statements', num: 'C', label: 'Reading a company’s numbers', content: true, part: 'Part 2: Companies' },
+      { id: 'valuation', num: 'D', label: 'Valuation: is it expensive?', content: true, part: 'Part 2: Companies' },
+      { id: 'testing', num: 'E', label: 'Would this have worked?', content: true, part: 'Part 3: Rigor' },
+      { id: 't4-walkthrough', num: 'F', label: 'How to read a backtest', content: true, part: 'Part 3: Rigor' },
+      { id: 't5-metrics', num: 'G', label: 'Sharpe, Sortino & drawdown', content: true, part: 'Part 3: Rigor' },
+      { id: 't5-allocation', num: 'H', label: 'Position sizing & allocation', content: true, part: 'Part 3: Rigor' },
+      { id: 't2-spreads', num: 'I', label: 'What a trade really costs', content: true, part: 'Part 4: Market structure' },
+      { id: 't2-orderbook', num: 'J', label: 'How big orders move the price', content: true, part: 'Part 4: Market structure' },
+    ],
+    gate: [
+      {
+        q: 'Inside on_signal, returning None means:',
+        options: ['Sell everything', 'No trade for this ticker today', 'The strategy failed', 'Buy with a zero size'],
+        answer: 1,
+        explain: 'None is the normal answer: this ticker does not meet the rules right now.',
+      },
+      {
+        q: 'In the Statistical Mean Reversion strategy, the stop and target sit:',
+        options: [
+          'At a fixed 5% either side of entry',
+          'Three standard deviations of the 20-bar price either side of the entry price',
+          'At the 25-day moving average',
+          'At zero',
+        ],
+        answer: 1,
+        explain: 'It uses STDEV_EXIT_MULTIPLE = 3.0 × the 20-bar standard deviation: a stop that widens with the stock’s own wiggle.',
+      },
+      {
+        q: 'A price-to-earnings ratio of 30 means:',
+        options: [
+          'The share costs $30',
+          'The price equals 30 years of the company’s current yearly profit per share',
+          'The company keeps 30% of revenue',
+          'The stock rose 30% this year',
+        ],
+        answer: 1,
+        explain: 'Price ÷ earnings per share. It is a way of comparing price with what the business earns.',
+      },
+      {
+        q: 'Testing on a period you did not use to design the rules is called:',
+        options: ['In-sample testing', 'Out-of-sample testing', 'Overfitting', 'Sensitivity analysis'],
+        answer: 1,
+        explain: 'Out-of-sample data is the check that the rules learned something transferable rather than memorising history.',
+      },
+      {
+        q: 'A strategy that trades often in thin stocks will be most hurt by:',
+        options: ['Its own stop-loss', 'Spread and slippage on every fill', 'The benchmark', 'Inflation'],
+        answer: 1,
+        explain: 'Each round trip crosses the spread and can slip; frequent trading multiplies both costs.',
       },
     ],
   },

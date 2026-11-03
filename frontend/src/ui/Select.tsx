@@ -9,6 +9,8 @@ export interface SelectOption {
 
 interface SelectProps {
   label?: string;
+  /** Accessible name when the visible label lives outside the component. */
+  ariaLabel?: string;
   options: SelectOption[];
   value: string | number;
   onChange: (value: string | number) => void;
@@ -18,6 +20,7 @@ interface SelectProps {
 
 export default function Select({
   label,
+  ariaLabel,
   options,
   value,
   onChange,
@@ -47,6 +50,7 @@ export default function Select({
           type="button"
           className="select-trigger"
           onClick={() => setIsOpen(!isOpen)}
+          aria-label={ariaLabel}
           aria-expanded={isOpen}
         >
           <span className={`select-value-text ${!selectedOption ? 'placeholder' : ''}`}>

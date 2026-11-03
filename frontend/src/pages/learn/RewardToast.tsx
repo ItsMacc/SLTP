@@ -1,8 +1,8 @@
-// RewardToast.tsx — Bottom-right unlock popup, the celebratory twin of
-// ErrorToast. Fires whenever a badge or trophy is earned, then auto-dismisses.
+// RewardToast.tsx — Bottom-right popup, the celebratory twin of ErrorToast.
+// Fires when a badge or a tier certificate is earned, then auto-dismisses.
 
 import { useEffect } from 'react';
-import { Award, Sparkles, Star, X } from 'lucide-react';
+import { Award, Sparkles, X } from 'lucide-react';
 import Button from '../../ui/Button';
 import type { Earned } from '../../learn/useLearn';
 import './RewardToast.css';
@@ -19,12 +19,8 @@ export default function RewardToast({ earned, onClose, autoDismissMs = 6000 }: R
     return () => clearTimeout(timer);
   }, [earned, onClose, autoDismissMs]);
 
-  const Icon = earned.kind === 'trophy' ? Sparkles : earned.kind === 'milestone' ? Star : Award;
-  const kicker = earned.kind === 'trophy'
-    ? 'Trophy unlocked'
-    : earned.kind === 'milestone'
-      ? 'Milestone reached'
-      : 'Badge earned';
+  const Icon = earned.kind === 'certificate' ? Sparkles : Award;
+  const kicker = earned.kind === 'certificate' ? 'Certificate earned' : 'Badge earned';
 
   return (
     <div className={`reward-toast is-${earned.metal ?? earned.kind}`} role="status" aria-live="polite">

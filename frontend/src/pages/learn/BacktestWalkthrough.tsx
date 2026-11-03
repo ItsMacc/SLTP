@@ -67,18 +67,14 @@ export function BacktestWalkthroughSection() {
   return (
     <div>
       <Objective>
-        By the end of this module you will be able to read a backtest report
-        end to end: the equity curves, the final value, the yearly return, the
-        maximum drawdown and the Sharpe ratio, and you will be able to judge a
-        strategy against a benchmark instead of just admiring its chart.
+        Read a backtest report end to end: the curves, the final value, the yearly return,
+        the worst fall and the Sharpe ratio, and judge it against a benchmark.
       </Objective>
 
       <p>
-        Module A explained what a backtest is. This module reads a real one, the
-        same report you can see on the Strategies page for the{' '}
-        <strong>Stock Health Filter</strong> strategy. The point is not to
-        admire the strategy. It is to learn what each part of the report is
-        actually telling you.
+        The backtest lesson explained what a backtest is. This one reads a real report, the
+        same one on the Strategies page for the <strong>Stock Health Filter</strong>{' '}
+        strategy. The point is not to admire it, but to learn what each part is telling you.
       </p>
 
       {/* ---------- Step 1: what was tested ---------- */}
@@ -92,9 +88,9 @@ export function BacktestWalkthroughSection() {
           portfolio is reviewed every three months.
         </p>
         <p>
-          The rules were not tuned to fit any of the periods you are about to
-          see. That matters, for the reason Module A covered: rules adjusted
-          until a past period looks perfect describe that period, nothing more.
+          The rules were not tuned to fit any of the periods you are about to see. That
+          matters, for the reason the backtest lesson covered: rules adjusted until a past
+          period looks perfect describe that period, nothing more.
         </p>
       </div>
 
@@ -130,8 +126,8 @@ export function BacktestWalkthroughSection() {
             alt="Equity curve of the Stock Health Filter strategy over ten years, rising from 100 to about 275 with moderate dips"
           />
           <p className="learn-caption">
-            Notice the shape before the ending: the line rises, but it also
-            stops and dips. Those dips are the ones an owner had to sit through.
+            Look at the shape before the ending: the line rises, and it also stops and
+            dips. Those dips are the ones an owner had to sit through.
           </p>
         </div>
 
@@ -170,8 +166,8 @@ export function BacktestWalkthroughSection() {
           <div className="learn-rule">
             <span className="learn-rule-num">1</span>
             <p>
-              <strong>Final value: 275.22.</strong> What $100 became by the end.
-              It says where you finished, nothing about the journey.
+              <strong>Final value: 275.22.</strong> What $100 became by the end. It says
+              where you finished, nothing about the road there.
             </p>
           </div>
           <div className="learn-rule">
@@ -196,9 +192,9 @@ export function BacktestWalkthroughSection() {
             <span className="learn-rule-num">4</span>
             <p>
               <strong><GlossaryText text="Sharpe ratio" glossary={G} />: 1.07.</strong>{' '}
-              Growth per unit of roughness, roughly return divided by
-              volatility. Above 1.0 is generally considered respectable. It is
-              what lets two different journeys be compared honestly.
+              Growth per unit of roughness, roughly return divided by volatility. Above
+              1.0 is generally considered respectable. It is what lets two different records
+              be compared.
             </p>
           </div>
         </div>
@@ -326,19 +322,17 @@ export function BacktestWalkthroughSection() {
       <div className="learn-substep">
         <p className="learn-substep-title">Step 6: what the report cannot tell you</p>
         <p>
-          Three limits worth carrying away. First, this is one strategy&apos;s
-          record, and every period shown is still history: the next decade is
-          allowed to differ from the last one. Second, check that the test
-          avoided the three traps from Module A; a report built on stale data or
-          a peek at the future flatters itself. Third, the numbers hide
-          something real: an average of 10.66% a year was actually a strong
-          year, then a bad one, then a flat stretch, lived one day at a time.
+          Three limits worth carrying away. First, this is one strategy&apos;s record, and
+          every period shown is still history. Second, check that the test avoided the
+          three traps from &ldquo;Would this have worked?&rdquo;; a report built on stale data
+          or a peek at the future flatters itself. Third, the numbers hide something real:
+          10.66% a year was a strong year, then a bad one, then a flat stretch, lived one day
+          at a time.
         </p>
         <p>
-          That is the honest use of a report like this one. It does not tell you
-          what a strategy will do. It tells you what kind of ride the rules have
-          produced so far, which is the best evidence anyone has before
-          committing real money.
+          That is the right way to use a report like this one. It does not say what a
+          strategy will do. It says what kind of ride the rules have produced so far, which
+          is the best evidence anyone has before committing real money.
         </p>
       </div>
 
@@ -351,7 +345,7 @@ export function BacktestWalkthroughSection() {
 
       <Recap points={[
         <>A backtest compares the strategy against <GlossaryText text="buy and hold" glossary={G} /> over the same period with the same money.</>,
-        <>Read the shape of the curve first. The ending number hides the journey.</>,
+        <>Read the shape of the curve first. The ending number hides the road there.</>,
         <>Final value and CAGR measure growth. Max drawdown measures the worst fall. Sharpe balances the two.</>,
         <>A verdict is usually a tradeoff: more growth or a smoother ride. The benchmark decides which one you are actually paying for.</>,
       ]} />

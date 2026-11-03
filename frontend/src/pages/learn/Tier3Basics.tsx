@@ -17,16 +17,15 @@ import { Narrator, Objective, Recap } from './parts';
 const G = LEARN_GLOSSARY;
 
 /* ============================================================
-   Module A, Trading vs. investing
+   Lesson A, Trader or investor?
    ============================================================ */
 
 export function TradingVsInvestingSection() {
   return (
     <div>
       <Objective>
-        By the end of this module you will be able to explain the difference
-        between trading and investing, describe what each one studies and how
-        long each one holds, and say which side this course builds toward.
+        The difference between trading and investing, what each one studies, and how long
+        each one holds.
       </Objective>
 
       <p>
@@ -54,9 +53,9 @@ export function TradingVsInvestingSection() {
         <p className="learn-school-name">Trading: follow the price, for days or weeks</p>
         <p>
           A <strong>trader</strong> cares less about what the company sells and
-          more about what its price is doing. Prices move in trends and patterns,
-          and a trader tries to follow those movements: buy when the evidence
-          points up, sell when it turns. What they study is price action itself.
+          more about what its price is doing. A trader tries to follow the moves: buy when
+          the evidence points up, sell when it turns. What they study is price action
+          itself.
           This is{' '}
           <GlossaryText text="technical analysis" glossary={G} />, and the holding
           period is measured in days, weeks or months.
@@ -115,10 +114,9 @@ export function TradingVsInvestingSection() {
       </Narrator>
 
       <p>
-        A fair word for both sides. Most investors who do well are simply
-        patient: they buy sensibly and then do nothing for a long time. Most
-        traders who do well are simply disciplined: they follow their rules even
-        when it is uncomfortable. In both cases the skill is behaviour, not
+        Most investors who do well are simply patient: they buy sensibly and then do
+        nothing for years. Most traders who do well are simply disciplined: they follow
+        their rules when it is uncomfortable. In both cases the skill is behaviour, not
         prediction.
       </p>
 
@@ -133,16 +131,15 @@ export function TradingVsInvestingSection() {
 }
 
 /* ============================================================
-   Module B, Indexes & benchmarks
+   Lesson B, What is an index?
    ============================================================ */
 
 export function IndexSection() {
   return (
     <div>
       <Objective>
-        By the end of this module you will be able to explain what a market
-        index is, describe what buy and hold means, and say why every strategy
-        is measured against a benchmark.
+        What a market index is, what buy and hold means, and why every strategy is measured
+        against one.
       </Objective>
 
       <p>
@@ -194,19 +191,17 @@ export function IndexSection() {
       </Narrator>
 
       <p>
-        Two honest notes about indexes. First, holding an index means holding
-        every company in it, including the ones that do badly. That is not a
-        flaw; it is the price of never having to guess which ones those will be.
-        Second, an index falls too. Buy and hold is not a guarantee of smooth
-        growth, it is a promise to sit through rough years rather than exit at
-        the bottom of one.
+        Two things worth knowing about indexes. Holding one means holding every company in
+        it, including the ones doing badly. That is the price of never having to guess.
+        And an index falls too: buy and hold promises to sit through rough years, not to
+        avoid them.
       </p>
 
       <p>
         For most people, most of the time, buy and hold on a broad index is the
-        correct answer. Any strategy you build later is trying to beat that
-        answer while taking less punishment along the way. Keeping the baseline
-        honest is what makes the comparison meaningful.
+        correct answer. Any strategy you build later is trying to beat that answer while
+        taking less punishment along the way. Keeping the baseline fixed is what makes the
+        comparison meaningful.
       </p>
 
       <Recap points={[

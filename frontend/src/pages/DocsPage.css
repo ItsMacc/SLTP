@@ -639,10 +639,19 @@
   vertical-align: top;
 }
 
-/* The first column holds exact names. Without a floor, auto layout squeezes
-   `starting_value` until it breaks mid-word. */
+/* The first column holds exact names. They must never break mid-word, so the
+   cell refuses to wrap and the description column absorbs the squeeze. If that
+   still does not fit, the wrapper scrolls sideways instead of cutting a name. */
 .docs-table td:first-child {
   min-width: 10rem;
+  white-space: nowrap;
+}
+
+/* The second column holds short type labels such as "Fraction per trade". A
+   floor keeps it from collapsing to one word per line; descriptions in
+   two-column tables are wide enough that the floor never shows. */
+.docs-table td:nth-child(2) {
+  min-width: 7.5rem;
 }
 
 .docs-table tr:last-child td {

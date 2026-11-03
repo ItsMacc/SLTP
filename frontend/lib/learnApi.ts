@@ -1,7 +1,7 @@
 // learnApi.ts — Supabase storage for learning progress, badges and trophies.
 //
 // Storage lives in three tables (see migrations/supabase_learn.sql):
-//   learn_awards  — the catalog: one row per badge/trophy, for everyone
+//   learn_awards  — the catalog: one row per badge/certificate, for everyone
 //   user_awards   — what a learner holds; seeded LOCKED at signup
 //   learn_progress — which modules/tiers are done
 //
@@ -39,8 +39,8 @@ export interface LearnState {
 /** Catalog id for a module badge — must match the ids in supabase_learn.sql. */
 export const badgeAwardId = (sectionId: string) => `badge:${sectionId}`
 
-/** Catalog id for a tier trophy. */
-export const trophyAwardId = (tierId: string) => `trophy:${tierId}`
+/** Catalog id for a level certificate. */
+export const certificateAwardId = (tierId: string) => `certificate:${tierId}`
 
 /**
  * Give a freshly created account its badge set.

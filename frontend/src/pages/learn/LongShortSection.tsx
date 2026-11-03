@@ -56,9 +56,8 @@ export default function LongShortSection({ onComplete, onCredentials }: Props) {
   return (
     <div>
       <Objective>
-        By the end of this module you will be able to explain what it means to go
-        long and what it means to go short, describe how a short works when you do
-        not own the share, and say why going short carries the greater risk.
+        What going long and going short mean, how a short sells a share it does not own,
+        and why shorting can lose more than it makes.
       </Objective>
 
       {/* ---------- Step 0: the long side ---------- */}
@@ -202,9 +201,9 @@ export default function LongShortSection({ onComplete, onCredentials }: Props) {
             <Narrator icon={TrendingUp}>
               The price went <strong>up</strong> to ${exitPrice} instead. You still owe
               the share, so you had to buy it back for <strong>${exitPrice}</strong>,
-              losing <strong>${Math.abs(shortProfit)}</strong>. Notice the asymmetry:
-              a short's profit is capped at $100, but its loss has no ceiling. This is
-              why SLTP strategies never short: they only ever buy first.
+              losing <strong>${Math.abs(shortProfit)}</strong>. A short&apos;s profit is
+              capped at $100, but its loss has no ceiling. That is why SLTP strategies only
+              ever buy first.
             </Narrator>
           )}
           <Continue onClick={() => advance(3)} label="Compare both sides" />
@@ -247,21 +246,20 @@ export default function LongShortSection({ onComplete, onCredentials }: Props) {
             </li>
           </ul>
           <Narrator>
-            SLTP strategies are long-only: every signal buys first and sells later. You
-            will rarely short anything here, but knowing the mechanism explains a lot of
-            market language, like why a stock that keeps climbing can inflict unlimited
-            losses on short sellers and trigger a <strong>short squeeze</strong>.
+            When a shorted stock keeps rising, short sellers are forced to buy it back,
+            which pushes the price higher still. Traders call that a
+            <strong> short squeeze</strong>, and it is why SLTP strategies never short.
           </Narrator>
           {!ack ? (
             <Continue
               onClick={() => { setAck(true); onComplete?.(); }}
-              label="Mark module complete"
+              label="Mark as done"
             />
           ) : (
             <p className="learn-quiz-right">
-              <Check size={14} /> Module complete, progress saved to your account.
+              <Check size={14} /> Lesson done, progress saved to your account.
               <Button variant="outline" size="sm" onClick={() => onCredentials?.()}>
-                See your credentials <ArrowRight size={15} />
+                See your badges <ArrowRight size={15} />
               </Button>
             </p>
           )}

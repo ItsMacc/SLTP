@@ -9,10 +9,11 @@
 //
 // Keep these presentational and dumb: state lives in each module.
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Check, ChevronRight, Lightbulb, ListChecks, RotateCcw, Target, X } from 'lucide-react';
 import type { QuizQuestion } from '../../learn/moduleQuizzes';
+import { shuffleQuestions } from '../../learn/quizOrder';
 import Button from '../../ui/Button';
 
 /** Advances a stepped lesson and pulls the reader back to its heading. */
@@ -52,12 +53,12 @@ export function Narrator({ icon: Icon = Lightbulb, children }: {
   );
 }
 
-/** Opening statement of a module: the goal, stated as an ability. */
+/** Opening statement of a lesson: one short sentence on what you'll learn. */
 export function Objective({ children }: { children: ReactNode }) {
   return (
     <div className="learn-objective">
-      <span className="learn-objective-tag"><Target size={13} /> Objective</span>
-      <p>{children}</p>
+      <span className="learn-objective-tag"><Target size={13} /> What you&apos;ll learn</span>
+      <div className="learn-objective-body">{children}</div>
     </div>
   );
 }
@@ -96,11 +97,14 @@ export function Money({ value, decimals = 2 }: { value: number; decimals?: numbe
 export function SectionQuiz({ questions }: { questions: QuizQuestion[] }) {
   const [open, setOpen] = useState(false);
   const [picks, setPicks] = useState<Record<number, number>>({});
+  // Options are shuffled for display so the right answer is not always first;
+  // the seed keeps the order stable across renders and visits.
+  const ordered = useMemo(() => shuffleQuestions(questions), [questions]);
 
   if (!questions.length) return null;
 
   const answered = Object.keys(picks).length;
-  const correct = questions.reduce((n, q, i) => n + (picks[i] === q.answer ? 1 : 0), 0);
+  const correct = ordered.reduce((n, q, i) => n + (picks[i] === q.answer ? 1 : 0), 0);
 
   if (!open) {
     return (
@@ -115,7 +119,7 @@ export function SectionQuiz({ questions }: { questions: QuizQuestion[] }) {
   return (
     <div className="learn-quizcard">
       <div className="learn-quizcard-head">
-        <p className="learn-quizcard-title"><ListChecks size={14} /> Module quiz</p>
+        <p className="learn-quizcard-title"><ListChecks size={14} /> Lesson quiz</p>
         <div className="learn-quizcard-actions">
           {answered > 0 && (
             <Button variant="link" size="sm" onClick={() => setPicks({})}>
@@ -129,7 +133,7 @@ export function SectionQuiz({ questions }: { questions: QuizQuestion[] }) {
       </div>
 
       <ol className="learn-quizcard-list">
-        {questions.map((q, i) => {
+        {ordered.map((q, i) => {
           const pick = picks[i];
           const done = pick !== undefined;
           return (

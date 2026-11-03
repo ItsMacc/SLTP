@@ -59,9 +59,8 @@ export function MetricsSection() {
   return (
     <div>
       <Objective>
-        By the end of this module you will be able to compare two strategies on
-        return, volatility, the Sharpe ratio and drawdown, and explain why two
-        strategies with the same return can still be very different investments.
+        Compare two strategies on return, volatility, the Sharpe ratio and drawdown, and see
+        why the same return can be two very different investments.
       </Objective>
 
       <p>
@@ -205,15 +204,14 @@ export function AllocationSection() {
   return (
     <div>
       <Objective>
-        By the end of this module you will be able to show why spreading money
-        across more companies limits what a single failure can cost you, and
-        explain what <GlossaryText text=" diversification" glossary={G} /> really buys.
+        Why spreading money across more companies limits what a single failure can cost, and
+        what <GlossaryText text=" diversification" glossary={G} /> really buys.
       </Objective>
 
       <p>
-        Module A set a 2 percent risk budget so that one bad trade could not hurt
-        you much. This module is the same idea one level up: protecting your whole
-        account from one bad company.
+        The risk lesson set a 2 percent budget so one bad trade could not hurt you much.
+        This one is the same idea a level up: protecting the whole account from one bad
+        company.
       </p>
 
       <div className="learn-riskbox">
@@ -276,11 +274,9 @@ export function AllocationSection() {
       </div>
 
       <Narrator icon={PieChart}>
-        Notice that the bankruptcy did not get smaller. You lost the whole of
-        that one company every single time. What changed is how much of your
-        account was sitting in it. This is why the phrase is &ldquo;do not put all
-        your eggs in one basket&rdquo;, and it is the same idea behind{' '}
-        <GlossaryText text=" diversification" glossary={G} />.
+        The bankruptcy did not get smaller: you lost the whole of that one company every
+        time. What changed is how much of the account was sitting in it. That is the whole
+        idea behind <GlossaryText text=" diversification" glossary={G} />.
       </Narrator>
 
       <p>
@@ -291,11 +287,9 @@ export function AllocationSection() {
         whether you are still in the game.
       </p>
       <p>
-        The cost is real, and it is worth naming honestly. With 20 companies your
-        best idea moves your account 5 percent when it doubles, instead of 100
-        percent. You are trading upside for survival. If your plan is to still be
-        trading next year, that is a good trade. If the plan depends on one great
-        pick carrying the year, it is not.
+        The cost is real. With 20 companies your best idea moves the account 5 percent
+        when it doubles, instead of 100 percent. You are trading upside for survival. If
+        you want to still be trading next year, that is a good trade.
       </p>
       <p>
         One last thing. Twenty companies only helps if they are not really the same

@@ -28,12 +28,16 @@ export const GlossaryText: React.FC<GlossaryTextProps> = ({ text, glossary, clas
     // 2. Sort terms by length descending so longer phrases match first (e.g. "bear market" before "market")
     const sortedKeys = Object.keys(glossary).sort((a, b) => b.length - a.length);
 
-    // 3. Build Regex matching spaces and underscores flexibly
+    // 3. Build Regex matching spaces and underscores flexibly, plus an
+    //    optional plural suffix so "shares" links the "share" entry.
+    //    Longest key first is preserved, so "stock market" still wins over
+    //    "stock".
     const regexPattern = sortedKeys
       .map((key) =>
-        key
+        `(?:${key
           .replace(/[.*+?^${}()|[\]\\]/g, '\\$&') // Escape regex special chars
           .replace(/[_ ]+/g, '[_ ]+')             // Match spaces or underscores
+        })(?:s|es)?`
       )
       .join('|');
 
@@ -51,9 +55,14 @@ export const GlossaryText: React.FC<GlossaryTextProps> = ({ text, glossary, clas
         parts.push(text.substring(lastIndex, matchIndex));
       }
 
-      // Lookup original glossary key using normalized matched text
+      // Lookup original glossary key using normalized matched text. A plural
+      // match ("shares") resolves back to its singular entry ("share").
       const normalizedMatched = matchedText.replace(/[_ ]+/g, ' ').trim().toLowerCase();
-      const originalKey = termMap[normalizedMatched] || matchedText;
+      const originalKey =
+        termMap[normalizedMatched] ||
+        termMap[normalizedMatched.replace(/es$/, '')] ||
+        termMap[normalizedMatched.replace(/s$/, '')] ||
+        matchedText;
       const termData = glossary[originalKey];
 
       const definition = typeof termData === 'string' ? termData : termData?.definition;

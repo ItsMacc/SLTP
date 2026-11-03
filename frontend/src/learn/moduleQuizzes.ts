@@ -555,4 +555,302 @@ export const MODULE_QUIZZES: Record<string, QuizQuestion[]> = {
       explain: 'Real diversification mixes sectors and kinds of risk, so one bad month for one industry cannot take everything at once.',
     },
   ],
+
+  // ---------------------------------------------------------------
+  // Intermediate
+  // ---------------------------------------------------------------
+  psychology: [
+    {
+      q: 'Herding means:',
+      options: [
+        'Buying because other people are buying',
+        'Selling everything before a crash',
+        'Holding a stock for ten years',
+        'Ignoring the news',
+      ],
+      answer: 0,
+      explain: 'Herding is copying the crowd. It can extend a move well past what the news alone would justify.',
+    },
+    {
+      q: 'Loss aversion most often leads people to:',
+      options: [
+        'Cut losers immediately and let winners run',
+        'Hold losers hoping to break even, and sell winners early',
+        'Avoid the stock market entirely',
+        'Buy more of whatever fell',
+      ],
+      answer: 1,
+      explain: 'A loss hurts more than an equal gain pleases, so the losing position stays open and the winner gets banked too soon.',
+    },
+    {
+      q: 'If a pattern is easy to see and widely traded, what tends to happen?',
+      options: [
+        'It becomes stronger',
+        'Competition erodes it, which is why every claim needs testing',
+        'It becomes illegal',
+        'It repeats forever',
+      ],
+      answer: 1,
+      explain: 'Crowded ideas get arbitraged away. That is the case for treating behaviour patterns as hypotheses, not laws.',
+    },
+  ],
+  ideas: [
+    {
+      q: 'Which of these is a hypothesis?',
+      options: [
+        'Energy stocks are good',
+        'A stock that falls 10% in five days tends to bounce over the next ten',
+        'Markets reward patience',
+        'I have a good feeling about this one',
+      ],
+      answer: 1,
+      explain: 'It states a measurable condition and a measurable outcome, so data could show it is wrong.',
+    },
+    {
+      q: 'Why must a hypothesis be able to fail?',
+      options: [
+        'So it sounds more professional',
+        'Because a claim that cannot fail cannot be supported by evidence either',
+        'Because regulators require it',
+        'So the backtest runs faster',
+      ],
+      answer: 1,
+      explain: 'If no result could contradict the claim, the test teaches you nothing.',
+    },
+    {
+      q: 'Most strategy ideas fail when tested. That means:',
+      options: [
+        'The process is broken',
+        'It is the normal, healthy outcome: a researcher’s job is to discard ideas cheaply',
+        'You should stop testing and trust intuition',
+        'The market is unfair',
+      ],
+      answer: 1,
+      explain: 'Testing exists to throw ideas away before they cost money. A high failure rate is the design working.',
+    },
+  ],
+  'why-math': [
+    {
+      q: 'Why rewrite “it is going up a lot” as “the price is 20% higher than 60 trading days ago”?',
+      options: [
+        'To sound clever',
+        'So two people and a computer all get exactly the same answer',
+        'Because percentages are always more accurate',
+        'To avoid using an average',
+      ],
+      answer: 1,
+      explain: 'Maths removes ambiguity. A rule has to mean one thing before it can be tested.',
+    },
+    {
+      q: 'A strategy wins 40% of the time, average win $300, average loss $150. Expectancy per trade is:',
+      options: ['$30', '$150', '-$30', '$120'],
+      answer: 0,
+      explain: '0.4 × $300 = $120, and 0.6 × $150 = $90, so $120 − $90 = $30 per trade on average.',
+    },
+    {
+      q: 'What does maths NOT do for a strategy?',
+      options: [
+        'Make the rules exact',
+        'Measure risk and expected value',
+        'Predict the future',
+        'Let a result be repeated',
+      ],
+      answer: 2,
+      explain: 'Maths describes the past and prices risk. It gives no forecast.',
+    },
+  ],
+  vocabulary: [
+    {
+      q: 'An “edge” is:',
+      options: [
+        'A guaranteed profit',
+        'A repeatable reason the rules should beat a fair baseline after costs',
+        'A kind of stop-loss',
+        'The highest price of the day',
+      ],
+      answer: 1,
+      explain: 'If there is no reason the rules should work, a good backtest is more likely to be luck or overfitting.',
+    },
+    {
+      q: 'A “regime” in market language is:',
+      options: [
+        'A government rule',
+        'A stretch of market conditions with a similar character',
+        'A type of chart',
+        'A single trading day',
+      ],
+      answer: 1,
+      explain: 'Strategies are often tested across several regimes, because one that works only in a calm bull market is fragile.',
+    },
+    {
+      q: 'In-sample and out-of-sample mean:',
+      options: [
+        'Two different brokers',
+        'The data used to design the rules, and the untouched data used to check them',
+        'Two kinds of order',
+        'The first and last day of a backtest',
+      ],
+      answer: 1,
+      explain: 'The out-of-sample period is the check that the rules learned something transferable.',
+    },
+  ],
+  anatomy: [
+    {
+      q: 'In SLTP’s Statistical Mean Reversion strategy, a buy requires:',
+      options: [
+        'RSI above 70',
+        'RSI below 30 and a z-score below −1.5',
+        'A 20-day high',
+        'Rising volume only',
+      ],
+      answer: 1,
+      explain: 'Both conditions must hold: oversold on RSI (25-day) and far below the 20-bar average in standard deviations.',
+    },
+    {
+      q: 'A parameter is:',
+      options: [
+        'An adjustable number the rules use',
+        'A type of order',
+        'The strategy’s name',
+        'The fee a broker charges',
+      ],
+      answer: 0,
+      explain: 'Parameters are the dials, like RSI(25) or a 3-standard-deviation exit.',
+    },
+    {
+      q: '“Settings you can defend” means the chosen values:',
+      options: [
+        'Produced the best result on one window',
+        'Also work at nearby values, and survive a different period',
+        'Are the textbook defaults',
+        'Were chosen by someone else',
+      ],
+      answer: 1,
+      explain: 'A real edge is a plateau, not a single lucky spike that disappears when a number moves slightly.',
+    },
+  ],
+
+  // ---------------------------------------------------------------
+  // Advanced
+  // ---------------------------------------------------------------
+  'code-read': [
+    {
+      q: 'Inside on_signal, returning None means:',
+      options: ['Close the position', 'No trade for this ticker today', 'The strategy crashed', 'Buy at zero size'],
+      answer: 1,
+      explain: 'None is the normal “no entry” answer; the engine simply moves on.',
+    },
+    {
+      q: 'In Python, close_price[-1] means:',
+      options: ['The first price', 'The most recent price', 'The average price', 'The highest price'],
+      answer: 1,
+      explain: 'Negative indexes count from the end, so −1 is the latest bar.',
+    },
+    {
+      q: 'The line `if rsi[-1] < 30 and close > trend[-1]:` runs its body when:',
+      options: [
+        'Either condition is true',
+        'Both conditions are true',
+        'Neither condition is true',
+        'Only the first is true',
+      ],
+      answer: 1,
+      explain: '`and` requires both tests to pass: oversold and still above the trend average.',
+    },
+  ],
+  'code-write': [
+    {
+      q: 'The entry rule belongs in:',
+      options: ['__init__', 'on_signal', 'should_exit', 'initialize_universe'],
+      answer: 1,
+      explain: 'on_signal is called for each ticker each day and returns an Order or None.',
+    },
+    {
+      q: 'Setting MIN_BARS_REQUIRED too low means:',
+      options: [
+        'The backtest runs faster',
+        'The indicator may still be in its warm-up period when the rule reads it',
+        'The strategy cannot trade',
+        'Nothing changes',
+      ],
+      answer: 1,
+      explain: 'Indicators need enough bars before their values mean anything, so the minimum has to cover the longest window.',
+    },
+    {
+      q: 'Adjusting settings until the result looks best is:',
+      options: [
+        'Good practice',
+        'The overfitting trap: the rules start describing one slice of history',
+        'Required before testing',
+        'The same as out-of-sample testing',
+      ],
+      answer: 1,
+      explain: 'Tuning on the same data you judge with flatters the result. Check on data you did not tune on.',
+    },
+  ],
+  statements: [
+    {
+      q: 'A balance sheet is:',
+      options: [
+        'A snapshot of what a company owns and owes on one date',
+        'A record of profit over a year',
+        'A list of trades',
+        'A price chart',
+      ],
+      answer: 0,
+      explain: 'Assets, liabilities and equity at one moment, like a photograph rather than a film.',
+    },
+    {
+      q: 'Profit and cash flow differ because:',
+      options: [
+        'Profit is illegal to report',
+        'Timing and accounting choices move profit and cash at different moments',
+        'Cash flow includes the share price',
+        'They never differ',
+      ],
+      answer: 1,
+      explain: 'A sale on credit counts as revenue now and as cash later, so a profitable company can still run short of cash.',
+    },
+    {
+      q: 'Free cash flow is:',
+      options: [
+        'Revenue minus costs',
+        'Cash left after the spending needed to keep the business running',
+        'The share price times shares',
+        'Money borrowed from a bank',
+      ],
+      answer: 1,
+      explain: 'It is the cash the business generates after maintaining itself, which can be reinvested or returned.',
+    },
+  ],
+  valuation: [
+    {
+      q: 'Market capitalisation is:',
+      options: ['Price per share × shares', 'Revenue × margin', 'Debt − cash', 'The day’s trading volume'],
+      answer: 0,
+      explain: 'It is the market’s price for the whole company, not just one share.',
+    },
+    {
+      q: 'A P/E of 20 means:',
+      options: [
+        'The share costs $20',
+        'The price equals 20 years of the company’s current profit per share',
+        'The company grew 20%',
+        'The dividend is 20%',
+      ],
+      answer: 1,
+      explain: 'Price ÷ earnings per share. It compares what you pay with what the business earns today.',
+    },
+    {
+      q: 'A low P/E always means a stock is cheap?',
+      options: [
+        'Yes, that is the definition',
+        'No: it can be low because the market expects profits to fall',
+        'Only for banks',
+        'Only if the dividend is high',
+      ],
+      answer: 1,
+      explain: '“Cheap for a reason” is common. Ratios are a starting point for questions, not a verdict.',
+    },
+  ],
 };

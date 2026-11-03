@@ -78,8 +78,12 @@ export const LEARN_GLOSSARY: Record<string, string | GlossaryTerm> = {
     definition: 'An order that says "buy or sell, but only at my price or better." If the price never reaches yours, the trade never happens.',
     example: 'A limit order to buy at $97 waits until the price drops to $97 or lower.',
   },
+  'stop order': {
+    definition: 'An order that sleeps until the price hits the trigger you set, then becomes a market order and fills at whatever price is available next.',
+    example: 'A stop order at $90 turns into a market sell the moment the price touches $90.',
+  },
   'stop-limit order': {
-    definition: 'A stop-loss you place in advance with a price attached. When the stock touches your trigger price, the broker tries to sell at that price or better.',
+    definition: 'A stop order that becomes a limit order at your trigger price, so it fills at that price or better, and may not fill at all if the price gaps past it.',
   },
   slippage: {
     definition:
@@ -204,5 +208,216 @@ export const LEARN_GLOSSARY: Record<string, string | GlossaryTerm> = {
   benchmark: {
     definition: 'A standard the strategy is measured against, so you can tell whether it added anything.',
     example: 'If a strategy returns 8% and the S&P 500 returned 10%, it underperformed its benchmark.',
+  },
+
+  // ---------------- shared vocabulary ----------------
+  // Words a beginner meets before any lesson defines them.
+  ticker: {
+    definition: 'The short code a stock trades under, usually one to five letters.',
+    example: 'Apple trades as AAPL, Microsoft as MSFT.',
+  },
+  'price action': {
+    definition: 'The movement of a price itself, day to day, with no reference to the business behind it.',
+  },
+  delisted: {
+    definition: 'Removed from the exchange, so the shares no longer trade publicly. Usually follows bankruptcy or a merger.',
+  },
+  universe: {
+    definition: 'The full list of stocks a strategy or a test is allowed to choose from.',
+    example: 'A test whose universe is the 500 largest US companies can only ever buy those, never a smaller one.',
+  },
+  baseline: {
+    definition: 'The simple answer you compare against, so you can tell whether the clever answer added anything.',
+    example: 'If a strategy returns 8% and buy and hold returned 10%, it lost to its baseline.',
+  },
+  valuation: {
+    definition: 'What a company, or a slice of it, is thought to be worth in money.',
+  },
+  equity: {
+    definition: 'The ownership value you hold: what your shares would be worth if you sold them today.',
+  },
+  'data feed': {
+    definition: 'The stream of prices a trading system reads: open, high, low, close and volume for each day.',
+  },
+  revenue: {
+    definition: 'The money that comes in from selling the product, before any costs are paid.',
+    example: 'A shop selling $1,000 of goods a day has revenue of $1,000, whatever its costs.',
+  },
+  'profit margin': {
+    definition: 'The share of each dollar of revenue the company keeps after costs.',
+    example: 'A 20% margin means 20 cents kept from every dollar of sales.',
+  },
+  debt: {
+    definition: 'Money the company has borrowed and must repay, usually with interest, whether or not business is good.',
+  },
+  'market index': {
+    definition: 'A fixed list of stocks whose combined movement stands in for the whole market.',
+    example: 'The S&P 500 tracks about 500 large US companies as one number.',
+  },
+  'buy and hold': {
+    definition: 'Buying a broad slice of the market and never selling, which is the baseline every strategy is measured against.',
+  },
+  cagr: {
+    definition: 'Compound annual growth rate: the steady yearly percentage that would take the starting value to the final one.',
+    example: 'Turning $100 into $275 over ten years is a CAGR of about 10.7% a year.',
+  },
+  'short selling': {
+    definition: 'Selling a share you borrowed, then buying it back later. You profit if the price falls, and lose if it rises.',
+  },
+  portfolio: {
+    definition: 'Everything you hold at once, treated as one pool of money.',
+  },
+  exchange: {
+    definition: 'The marketplace where buy and sell orders meet and every trade is recorded.',
+  },
+
+  // ---------------- Intermediate - crowds and ideas ----------------
+  sentiment: {
+    definition: 'The overall mood of buyers and sellers towards a stock or a market, which shows up in how eagerly they buy or sell.',
+    example: 'Heavy buying after good news is positive sentiment; the price is not the only thing that moved, the willingness to pay did.',
+  },
+  herding: {
+    definition: 'Buying or selling because other people are, rather than because of new information.',
+    example: 'A stock rises for a week, more people buy because it is rising, and the rise extends.',
+  },
+  fomo: {
+    definition: 'Fear of missing out: buying late in a move because watching others profit feels worse than the risk of losing.',
+  },
+  overreaction: {
+    definition: 'Pricing news as if it were worse (or better) than it is, which can be partly reversed afterwards.',
+  },
+  underreaction: {
+    definition: 'Absorbing news slowly, so a move keeps going after the news is public.',
+  },
+  'loss aversion': {
+    definition: 'Losses feel worse than an equal gain feels good, which makes people hold losers and sell winners too early.',
+    example: 'A $100 loss stings more than a $100 gain pleases, so the losing position stays open hoping to break even.',
+  },
+  anchoring: {
+    definition: 'Fixing on a remembered price and judging every later price against it.',
+    example: 'A stock that fell from $100 to $60 can feel cheap at $65, even though $100 was never a promise.',
+  },
+  trend: {
+    definition: 'A price moving mostly in one direction over weeks or months.',
+  },
+  momentum: {
+    definition: 'The strength and speed of a recent move, used as evidence that it may continue.',
+  },
+  'mean reversion': {
+    definition: 'The tendency of an unusually stretched price to move back towards its recent average.',
+    example: 'A stock far below its 20-day average is a mean-reversion candidate: the bet is that the gap closes.',
+  },
+  hypothesis: {
+    definition: 'A statement specific enough that data could prove it wrong.',
+    example: '“Stocks that fall 10% in five days tend to bounce over the next ten” can fail; “tech stocks are good” cannot.',
+  },
+  falsifiable: {
+    definition: 'Able to be proven wrong by evidence. A claim that cannot fail teaches nothing.',
+  },
+  edge: {
+    definition: 'A repeatable reason a set of rules should beat a fair baseline, after costs.',
+  },
+  noise: {
+    definition: 'Random movement in prices that carries no information, which a rule can mistake for a signal.',
+  },
+
+  // ---------------- Intermediate - maths and indicators ----------------
+  'percent change': {
+    definition: 'How much a value moved, as a share of where it started.',
+    example: 'From $80 to $100 is a 25% gain: 20 ÷ 80.',
+  },
+  average: {
+    definition: 'The sum of a set of numbers divided by how many there are.',
+    example: 'Closes of 100, 102, 104 average 102.',
+  },
+  'standard deviation': {
+    definition: 'A number for how far values typically sit from their average, which is how volatility is measured.',
+    example: 'Closes averaging 100 with a standard deviation of 2 usually sit within a couple of dollars of 100.',
+  },
+  expectancy: {
+    definition: 'What an average trade is worth: win rate times average win, minus loss rate times average loss.',
+    example: 'Winning 40% of the time with $300 wins and $150 losses is $120 - $90 = $30 per trade.',
+  },
+  indicator: {
+    definition: 'A formula applied to prices or volume that makes one question easier to answer. It adds no new information.',
+  },
+  window: {
+    definition: 'How many past days an indicator looks at. A 20-day average uses the last 20 closes.',
+  },
+  lag: {
+    definition: 'How far behind today an indicator effectively sits, because it averages old data.',
+  },
+  'bollinger bands': {
+    definition: 'A moving average with two bands above and below it, set a number of standard deviations away, showing how stretched price is.',
+  },
+  factor: {
+    definition: 'A characteristic that can be measured across many stocks, such as size or recent momentum.',
+  },
+  regime: {
+    definition: 'A stretch of market conditions with a similar character, such as a steady bull market or a choppy one.',
+  },
+  parameter: {
+    definition: 'One of the adjustable numbers in a rule, like a 25-day RSI period or a 3-standard-deviation stop.',
+  },
+
+  // ---------------- Advanced - code ----------------
+  variable: {
+    definition: 'A name that holds a value in a program, so the value can be used later.',
+  },
+  function: {
+    definition: 'A named block of code that does one job and can be called by name.',
+  },
+  condition: {
+    definition: 'A test in code, such as “is the price below the 20-day average?”, that decides which lines run.',
+  },
+  loop: {
+    definition: 'Code that repeats the same steps for each item in a list.',
+  },
+  method: {
+    definition: 'A function that belongs to a class, like on_signal belonging to a Strategy.',
+  },
+
+  // ---------------- Advanced - companies ----------------
+  'net income': {
+    definition: 'Profit after every cost, interest and tax: the bottom line of the income statement.',
+  },
+  'earnings per share': {
+    definition: 'Net income divided by the number of shares, so companies of different sizes can be compared.',
+    example: '$1m profit across 500,000 shares is $2 of earnings per share.',
+  },
+  assets: {
+    definition: 'Everything the company owns: cash, equipment, buildings, money owed to it.',
+  },
+  liabilities: {
+    definition: 'Everything the company owes to others: debt, unpaid bills, obligations.',
+  },
+  'cash flow': {
+    definition: 'Money actually moving in and out of the business, which differs from profit because of timing and accounting.',
+  },
+  'free cash flow': {
+    definition: 'Cash left after the spending needed to keep the business running, which can be returned to owners or reinvested.',
+  },
+  'fiscal year': {
+    definition: 'A company’s chosen twelve-month accounting period, which does not have to start in January.',
+  },
+  'market capitalisation': {
+    definition: 'Price per share times the number of shares: what the market says the whole company is worth.',
+    example: 'A $50 share price with 2m shares is a $100m market capitalisation.',
+  },
+  'p/e ratio': {
+    definition: 'Price divided by earnings per share: how many years of today’s profit the price equals.',
+    example: 'A $60 share earning $3 per share has a P/E of 20.',
+  },
+  'price-to-sales': {
+    definition: 'Market value divided by yearly revenue, used when a company has little or no profit.',
+  },
+  'enterprise value': {
+    definition: 'Market capitalisation plus debt minus cash: the price of the whole business, not just the shares.',
+  },
+  'growth stock': {
+    definition: 'A company valued mostly on expected future growth, so its ratios usually look high today.',
+  },
+  'value stock': {
+    definition: 'A company whose price looks low against its current profits or assets.',
   },
 };

@@ -74,6 +74,68 @@ const TOOLS: ToolData[] = [
   },
 ];
 
+/* ---------- Bento section ---------- */
+
+/* Soft tones from the reference palette, orange left out. One per pillow in the
+   tile, so the field reads as a patchwork rather than a single colour. Nothing
+   is painted behind them, so the three butters are a shade deeper than the
+   swatch sheet: on the light card they would otherwise sit within a few points
+   of the cream and read as holes rather than pillows. */
+const BENTO_PILLOWS = [
+  '#f0e4b6',
+  '#b57a72',
+  '#7c9a80',
+  '#e3d09a',
+  '#6f8f74',
+  '#eddfae',
+  '#c3948b',
+  '#89a38d',
+];
+
+const BENTO_CELL_W = 120;
+const BENTO_CELL_H = 85.5;
+
+/* One pillow: a 120 × 85.5 cell with two rounded corners, the orientation
+   flipping by parity so neighbours interlock and the gaps fall into stars.
+   Each is inset by two units, which is the seam — nothing is painted behind
+   them, so the seam and the stars are the card showing through. */
+function bentoPillow(col: number, row: number, inset = 1.4): string {
+  const left = col * BENTO_CELL_W + inset;
+  const top = row * BENTO_CELL_H + inset;
+  const right = (col + 1) * BENTO_CELL_W - inset;
+  const bottom = (row + 1) * BENTO_CELL_H - inset;
+  const rx = BENTO_CELL_W / 2 - inset;
+  const ry = BENTO_CELL_H / 2 - inset;
+  const midX = left + rx;
+  const midY = top + ry;
+
+  return (col + row) % 2 === 0
+    ? `M${left},${midY} A${rx},${ry} 0 0 1 ${midX},${top} L${right},${top} L${right},${midY} A${rx},${ry} 0 0 1 ${midX},${bottom} L${left},${bottom} Z`
+    : `M${left},${top} L${midX},${top} A${rx},${ry} 0 0 1 ${right},${midY} L${right},${bottom} L${midX},${bottom} A${rx},${ry} 0 0 1 ${left},${midY} Z`;
+}
+
+/* Four columns by two rows: eight pillows, eight tones. */
+const BENTO_TILE = Array.from({ length: 8 }, (_, index) => {
+  const col = index % 4;
+  const row = Math.floor(index / 4);
+  return {
+    d: bentoPillow(col, row),
+    fill: BENTO_PILLOWS[index % BENTO_PILLOWS.length],
+  };
+});
+
+const BENTO_MINIS: { title: string; text: string; code?: string }[] = [
+  {
+    title: 'Local Development and Cloud Backtesting.',
+    text: 'We provide a local development environment for building and testing strategies and cloud backtesting services on the website.',
+    code: 'pip install sltp',
+  },
+  {
+    title: 'Optimized for Massive Datasets.',
+    text: 'Heavy optimizations with and 65% smaller memory footprint, cutting up to 90% of the time for instant backtests.',
+  },
+];
+
 /* ---------- How to read the results ---------- */
 const READING: { title: string; text: string }[] = [
   {
@@ -154,6 +216,90 @@ export default function HomePage({ onNavigate, onOpenGuide }: HomePageProps) {
             );
           })}
         </div>
+      </section>
+
+      <section className="bento" aria-labelledby="bento-title">
+        <article className="bento__feature">
+          <div className="bento__pattern" aria-hidden="true">
+            <svg width="100%" height="100%" focusable="false">
+              <defs>
+                <pattern
+                  id="bento-tile"
+                  width="480"
+                  height="171"
+                  patternUnits="userSpaceOnUse"
+                  patternTransform="scale(0.5)"
+                >
+                  <g strokeLinejoin="round">
+                    {BENTO_TILE.map((pillow) => (
+                      <path key={pillow.d} d={pillow.d} fill={pillow.fill} />
+                    ))}
+                  </g>
+                </pattern>
+              </defs>
+              <rect width="100%" height="100%" fill="url(#bento-tile)" />
+            </svg>
+          </div>
+
+          <div className="bento__body">
+            <h2 id="bento-title" className="bento__title">
+              SLTP's open-source algorithmic engine!
+            </h2>
+            <p className="bento__copy">
+              This engine powers all the backtests and strategies on this site. It is designed to be fast, efficient, and beginner-friendly, allowing you to start building and testing your own strategies without the need to memorize or understand complex code. With guided examples and comprehensive documentation, you can quickly learn and implement your own strategies and see how they perform in real market conditions.
+            </p>
+          </div>
+        </article>
+
+        <div className="bento__minis">
+          {BENTO_MINIS.map((item) => (
+            <article className="bento__card" key={item.title}>
+              <h2 className="bento__card-title">{item.title}</h2>
+              <p className="bento__card-text">{item.text}</p>
+              {item.code && <code className="bento__code">{item.code}</code>}
+            </article>
+          ))}
+        </div>
+
+        <article className="bento__card bento__short">
+          <h2 className="bento__card-title">Settings you can defend</h2>
+          <p className="bento__card-text">
+            Each candidate is scored on risk-adjusted return, filtered by drawdown and trade count,
+            and kept only where nearby values work too — so a tuned strategy still holds up outside
+            the window it was chosen on.
+          </p>
+        </article>
+
+        <article className="bento__card bento__tall">
+          <h2 className="bento__card-title">Built on clean, reliable, high-quality data.</h2>
+          <p className="bento__stat">
+            <span className="bento__stat-lead">
+              With over <span className="bento__stat-value">11,500+</span> securities
+            </span>
+            <span className="bento__stat-tail">
+              containing more than twenty-eight years of historical data, built for faster
+              backtests.
+            </span>
+          </p>
+        </article>
+
+        <a
+          className="bento__cta"
+          href="#/docs/"
+          onClick={(event) => {
+            event.preventDefault();
+            onNavigate('docs');
+          }}
+        >
+          <h2 className="bento__card-title"></h2>
+          <p className="bento__card-text">
+
+          </p>
+          <span className="bento__cta-foot">
+            <span className="bento__cta-label">Learn more</span>
+            <ArrowRight size={18} className="bento__cta-arrow" />
+          </span>
+        </a>
       </section>
 
       <section className="home-reading">

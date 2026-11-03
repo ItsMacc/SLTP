@@ -84,27 +84,27 @@ function filesIn(workspace: LabWorkspace): number {
 const FACTS: { title: string; text: string }[] = [
   {
     title: 'Next-open fills',
-    text: "A signal after Monday's close fills at Tuesday's open.",
-  },
-  {
-    title: 'Trading costs',
-    text: 'Every fill pays 0.05% slippage and a 0.1% fee. Do not add your own on top.',
-  },
-  {
-    title: 'Cautious exits',
-    text: 'If one day touches both your stop and your target, the stop wins. A gap fills at the open.',
+    text: "A signal is computed from a bar that has already closed, so the trade happens at the next open. Monday's close produces a Tuesday-open fill, never a Monday price. That short delay is the honest cost of acting on a completed bar.",
   },
   {
     title: 'No lookahead',
-    text: 'Your code only sees bars up to and including today.',
+    text: 'Your code only sees bars up to and including the current day. Indicators are computed causally, so the value at day N is built from days 1 to N and nothing after. Without that rule a backtest is not a test, only a memory of the answer.',
   },
   {
-    title: 'Long and short',
-    text: 'Orders can go either way. Total exposure cannot exceed your equity.',
+    title: 'Trading costs',
+    text: 'Every fill pays 0.05% of slippage that always moves against you, plus a 0.1% fee. An entry and its exit each pay both, so a round trip starts a little behind before the price has done anything. Do not add your own costs on top of these.',
+  },
+  {
+    title: 'Equity-based sizing',
+    text: 'The book starts at 100.00, and an allocation is a fraction of current equity rather than a fixed amount of money.',
+  },
+  {
+    title: 'A day to prepare',
+    text: "run_daily runs once per day, before any ticker is read, which is where you compute things that must be identical for every stock: a ranking, a market filter, today's shortlist. It receives only the date, so it cannot peek at the day's close. Whatever it stores is what the signals then use.",
   },
   {
     title: 'Position limits',
-    text: 'Cap the number of positions, lots per ticker and allocation per ticker.',
+    text: 'You can go long or short, and set the maximum number of positions, lots per ticker and allocation per ticker. Total exposure cannot exceed equity, so the engine refuses an order that would need borrowed money.',
   },
 ];
 
@@ -604,6 +604,12 @@ export default function LabPage({ onNavigate }: LabPageProps) {
               </li>
             ))}
           </ul>
+
+          <p className="lab-engine-note">
+            <strong>Worst-case outcomes are assumed.</strong> If one bar touches both your stop
+            and your target, the stop is the one taken. If the price gaps through a level, the
+            fill is at the open, which can be worse than the level you set.
+          </p>
         </section>
 
         <section className="lab-section" aria-labelledby="lab-results">
