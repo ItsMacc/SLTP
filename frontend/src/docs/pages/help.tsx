@@ -166,6 +166,18 @@ export const HELP: DocGroup = {
       title: 'Changelog',
       lead: 'What changed in the documentation and in the engine surface it describes.',
       blocks: [
+        { kind: 'h2', id: 'dividends', text: 'Cash dividends — November 2026' },
+        {
+          kind: 'ul',
+          items: [
+            "Lots held from the previous close collect cash dividends on the ex-date, before that session's fills. A buy on the ex-date does not.",
+            <>Equity is <C>starting + realized + dividends − costs + unrealized</C>. Closed-trade returns include the cash.</>,
+            <><C>Trade</C> and <C>metrics</C> carry <C>dividend_income</C>; <C>Backtester</C> takes <C>include_dividends=True</C> for a price-only comparison.</>,
+            'Non-positive, non-finite and implausibly large distributions are dropped before the engine sees them.',
+            'The Results, Engine, Utils and Getting started pages describe the new field, step and formula.',
+            'Strategy reports and their charts were regenerated with dividends included.',
+          ],
+        },
         { kind: 'h2', id: 'docs-2', text: 'Docs 2.0 — November 2026' },
         {
           kind: 'ul',
