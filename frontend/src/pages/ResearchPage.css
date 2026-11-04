@@ -749,210 +749,6 @@
   border: 0;
 }
 
-/* ---------- Guides ---------- */
-
-/* Same rhythm as the Lab's sections: 56px above the rule, 56px below it.
-   On a wide screen a guide is a spread: reading column on the left, figure
-   rail on the right, both pinned to the page's own edges. */
-.research-guide {
-  display: grid;
-  grid-template-columns: minmax(0, 42.5rem) minmax(0, 26rem);
-  justify-content: space-between;
-  column-gap: var(--space-xl);
-  align-items: start;
-  margin-top: 3.5rem;
-  padding-top: 3.5rem;
-  border-top: 1px solid var(--border-subtle);
-  min-width: 0;
-}
-
-/* A guide with no figure rail: one reading column, pinned to the left edge. */
-.research-guide.is-text-only {
-  grid-template-columns: minmax(0, 42.5rem);
-  justify-content: start;
-}
-
-.research-guide-head {
-  grid-column: 1;
-  grid-row: 1;
-  min-width: 0;
-}
-
-/* The rail follows the reader down the long sections instead of scrolling
-   away after the first paragraph. */
-.research-guide-aside {
-  grid-column: 2;
-  grid-row: 1 / span 2;
-  position: sticky;
-  top: 5rem;
-  align-self: start;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
-  min-width: 0;
-}
-
-.research-guide-title {
-  position: relative;
-  margin: 0;
-  padding-top: 1rem;
-  font-family: var(--font-heading);
-  font-size: 2rem; /* 32px */
-  font-weight: 400;
-  letter-spacing: -0.02em;
-  line-height: 1.12;
-  color: var(--text-strong);
-}
-
-/* The short accent rule above a guide heading, the page's one recurring mark. */
-.research-guide-title::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 1.5rem; /* 24px */
-  height: 2px;
-  background: var(--accent);
-}
-
-/* Figures: bordered like a panel, drawing above the caption. */
-.research-guide-figure {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-  margin: 0;
-  padding: 1rem;
-  box-sizing: border-box;
-  border: 1px solid var(--border-subtle);
-  border-top: 2px solid var(--accent);
-  border-radius: 0.625rem; /* 10px */
-  background: var(--bg-surface);
-  min-width: 0;
-}
-
-.research-guide-figure svg {
-  width: 100%;
-  height: auto;
-  display: block;
-}
-
-.research-guide-figure figcaption {
-  font-size: 1rem; /* 14px */
-  line-height: 1.55;
-  color: var(--text-secondary);
-}
-
-.research-guide-figure figcaption strong {
-  font-weight: 600;
-  color: var(--text-strong);
-}
-
-.research-guide-lede {
-  margin: var(--space-sm) 0 0;
-  max-width: 36rem; /* ≈576px */
-  font-size: 1.25rem; /* 18px */
-  line-height: 1.7;
-  color: var(--text-secondary);
-}
-
-.research-guide-body {
-  grid-column: 1;
-  grid-row: 2;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-lg);
-  margin-top: 2.25rem;
-  min-width: 0;
-}
-
-.research-guide-body > p {
-  margin: 0;
-  font-size: 1.1875rem; /* 17px */
-  line-height: 1.72;
-  color: var(--text-secondary);
-}
-
-.research-guide-subhead {
-  margin: var(--space-lg) 0 0;
-  font-family: var(--font-ui);
-  font-size: 1.3125rem; /* 19px */
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  color: var(--text-strong);
-}
-
-.research-guide-body > p + .research-guide-subhead {
-  margin-top: var(--space-sm);
-}
-
-.research-guide-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
-  margin: 0;
-  padding: 0 0 0 1.25rem;
-  font-size: 1.1875rem; /* 17px */
-  line-height: 1.72;
-  color: var(--text-secondary);
-}
-
-.research-guide-grid {
-  display: grid;
-  /* Two pairs, not four columns: at reading size a four-across row leaves
-     every definition breaking after two or three words. */
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-lg) var(--space-xl);
-  margin: var(--space-2xs) 0;
-}
-
-.research-guide-term {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2xs);
-}
-
-.research-guide-term-name {
-  font-size: 1.0625rem; /* 15px */
-  font-weight: 600;
-  color: var(--text-strong);
-}
-
-.research-guide-term-text {
-  font-size: 1.0625rem; /* 15px */
-  line-height: 1.6;
-  color: var(--text-secondary);
-}
-
-/* The metric dictionary: two columns of name-and-meaning, so the longest
-   definitions still sit on two lines instead of stretching the column. */
-.research-guide-defs {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-md) var(--space-xl);
-  margin: var(--space-2xs) 0;
-}
-
-.research-guide-def {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2xs);
-  min-width: 0;
-  padding-top: var(--space-md);
-  border-top: 1px solid var(--border-subtle);
-}
-
-.research-guide-def-name {
-  font-size: 1.0625rem; /* 15px */
-  font-weight: 600;
-  color: var(--text-strong);
-}
-
-.research-guide-def-text {
-  font-size: 1.0625rem; /* 15px */
-  line-height: 1.6;
-  color: var(--text-secondary);
-}
-
 /* ---------- Tablet ---------- */
 
 /* Wide screens: the list matches the chart panel's height, so the footer sits
@@ -963,33 +759,6 @@
     min-height: 0;
     max-height: none;
     contain: size;
-  }
-}
-
-/* Below this the guide cannot hold two columns and a readable measure, so the
-   rail drops under the heading and the prose follows it. */
-@media (max-width: 75.999rem) {
-  .research-guide {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .research-guide-aside {
-    grid-column: 1;
-    grid-row: 2;
-    position: static;
-    flex-direction: row;
-    flex-wrap: wrap;
-    margin-top: 2rem;
-  }
-
-  .research-guide-aside > .research-guide-figure {
-    flex: 1 1 18rem;
-  }
-
-  /* One column: the figures get the full width, the prose keeps its measure. */
-  .research-guide-body {
-    grid-row: 3;
-    max-width: 42.5rem; /* ≈680px */
   }
 }
 
@@ -1008,9 +777,6 @@
     border-left: 0;
   }
 
-  .research-guide-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 /* ---------- Phone ---------- */
@@ -1106,14 +872,6 @@
 
   .quote-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .research-guide-defs {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .research-guide-aside {
-    flex-direction: column;
   }
 
   .quote-stat:nth-child(3n + 1) {
