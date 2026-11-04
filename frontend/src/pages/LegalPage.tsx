@@ -1,4 +1,9 @@
 // LegalPage.tsx — Privacy Policy and Terms of Service
+//
+// One document renderer for both pages: a reading column, a contents list, and
+// hairline-separated sections. Every privacy statement below is drawn from the
+// code that implements it (see the section comments for the file each claim
+// comes from), so the policy cannot promise behaviour the platform lacks.
 import type { ReactNode } from 'react';
 import Button from '../ui/Button';
 import './LegalPage.css';
@@ -37,22 +42,31 @@ interface LegalDocument {
 
 const legalEmail = 'legal.sltp@gmail.com';
 
+// Sources for the statements in this document:
+//   app/auth/auth.py            session tokens, JWKS verification, profile read
+//   app/auth/security.py        sign-in device hashes, ten-device cap, alerts
+//   app/database/users/…        provisioning, API-key hashing, account deletion
+//   app/database/turso/turso.py tables held in Turso, digest markers, churn log
+//   app/notification/mailer.py  Gmail SMTP delivery and message kinds
+//   migrations/migrations.sql   exact columns stored per table
+//   frontend/lib/*.ts           browser storage keys and the Supabase client
 const privacyDocument: LegalDocument = {
   title: 'Privacy Policy',
-  meta: 'Last Updated: October 24, 2026',
-  intro: 'This Privacy Policy explains what information SLTP collects, why we collect it, how long we keep it, and what you can ask us to do with it. It applies to the SLTP website, its API, and the research and backtesting tools offered through it.',
+  meta: 'Last updated: November 4, 2026',
+  intro:
+    'SLTP is an independent quantitative research platform: it replays market history against a trading rule and keeps the research you build around that rule. This policy sets out exactly what the platform stores, why, where it goes, and how to have it removed. It describes the systems we run rather than a template, and it applies to the website, the API and the Lab.',
   sections: [
     {
       step: '01',
-      title: 'Introduction and scope',
+      title: 'Who we are and what this policy covers',
       blocks: [
         {
           type: 'paragraph',
-          text: 'SLTP is an independent quantitative research platform. We collect as little information as the service genuinely requires, and we do not sell, rent, or trade what we hold. This policy is written to be read: it describes our actual practices rather than an aspirational version of them.',
+          text: 'In this policy, "we", "us" and "our" mean SLTP, and "you" means the person using the platform. "Personal information" means any record that identifies you or can reasonably be linked back to you. This policy covers every part of the service and forms part of our Terms of Service; where the two documents differ on how information is handled, this one governs.',
         },
         {
           type: 'paragraph',
-          text: 'In this policy, "we", "us", and "our" refer to SLTP. "You" refers to the person using the platform. "Personal information" means any record that identifies you or can be linked back to you.',
+          text: 'The platform deliberately holds a narrow set of records. It is a research tool, not a broker: there are no holdings, no orders and no payment details to protect, because none of them exist here.',
         },
       ],
     },
@@ -62,30 +76,46 @@ const privacyDocument: LegalDocument = {
       blocks: [
         {
           type: 'paragraph',
-          text: 'We process the following categories of information, and only these categories:',
+          text: 'We process the categories below, and nothing outside this list is collected or inferred:',
         },
         {
           type: 'list',
           items: [
             {
               lead: 'Account credentials:',
-              text: 'If you create an account, we store your email address and encrypted authentication credentials through Supabase, our authentication provider, so that we can establish and secure your session.',
+              text: 'When you create an account, Supabase stores your email address and your password. Passwords are held by Supabase Auth in hashed form; SLTP never receives, stores or has access to the plain-text password. A successful sign-in returns a session token to your browser and nothing more.',
             },
             {
-              lead: 'User preferences and portfolios:',
-              text: 'We save your settings, watchlists, saved parameters, and portfolio configurations so that your work is still there when you return.',
+              lead: 'Profile:',
+              text: 'Your account row holds the display name you chose and your email address, which is used for account and security messages.',
+            },
+            {
+              lead: 'Preferences:',
+              text: 'Your theme, chart limits and notification choices are stored as a settings object on your account, so the platform opens the way you left it. A mirror of that object is kept in the database our nightly job reads.',
+            },
+            {
+              lead: 'Saved work:',
+              text: 'Your portfolio setup answers — portfolio name, base currency, starting cash and the choices made in the onboarding wizard — and, in the Lab, the workspaces, projects, folders and Python files you create.',
+            },
+            {
+              lead: 'Learning progress:',
+              text: 'The Learn course records which sections and milestones you have completed and which badges or certificates you have earned.',
+            },
+            {
+              lead: 'API keys:',
+              text: 'If you create a personal API key, we store the label you gave it, the first characters so you can recognise it in a list, a one-way hash of the key, and when it was created and last used. The key itself is shown once and never stored.',
             },
             {
               lead: 'Sign-in device checks:',
-              text: 'At the moment you sign in, and only at that moment, we record a one-way salted hash of your IP address and browser device string for device security. We never store the raw IP address, we do not track you while you use the platform, and the record exists so that we can alert you when an unfamiliar device signs in to your account.',
+              text: 'At the moment you sign in — and only then — we record a salted, one-way hash of your IP address and of your browser’s user-agent string, a readable label such as "Chrome on macOS", and the first and last time that device was seen. We keep your ten most recent devices. The raw IP address is never written down, never shown back to you, and never used to locate you.',
             },
             {
-              lead: 'Support communications:',
-              text: 'If you contact us by email, we retain your message and your email address for as long as it takes to address your inquiry and to keep a record of the resolution.',
+              lead: 'Correspondence:',
+              text: 'If you email us, we keep the message and your address for as long as it takes to resolve the matter and to keep a record of what was agreed.',
             },
             {
-              lead: 'Technical data:',
-              text: 'Our hosting providers record standard web server logs, including IP address, browser type, and requested URL, for the purpose of diagnosing faults and keeping the service available. These logs are governed by our hosting agreements and are not used to build a profile of you.',
+              lead: 'Service logs:',
+              text: 'Our hosts record ordinary request logs such as IP address, user-agent and requested URL, and the API writes an error message when a request fails. An error message can include an account identifier so a failure can be traced to the account it affected.',
             },
           ],
         },
@@ -93,30 +123,34 @@ const privacyDocument: LegalDocument = {
     },
     {
       step: '03',
-      title: 'How we use the information',
+      title: 'How we use information',
       blocks: [
         {
           type: 'paragraph',
-          text: 'Information is used for a defined set of purposes and nothing else:',
+          text: 'Each category above exists for one of these purposes, and is not used for another:',
         },
         {
           type: 'list',
           items: [
             {
-              lead: 'Operating the platform:',
-              text: 'Authenticating you, loading your saved work, running backtests on your behalf, and keeping your projects and portfolios in sync across your visits.',
+              lead: 'Operating the service:',
+              text: 'Authenticating you, loading your preferences and saved work, running the backtests you request, and keeping your portfolio setup and Lab files available across visits.',
             },
             {
-              lead: 'Security and integrity:',
-              text: 'Verifying sign-in attempts, detecting unusual access to an account, preventing abuse of the service, and enforcing the restrictions set out in our Terms of Service.',
+              lead: 'Security:',
+              text: 'Verifying session tokens, carrying out the sign-in device check, emailing you when an unrecognised device signs in, and investigating abuse of the service.',
+            },
+            {
+              lead: 'Notifications you asked for:',
+              text: 'Signal digests and market summaries for strategies you follow, sent only while the notification setting is on. Turning it off in Settings stops them.',
             },
             {
               lead: 'Responding to you:',
-              text: 'Answering questions, acting on data requests, and investigating reports of a problem with the platform.',
+              text: 'Answering questions, acting on an access or deletion request, and investigating a reported problem.',
             },
             {
-              lead: 'Improving the service:',
-              text: 'Understanding which parts of the platform are used and where they fail, in aggregate, so that we can fix what is broken. We do not use your individual activity to build advertising profiles.',
+              lead: 'Maintenance:',
+              text: 'Diagnosing failures and understanding, in aggregate, which parts of the platform break, so that they can be fixed.',
             },
           ],
         },
@@ -124,30 +158,38 @@ const privacyDocument: LegalDocument = {
     },
     {
       step: '04',
-      title: 'How we do not use the information',
+      title: 'What we do not do',
       blocks: [
         {
           type: 'paragraph',
-          text: 'To make the boundaries explicit, SLTP does not do the following:',
+          text: 'The boundaries matter as much as the list above, so we state them plainly:',
         },
         {
           type: 'list',
           items: [
             {
+              lead: 'No advertising:',
+              text: 'There are no ad networks, advertising pixels or advertising identifiers on the platform. We do not sell, rent or trade personal information, and no data broker receives anything from us.',
+            },
+            {
               lead: 'No tracking cookies:',
-              text: 'We do not deploy tracking cookies, advertising pixels, or third-party marketing identifiers. The only browser storage we use holds your session and your local preferences.',
+              text: 'The platform sets no tracking or analytics cookies and embeds no third-party analytics script. The browser storage described in section 06 is our own, and it holds your session and your preferences.',
             },
             {
               lead: 'No behavioural profiling:',
-              text: 'We do not log individual browsing paths, build commercial user profiles, or sell, rent, or disclose data to brokers, advertisers, or data brokers.',
+              text: 'We do not build commercial interest profiles, log a page-by-page browsing history, or use your activity to target anything at you.',
             },
             {
               lead: 'No continuous IP tracking:',
-              text: 'Your IP address and device are processed at the instant of sign-in, for device security alerts only. We do not monitor your IP address, location, or device activity at any other time, and only salted hashes are retained, never raw values.',
+              text: 'IP address and device details are processed at sign-in only, retained as salted hashes, and never used to follow your activity between visits. After a ban, a masked hash may be retained for the single purpose of detecting a new account; section 08 sets out exactly what that record holds.',
             },
             {
-              lead: 'No third-party advertising:',
-              text: 'Nothing on the platform is used to build an advertising audience.',
+              lead: 'No payment or brokerage data:',
+              text: 'SLTP is free to use. We collect no card details, bank details or billing address, hold no funds, and have no broker connection that could place an order; no trading credentials are requested at any point.',
+            },
+            {
+              lead: 'No sensitive categories:',
+              text: 'We do not ask for health, biometric, genetic, political, religious or trade-union information, and no feature of the platform requires it.',
             },
           ],
         },
@@ -155,182 +197,242 @@ const privacyDocument: LegalDocument = {
     },
     {
       step: '05',
-      title: 'Third-party processors and service providers',
+      title: 'Service providers',
       blocks: [
         {
           type: 'paragraph',
-          text: 'We use a small number of infrastructure providers, each under a written agreement that limits what it may do with our data:',
+          text: 'We use a small number of infrastructure providers. Each is bound by contract to process information only on our instructions and for the purpose we engaged it for:',
         },
         {
           type: 'list',
           items: [
             {
               lead: 'Supabase:',
-              text: 'Provides authentication and stores your account profile, notification settings, and sign-in device history.',
+              text: 'Provides identity — email address, hashed password and sessions — and stores your profile, settings and learning-progress rows. Row-level security restricts each row to the account that owns it.',
             },
             {
               lead: 'Turso:',
-              text: 'Our database for portfolio setup, Lab workspaces and projects, API key records, and portfolio trade records.',
+              text: 'Our libsql database. It holds the account mirror, portfolio setup, Lab workspaces, projects and files, API-key hashes, the deletion log and the notification bookkeeping described in section 07.',
             },
             {
-              lead: 'Hosting providers (Vercel and Render):',
-              text: 'Host the frontend and backend code. They process ordinary web traffic logs for operational stability and do not access or commercialize personal user data.',
+              lead: 'Vercel:',
+              text: 'Hosts the web frontend, serving its files and recording ordinary request logs.',
             },
             {
-              lead: 'Market data providers:',
-              text: 'Supply the historical price and volume data used by the charts and backtests. These providers receive queries about instrument prices, not information about you.',
+              lead: 'Render:',
+              text: 'Hosts the API service and records ordinary request logs for it.',
             },
             {
-              lead: 'Email delivery:',
-              text: 'Security alerts, such as a sign-in from a new device, are sent through Gmail SMTP to the address on your account.',
+              lead: 'Market data:',
+              text: 'Daily price and volume history is downloaded from Yahoo Finance through the open-source yfinance client. Those requests concern symbols and dates, and carry no account information.',
+            },
+            {
+              lead: 'Google (Gmail SMTP):',
+              text: 'Delivers account, security and notification email from our sending address to the address on your account.',
             },
           ],
         },
         {
           type: 'paragraph',
-          text: 'We may add or replace a provider as the platform changes. If we ever add a provider that processes personal information in a materially different way, we will update this policy before that change takes effect.',
+          text: 'We do not run an advertising, analytics, crash-reporting or customer-data platform alongside these providers. If one is added or replaced in a way that changes how personal information is handled, this policy is updated before that change takes effect.',
         },
       ],
     },
     {
       step: '06',
-      title: 'How long we keep information',
+      title: 'Browser storage and sessions',
       blocks: [
         {
           type: 'paragraph',
-          text: 'We keep information only for as long as it serves a stated purpose. In practice, that means:',
+          text: 'The frontend keeps a short, fixed list of values in your browser. There are no cookies. Every item below is first-party, readable only by this site:',
         },
         {
           type: 'list',
           items: [
             {
-              lead: 'Account data:',
-              text: 'For as long as your account exists.',
+              lead: 'Session token:',
+              text: 'Your Supabase session, kept in local storage so a reload does not sign you out. It is cleared when you sign out.',
             },
             {
-              lead: 'Support correspondence:',
-              text: 'Until the matter is resolved, and afterwards for a reasonable period so that we have a record of what was agreed.',
+              lead: 'Cached preferences:',
+              text: 'A copy of your settings object, so the first paint uses your theme and chart choices before the account row answers. Your display name and theme are also held for the current visit only, in session storage.',
             },
             {
-              lead: 'Sign-in device history:',
-              text: 'We keep up to 10 of your most recently used devices, stored with your account settings, until you delete your account or newer devices replace them.',
+              lead: 'Learning progress:',
+              text: 'A local copy of course progress, keyed to your account, used when Supabase or the network is unavailable. Supabase remains the authoritative record.',
             },
             {
-              lead: 'Server logs:',
-              text: 'Retained for the period set by our hosting providers for security and debugging, and then deleted automatically.',
+              lead: 'Interface state:',
+              text: 'Whether groups in the documentation sidebar were open, so the panel looks the same when you return.',
             },
           ],
+        },
+        {
+          type: 'paragraph',
+          text: 'You can remove all of it at any time through your browser’s site-data settings. Doing so signs you out and resets those local choices; it does not delete your account, which is handled in section 08.',
         },
       ],
     },
     {
       step: '07',
-      title: 'Deletion and your rights',
+      title: 'How long we keep information',
       blocks: [
         {
           type: 'paragraph',
-          text: 'You maintain full ownership of your account data, and you can exercise the following rights at any time:',
+          text: 'Information is kept only while it serves the purpose it was collected for:',
+        },
+        {
+          type: 'list',
+          items: [
+            {
+              lead: 'Account, profile and saved work:',
+              text: 'For as long as your account exists, and removed when you delete it.',
+            },
+            {
+              lead: 'Sign-in device history:',
+              text: 'The ten most recent devices, replaced as newer devices sign in, and removed with the account.',
+            },
+            {
+              lead: 'Learning progress:',
+              text: 'Held with your account and removed together with it.',
+            },
+            {
+              lead: 'Notification bookkeeping:',
+              text: 'One send record per recipient per trading session, pruned after 30 days, so a rerun of the nightly job cannot mail the same digest twice.',
+            },
+            {
+              lead: 'Correspondence:',
+              text: 'Until the matter is closed, then for a reasonable further period as a record of how it was resolved.',
+            },
+            {
+              lead: 'Service logs:',
+              text: 'For the retention window configured at our hosts, after which they rotate out. Application error entries are kept only as long as needed to diagnose the failure.',
+            },
+          ],
+        },
+        {
+          type: 'paragraph',
+          text: 'Two records can outlive a deleted account — the deletion log, and the ban record kept after a termination for a serious offence. Both are described in section 08 rather than folded into this list, because they deserve to be read on their own.',
+        },
+      ],
+    },
+    {
+      step: '08',
+      title: 'Deletion, access and your rights',
+      blocks: [
+        {
+          type: 'paragraph',
+          text: 'You can delete your account yourself, at any time, from Settings. Deletion is permanent and needs no email to us. The server removes, in this order: your Supabase sign-in credential, so the same address can neither sign in again nor be silently re-created; your Supabase profile row; and, in Turso, your Lab files, folders, projects and workspaces, your API keys, your portfolio setup and your account row. Learning-progress and award rows belong to the sign-in credential and are removed with it. When the request completes there is no live account, no backup copy and no shadow profile.',
+        },
+        {
+          type: 'paragraph',
+          text: 'One record does survive, and we would rather name it than leave it implied: an entry in our deletion log holding the account id, the email address, the display name and the date of deletion. It exists because deleting an account erases every other trace, and without it we could not report how many accounts were created and closed, or answer a dispute about a deletion. It holds no preferences, no saved work and no device history, it is never used to contact you, and it is not linked to any profile. Ask us and we will remove that entry as well.',
+        },
+        {
+          type: 'paragraph',
+          text: 'A second record can survive, and only after a ban. Where we terminate an account for a serious offence — fraud, resale or redistribution of market data, or evading an earlier ban — we keep a suppression record so that the same person cannot open another account and continue. It holds the email address on the account, the reason for the ban, the date, and the sign-in identifiers we already compute for the device check: IP address and browser user-agent, both masked and held only as a salted one-way hash. The original address cannot be read back from it, by us or by anyone else. The record contains none of your saved work, and it has one use only: matching a new sign-up attempt. It is never used to follow ordinary activity, never sold and never shared except where the law compels it. You can ask us whether such a record exists about you and appeal it, and if a ban is lifted the record is removed.',
         },
         {
           type: 'list',
           items: [
             {
               lead: 'Access and correction:',
-              text: 'You can review and update the information held on your account from within the platform, and you can ask us for a copy of it in writing.',
+              text: 'You can review and update your account details, preferences and saved work inside the platform at any time, and you can ask us in writing for a copy of what we hold.',
             },
             {
-              lead: 'Account deletion:',
-              text: 'Deleting your account from Settings permanently removes your profile, portfolio setup, portfolio trade records, Lab workspaces, projects and files, API keys, and sign-in credentials.',
-            },
-            {
-              lead: 'No residual storage:',
-              text: 'We do not keep archived backups or shadow profiles of accounts that have been deleted.',
+              lead: 'Erasure:',
+              text: 'Use the self-serve deletion above, or write to us and we will carry it out for you.',
             },
             {
               lead: 'Withdrawal of consent:',
-              text: 'You may withdraw consent to any processing that relies on it. Where the service cannot operate without that processing, the consequence is that the relevant feature or the account itself stops working.',
+              text: 'You may turn notifications off, or withdraw consent to any processing that relies on it. Where the service cannot operate without that processing, the consequence is that the relevant feature, or the account itself, stops working.',
             },
             {
               lead: 'Complaints:',
-              text: 'If you are unsatisfied with how we have handled your information, you may contact us at the address below. Because SLTP operates under Canadian law, you also have the right to raise a complaint with the Office of the Privacy Commissioner of Canada.',
+              text: 'Contact us first and we will try to resolve it. SLTP operates under Canadian law, so you may also complain to the Office of the Privacy Commissioner of Canada.',
             },
           ],
         },
       ],
     },
     {
-      step: '08',
-      title: 'Security measures',
-      blocks: [
-        {
-          type: 'paragraph',
-          text: 'We apply administrative, technical, and physical safeguards appropriate to the sensitivity of the data, including encrypted transport (HTTPS and TLS), database row-level security policies that scope access to the account that owns each record, restricted administrative access, and regular review of who holds it. No system is perfectly secure, and we do not claim otherwise, but a breach of our systems that affects your personal information will be disclosed to you and to the relevant regulator without undue delay and in accordance with applicable law.',
-        },
-      ],
-    },
-    {
       step: '09',
-      title: 'Age restrictions and children',
+      title: 'Security',
       blocks: [
         {
           type: 'paragraph',
-          text: 'SLTP is intended for users who are at least 13 years of age. We do not knowingly collect personal information from children under 13. Because quantitative strategies carry real financial risk, users aged 13 to 17 may use the research and analysis features of the platform but may not apply any strategy to live financial trading or investment execution. If you believe a child under 13 has provided us with personal information, contact us and we will delete it.',
+          text: 'Traffic between your browser and the platform is carried over HTTPS and TLS. Session tokens are verified on every protected request against the signing keys Supabase publishes, so a forged or expired token is rejected before any query runs. Every database query is scoped to the account id taken from that verified token — never from the request body — so one account cannot read another’s rows, and row-level security policies in Supabase enforce the same boundary for direct reads. Service credentials stay on the server and are never sent to the browser. Personal API keys and sign-in device values are stored only as one-way hashes. Administrative access is limited to the operator accounts required to run the service.',
+        },
+        {
+          type: 'paragraph',
+          text: 'No system is perfectly secure, and we do not claim otherwise. If a breach affects your personal information, we will notify you and the appropriate regulator without undue delay, and tell you what was affected and what we have done about it.',
         },
       ],
     },
     {
       step: '10',
-      title: 'International transfers',
+      title: 'Children and age limits',
       blocks: [
         {
           type: 'paragraph',
-          text: 'Our providers operate data centres in more than one country, so information you submit may be processed outside Canada. Where that happens, the transfer is covered by the provider\u2019s contractual terms and, where required, additional safeguards under applicable law. We have not knowingly structured our operations to avoid privacy protections in any jurisdiction in which we operate.',
+          text: 'SLTP is not directed to children, and you must be at least 13 years old to hold an account. We do not knowingly collect personal information from a child under 13, consistent with the Children’s Online Privacy Protection Act. If we learn that an account belongs to a child under 13, we delete the account and its data. If you believe a child under 13 has given us information, write to us and we will remove it.',
+        },
+        {
+          type: 'paragraph',
+          text: 'Between 13 and 17, the platform may be used for research and education only. Applying a strategy to real money, placing a live trade or acting on a signal requires you to be at least 18, or the age of majority where you live. No feature of SLTP places an order, so this is a condition of use rather than a technical control, and we may close an account found in breach of it.',
         },
       ],
     },
     {
       step: '11',
-      title: 'Third-party links',
+      title: 'International transfers',
       blocks: [
         {
           type: 'paragraph',
-          text: 'The platform may link to sites we do not control. We are not responsible for their content, their privacy practices, or the way they handle data once you leave SLTP. A link is provided for convenience and does not imply endorsement.',
+          text: 'Our providers operate data centres in the United States and other countries, so information you give us may be stored and processed outside Canada, including in the United States. A transfer is covered by the provider’s contractual terms and, where the law requires it, by additional safeguards. We do not structure our operations to avoid the privacy protections of any jurisdiction in which we operate, and we remain accountable for personal information handled on our behalf.',
         },
       ],
     },
     {
       step: '12',
-      title: 'Changes to this policy',
+      title: 'Market data and third-party links',
       blocks: [
         {
           type: 'paragraph',
-          text: 'We may revise this Privacy Policy as the platform changes or as legal requirements shift. The date at the top of this page shows when it was last updated, and the revised version is published at the same address. Continued use of the platform after a revision indicates your acceptance of it. If a change materially affects how we use information you have already given us, we will tell you before it takes effect.',
+          text: 'Charts and backtests are built from third-party market data. That data may be corrected, delayed or incomplete, and it is provided for research only: it is not a recommendation, an offer or a valuation. Our Terms of Service set out what backtested results do and do not represent, and they prohibit reselling or redistributing that data.',
+        },
+        {
+          type: 'paragraph',
+          text: 'The platform may link to sites we do not control. We are not responsible for their content, their availability or their privacy practices, and a link is not an endorsement. Once you leave SLTP, the policy of the site you visit applies to what happens there.',
         },
       ],
     },
     {
       step: '13',
-      title: 'Cookies and browser storage',
+      title: 'Changes to this policy',
       blocks: [
         {
           type: 'paragraph',
-          text: 'We do not use tracking cookies or advertising pixels. The platform keeps your sign-in session in your browser. It also caches your learning progress in local storage so pages load faster, and keeps your display name and theme preference in session storage for the current visit. You can clear this data at any time through the site settings of your browser.',
+          text: 'We revise this policy when the platform or the law changes. The date at the top of this page is the date of the version in force, and each version is published at this address. If a change materially affects how we use information you have already given us, we will tell you before it takes effect, by email to the address on your account or by a notice in the platform, and where the law requires it we will ask for your consent. Continuing to use the platform after a revised policy takes effect means you accept it.',
         },
       ],
     },
     {
       step: '14',
-      title: 'Contact information',
+      title: 'Contact',
       blocks: [
         {
           type: 'paragraph',
           text: (
             <>
-              For privacy inquiries, data requests, or removal verification, please contact us at{' '}
+              For a privacy question, an access or deletion request, or a report about this
+              policy, write to{' '}
               <a className="st-legal-link" href={`mailto:${legalEmail}`}>
                 {legalEmail}
               </a>
-              .
+              . Include the email address on your account so we can locate it. We answer privacy
+              requests within 30 days, and if a request needs longer or cannot be met, we will
+              say so and explain why.
             </>
           ),
         },
@@ -341,8 +443,9 @@ const privacyDocument: LegalDocument = {
 
 const termsDocument: LegalDocument = {
   title: 'Terms of Service',
-  meta: 'Last Updated: October 24, 2026',
-  intro: 'Please read these Terms of Service carefully before accessing or using SLTP. By using the platform, you agree to be bound by them. If you do not agree, please do not use the platform.',
+  meta: 'Last updated: November 4, 2026',
+  intro:
+    'Please read these Terms of Service carefully before accessing or using SLTP. By using the platform, you agree to be bound by them. If you do not agree, please do not use the platform.',
   sections: [
     {
       step: '01',
@@ -425,8 +528,8 @@ const termsDocument: LegalDocument = {
               text: 'You retain responsibility for any content you publish or upload, and you confirm that it does not infringe third-party rights or breach any law.',
             },
             {
-              lead: 'License grant:',
-              text: 'By submitting content to SLTP, you grant us a non-exclusive, worldwide, royalty-free licence to host, display, and manage that content for the purpose of operating the platform.',
+              lead: 'Ownership and licence:',
+              text: 'You keep ownership of everything you write or submit — strategy code, parameters, notes and Lab projects. By submitting it, you grant us only a non-exclusive, worldwide, royalty-free licence to store, host, display and run it so that we can operate the platform for you. Section 07 draws that boundary in full.',
             },
             {
               lead: 'Code you run:',
@@ -442,7 +545,7 @@ const termsDocument: LegalDocument = {
       blocks: [
         {
           type: 'paragraph',
-          text: 'You agree not to use SLTP in a way that is unlawful, that interferes with the service for other users, or that attempts to extract more from it than your subscription is intended to provide:',
+          text: 'You agree not to use SLTP in a way that is unlawful, that interferes with the service for other users, or that attempts to extract more from it than the platform is intended to provide:',
         },
         {
           type: 'list',
@@ -473,12 +576,76 @@ const termsDocument: LegalDocument = {
       blocks: [
         {
           type: 'paragraph',
-          text: 'SLTP retains all right, title, and interest in and to the platform, including its design, algorithms, code structures, strategy logic, branding, written content, and data compilations, under Canadian and international intellectual property laws. We grant you a limited, revocable, non-exclusive, non-transferable licence to access the platform for your own research and personal use. We grant no right to resell the platform, or to use its content to build a competing product, except where we agree otherwise in writing.',
+          text: 'SLTP retains all right, title, and interest in and to the platform itself — its design, source code, backtesting engine, the strategies and models we publish, our written content, branding and data compilations — under Canadian and international intellectual property law. What we grant you is a limited, revocable, non-exclusive, non-transferable licence to access the platform for your own research and personal use. It is a licence to use the platform, not a licence to its code.',
+        },
+        {
+          type: 'paragraph',
+          text: 'Your own work stays yours. Strategy code, parameters, notebooks and Lab projects you write are your intellectual property: we claim no ownership of them, we do not license them to anyone else, and we do not publish them. We store and execute them only to provide the platform to you — saving a project, running a backtest you asked for, keeping your work available when you return — and they are deleted with your account or when you remove them. You remain free to use, publish, license or sell your own strategies anywhere.',
+        },
+        {
+          type: 'paragraph',
+          text: 'The same boundary applies in the other direction. You may not:',
+        },
+        {
+          type: 'list',
+          items: [
+            {
+              lead: 'Sell or sublicense SLTP:',
+              text: 'You may not sell, resell, rent, sublicense or redistribute SLTP’s code, engine or access to the platform, and you may not offer the platform, its engine or its outputs to third parties as a service of your own.',
+            },
+            {
+              lead: 'Re-create the engine:',
+              text: 'You may not copy, translate, decompile, disassemble or reverse-engineer the code or engine, and you may not attempt to re-create, reimplement or derive its source code, models or mathematical structure, in whole or in part, or commission or help anyone else to do so.',
+            },
+            {
+              lead: 'Build a competing product:',
+              text: 'You may not use the code, the engine or its outputs to develop, train or improve a competing product or service.',
+            },
+            {
+              lead: 'What you may do:',
+              text: 'Study the strategy logic and results we publish, quote them with attribution to SLTP, and build your own code on your own side of the boundary described above.',
+            },
+          ],
         },
       ],
     },
     {
       step: '08',
+      title: 'Market data and educational use',
+      blocks: [
+        {
+          type: 'paragraph',
+          text: 'SLTP is an educational and research platform. Price and volume history, charts and backtest output are built from third-party market data licensed to us for research and display inside the platform, and it is given to you for that purpose only — so that you can study how a rule behaves, not so that you can redistribute the data itself.',
+        },
+        {
+          type: 'list',
+          items: [
+            {
+              lead: 'No resale:',
+              text: 'You may not sell, resell, sublicense, license or otherwise commercially exploit market data obtained through SLTP.',
+            },
+            {
+              lead: 'No redistribution:',
+              text: 'You may not publish, redistribute, share or otherwise make that data available to any third party, in whole or in part, whether as a file, a feed, a dataset or a derived table, and you may not upload it to another platform or data service.',
+            },
+            {
+              lead: 'No reuse in another product:',
+              text: 'You may not use the data to build, feed, train or enrich another dataset, model, index or product, or to supply a service that depends on it.',
+            },
+            {
+              lead: 'Ordinary research use:',
+              text: 'Reading a chart, running the backtests you request, and quoting a figure in your own notes or research write-up with attribution to SLTP are all fine.',
+            },
+          ],
+        },
+        {
+          type: 'paragraph',
+          text: 'Bulk extraction is prohibited by section 06, and nothing here relaxes that. Where a data provider’s terms require it, we may restrict or suspend an account’s access to market data, and we may close an account that resells or redistributes it.',
+        },
+      ],
+    },
+    {
+      step: '09',
       title: 'Third-party services and links',
       blocks: [
         {
@@ -488,7 +655,7 @@ const termsDocument: LegalDocument = {
       ],
     },
     {
-      step: '09',
+      step: '10',
       title: 'Disclaimers and no warranty',
       blocks: [
         {
@@ -498,7 +665,7 @@ const termsDocument: LegalDocument = {
       ],
     },
     {
-      step: '10',
+      step: '11',
       title: 'Limitation of liability',
       blocks: [
         {
@@ -508,7 +675,7 @@ const termsDocument: LegalDocument = {
       ],
     },
     {
-      step: '11',
+      step: '12',
       title: 'Indemnity',
       blocks: [
         {
@@ -518,7 +685,7 @@ const termsDocument: LegalDocument = {
       ],
     },
     {
-      step: '12',
+      step: '13',
       title: 'Free service model',
       blocks: [
         {
@@ -528,17 +695,21 @@ const termsDocument: LegalDocument = {
       ],
     },
     {
-      step: '13',
+      step: '14',
       title: 'Modifications, suspension, and termination',
       blocks: [
         {
           type: 'paragraph',
           text: 'We reserve the right to modify these Terms, or to modify, suspend, or discontinue any part of the platform, at any time and without notice. Continued use of SLTP after a change indicates your acceptance of the revised Terms. We may also suspend or terminate your access immediately, without notice, if you breach these Terms, if you use the platform in a way that endangers it or its users, or if we are required to do so by law. On termination, your right to use the platform ends, and your data is handled as described in our Privacy Policy.',
         },
+        {
+          type: 'paragraph',
+          text: 'Where we ban an account for a serious offence under these Terms — fraud, resale or redistribution of market data, or evading an earlier ban — we keep a limited record of that ban so the same person cannot simply open another account and carry on. The record holds the email address on the account, the reason, the date, and the sign-in identifiers we already compute for device checks: your IP address and browser user-agent. Both are kept masked and only as a salted one-way hash, so the address cannot be read back out of our records by us or by anyone else, and they are used for one purpose only — matching a new sign-up attempt. The record holds no portfolio setup, no Lab work, no strategies, no API keys and no learning progress; that material is deleted with the account. These identifiers are never used to follow your ordinary activity, never sold, and never shared except where the law compels it. You can write to us to ask whether such a record exists about you, and to appeal it; if a ban is lifted, the record is removed.',
+        },
       ],
     },
     {
-      step: '14',
+      step: '15',
       title: 'General provisions',
       blocks: [
         {
@@ -547,32 +718,32 @@ const termsDocument: LegalDocument = {
         },
         {
           type: 'paragraph',
-          text: 'Notices under these Terms may be delivered to the email address on your account, or to the address in section 15 for our side. Electronic delivery is effective on transmission, and email notices are deemed received on the first business day after sending.',
-        },
-      ],
-    },
-    {
-      step: '15',
-      title: 'Account deletion',
-      blocks: [
-        {
-          type: 'paragraph',
-          text: 'You can delete your account from Settings at any time. Deletion is permanent and cannot be undone. It removes your profile, your portfolio setup and trade records, your Lab work, your API keys, and your sign-in credentials. If we terminate your account, the same rules apply.',
+          text: 'Notices under these Terms may be delivered to the email address on your account, or to the address in section 18 for our side. Electronic delivery is effective on transmission, and email notices are deemed received on the first business day after sending.',
         },
       ],
     },
     {
       step: '16',
-      title: 'Portfolio records and Lab work',
+      title: 'Account deletion',
       blocks: [
         {
           type: 'paragraph',
-          text: 'Portfolio trade records and Lab projects are tools for recording and testing your own decisions. They do not connect to a brokerage, do not place orders, and do not reflect real holdings held by SLTP. Figures such as cash, realised gain or loss, and average cost are calculated from the entries you make, and may be wrong if those entries are wrong.',
+          text: 'You can delete your account from Settings at any time. Deletion is permanent and cannot be undone. It removes your profile, your portfolio setup, your Lab workspaces, projects and files, your API keys, and your sign-in credentials. If we terminate your account, the same rules apply.',
         },
       ],
     },
     {
       step: '17',
+      title: 'Portfolio setup and Lab work',
+      blocks: [
+        {
+          type: 'paragraph',
+          text: 'Your portfolio setup answers and Lab projects are tools for recording and testing your own decisions. They do not connect to a brokerage, do not place orders, and do not reflect real holdings. The portfolio figures on the platform, such as base currency and starting cash, are the values you entered, and the research results derived from them are only as accurate as those entries.',
+        },
+      ],
+    },
+    {
+      step: '18',
       title: 'Contact information',
       blocks: [
         {
@@ -602,7 +773,7 @@ export default function LegalPage({ page, onBack }: LegalPageProps) {
 
   return (
     <div className="st-legal-layout">
-      <div className="st-legal-container">
+      <article className="st-legal-container">
         <Button variant="link" size="sm" onClick={onBack}>
           <span aria-hidden="true">←</span> Back to SLTP
         </Button>
@@ -614,12 +785,33 @@ export default function LegalPage({ page, onBack }: LegalPageProps) {
           <p className="st-legal-intro">{doc.intro}</p>
         </header>
 
+        <nav className="st-legal-toc" aria-label={`Contents of the ${doc.title}`}>
+          <p className="st-legal-toc-title">On this page</p>
+          <ol className="st-legal-toc-list">
+            {doc.sections.map((section) => (
+              <li key={section.step}>
+                <a className="st-legal-toc-link" href={`#${page}-${section.step}`}>
+                  <span className="st-legal-toc-step">{section.step}</span>
+                  <span>{section.title}</span>
+                </a>
+              </li>
+            ))}
+          </ol>
+        </nav>
+
         <div className="st-legal-body">
           {doc.sections.map((section) => (
-            <section key={section.step} className="st-legal-section">
+            <section
+              key={section.step}
+              id={`${page}-${section.step}`}
+              className="st-legal-section"
+              aria-labelledby={`${page}-${section.step}-title`}
+            >
               <div className="st-legal-section-heading">
-                <span className="st-legal-step">{section.step}</span>
-                <h2>{section.title}</h2>
+                <span className="st-legal-step" aria-hidden="true">
+                  {section.step}
+                </span>
+                <h2 id={`${page}-${section.step}-title`}>{section.title}</h2>
               </div>
               <div className="st-legal-section-content">
                 {section.blocks.map((block, blockIndex) =>
@@ -631,7 +823,7 @@ export default function LegalPage({ page, onBack }: LegalPageProps) {
                     <ul key={blockIndex} className="st-legal-list">
                       {block.items.map((item, itemIndex) => (
                         <li key={itemIndex} className="st-legal-list-item">
-                          {item.lead && <strong className="st-legal-list-lead">{item.lead}</strong>}
+                          {item.lead && <strong className="st-legal-list-lead">{item.lead}</strong>}{' '}
                           <span>{item.text}</span>
                         </li>
                       ))}
@@ -642,7 +834,7 @@ export default function LegalPage({ page, onBack }: LegalPageProps) {
             </section>
           ))}
         </div>
-      </div>
+      </article>
     </div>
   );
 }
