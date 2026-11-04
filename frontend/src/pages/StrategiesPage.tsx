@@ -1,244 +1,366 @@
-// StrategiesPage.tsx — Strategies listing page and hero banner
-import React, { useEffect, useState } from 'react';
-import { ChevronUp } from 'lucide-react';
-import { StrategyCard } from '../components/StrategyCard';
-import { type StrategyData } from '../types/strategy';
+// StrategiesPage.tsx — the strategy library: an index on the left, one detail
+// view on the right, four tabs.
+//
+// Everything textual comes from data/strategies.ts and every number from
+// data/backtestResults.ts, which the reports script writes. The charts are SVGs
+// committed under assets/strategies, so the page renders the same output the
+// report script produced without a backend call.
+
+import { useRef, useState } from 'react';
+import type { KeyboardEvent } from 'react';
+import { ChevronRight } from 'lucide-react';
+import { GlossaryText } from '../components/GlossaryText';
+import { STRATEGIES, type StrategyProfile } from '../data/strategies';
+import { BACKTESTS, type BacktestRow } from '../data/backtestResults';
 import './StrategiesPage.css';
 
-/** Define Strategy Data */
-const BuyAndHoldStrategy: StrategyData = {
-  id: 'buy-and-hold',
-  name: 'Buy and Hold',
-  category: 'INVESTING',
-  summary: 'Buy the market and hold it for years. Price swings in between are ignored, and no position is ever sold or replaced.',
-  metrics: {
-    horizon: '10+ Years',
-    activity: 'Low',
-    positions: '1 Fund (SPY)',
-    rebalance: 'Never',
+// Report charts, one per reported window. Statistical Mean Reversion is drawn
+// against the benchmark; buy and hold is the benchmark, so it gets the simple
+// single-line version from app/reports/single_curves.py.
+import smrBearDotcom from '../assets/strategies/statistical-mean-reversion/graph_bear-dotcom.svg';
+import smrBearGfc from '../assets/strategies/statistical-mean-reversion/graph_bear-gfc.svg';
+import smrBearCovid from '../assets/strategies/statistical-mean-reversion/graph_bear-covid.svg';
+import smrBear2022 from '../assets/strategies/statistical-mean-reversion/graph_bear-2022.svg';
+import smrBull2012 from '../assets/strategies/statistical-mean-reversion/graph_bull-2012.svg';
+import smrBullReopening from '../assets/strategies/statistical-mean-reversion/graph_bull-reopening.svg';
+import smrBullAi from '../assets/strategies/statistical-mean-reversion/graph_bull-ai.svg';
+import smrBull2003 from '../assets/strategies/statistical-mean-reversion/graph_bull-2003.svg';
+
+import bhBearDotcom from '../assets/strategies/buy-and-hold/curve_bear-dotcom.svg';
+import bhBearGfc from '../assets/strategies/buy-and-hold/curve_bear-gfc.svg';
+import bhBearCovid from '../assets/strategies/buy-and-hold/curve_bear-covid.svg';
+import bhBear2022 from '../assets/strategies/buy-and-hold/curve_bear-2022.svg';
+import bhBull2012 from '../assets/strategies/buy-and-hold/curve_bull-2012.svg';
+import bhBullReopening from '../assets/strategies/buy-and-hold/curve_bull-reopening.svg';
+import bhBullAi from '../assets/strategies/buy-and-hold/curve_bull-ai.svg';
+import bhBull2003 from '../assets/strategies/buy-and-hold/curve_bull-2003.svg';
+
+const CHARTS: Record<string, Record<string, string>> = {
+  'buy-and-hold': {
+    'bear-dotcom': bhBearDotcom,
+    'bear-gfc': bhBearGfc,
+    'bear-covid': bhBearCovid,
+    'bear-2022': bhBear2022,
+    'bull-2012': bhBull2012,
+    'bull-reopening': bhBullReopening,
+    'bull-ai': bhBullAi,
+    'bull-2003': bhBull2003,
   },
-  idea: {
-    hypothesis: 'Over long periods, markets tend to rise because the companies inside them keep earning more. Holding through the noise captures that growth, keeps fees and taxes low, and removes the temptation to act on a bad month.',
-    whyItWorks: [
-      'Captures the growth of the market as a whole, with no need to time entries or exits.',
-      'Costs almost nothing to run: no trading fees, and no capital gains tax triggered by selling.',
-      'Removes the decisions that hurt most, such as selling in panic after a sharp drop or buying back in at the top.',
-    ],
-    whyItDoesnt: [
-      'Takes the full decline in a bear market, because no rule reduces exposure before prices fall.',
-      'Has no exit rules, so gains are never locked in and no part of the account moves to cash when the market turns.',
-      'Can take years to recover after a major downturn, because nothing reduces the position while prices are falling.',
-    ],
-  },
-  universeLogic: 'Holds SPY only: one liquid S&P 500 fund, bought on the first session and never replaced. Nothing is ranked or filtered, because there is nothing to choose between.',
-  rebalanceLogic: 'No automatic buying or selling. The holdings only change when you add or withdraw funds yourself.',
-  inDepthSections: [
-    {
-      id: 'benchmark-role',
-      title: 'Why this strategy is the universal benchmark',
-      content:
-        'This is the baseline every other strategy on the platform is measured against. It is plain, unmanaged market exposure with no timing decisions and no management fees, so an active strategy has to earn a higher risk-adjusted return than this before its extra complexity and trading costs are worth anything.',
-    }
-  ],
-  pros: [
-    'Needs almost no time, effort, or financial knowledge to maintain.',
-    'Cheap to run: minimal transaction costs and efficient from a tax point of view.',
-    'Gives a transparent baseline for measuring every active strategy on the platform.',
-  ],
-  cons: [
-    'No risk protection at all during a steep market decline.',
-    'No exit rules or profit-taking steps, so gains made during a peak can be given back.',
-    'Expect uncomfortable paper losses in a severe crash, and no rule to soften them.',
-  ],
-  glossary: {
-    portfolio: {
-      definition: 'The total collection of financial investments owned by a single person or organization.',
-      example: 'If you own shares in five different companies inside one account, those combined investments make up your portfolio.',
-    },
-    'transaction costs': {
-      definition: 'The fees and expenses paid whenever you buy or sell an investment, including broker commissions and bank charges.',
-      example: 'If you buy $1,000 worth of stock and your broker charges a $5 fee, that $5 is a transaction cost.',
-    },
-    volatility: {
-      definition: 'How quickly and drastically the price of an investment moves up and down over time.',
-      example: 'A stock whose price swings between $80 and $120 in a single week has high volatility.',
-    },
-    'bear market': {
-      definition: 'A prolonged period of time when market prices fall continuously, usually dropping 20% or more from recent highs.',
-      example: 'If the overall market index drops from 1,000 points down to 780 points and stays down for months, it is in a bear market.',
-    },
-    drawdowns: {
-      definition: 'The total percentage drop in value from an investment account peak down to its lowest point before recovering.',
-      example: 'If your account grows to $10,000 and then falls to $7,500 during a crash, you experienced a 25% drawdown.',
-    },
-    'risk management': {
-      definition: 'Rules or safety measures put in place to limit total money lost during unfavorable market conditions.',
-      example: 'Setting a rule to automatically sell an investment if it drops 10% is a simple form of risk management.',
-    },
-    benchmark: {
-      definition: 'A simple baseline standard used to measure whether a specific trading strategy is actually performing well.',
-      example: 'If an active trading strategy makes 8% this year while the unmanaged market benchmark makes 10%, the active strategy underperformed.',
-    },
-    exposure: {
-      definition: 'The total amount of money or percentage of your account tied to a specific market or investment.',
-      example: 'If $40,000 of your $100,000 account is invested in tech stocks, your exposure to technology is 40%.',
-    },
-    'capital gains tax': {
-      definition: 'A tax paid to the government on the profit made when selling an investment for more than you paid for it.',
-      example: 'If you buy a stock for $100 and sell it for $150, you pay capital gains tax only on the $50 profit.',
-    },
-    'market timing': {
-      definition: 'The attempt to predict future market prices by buying right before prices go up and selling right before they fall.',
-      example: 'Trying to guess the exact day a stock reaches its lowest price to buy it is an example of market timing.',
-    },
-    'active trading': {
-      definition: 'A strategy that involves frequent buying and selling of investments to capitalize on short-term price movements.',
-      example: 'Placing several buys and sells each week to profit from daily news is considered active trading.',
-    },
-    'risk-adjusted return': {
-      definition: 'A calculation that measures how much profit an investment made relative to the amount of risk taken to get that profit.',
-      example: 'If two strategies make 10% profit, but Strategy A suffered huge 40% swings while Strategy B barely fluctuated, Strategy B has a far better risk-adjusted return.',
-    },
+  'statistical-mean-reversion': {
+    'bear-dotcom': smrBearDotcom,
+    'bear-gfc': smrBearGfc,
+    'bear-covid': smrBearCovid,
+    'bear-2022': smrBear2022,
+    'bull-2012': smrBull2012,
+    'bull-reopening': smrBullReopening,
+    'bull-ai': smrBullAi,
+    'bull-2003': smrBull2003,
   },
 };
 
-const STRATEGY_LIST = [
-  { strategy: BuyAndHoldStrategy, indexNumber: 1 },
-];
+const TABS = [
+  { key: 'overview', label: 'Overview' },
+  { key: 'mechanics', label: 'Mechanics' },
+  { key: 'backtests', label: 'Backtests' },
+  { key: 'glossary', label: 'Glossary' },
+] as const;
 
-/* Breathing room left above a card when it is brought back into view */
-const CARD_SCROLL_OFFSET = 24;
-/* Roughly how long the glide back to the card takes */
-const CARD_GLIDE_MS = 380;
-/* How long to keep correcting the scroll, covering the whole collapse transition */
-const CARD_HOLD_MS = 900;
+type TabKey = (typeof TABS)[number]['key'];
 
-/* Readers who ask for reduced motion get the jump instead of the glide */
-const prefersReducedMotion = () =>
-  typeof window.matchMedia === 'function' &&
-  window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+/* ---------- Formatting ---------- */
 
-/* Only one card corrects the scroll at a time. Starting a new collapse takes the
-   loop over from any still running, which matters when several cards are open. */
-let holdFrame: number | null = null;
+const month = (iso: string) =>
+  new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-GB', {
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
 
-const stopCardHold = () => {
-  if (holdFrame !== null) cancelAnimationFrame(holdFrame);
-  holdFrame = null;
-};
+const windowDates = (row: BacktestRow) => `${month(row.start)} – ${month(row.end)}`;
 
-/* Closing a card removes a large amount of page height. Left alone the browser
-   clamps the scroll position and drops the reader at the very bottom of the
-   document, so the position is re-asserted every frame until the collapse
-   transition has finished. */
-const holdCardInView = (strategyId: string) => {
-  stopCardHold();
+/* ---------- Tabs ---------- */
 
-  const startedAt = performance.now();
-  const startScroll = window.scrollY;
-  const glideMs = prefersReducedMotion() ? 1 : CARD_GLIDE_MS;
+function Overview({ profile }: { profile: StrategyProfile }) {
+  return (
+    <>
+      <section className="strat-section">
+        <h3 className="strat-section-title">Hypothesis</h3>
+        <p className="strat-prose">
+          <GlossaryText text={profile.hypothesis} glossary={profile.glossary} />
+        </p>
+      </section>
 
-  /* A card's distance from the top of the document does not change as it closes */
-  const destination = () => {
-    const card = document.getElementById(`strategy-card-${strategyId}`);
-    if (!card) return startScroll;
-    return Math.max(0, card.getBoundingClientRect().top + window.scrollY - CARD_SCROLL_OFFSET);
-  };
+      <section className="strat-section">
+        <h3 className="strat-section-title">Why it might work, and why it might not</h3>
+        <div className="strat-columns">
+          <div className="strat-column">
+            <p className="strat-column-head">Evidence for</p>
+            <ul className="strat-list">
+              {profile.whyItWorks.map((line) => (
+                <li key={line}>
+                  <GlossaryText text={line} glossary={profile.glossary} />
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="strat-column">
+            <p className="strat-column-head">Reasons to doubt</p>
+            <ul className="strat-list">
+              {profile.whyItDoesnt.map((line) => (
+                <li key={line}>
+                  <GlossaryText text={line} glossary={profile.glossary} />
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </section>
 
-  const step = () => {
-    const elapsed = performance.now() - startedAt;
-    const progress = Math.min(1, elapsed / glideMs);
-    const eased = 1 - Math.pow(1 - progress, 3);
-    const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
-    const desired = startScroll + (destination() - startScroll) * eased;
+      {profile.overviewNotes.map((note) => (
+        <section className="strat-section" key={note.title}>
+          <h3 className="strat-section-title">{note.title}</h3>
+          <p className="strat-prose">
+            <GlossaryText text={note.body} glossary={profile.glossary} />
+          </p>
+        </section>
+      ))}
+    </>
+  );
+}
 
-    window.scrollTo(0, Math.max(0, Math.min(desired, maxScroll)));
+function Mechanics({ profile }: { profile: StrategyProfile }) {
+  return (
+    <>
+      <section className="strat-section">
+        <h3 className="strat-section-title">What it holds</h3>
+        <div className="strat-columns">
+          <div className="strat-column">
+            <p className="strat-column-head">Universe</p>
+            <p className="strat-prose">
+              <GlossaryText text={profile.universe} glossary={profile.glossary} />
+            </p>
+          </div>
+          <div className="strat-column">
+            <p className="strat-column-head">Rebalance</p>
+            <p className="strat-prose">
+              <GlossaryText text={profile.rebalance} glossary={profile.glossary} />
+            </p>
+          </div>
+        </div>
+      </section>
 
-    holdFrame = elapsed < CARD_HOLD_MS ? requestAnimationFrame(step) : null;
-  };
+      <section className="strat-section">
+        <h3 className="strat-section-title">Settings</h3>
+        <dl className="strat-settings">
+          {profile.settings.map((setting) => (
+            <div key={setting.label} className="strat-setting">
+              <dt>{setting.label}</dt>
+              <dd>{setting.value}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
 
-  holdFrame = requestAnimationFrame(step);
-};
+      {profile.notes.map((note) => (
+        <section className="strat-section" key={note.title}>
+          <h3 className="strat-section-title">{note.title}</h3>
+          <p className="strat-prose">
+            <GlossaryText text={note.body} glossary={profile.glossary} />
+          </p>
+        </section>
+      ))}
+    </>
+  );
+}
 
-export const StrategiesPage: React.FC = () => {
-  const [expandedIds, setExpandedIds] = useState<string[]>([]);
-
-  useEffect(() => stopCardHold, []);
-
-  const toggleStrategy = (strategyId: string) => {
-    const isOpen = expandedIds.includes(strategyId);
-    if (isOpen) holdCardInView(strategyId);
-
-    setExpandedIds((prev) =>
-      isOpen ? prev.filter((id) => id !== strategyId) : [...prev, strategyId]
-    );
-  };
-
-  const expanded = STRATEGY_LIST.filter(({ strategy }) => expandedIds.includes(strategy.id));
+function Backtests({ profile }: { profile: StrategyProfile }) {
+  const rows = BACKTESTS[profile.id] ?? [];
+  const charts = CHARTS[profile.id] ?? {};
+  const isBenchmark = profile.id === 'buy-and-hold';
 
   return (
-    <div className="strategies-page page-transition">
-      {/* Edge-to-Edge Hero Banner */}
-      <div className="strategies-hero-wrapper page-hero-band is-full-bleed is-dot-grid">
-        <div className="strategies-hero-inner page-hero-inner">
-          <div className="strategies-hero-copy">
-            <span className="page-hero-eyebrow">Strategies</span>
-            <h1 className="page-hero-title">Published strategies</h1>
-            <p className="page-hero-description">
-              Browse the strategies published on SLTP. For each one, see its entry and exit rules,
-              how it sizes positions, and how its backtest compares with buying and holding.
+    <>
+      <section className="strat-section">
+        <h3 className="strat-section-title">{rows.length} market windows</h3>
+        <p className="strat-prose">
+          {isBenchmark
+            ? 'One line per window: buy and hold on its own, starting at an index of 100 on the first session. Daily closes, fees and slippage are included, and the label carries that window’s ending value.'
+            : 'Each run starts at an index of 100 on its first session, so the strategy and the market are read on the same scale. Daily closes, fees and slippage are included; the legend carries the numbers for both lines.'}
+        </p>
+      </section>
+
+      <div className="strat-charts">
+        {rows.map((row) => (
+          <figure className="strat-chart" key={row.key}>
+            <figcaption className="strat-chart-head">
+              <span className="strat-chart-title">{row.label}</span>
+              <span className="strat-chart-meta">
+                <span>{windowDates(row)}</span>
+                <span className={`strat-chart-kind is-${row.kind}`}>
+                  {row.kind === 'bear' ? 'Bear' : 'Bull'}
+                </span>
+              </span>
+            </figcaption>
+            {charts[row.key] && (
+              <img
+                src={charts[row.key]}
+                alt={
+                  isBenchmark
+                    ? `Buy and hold equity curve, ${row.label}, ${month(row.start)} to ${month(row.end)}`
+                    : `${profile.name} against buy and hold, ${row.label}, ${month(row.start)} to ${month(row.end)}`
+                }
+                loading="lazy"
+                decoding="async"
+              />
+            )}
+          </figure>
+        ))}
+      </div>
+    </>
+  );
+}
+
+function Glossary({ profile }: { profile: StrategyProfile }) {
+  const terms = Object.entries(profile.glossary);
+  return (
+    <section className="strat-section">
+      <h3 className="strat-section-title">{terms.length} terms used in this strategy</h3>
+      <dl className="strat-glossary">
+        {terms.map(([term, entry]) => (
+          <div key={term} className="strat-glossary-item">
+            <dt>{term.replace(/_/g, ' ')}</dt>
+            <dd>
+              {entry.definition}
+              {entry.example && <span className="strat-glossary-example">{entry.example}</span>}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
+
+/* ---------- Page ---------- */
+
+export const StrategiesPage: React.FC = () => {
+  const [activeId, setActiveId] = useState(STRATEGIES[0].id);
+  const [tab, setTab] = useState<TabKey>('overview');
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+
+  const profile = STRATEGIES.find((strategy) => strategy.id === activeId) ?? STRATEGIES[0];
+  const windows = (BACKTESTS[profile.id] ?? []).length;
+
+  const selectStrategy = (id: string) => {
+    setActiveId(id);
+    setTab('overview');
+  };
+
+  const onTabKey = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+    let next = index;
+    if (event.key === 'ArrowRight') next = (index + 1) % TABS.length;
+    else if (event.key === 'ArrowLeft') next = (index - 1 + TABS.length) % TABS.length;
+    else if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = TABS.length - 1;
+    else return;
+
+    event.preventDefault();
+    setTab(TABS[next].key);
+    tabRefs.current[next]?.focus();
+  };
+
+  return (
+    <div className="strat-page page-transition">
+      <header className="strat-head">
+        <p className="strat-eyebrow">Strategies</p>
+        <h1 className="strat-title">Published strategies</h1>
+        <p className="strat-lede">
+          {STRATEGIES.length} strategies, each measured over the same {windows} market windows and
+          compared with buying and holding the S&P 500.
+        </p>
+      </header>
+
+      <div className="strat-shell">
+        <nav className="strat-index" aria-label="Strategy index">
+          <p className="strat-index-head">Index</p>
+          {STRATEGIES.map((strategy, index) => {
+            const isActive = strategy.id === profile.id;
+            return (
+              <button
+                key={strategy.id}
+                type="button"
+                className={`strat-item ${isActive ? 'is-active' : ''}`}
+                onClick={() => selectStrategy(strategy.id)}
+                aria-current={isActive ? 'true' : undefined}
+              >
+                <span className="strat-item-num">{String(index + 1).padStart(2, '0')}</span>
+                <span className="strat-item-body">
+                  <span className="strat-item-name">{strategy.name}</span>
+                  <span className="strat-item-meta">
+                    {strategy.category} · {(BACKTESTS[strategy.id] ?? []).length} windows
+                  </span>
+                </span>
+                <ChevronRight size={15} className="strat-item-chevron" aria-hidden="true" />
+              </button>
+            );
+          })}
+        </nav>
+
+        <article className="strat-detail">
+          <header className="strat-detail-head">
+            <p className="strat-detail-kicker">{profile.category} strategy</p>
+            <h2 className="strat-detail-name">{profile.name}</h2>
+            <p className="strat-detail-summary">
+              <GlossaryText text={profile.summary} glossary={profile.glossary} />
             </p>
-          </div>            <div className="strategies-stats-row">
-              <div className="strategy-stat-card">
-                <span className="strategy-stat-label">Strategies</span>
-                <span className="strategy-stat-value">2 published</span>
-              </div>
-              <div className="strategy-stat-card">
-                <span className="strategy-stat-label">Backtest periods</span>
-                <span className="strategy-stat-value">8 market regimes</span>
-              </div>
-              <div className="strategy-stat-card">
-                <span className="strategy-stat-label">Compared against</span>
-                <span className="strategy-stat-value">Buy and hold</span>
-              </div>
-            </div>
-        </div>
-      </div>
+            <dl className="strat-facts">
+              {profile.facts.map((fact) => (
+                <div key={fact.label} className="strat-fact">
+                  <dt>{fact.label}</dt>
+                  <dd>{fact.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </header>
 
-      <div className='strategies-section'>
-        {/* Render Strategy Cards */}
-        <div className="strategies-list">
-          {STRATEGY_LIST.map(({ strategy, indexNumber }) => (
-            <StrategyCard
-              key={strategy.id}
-              strategy={strategy}
-              indexNumber={indexNumber}
-              isExpanded={expandedIds.includes(strategy.id)}
-              onToggle={() => toggleStrategy(strategy.id)}
-            />
-          ))}
-        </div>
-      </div>
+          <div className="strat-tabs" role="tablist" aria-label={`${profile.name} detail`}>
+            {TABS.map((entry, index) => {
+              const selected = entry.key === tab;
+              return (
+                <button
+                  key={entry.key}
+                  ref={(node) => {
+                    tabRefs.current[index] = node;
+                  }}
+                  type="button"
+                  role="tab"
+                  id={`strat-tab-${entry.key}`}
+                  aria-selected={selected}
+                  aria-controls="strat-panel"
+                  tabIndex={selected ? 0 : -1}
+                  className={`strat-tab ${selected ? 'is-active' : ''}`}
+                  onClick={() => setTab(entry.key)}
+                  onKeyDown={(event) => onTabKey(event, index)}
+                >
+                  {entry.label}
+                </button>
+              );
+            })}
+          </div>
 
-      {/* Collapse controls stay on screen for every open strategy, so a long card
-          never has to be scrolled to the bottom to be closed. */}
-      {expanded.length > 0 && (
-        <div className="strategy-dock" role="group" aria-label="Open strategies">
-          {expanded.map(({ strategy }) => (
-            <button
-              key={strategy.id}
-              type="button"
-              className="strategy-dock-btn"
-              onClick={() => toggleStrategy(strategy.id)}
-              aria-label={`Collapse ${strategy.name}`}
-            >
-              <ChevronUp size={15} aria-hidden="true" />
-              <span className="strategy-dock-action">Collapse</span>
-              <span className="strategy-dock-name">{strategy.name}</span>
-            </button>
-          ))}
-        </div>
-      )}
+          <div
+            className="strat-panel"
+            role="tabpanel"
+            id="strat-panel"
+            aria-labelledby={`strat-tab-${tab}`}
+            tabIndex={0}
+          >
+            {tab === 'overview' && <Overview profile={profile} />}
+            {tab === 'mechanics' && <Mechanics profile={profile} />}
+            {tab === 'backtests' && <Backtests profile={profile} />}
+            {tab === 'glossary' && <Glossary profile={profile} />}
+          </div>
+        </article>
+      </div>
     </div>
   );
 };

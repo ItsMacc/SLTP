@@ -127,12 +127,12 @@ const BENTO_TILE = Array.from({ length: 8 }, (_, index) => {
 const BENTO_MINIS: { title: string; text: string; code?: string }[] = [
   {
     title: 'Local Development and Cloud Backtesting.',
-    text: 'We provide a local development environment for building and testing strategies and cloud backtesting services on the website.',
+    text: 'We provide a local development environment for building and testing strategies and cloud backtesting services on the website. Switch seamlessly from your machine to cloud execution.',
     code: 'pip install sltp',
   },
   {
     title: 'Optimized for Massive Datasets.',
-    text: 'Heavy optimizations with and 65% smaller memory footprint, cutting up to 90% of the time for instant backtests.',
+    text: 'Our custom storage format handles all the heavy lifting behind the scenes, using 90% less memory and running your simulations over 65% faster so you can focus on building strategies, not managing code bottlenecks.',
   },
 ];
 
@@ -262,11 +262,9 @@ export default function HomePage({ onNavigate, onOpenGuide }: HomePageProps) {
         </div>
 
         <article className="bento__card bento__short">
-          <h2 className="bento__card-title">Settings you can defend</h2>
+          <h2 className="bento__card-title">Institutional-grade Backtesting.</h2>
           <p className="bento__card-text">
-            Each candidate is scored on risk-adjusted return, filtered by drawdown and trade count,
-            and kept only where nearby values work too — so a tuned strategy still holds up outside
-            the window it was chosen on.
+            Built for developers who want quantitative tools to run simulations directly against deep historical price series and leverage a lightning-fast execution engine locally on your machine.
           </p>
         </article>
 
@@ -291,9 +289,9 @@ export default function HomePage({ onNavigate, onOpenGuide }: HomePageProps) {
             onNavigate('docs');
           }}
         >
-          <h2 className="bento__card-title"></h2>
+          <h2 className="bento__card-title">Under the Hood.</h2>
           <p className="bento__card-text">
-
+            Want to see how the engine actually works? Dive into our documentation for full technical specs, architecture breakdowns, and guided examples to start building your own strategies.
           </p>
           <span className="bento__cta-foot">
             <span className="bento__cta-label">Learn more</span>

@@ -1,164 +1,470 @@
 /* ============================================================
-   StrategiesPage.css — Strategies listing page + hero banner
+   StrategiesPage.css — strategy library: index rail + detail view.
 
    Width conventions: % / vw for layout widths; rem for fixed
-   UI atoms. Breakpoints in rem.
+   UI atoms. Breakpoints in rem. Colours and spacing come from
+   tokens only.
    ============================================================ */
 
-.strategies-page {
-  padding: var(--space-xl) 0 var(--space-2xl) 0;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xl);
+.strat-page {
   width: 100%;
+  padding: var(--space-xl) 0 calc(var(--space-2xl) * 1.5);
 }
 
-/* Hero visuals and shared content measure come from .page-hero-band and .page-hero-inner. */
-.strategies-hero-wrapper {
-  margin-bottom: var(--space-md);
-}
+/* ---------- Page head ---------- */
 
-.strategies-hero-inner {
+.strat-head,
+.strat-shell {
   width: 100%;
-}
-
-.strategies-hero-copy {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-  max-width: min(58rem, 100%); /* ≈928px reading measure */
-}
-
-/* Feature stats / pills row */
-.strategies-stats-row {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-md);
-  padding-top: var(--space-lg);
-  border-top: 1px solid var(--border-subtle);
-}
-
-/* ---------- Mobile: stack stat cards ---------- */
-@media (max-width: 48rem) { /* ≈768px */
-  .strategies-stats-row {
-    grid-template-columns: 1fr;
-    gap: var(--space-md);
-  }
-}
-
-.strategy-stat-card {
-  background-color: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  padding: var(--space-md);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3xs);
-  box-shadow: var(--shadow-sm);
-  transition: border-color 0.2s ease;
-}
-
-.strategy-stat-card:hover {
-  border-color: var(--border-strong);
-}
-
-.strategy-stat-label {
-  font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  /* Uses your theme accent color (Purple in light mode, Orange in dark mode) */
-  color: var(--accent);
-  font-family: var(--font-mono);
-  font-weight: 600;
-}
-
-.strategy-stat-value {
-  font-size: var(--text-base);
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.strategies-section {
-  max-width: min(68.5rem, 95vw);
-}
-
-.strategies-section-title {
-  font-family: var(--font-heading);
-  font-size: var(--text-xl);
-  color: var(--text-primary);
-  margin-top: var(--space-sm);
-  margin-bottom: calc(-1 * var(--space-sm));
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-}
-
-.strategies-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-lg);
-}
-
-.strategies-section {
-  max-width: min(68.5rem, 95vw);
-  width: 100%;
+  max-width: min(78rem, 95vw); /* ≈1248px */
   margin: 0 auto;
 }
 
-/* ---------- Collapse dock ---------- */
-/* Sits above the page while any strategy is expanded. One row per open card,
-   stacked upward, so two open strategies never overlap. */
-.strategy-dock {
-  position: fixed;
-  right: var(--gutter);
-  bottom: var(--space-lg);
-  z-index: 60;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: var(--space-sm);
-  pointer-events: none;
+.strat-head {
+  padding-bottom: var(--space-lg);
+  margin-bottom: calc(var(--space-md) * 2);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
-.strategy-dock-btn {
-  pointer-events: auto;
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  max-width: min(22rem, calc(100vw - var(--gutter) * 4));
-  padding: var(--space-sm) var(--space-md);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-full);
-  background-color: var(--bg-surface);
-  color: var(--text-primary);
+.strat-eyebrow {
+  margin: 0 0 var(--space-xs);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
-  font-weight: 600;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  cursor: pointer;
-  box-shadow: var(--shadow-lg);
-  transition: border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
-}
-
-.strategy-dock-btn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-  transform: translateY(-0.125rem); /* ≈2px */
-}
-
-.strategy-dock-btn:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-.strategy-dock-action {
   color: var(--text-muted);
 }
 
-.strategy-dock-name {
+.strat-title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: var(--text-2xl);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--text-strong);
+}
+
+.strat-lede {
+  max-width: 62ch;
+  margin: var(--space-sm) 0 0;
+  color: var(--text-muted);
+  font-size: var(--text-base);
+  line-height: 1.65;
+}
+
+/* ---------- Two columns ---------- */
+
+.strat-shell {
+  display: grid;
+  grid-template-columns: 17rem minmax(0, 1fr);
+  gap: calc(var(--space-md) * 2.5);
+  align-items: start;
+}
+
+.strat-index {
+  position: sticky;
+  top: 5rem; /* ≈80px — clears the sticky header, as the other rails do */
+  display: grid;
+  gap: var(--space-2xs);
+}
+
+.strat-index-head {
+  margin: 0 0 var(--space-2xs);
+  padding: 0 var(--space-md);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.strat-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  text-align: left;
+  font: inherit;
+  color: var(--text-primary);
+  background: transparent;
+  border: 1px solid transparent;
+  border-left: 2px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.strat-item:hover { background: var(--bg-surface-hover); }
+
+.strat-item:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.strat-item.is-active {
+  background: var(--bg-surface);
+  border-color: var(--border-subtle);
+  border-left-color: var(--accent);
+}
+
+.strat-item-num {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.strat-item-body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.strat-item-name {
+  font-size: var(--text-base);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.strat-item.is-active .strat-item-name { color: var(--text-strong); }
+
+.strat-item-meta {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.strat-item-chevron {
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.strat-item:hover .strat-item-chevron,
+.strat-item.is-active .strat-item-chevron { opacity: 1; }
+
+/* ---------- Detail ---------- */
+
+.strat-detail {
+  min-width: 0;
+  padding: calc(var(--space-md) * 1.75);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+}
+
+.strat-detail-kicker {
+  margin: 0 0 var(--space-2xs);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.strat-detail-name {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: var(--text-xl);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+  color: var(--text-strong);
+}
+
+.strat-detail-summary {
+  max-width: 68ch;
+  margin: var(--space-sm) 0 0;
+  color: var(--text-muted);
+  line-height: 1.65;
+}
+
+.strat-facts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-sm) var(--space-md);
+  margin: var(--space-md) 0 0;
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.strat-fact dt {
+  margin: 0 0 2px;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.strat-fact dd {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+/* ---------- Tabs ---------- */
+
+.strat-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2xs);
+  margin: calc(var(--space-md) * 1.5) 0 var(--space-md);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.strat-tab {
+  padding: var(--space-sm) var(--space-md);
+  margin-bottom: -1px;
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.strat-tab:hover { color: var(--text-primary); }
+
+.strat-tab.is-active {
+  color: var(--text-strong);
+  border-bottom-color: var(--accent);
+}
+
+.strat-tab:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+  border-radius: var(--radius-sm);
+}
+
+.strat-panel { outline: none; }
+
+/* ---------- Panel content ---------- */
+
+.strat-section + .strat-section {
+  margin-top: calc(var(--space-md) * 1.5);
+  padding-top: calc(var(--space-md) * 1.5);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.strat-section-title {
+  margin: 0 0 var(--space-sm);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.strat-prose {
+  max-width: 70ch;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: 1.7;
+}
+
+.strat-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-lg);
+}
+
+.strat-column-head {
+  margin: 0 0 var(--space-xs);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.strat-list {
+  display: grid;
+  gap: var(--space-xs);
+  margin: 0;
+  padding-left: var(--space-md);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: 1.65;
+}
+
+/* Settings and glossary share the same hairline row rhythm. */
+
+.strat-settings {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 var(--space-lg);
+  margin: 0;
+}
+
+.strat-setting {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-xs) 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.strat-setting dt {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.strat-setting dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-primary);
+  text-align: right;
+}
+
+.strat-glossary {
+  display: grid;
+  gap: var(--space-md);
+  margin: 0;
+}
+
+.strat-glossary-item {
+  display: grid;
+  gap: var(--space-2xs);
+  padding-bottom: var(--space-sm);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.strat-glossary-item:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.strat-glossary-item dt {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--accent);
+}
+
+.strat-glossary-item dd {
+  margin: 0;
+  max-width: 70ch;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: 1.65;
+}
+
+.strat-glossary-example {
+  display: block;
+  margin-top: var(--space-2xs);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: 1.6;
+}
+
+/* ---------- Backtest charts ---------- */
+
+.strat-charts {
+  display: grid;
+  gap: var(--space-md);
+}
+
+.strat-chart {
+  margin: 0;
   overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  background: var(--bg-canvas);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.strat-chart-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.strat-chart-title {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.strat-chart-meta {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.strat-chart-kind {
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.strat-chart-kind.is-bear { color: var(--error); }
+.strat-chart-kind.is-bull { color: var(--success); }
+
+.strat-chart img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 64rem) { /* ≈1024px — the rail becomes a strip above the detail */
+  .strat-shell { grid-template-columns: 1fr; }
+
+  .strat-index {
+    position: static;
+    grid-auto-flow: row;
+    padding-bottom: var(--space-sm);
+  }
+
+  .strat-item-chevron { display: none; }
+}
+
+@media (max-width: 48rem) { /* ≈768px */
+  .strat-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  .strat-columns { grid-template-columns: 1fr; gap: var(--space-md); }
+
+  .strat-settings { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 40rem) { /* ≈640px */
+  .strat-detail { padding: var(--space-md); }
+
+  .strat-chart-head { flex-wrap: wrap; }
+
+  /* All four labels stay on one row: a wrapped tab row puts the active
+     underline under the wrong block. Too narrow to fit, so the row scrolls
+     sideways instead, with the scrollbar hidden. */
+  .strat-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+
+  .strat-tabs::-webkit-scrollbar { display: none; }
+
+  .strat-tab {
+    flex: 0 0 auto;
+    padding: var(--space-sm) var(--space-xs);
+    font-size: var(--text-xs);
+    white-space: nowrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .strat-item,
+  .strat-item-chevron,
+  .strat-tab { transition: none; }
 }
