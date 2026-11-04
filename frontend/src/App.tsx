@@ -22,6 +22,13 @@ import { Loader, LoaderOverlay } from './ui/Loader';
 import { supabase } from '../lib/supabase';
 import { invalidatePortfolio, provisionAccount } from '../lib/api';
 import { pageTitleFor, usePageTitle } from './usePageTitle';
+import {
+  DOCS_PREFIX,
+  hashForLegal,
+  hashForTab,
+  isKnownHash,
+  readLocation,
+} from './routing';
 import './index.css';
 
 export interface UserProfile {
@@ -47,14 +54,15 @@ const AUTH_TITLES = {
    locked there either. */
 const LAB_PREVIEW = import.meta.env.DEV && import.meta.env.VITE_LAB_PREVIEW === 'true';
 
-/* Docs pages live at #/docs/<slug>. A reload or a shared link has to land on
-   that page, not on the home tab. */
-const isDocsRoute = () => window.location.hash.startsWith('#/docs/');
+/* The address bar is the source of truth: #/research, #/lab, #/docs/<slug>,
+   #/legal/privacy. A reload, a shared link and the Back button all land on the
+   page they name instead of dropping the visitor on Home. */
+const initialRoute = readLocation();
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState(() => (isDocsRoute() ? 'docs' : 'home'));
+  const [activeTab, setActiveTab] = useState<string>(initialRoute.tab);
   const [authMode, setAuthMode] = useState<'login' | 'signup' | null>(null);
-  const [legalPage, setLegalPage] = useState<LegalPageKind | null>(null);
+  const [legalPage, setLegalPage] = useState<LegalPageKind | null>(initialRoute.legal);
   const [authNotice, setAuthNotice] = useState<string | null>(null);
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -64,6 +72,63 @@ export default function App() {
   // One account sync per user at a time. The sign-in card and the auth
   // listener both ask for it, and the Turso write must only happen once.
   const syncsRef = useRef(new Map<string, Promise<void>>());
+
+  // The hash listener is registered once, so it reads the signed-in user from a
+  // ref rather than a stale closure.
+  const userRef = useRef(user);
+  // Where a legal page goes back to when its Back button is pressed.
+  const legalReturnRef = useRef<string>(initialRoute.tab);
+
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
+  /** Applies whatever the address bar says — on first load and on Back/Forward. */
+  const syncFromLocation = useCallback(() => {
+    const route = readLocation();
+
+    if (route.legal) {
+      // Keep the tab the visitor came from: the legal page replaces the body, so
+      // the nav should still show where Back will take them.
+      setLegalPage(route.legal);
+      setAuthMode(null);
+      setAuthNotice(null);
+      return;
+    }
+
+    setLegalPage(null);
+    const localLabPreview = LAB_PREVIEW && route.tab === 'lab';
+    const gated =
+      (AUTH_REQUIRED_TABS.includes(route.tab) || route.tab === 'settings') &&
+      !userRef.current?.id &&
+      !localLabPreview;
+
+    setActiveTab(route.tab);
+    if (gated) {
+      setAuthMode('signup');
+      setAuthNotice('You must be logged in to use these features');
+      return;
+    }
+    setAuthMode(null);
+    setAuthNotice(null);
+    // Docs scrolls itself: a section link has to land on its heading.
+    if (route.tab !== 'docs') window.scrollTo(0, 0);
+  }, []);
+
+  // A visit to "/" gets a real address (#/home), so history entries are never
+  // bare and Back always has a page to return to.
+  useEffect(() => {
+    if (!window.location.hash || !isKnownHash(window.location.hash)) {
+      history.replaceState(null, '', hashForTab(initialRoute.tab));
+    }
+    window.addEventListener('hashchange', syncFromLocation);
+    return () => window.removeEventListener('hashchange', syncFromLocation);
+  }, [syncFromLocation]);
+
+  // The session check decides whether a deep link needs the sign-in card.
+  useEffect(() => {
+    if (!loading) syncFromLocation();
+  }, [loading, syncFromLocation]);
 
   /**
    * Loads the profile and writes the account row in Turso.
@@ -120,6 +185,7 @@ export default function App() {
     setSigningOut(true);
     try {
       syncsRef.current.clear();
+      history.replaceState(null, '', hashForTab('home'));
       setActiveTab('home');
       setUser(null);
       invalidatePortfolio();
@@ -131,25 +197,33 @@ export default function App() {
     }
   }, []);
 
+  /** Navigates to a page. The address bar leads and the hash listener applies
+      the change — including the sign-in gate — so Back/Forward take that same
+      path rather than a second, divergent one. */
   const handleTabChange = (tab: string) => {
-    const localLabPreview = LAB_PREVIEW && tab === 'lab';
-    if (AUTH_REQUIRED_TABS.includes(tab) && !user?.id && !localLabPreview) {
-      setAuthMode('signup');
-      setLegalPage(null);
-      setAuthNotice('You must be logged in to use these features');
+    // Docs keeps its current page in the hash; asking for "docs" must not drop
+    // it back to the introduction.
+    if (tab === 'docs' && window.location.hash.startsWith(DOCS_PREFIX)) {
+      syncFromLocation();
       return;
     }
 
-    setActiveTab(tab);
-    // Leaving Docs drops the docs route, so the address bar never claims a page
-    // the visitor is no longer looking at.
-    if (tab !== 'docs' && isDocsRoute()) {
-      history.replaceState(null, '', window.location.pathname + window.location.search);
-    }
-    window.scrollTo(0, 0);
-    setAuthMode(null);
     setLegalPage(null);
-    setAuthNotice(null);
+    const target = hashForTab(tab);
+    if (window.location.hash === target) {
+      syncFromLocation();
+      return;
+    }
+    window.location.hash = target.slice(1);
+  };
+
+  /** Legal pages are addresses too, so Back leaves one the way it left a tab. */
+  const openLegalPage = (page: LegalPageKind) => {
+    legalReturnRef.current = activeTab;
+    setAuthMode(null);
+    const target = hashForLegal(page);
+    if (window.location.hash === target) setLegalPage(page);
+    else window.location.hash = target.slice(1);
   };
 
   useEffect(() => {
@@ -213,7 +287,7 @@ export default function App() {
         sessionUserName={user?.name}
         sessionUserEmail={user?.email}
         onSignOut={() => { void handleSignOut(); }}
-        onSettingsClick={() => { setActiveTab('settings'); setAuthMode(null); setLegalPage(null); }}
+        onSettingsClick={() => { handleTabChange('settings'); }}
       />
 
       {/* Site guide slideshow lives at app level so it can navigate tabs
@@ -227,7 +301,7 @@ export default function App() {
 
       <main className="app-main">
         {legalPage ? (
-          <LegalPage page={legalPage} onBack={() => setLegalPage(null)} />
+          <LegalPage page={legalPage} onBack={() => { handleTabChange(legalReturnRef.current); }} />
         ) : (
           <div key={authMode || activeTab} className="page-transition">
             {authMode ? (
@@ -301,7 +375,7 @@ export default function App() {
       <Footer
         activeTab={activeTab}
         onNavigate={handleTabChange}
-        onLegalPage={(page) => { setLegalPage(page); setAuthMode(null); }}
+        onLegalPage={openLegalPage}
       />
     </div>
   );

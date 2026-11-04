@@ -289,9 +289,9 @@ export default function HomePage({ onNavigate, onOpenGuide }: HomePageProps) {
             onNavigate('docs');
           }}
         >
-          <h2 className="bento__card-title">Under the Hood.</h2>
+          <h2 className="bento__card-title">Want to know how the SLTP engine runs?</h2>
           <p className="bento__card-text">
-            Want to see how the engine actually works? Dive into our documentation for full technical specs, architecture breakdowns, and guided examples to start building your own strategies.
+            We invite you to dive into our comprehensive system guides to see exactly how everything works under the hood. Once you get a feel for the architecture, we would love for you to get involved. Feel free to submit your own code, fix bugs, or suggest updates to help us improve. Your unique contributions are what keep this engine growing every day.
           </p>
           <span className="bento__cta-foot">
             <span className="bento__cta-label">Learn more</span>
