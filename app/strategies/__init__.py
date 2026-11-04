@@ -21,7 +21,7 @@ REGISTRY: dict[str, tuple[type, str]] = {
     "buy-and-hold": (Benchmark, "investing"),
     "momentum-20": (Momentum20, "trading"),
     "global-trend-allocation": (GlobalTrendAllocation, "investing"),
-    "statistical-mean-reversion": (StatisticalMeanReversionStrategy, "investing"),
+    "statistical-mean-reversion": (StatisticalMeanReversionStrategy, "trading"),
 }
 
 
