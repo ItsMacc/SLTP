@@ -109,18 +109,54 @@ const FACTS: { title: string; text: string }[] = [
 ];
 
 /* ---------- What a run returns ---------- */
-const METRICS: { name: string; note: string }[] = [
-  { name: 'CAGR', note: 'Yearly growth rate' },
-  { name: 'Sharpe ratio', note: 'Return per unit of risk' },
-  { name: 'Sortino ratio', note: 'Return per unit of downside risk' },
+
+/* Each metric gets a name, its full form where the short name hides one, a
+   one-line note for scanning, and a paragraph for the reader who wants the
+   definition. The note is what the eye lands on first; the paragraph explains
+   what the number is made of and how to read it. */
+const METRICS: { name: string; full?: string; note: string; text: string }[] = [
   {
-    name: 'Probabilistic Sharpe',
-    note: 'Chance the Sharpe beats 1.0, adjusted for skew and sample size',
+    name: 'CAGR',
+    full: 'Compound Annual Growth Rate',
+    note: 'Yearly growth rate',
+    text: "The annualised geometric growth rate of your strategy's equity over the whole backtest. It smooths the run into one yearly figure, which makes strategies of different lengths comparable and lets you set the result against a market benchmark.",
   },
-  { name: 'Max drawdown', note: 'Largest fall from a peak' },
-  { name: 'Win rate', note: 'Share of closed trades that made money' },
-  { name: 'Expectancy', note: 'Average return per closed trade' },
-  { name: 'Unrealized profit', note: 'Open profit on the last day' },
+  {
+    name: 'Sharpe Ratio',
+    note: 'Return per unit of total risk',
+    text: 'Return earned above the baseline, divided by the volatility taken to earn it. A higher number means the strategy produced cleaner returns rather than simply carrying more market exposure, which is why it is the first ratio to read.',
+  },
+  {
+    name: 'Sortino Ratio',
+    note: 'Return per unit of downside risk',
+    text: 'A modification of the Sharpe ratio that counts only downside volatility. Upward moves are ignored, so a strategy is not penalised for large gains, and the score reflects the drops you would actually have sat through.',
+  },
+  {
+    name: 'Probabilistic Sharpe Ratio',
+    full: 'PSR',
+    note: 'Chance the Sharpe is real, not luck',
+    text: 'The probability that the measured Sharpe genuinely beats a baseline of 1.0. It adjusts for non-normal distributions, skew, fat tails and sample size, so a short run needs a much higher Sharpe to earn the same confidence. It is the check against a result that is only luck.',
+  },
+  {
+    name: 'Max Drawdown',
+    note: 'Largest fall from a peak',
+    text: 'The largest peak-to-trough decline in total equity before a new peak is reached. It is the worst stretch the account would have held through, and it sets the boundary on how much risk the strategy actually carried.',
+  },
+  {
+    name: 'Win Rate',
+    note: 'Share of closed trades that made money',
+    text: 'The share of closed positions that finished in profit: winning trades divided by total executed trades. Read it next to the size of the average win and the average loss, because a high hit rate with large losers still loses money.',
+  },
+  {
+    name: 'Expectancy',
+    note: 'Average result per closed trade',
+    text: 'The average result of one closed trade, combining the win rate with the average win-to-loss ratio. A positive expectancy is what makes a system viable over many trades; a negative one means the wins do not cover the losses and the costs.',
+  },
+  {
+    name: 'Unrealized Profit',
+    note: 'Open profit on the last day',
+    text: 'The profit or loss still open on the final day of the run: positions bought and not yet sold, marked at the last close. It is paper only until the trade is closed, so it shows how much of the result is still exposed.',
+  },
 ];
 
 /* ---------- Docs pages in reading order ---------- */
@@ -616,20 +652,26 @@ export default function LabPage({ onNavigate }: LabPageProps) {
           <header className="lab-section-head">
             <h2 id="lab-results" className="lab-section-title">What each run returns</h2>
             <p className="lab-section-lede">
-              Equity starts at 100, so a value of 112 means the book is up 12%.
+              Every backtest returns more than a final number: an equity curve, the same money
+              placed in a benchmark to compare against, and the figures below, which describe
+              the path the account took and what it cost to take it.
             </p>
           </header>
 
-          <div className="lab-results">
-            <dl className="lab-metrics">
-              {METRICS.map((metric) => (
-                <div key={metric.name} className="lab-metric">
-                  <dt className="lab-metric-name">{metric.name}</dt>
-                  <dd className="lab-metric-note">{metric.note}</dd>
-                </div>
-              ))}
-            </dl>
-          </div>
+          <ul className="lab-metrics">
+            {METRICS.map((metric) => (
+              <li key={metric.name} className="lab-metric">
+                <h3 className="lab-metric-name">
+                  {metric.name}
+                  {metric.full ? (
+                    <span className="lab-metric-full"> ({metric.full})</span>
+                  ) : null}
+                </h3>
+                <p className="lab-metric-note">{metric.note}</p>
+                <p className="lab-metric-text">{metric.text}</p>
+              </li>
+            ))}
+          </ul>
         </section>
 
         <section className="lab-section" aria-labelledby="lab-learn">
