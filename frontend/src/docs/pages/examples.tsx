@@ -68,7 +68,7 @@ result = Backtester(HoldFive(), "2015-01-01", "2024-12-31").run()`,
           kind: 'callout',
           tone: 'note',
           title: 'This is the benchmark pattern',
-          text: <>The engine's own benchmark holds SPY with one order and never sells. A fixed set of five is the same idea with more names. It is a useful control: a strategy that cannot beat it has no edge to explain.</>,
+          text: <>The engine's own benchmark holds SPY with one order and never sells, collecting its dividends along the way. A fixed set of five is the same idea with more names. It is a useful control: a strategy that cannot beat it has no edge to explain.</>,
         },
         {
           kind: 'callout',

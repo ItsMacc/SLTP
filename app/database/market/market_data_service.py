@@ -33,6 +33,9 @@ STATUS_FILE: str = os.path.join(SYMBOL_DATA_DIR, "symbol_status.parquet")
 
 ACTION_SPLIT: int = 0
 ACTION_DIVIDEND: int = 1
+# No US listing pays a million dollars per share; a few rows are corporate-action
+# artefacts (a split recorded as a distribution) and must not become cash.
+MAX_DIVIDEND_PER_SHARE: float = 1_000_000.0
 DEFAULT_START: str = "1998-01-01"
 DATE_FORMAT: str = "%Y-%m-%d"
 PRICE_COLS: list[str] = ["Open", "High", "Low", "Close", "Volume"]
@@ -120,7 +123,9 @@ def get_dividends(ticker: str, start: str | None = None, end: str | None = None)
     entry: tuple[np.ndarray, np.ndarray] | None = _events_by_symbol(ACTION_DIVIDEND).get(ticker.strip().upper())
     if entry is None:
         return np.empty(0, dtype=np.int32), np.empty(0, dtype=np.float32)
-    return _events_in_range(entry[0], entry[1], start, end)
+    codes, amounts = _events_in_range(entry[0], entry[1], start, end)
+    keep: np.ndarray = np.isfinite(amounts) & (amounts > 0) & (amounts <= MAX_DIVIDEND_PER_SHARE)
+    return codes[keep], amounts[keep]
 
 
 # Split ratios for one ticker as (day codes, ratio): 7.0 is a 7-for-1 forward split,
@@ -529,6 +534,7 @@ def _events_in_range(codes: np.ndarray, amounts: np.ndarray, start: str | None, 
 
 
 # Streamed bars into one StockData per symbol, whose arrays are slices of shared blocks.
+# A symbol can continue in a later bar file, so its runs are merged instead of replaced.
 # A complete read also leaves the sessions behind, so the calendar never reads Date again.
 def _build_histories(batches, rows: int, complete: bool = False) -> dict[str, StockData]:
     global _SESSIONS
@@ -564,22 +570,56 @@ def _build_histories(batches, rows: int, complete: bool = False) -> dict[str, St
     for label, index in ids.items():
         names[index] = label
 
-    # One run of equal ids is one ticker, because the bars for a symbol are stored together.
+    # Symbols are stored in runs, but the same symbol can run again in a later bar file:
+    # the recent tail repeats every ticker it updates. Group the runs by ticker so the
+    # short tail run cannot replace the symbol's full history.
     edges: np.ndarray = np.flatnonzero(symbols[1:] != symbols[:-1]) + 1
     starts = np.concatenate((np.zeros(1, dtype=np.int64), edges)).tolist()
     ends = np.concatenate((edges, np.array([at], dtype=np.int64))).tolist()
 
-    histories: dict[str, StockData] = {}
+    runs: dict[str, list[tuple[int, int]]] = {}
     for start, end in zip(starts, ends):
         ticker: str = names[symbols[start]]
+        runs.setdefault(ticker, []).append((start, end))
+
+    histories: dict[str, StockData] = {}
+    for ticker, ranges in runs.items():
+        # The common case: one run, already in date order, stays a view of the shared block.
+        if len(ranges) == 1:
+            start, end = ranges[0]
+            codes = date[start:end]
+            if codes.size < 2 or bool(np.all(codes[1:] > codes[:-1])):
+                histories[ticker] = StockData(
+                    ticker=ticker,
+                    date_codes=codes,
+                    open_price=prices["Open"][start:end],
+                    high=prices["High"][start:end],
+                    low=prices["Low"][start:end],
+                    close_price=prices["Close"][start:end],
+                    volume=volume[start:end],
+                )
+                continue
+
+        # Merge the runs in date order. The sort is stable and the last row for a
+        # repeated date wins, so the newer file supersedes an older copy of the bar.
+        positions = np.concatenate([np.arange(start, end) for start, end in ranges])
+        codes = date[positions]
+        order = np.argsort(codes, kind="stable")
+        positions = positions[order]
+        codes = codes[order]
+
+        keep = np.ones(codes.size, dtype=bool)
+        if codes.size > 1:
+            keep[:-1] = codes[1:] != codes[:-1]
+
         histories[ticker] = StockData(
             ticker=ticker,
-            date_codes=date[start:end],
-            open_price=prices["Open"][start:end],
-            high=prices["High"][start:end],
-            low=prices["Low"][start:end],
-            close_price=prices["Close"][start:end],
-            volume=volume[start:end],
+            date_codes=codes[keep],
+            open_price=prices["Open"][positions[keep]],
+            high=prices["High"][positions[keep]],
+            low=prices["Low"][positions[keep]],
+            close_price=prices["Close"][positions[keep]],
+            volume=volume[positions[keep]],
         )
     return histories
 

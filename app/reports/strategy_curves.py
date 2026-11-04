@@ -77,7 +77,7 @@ def render_chart(name: str, benchmark: dict[str, Any], strategy: dict[str, Any],
         _series(bench_points, x_of, y_of, BENCHMARK_COLOR, 2.2, with_area=False, bottom=bottom),
         _end_labels(benchmark, strategy, bench_points, mine_points, x_of, y_of),
         f'<text class="note" x="{left}" y="{HEIGHT - 16}">Index = 100 on the first session · daily closes, '
-        f'fees and slippage included</text>',
+        f'fees, slippage and dividends included</text>',
         "</svg>",
     ]
     return "\n".join(part for part in parts if part)

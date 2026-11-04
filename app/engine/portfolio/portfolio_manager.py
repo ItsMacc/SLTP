@@ -5,7 +5,7 @@
 # inside the day's bar at the level, or at the open when the bar gapped through it.
 # One entry is one lot, so adding to a position never averages the entry price.
 #
-# Equity is an index starting at 100: starting + realized - costs + unrealized.
+# Equity is an index starting at 100: starting + realized + dividends - costs + unrealized.
 # The strategy sees this book through refresh_view() and never changes it.
 
 # -------- Imports --------
@@ -56,6 +56,7 @@ class PortfolioManager:
         self.portfolio_value: float = 100.00
         self.cash: float = 100.00
         self.realized_pnl: float = 0.0
+        self.dividend_income: float = 0.0
         self.total_cost: float = 0.0
 
         # Records
@@ -71,6 +72,8 @@ class PortfolioManager:
         self._trade_by_id: dict[int, Trade] = {}
         self.rejected_orders: dict[str, int] = {}
         self._histories: dict[str, StockData] = {}
+        self._dividend_events: dict[str, tuple[np.ndarray, np.ndarray]] = {}
+        self._last_dividend_code: int | None = None
 
         # Equity logs, kept as plain lists while running and turned into arrays on read
         self._dates_log: list[str] = []
@@ -131,6 +134,42 @@ class PortfolioManager:
     def set_history_cache(self, histories: dict[str, StockData]) -> None:
         self._histories = histories
 
+    # Cash distributions per ticker, as sorted (day codes, amount per share) pairs.
+    def set_dividend_events(self, events: dict[str, tuple[np.ndarray, np.ndarray]]) -> None:
+        self._dividend_events = events
+
+    # Credit dividends whose ex-date has passed to lots held from the previous close.
+    # Runs before the open fills: a lot bought on the ex-date is not in the book yet,
+    # while a lot sold at the ex-date open is still here and keeps the dividend.
+    def pay_dividends(self, current_code: int) -> None:
+        start: int = current_code if self._last_dividend_code is None else self._last_dividend_code + 1
+        self._last_dividend_code = int(current_code)
+        if not self._dividend_events or not self.open_trades:
+            return
+
+        for trade in self.open_trades.values():
+            entry = self._dividend_events.get(trade.ticker)
+            if entry is None or trade.entry_price <= 0:
+                continue
+            codes, amounts = entry
+            entry_code: int = int(to_code(trade.entry_date))
+            low: int = int(np.searchsorted(codes, max(start, entry_code + 1), side="left"))
+            high: int = int(np.searchsorted(codes, current_code, side="right"))
+            if high <= low:
+                continue
+
+            notional: float = trade.equity_at_entry * trade.allocation
+            shares: float = notional / trade.entry_price
+            direction: float = -1.0 if trade.position_type is PositionType.SHORT else 1.0
+            paid: float = float(np.sum(amounts[low:high])) * shares * direction
+            if paid == 0.0:
+                continue
+
+            trade.dividend_income += paid
+            self.cash += paid
+            self.dividend_income += paid
+            self.portfolio_value += paid
+
     # -------- Order Management --------
     # Queue an entry for the next open; it is validated at the fill.
     def submit_order(self, order: Order) -> None:
@@ -187,6 +226,7 @@ class PortfolioManager:
         last_prices = self.last_prices
         starting_equity = self.starting_equity
         realized_pnl = self.realized_pnl
+        dividend_income = self.dividend_income
         total_cost = self.total_cost
 
         # Update last known prices; a ticker without a price today keeps its last mark
@@ -203,8 +243,8 @@ class PortfolioManager:
             pct_return: float = direction * (price - trade.entry_price) / trade.entry_price
             unrealized += notional * pct_return
 
-        # Index accounting: starting + realized - costs + unrealized
-        self.portfolio_value = starting_equity + realized_pnl - total_cost + unrealized
+        # Index accounting: starting + realized + dividends - costs + unrealized
+        self.portfolio_value = starting_equity + realized_pnl + dividend_income - total_cost + unrealized
 
         # Append to the primitive logs, overwriting the same day on a second mark
         if self._dates_log and self._dates_log[-1] == current_date:

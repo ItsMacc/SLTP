@@ -144,7 +144,7 @@ export const HELP: DocGroup = {
             ['Book', 'The open lots, cash, costs and equity owned by the portfolio manager.'],
             ['CAGR', 'Compounded annual growth rate of the equity index.'],
             ['Drawdown', 'Fall from a previous equity peak, measured in percent.'],
-            ['Equity index', 'Portfolio value starting at 100, used instead of a currency amount.'],
+            ['Equity index', 'Portfolio value starting at 100, including cash dividends, used instead of a currency amount.'],
             ['Event', 'An immutable record of a trade closing: date, type and price.'],
             ['Fill', 'The moment an order becomes a trade, at the open or at a resting level.'],
             ['Gap', 'An open beyond a resting level. The fill is the open, not the level.'],

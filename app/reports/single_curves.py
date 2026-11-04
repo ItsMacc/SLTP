@@ -99,7 +99,7 @@ def render_curve(name: str, strategy: dict[str, Any], period: curve_store.Period
         f'<text class="value" x="{last_x + 10:.1f}" y="{last_y + 4:.1f}" fill="{STRATEGY_COLOR}">'
         f'{float(strategy["metrics"]["ending_value"]):,.1f}</text>',
         f'<text class="note" x="{left}" y="{HEIGHT - 16}">Index = 100 on the first session · daily closes, '
-        f'fees and slippage included</text>',
+        f'fees, slippage and dividends included</text>',
         "</svg>",
     ]
     return "\n".join(part for part in parts if part)

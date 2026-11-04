@@ -323,6 +323,7 @@ if close < average:
             { name: 'stop_loss', type: 'float', description: 'Absolute stop price copied from the order. 0 means none.' },
             { name: 'take_profit', type: 'float', description: 'Absolute target price copied from the order. 0 means none.' },
             { name: 'fees', type: 'float', description: 'Entry fee, plus the exit fee once closed.' },
+            { name: 'dividend_income', type: 'float', fallback: '0.0', description: 'Cash dividends paid to the lot while it was open. Negative for a short.' },
             { name: 'exit', type: 'Event | None', fallback: 'None', description: 'The exit that closed the lot. None while it is open.' },
           ],
         },
@@ -338,7 +339,7 @@ if close < average:
 direction = -1.0 if trade.position_type is PositionType.SHORT else 1.0
 
 gross = notional * direction * (exit_price - trade.entry_price) / trade.entry_price
-net = gross - trade.fees`,
+net = gross + trade.dividend_income - trade.fees`,
         },
         { kind: 'h2', id: 'is-open', text: 'is_open' },
         {

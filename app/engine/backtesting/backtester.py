@@ -22,12 +22,14 @@ from app.engine.utils.StockData import StockData
 from app.engine.utils.PositionType import PositionType
 
 # Database imports
-from app.database.market.market_data_service import get_stock_histories, get_trading_calendar
+from app.database.market.market_data_service import get_dividends, get_stock_histories, get_trading_calendar
 
 
 # -------- Constants --------
 # How far past the requested start the universe may look for a date it can trade.
 MAX_WARMUP_DAYS: int = 1826
+# A cash distribution above the whole pre-dividend share price is a data artefact.
+MAX_DIVIDEND_YIELD: float = 1.0
 
 
 # Every column of one ticker's history, keyed by the address of its first bar. A day's
@@ -44,15 +46,17 @@ def _series_by_address(history: StockData) -> dict[int, np.ndarray]:
 # One simulation: a strategy, a date range, and the bars it needs.
 class Backtester:
     # Wire up the manager and the per-run state.
-    def __init__(self, strategy: Strategy, start_date: str, end_date: str | None = None) -> None:
+    def __init__(self, strategy: Strategy, start_date: str, end_date: str | None = None, include_dividends: bool = True) -> None:
         self.strategy: Strategy = strategy
         self.manager: PortfolioManager = PortfolioManager(strategy)
         self.start_date: str = start_date
         self.end_date: str | None = end_date
+        self.include_dividends: bool = include_dividends
         self.liquidate_on_end: bool = self.strategy.LIQUIDATE_ON_END
 
         # Ticker histories are loaded once and indexed once for the whole run
         self._data: dict[str, dict] = {}
+        self._dividend_events: dict[str, tuple[np.ndarray, np.ndarray]] = {}
         self.skipped: set[str] = set()
         self._unrealized_at_end: float = 0.0
         self._equity_records: list[dict] = []
@@ -93,6 +97,9 @@ class Backtester:
             bars = self._bars_on()
             opens = {ticker: bar[0] for ticker, bar in bars.items()}
             closes = {ticker: bar[3] for ticker, bar in bars.items()}
+
+            # Dividends belong to lots held from the previous close, before today's fills
+            self.manager.pay_dividends(int(self._day_code))
 
             # Fill pending exits and entries at today's open
             self.manager.fill_pending_exits(current_date, opens)
@@ -200,7 +207,9 @@ class Backtester:
             if trade.exit is not None:
                 exit_price: float = trade.exit.price
                 direction: float = -1.0 if trade.position_type is PositionType.SHORT else 1.0
-                trade_returns.append(direction * (exit_price - trade.entry_price) / trade.entry_price)
+                notional: float = trade.equity_at_entry * trade.allocation
+                dividend_return: float = trade.dividend_income / notional if notional > 0 else 0.0
+                trade_returns.append(direction * (exit_price - trade.entry_price) / trade.entry_price + dividend_return)
 
         wins: list[float] = [value for value in trade_returns if value > 0]
         losses: list[float] = [value for value in trade_returns if value < 0]
@@ -228,6 +237,7 @@ class Backtester:
             "max_drawdown": max_drawdown,
             "drawdown_recovery": max_duration,
             "unrealized_profit": round(self._unrealized_at_end, 2),
+            "dividend_income": round(self.manager.dividend_income, 2),
             "rejected_orders": dict(sorted(self.manager.rejected_orders.items())),
             "equity": self._equity_records,
         }
@@ -333,7 +343,35 @@ class Backtester:
                 "index": None,
                 "index_code": None,
             }
+        if self.include_dividends:
+            self._load_dividends(missing)
         self.manager.set_history_cache({ticker: data["history"] for ticker, data in self._data.items()})
+
+    # Load the cash distributions for the tickers just added, dropping rows that cannot
+    # be a real dividend on that bar.
+    def _load_dividends(self, tickers: list[str]) -> None:
+        for ticker in tickers:
+            data = self._data.get(ticker)
+            if data is None or ticker in self._dividend_events:
+                continue
+            codes, amounts = get_dividends(ticker)
+            codes, amounts = self._plausible_dividends(data["history"], codes, amounts)
+            if codes.size:
+                self._dividend_events[ticker] = (codes, amounts)
+        self.manager.set_dividend_events(self._dividend_events)
+
+    # Keep only distributions that could have been paid: a previous close must exist,
+    # and the cash cannot exceed the whole pre-dividend share price.
+    @staticmethod
+    def _plausible_dividends(history: StockData, codes: np.ndarray, amounts: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        if codes.size == 0:
+            return codes, amounts
+        index: np.ndarray = np.searchsorted(history.date_codes, codes, side="left") - 1
+        valid: np.ndarray = index >= 0
+        previous: np.ndarray = np.zeros(codes.size, dtype=np.float64)
+        previous[valid] = history.close_price[index[valid]]
+        keep: np.ndarray = valid & (previous > 0) & (amounts <= previous * MAX_DIVIDEND_YIELD)
+        return codes[keep], amounts[keep]
 
     # The market's own trading days inside the run window.
     # The calendar comes from the Date column alone and is cached per file, so the

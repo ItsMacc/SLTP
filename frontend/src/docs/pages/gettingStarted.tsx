@@ -19,7 +19,7 @@ export const GETTING_STARTED: DocGroup = {
         { kind: 'h2', id: 'what-it-does', text: 'What it does' },
         {
           kind: 'p',
-          text: <>The engine reads market data once and slices it per day. Each session it fills yesterday's orders at today's open. Then it asks your strategy for new orders. After that it checks stop and target levels against today's bar, marks the book at the close and logs equity. A signal on Monday's close fills at Tuesday's open.</>,
+          text: <>The engine reads market data once and slices it per day. Each session it credits dividends to lots held from the previous close, fills yesterday's orders at today's open. Then it asks your strategy for new orders. After that it checks stop and target levels against today's bar, marks the book at the close and logs equity. A signal on Monday's close fills at Tuesday's open.</>,
         },
         { kind: 'h2', id: 'what-a-run-gives-you', text: 'What a run gives you' },
         {
@@ -28,7 +28,7 @@ export const GETTING_STARTED: DocGroup = {
           rows: [
             [<C key="m">metrics</C>, 'Returns, risk, drawdown and trade statistics.'],
             [<C key="e">equity</C>, 'One record per trading day: date, index value, open positions and costs so far.'],
-            [<C key="t">trades</C>, <>Every lot: its entry, its exit <C>Event</C> and the fees it paid.</>],
+            [<C key="t">trades</C>, <>Every lot: its entry, its exit <C>Event</C>, the dividends it collected and the fees it paid.</>],
             [<C key="r">rejections</C>, 'Orders the manager refused, counted by reason.'],
           ],
         },
@@ -57,7 +57,7 @@ export const GETTING_STARTED: DocGroup = {
             'Partial fills. An order fills whole or not at all.',
             'Market impact beyond the fixed slippage rate.',
             'Borrow fees on shorts, or interest on cash.',
-            'Corporate actions inside the engine. It trades the bars it is given.',
+            'Splits and other corporate actions beyond cash dividends. The bars are already split-adjusted, and dividends are the only action the engine pays.',
           ],
         },
         {

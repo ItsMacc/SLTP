@@ -117,7 +117,7 @@ def run_backtest(
             if exit_event is not None and trade.entry_price > 0:
                 notional: float = trade.equity_at_entry * trade.allocation
                 gross_pnl: float = notional * direction * (exit_event.price - trade.entry_price) / trade.entry_price
-                realized_return_pct = (gross_pnl - trade.fees) / notional * 100.0 if notional > 0 else 0.0
+                realized_return_pct = (gross_pnl + trade.dividend_income - trade.fees) / notional * 100.0 if notional > 0 else 0.0
 
             exit_reason = {
                 EventType.TAKE_PROFIT: "TAKE_PROFIT",
@@ -153,6 +153,7 @@ def run_backtest(
                 "exit_price": exit_price,
                 "exit_date": exit_event.date if exit_event is not None else None,
                 "transaction_cost": trade.fees,
+                "dividend_income": round(float(trade.dividend_income), 4),
                 "realized_return_pct": realized_return_pct,
             })
 

@@ -29,16 +29,16 @@ export const BACKTESTS: Record<string, BacktestRow[]> = {
       "start": "2000-01-03",
       "end": "2003-03-31",
       "strategy": {
-        "cagr": -15.05,
-        "sharpe": -0.561,
-        "max_drawdown": 49.14,
-        "ending_value": 58.9522
+        "cagr": -13.6,
+        "sharpe": -0.5079,
+        "max_drawdown": 46.67,
+        "ending_value": 62.2782
       },
       "benchmark": {
-        "cagr": -15.05,
-        "sharpe": -0.561,
-        "max_drawdown": 49.14,
-        "ending_value": 58.9522
+        "cagr": -13.6,
+        "sharpe": -0.5079,
+        "max_drawdown": 46.67,
+        "ending_value": 62.2782
       }
     },
     {
@@ -48,16 +48,16 @@ export const BACKTESTS: Record<string, BacktestRow[]> = {
       "start": "2007-10-01",
       "end": "2009-03-31",
       "strategy": {
-        "cagr": -35.92,
-        "sharpe": -0.9684,
-        "max_drawdown": 56.47,
-        "ending_value": 51.3547
+        "cagr": -33.75,
+        "sharpe": -0.9175,
+        "max_drawdown": 54.24,
+        "ending_value": 53.9747
       },
       "benchmark": {
-        "cagr": -35.92,
-        "sharpe": -0.9684,
-        "max_drawdown": 56.47,
-        "ending_value": 51.3547
+        "cagr": -33.75,
+        "sharpe": -0.9175,
+        "max_drawdown": 54.24,
+        "ending_value": 53.9747
       }
     },
     {
@@ -67,16 +67,16 @@ export const BACKTESTS: Record<string, BacktestRow[]> = {
       "start": "2020-02-03",
       "end": "2020-05-29",
       "strategy": {
-        "cagr": -21.44,
-        "sharpe": -0.1821,
-        "max_drawdown": 34.1,
-        "ending_value": 92.6229
+        "cagr": -20.29,
+        "sharpe": -0.1586,
+        "max_drawdown": 33.69,
+        "ending_value": 93.0508
       },
       "benchmark": {
-        "cagr": -21.44,
-        "sharpe": -0.1821,
-        "max_drawdown": 34.1,
-        "ending_value": 92.6229
+        "cagr": -20.29,
+        "sharpe": -0.1586,
+        "max_drawdown": 33.69,
+        "ending_value": 93.0508
       }
     },
     {
@@ -86,16 +86,16 @@ export const BACKTESTS: Record<string, BacktestRow[]> = {
       "start": "2022-01-03",
       "end": "2023-10-31",
       "strategy": {
-        "cagr": -7.27,
-        "sharpe": -0.2747,
-        "max_drawdown": 25.71,
-        "ending_value": 87.136
+        "cagr": -5.94,
+        "sharpe": -0.2082,
+        "max_drawdown": 24.76,
+        "ending_value": 89.4377
       },
       "benchmark": {
-        "cagr": -7.27,
-        "sharpe": -0.2747,
-        "max_drawdown": 25.71,
-        "ending_value": 87.136
+        "cagr": -5.94,
+        "sharpe": -0.2082,
+        "max_drawdown": 24.76,
+        "ending_value": 89.4377
       }
     },
     {
@@ -105,16 +105,16 @@ export const BACKTESTS: Record<string, BacktestRow[]> = {
       "start": "2012-01-03",
       "end": "2015-05-29",
       "strategy": {
-        "cagr": 16.02,
-        "sharpe": 1.3227,
-        "max_drawdown": 9.69,
-        "ending_value": 165.7466
+        "cagr": 17.8,
+        "sharpe": 1.4932,
+        "max_drawdown": 9.65,
+        "ending_value": 174.5551
       },
       "benchmark": {
-        "cagr": 16.02,
-        "sharpe": 1.3227,
-        "max_drawdown": 9.69,
-        "ending_value": 165.7466
+        "cagr": 17.8,
+        "sharpe": 1.4932,
+        "max_drawdown": 9.65,
+        "ending_value": 174.5551
       }
     },
     {
@@ -124,16 +124,16 @@ export const BACKTESTS: Record<string, BacktestRow[]> = {
       "start": "2020-06-01",
       "end": "2021-11-30",
       "strategy": {
-        "cagr": 30.15,
-        "sharpe": 1.7903,
-        "max_drawdown": 9.8,
-        "ending_value": 148.3876
+        "cagr": 31.74,
+        "sharpe": 1.8958,
+        "max_drawdown": 9.39,
+        "ending_value": 151.113
       },
       "benchmark": {
-        "cagr": 30.15,
-        "sharpe": 1.7903,
-        "max_drawdown": 9.8,
-        "ending_value": 148.3876
+        "cagr": 31.74,
+        "sharpe": 1.8958,
+        "max_drawdown": 9.39,
+        "ending_value": 151.113
       }
     },
     {
@@ -143,16 +143,16 @@ export const BACKTESTS: Record<string, BacktestRow[]> = {
       "start": "2023-01-03",
       "end": "2025-06-30",
       "strategy": {
-        "cagr": 21.09,
-        "sharpe": 1.2718,
-        "max_drawdown": 19.0,
-        "ending_value": 161.0018
+        "cagr": 22.43,
+        "sharpe": 1.3667,
+        "max_drawdown": 18.31,
+        "ending_value": 165.4724
       },
       "benchmark": {
-        "cagr": 21.09,
-        "sharpe": 1.2718,
-        "max_drawdown": 19.0,
-        "ending_value": 161.0018
+        "cagr": 22.43,
+        "sharpe": 1.3667,
+        "max_drawdown": 18.31,
+        "ending_value": 165.4724
       }
     },
     {
@@ -162,16 +162,16 @@ export const BACKTESTS: Record<string, BacktestRow[]> = {
       "start": "2003-04-01",
       "end": "2007-07-31",
       "strategy": {
-        "cagr": 12.45,
-        "sharpe": 1.0853,
-        "max_drawdown": 8.19,
-        "ending_value": 166.2188
+        "cagr": 14.06,
+        "sharpe": 1.2476,
+        "max_drawdown": 7.41,
+        "ending_value": 176.7985
       },
       "benchmark": {
-        "cagr": 12.45,
-        "sharpe": 1.0853,
-        "max_drawdown": 8.19,
-        "ending_value": 166.2188
+        "cagr": 14.06,
+        "sharpe": 1.2476,
+        "max_drawdown": 7.41,
+        "ending_value": 176.7985
       }
     }
   ],
@@ -183,16 +183,16 @@ export const BACKTESTS: Record<string, BacktestRow[]> = {
       "start": "2000-01-03",
       "end": "2003-03-31",
       "strategy": {
-        "cagr": 1.94,
-        "sharpe": 0.2028,
-        "max_drawdown": 38.59,
-        "ending_value": 106.4288
+        "cagr": 5.27,
+        "sharpe": 0.3301,
+        "max_drawdown": 33.88,
+        "ending_value": 118.0938
       },
       "benchmark": {
-        "cagr": -15.05,
-        "sharpe": -0.561,
-        "max_drawdown": 49.14,
-        "ending_value": 58.9522
+        "cagr": -13.6,
+        "sharpe": -0.5079,
+        "max_drawdown": 46.67,
+        "ending_value": 62.2782
       }
     },
     {
@@ -202,16 +202,16 @@ export const BACKTESTS: Record<string, BacktestRow[]> = {
       "start": "2007-10-01",
       "end": "2009-03-31",
       "strategy": {
-        "cagr": -32.57,
-        "sharpe": -0.5296,
-        "max_drawdown": 56.68,
-        "ending_value": 55.4286
+        "cagr": -32.67,
+        "sharpe": -0.5899,
+        "max_drawdown": 56.51,
+        "ending_value": 55.2985
       },
       "benchmark": {
-        "cagr": -35.92,
-        "sharpe": -0.9684,
-        "max_drawdown": 56.47,
-        "ending_value": 51.3547
+        "cagr": -33.75,
+        "sharpe": -0.9175,
+        "max_drawdown": 54.24,
+        "ending_value": 53.9747
       }
     },
     {
@@ -221,16 +221,16 @@ export const BACKTESTS: Record<string, BacktestRow[]> = {
       "start": "2020-02-03",
       "end": "2020-05-29",
       "strategy": {
-        "cagr": -31.13,
-        "sharpe": -0.3628,
-        "max_drawdown": 34.49,
-        "ending_value": 88.8281
+        "cagr": -29.91,
+        "sharpe": -0.3339,
+        "max_drawdown": 34.22,
+        "ending_value": 89.3282
       },
       "benchmark": {
-        "cagr": -21.44,
-        "sharpe": -0.1821,
-        "max_drawdown": 34.1,
-        "ending_value": 92.6229
+        "cagr": -20.29,
+        "sharpe": -0.1586,
+        "max_drawdown": 33.69,
+        "ending_value": 93.0508
       }
     },
     {
@@ -240,16 +240,16 @@ export const BACKTESTS: Record<string, BacktestRow[]> = {
       "start": "2022-01-03",
       "end": "2023-10-31",
       "strategy": {
-        "cagr": 3.37,
-        "sharpe": 0.2566,
-        "max_drawdown": 26.44,
-        "ending_value": 106.2294
+        "cagr": 4.01,
+        "sharpe": 0.2795,
+        "max_drawdown": 26.11,
+        "ending_value": 107.4261
       },
       "benchmark": {
-        "cagr": -7.27,
-        "sharpe": -0.2747,
-        "max_drawdown": 25.71,
-        "ending_value": 87.136
+        "cagr": -5.94,
+        "sharpe": -0.2082,
+        "max_drawdown": 24.76,
+        "ending_value": 89.4377
       }
     },
     {
@@ -259,16 +259,16 @@ export const BACKTESTS: Record<string, BacktestRow[]> = {
       "start": "2012-01-03",
       "end": "2015-05-29",
       "strategy": {
-        "cagr": 4.2,
-        "sharpe": 0.357,
-        "max_drawdown": 21.61,
-        "ending_value": 115.0327
+        "cagr": 5.63,
+        "sharpe": 0.4525,
+        "max_drawdown": 19.19,
+        "ending_value": 120.4673
       },
       "benchmark": {
-        "cagr": 16.02,
-        "sharpe": 1.3227,
-        "max_drawdown": 9.69,
-        "ending_value": 165.7466
+        "cagr": 17.8,
+        "sharpe": 1.4932,
+        "max_drawdown": 9.65,
+        "ending_value": 174.5551
       }
     },
     {
@@ -278,16 +278,16 @@ export const BACKTESTS: Record<string, BacktestRow[]> = {
       "start": "2020-06-01",
       "end": "2021-11-30",
       "strategy": {
-        "cagr": 0.66,
-        "sharpe": 0.13,
+        "cagr": 0.76,
+        "sharpe": 0.1445,
         "max_drawdown": 9.05,
-        "ending_value": 100.9872
+        "ending_value": 101.1374
       },
       "benchmark": {
-        "cagr": 30.15,
-        "sharpe": 1.7903,
-        "max_drawdown": 9.8,
-        "ending_value": 148.3876
+        "cagr": 31.74,
+        "sharpe": 1.8958,
+        "max_drawdown": 9.39,
+        "ending_value": 151.113
       }
     },
     {
@@ -297,16 +297,16 @@ export const BACKTESTS: Record<string, BacktestRow[]> = {
       "start": "2023-01-03",
       "end": "2025-06-30",
       "strategy": {
-        "cagr": 19.04,
-        "sharpe": 1.3988,
-        "max_drawdown": 10.66,
-        "ending_value": 154.3087
+        "cagr": 20.72,
+        "sharpe": 1.5098,
+        "max_drawdown": 10.62,
+        "ending_value": 159.7649
       },
       "benchmark": {
-        "cagr": 21.09,
-        "sharpe": 1.2718,
-        "max_drawdown": 19.0,
-        "ending_value": 161.0018
+        "cagr": 22.43,
+        "sharpe": 1.3667,
+        "max_drawdown": 18.31,
+        "ending_value": 165.4724
       }
     },
     {
@@ -316,17 +316,17 @@ export const BACKTESTS: Record<string, BacktestRow[]> = {
       "start": "2003-04-01",
       "end": "2007-07-31",
       "strategy": {
-        "cagr": 5.55,
-        "sharpe": 0.6122,
-        "max_drawdown": 17.55,
-        "ending_value": 126.3521
+        "cagr": 6.55,
+        "sharpe": 0.712,
+        "max_drawdown": 17.06,
+        "ending_value": 131.6114
       },
       "benchmark": {
-        "cagr": 12.45,
-        "sharpe": 1.0853,
-        "max_drawdown": 8.19,
-        "ending_value": 166.2188
+        "cagr": 14.06,
+        "sharpe": 1.2476,
+        "max_drawdown": 7.41,
+        "ending_value": 176.7985
       }
     }
   ]
-};
+}
