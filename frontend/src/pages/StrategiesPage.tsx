@@ -1,5 +1,5 @@
-// StrategiesPage.tsx — the strategy library: an index on the left, one detail
-// view on the right, four tabs.
+// StrategiesPage.tsx: the strategy library, an index on the left, one detail
+// view on the right, three tabs.
 //
 // Everything textual comes from data/strategies.ts and every number from
 // data/backtestResults.ts, which the reports script writes. The charts are SVGs
@@ -25,6 +25,15 @@ import momBull2012 from '../assets/strategies/momentum-20/graph_bull-2012.svg';
 import momBullReopening from '../assets/strategies/momentum-20/graph_bull-reopening.svg';
 import momBullAi from '../assets/strategies/momentum-20/graph_bull-ai.svg';
 import momBull2003 from '../assets/strategies/momentum-20/graph_bull-2003.svg';
+
+import gtaBearDotcom from '../assets/strategies/global-trend-allocation/graph_bear-dotcom.svg';
+import gtaBearGfc from '../assets/strategies/global-trend-allocation/graph_bear-gfc.svg';
+import gtaBearCovid from '../assets/strategies/global-trend-allocation/graph_bear-covid.svg';
+import gtaBear2022 from '../assets/strategies/global-trend-allocation/graph_bear-2022.svg';
+import gtaBull2012 from '../assets/strategies/global-trend-allocation/graph_bull-2012.svg';
+import gtaBullReopening from '../assets/strategies/global-trend-allocation/graph_bull-reopening.svg';
+import gtaBullAi from '../assets/strategies/global-trend-allocation/graph_bull-ai.svg';
+import gtaBull2003 from '../assets/strategies/global-trend-allocation/graph_bull-2003.svg';
 
 import smrBearDotcom from '../assets/strategies/statistical-mean-reversion/graph_bear-dotcom.svg';
 import smrBearGfc from '../assets/strategies/statistical-mean-reversion/graph_bear-gfc.svg';
@@ -75,13 +84,22 @@ const CHARTS: Record<string, Record<string, string>> = {
     'bull-ai': momBullAi,
     'bull-2003': momBull2003,
   },
+  'global-trend-allocation': {
+    'bear-dotcom': gtaBearDotcom,
+    'bear-gfc': gtaBearGfc,
+    'bear-covid': gtaBearCovid,
+    'bear-2022': gtaBear2022,
+    'bull-2012': gtaBull2012,
+    'bull-reopening': gtaBullReopening,
+    'bull-ai': gtaBullAi,
+    'bull-2003': gtaBull2003,
+  },
 };
 
 const TABS = [
   { key: 'overview', label: 'Overview' },
   { key: 'mechanics', label: 'Mechanics' },
   { key: 'backtests', label: 'Backtests' },
-  { key: 'glossary', label: 'Glossary' },
 ] as const;
 
 type TabKey = (typeof TABS)[number]['key'];
@@ -97,27 +115,56 @@ const month = (iso: string) =>
 
 const windowDates = (row: BacktestRow) => `${month(row.start)} – ${month(row.end)}`;
 
+const signedPercent = (value: number) => `${value > 0 ? '+' : ''}${value.toFixed(1)}%`;
+const percent = (value: number) => `${value.toFixed(1)}%`;
+const ratio = (value: number) => value.toFixed(2);
+const indexValue = (value: number) => value.toFixed(1);
+
+const isBetter = (candidate: number, other: number, higherIsBetter: boolean) =>
+  higherIsBetter ? candidate > other + 1e-9 : candidate < other - 1e-9;
+
+interface WindowRecord {
+  total: number;
+  returnWins: number;
+  drawdownWins: number;
+}
+
+const windowRecord = (rows: BacktestRow[]): WindowRecord => ({
+  total: rows.length,
+  returnWins: rows.filter((row) => isBetter(row.strategy.cagr, row.benchmark.cagr, true)).length,
+  drawdownWins: rows.filter((row) =>
+    isBetter(row.strategy.max_drawdown, row.benchmark.max_drawdown, false),
+  ).length,
+});
+
 /* ---------- Tabs ---------- */
 
 function Overview({ profile }: { profile: StrategyProfile }) {
   return (
     <>
       <section className="strat-section">
-        <h3 className="strat-section-title">Hypothesis</h3>
-        <p className="strat-prose">
+        <h3 className="strat-section-title">The idea</h3>
+        <p className="strat-prose strat-prose-lead">
           <GlossaryText text={profile.hypothesis} glossary={profile.glossary} />
         </p>
       </section>
 
       <section className="strat-section">
-        <h3 className="strat-section-title">Why it might work, and why it might not</h3>
+        <h3 className="strat-section-title">The case for, and the case against</h3>
         <div className="strat-columns">
           <div className="strat-column">
             <p className="strat-column-head">Evidence for</p>
             <ul className="strat-list">
-              {profile.whyItWorks.map((line) => (
-                <li key={line}>
-                  <GlossaryText text={line} glossary={profile.glossary} />
+              {profile.whyItWorks.map((point) => (
+                <li key={point.title}>
+                  <strong className="strat-point-title">
+                    <GlossaryText text={point.title} glossary={profile.glossary} />
+                  </strong>
+                  {point.description && (
+                    <p className="strat-point-text">
+                      <GlossaryText text={point.description} glossary={profile.glossary} />
+                    </p>
+                  )}
                 </li>
               ))}
             </ul>
@@ -125,9 +172,16 @@ function Overview({ profile }: { profile: StrategyProfile }) {
           <div className="strat-column">
             <p className="strat-column-head">Reasons to doubt</p>
             <ul className="strat-list">
-              {profile.whyItDoesnt.map((line) => (
-                <li key={line}>
-                  <GlossaryText text={line} glossary={profile.glossary} />
+              {profile.whyItDoesnt.map((point) => (
+                <li key={point.title}>
+                  <strong className="strat-point-title">
+                    <GlossaryText text={point.title} glossary={profile.glossary} />
+                  </strong>
+                  {point.description && (
+                    <p className="strat-point-text">
+                      <GlossaryText text={point.description} glossary={profile.glossary} />
+                    </p>
+                  )}
                 </li>
               ))}
             </ul>
@@ -192,6 +246,237 @@ function Mechanics({ profile }: { profile: StrategyProfile }) {
   );
 }
 
+/* ---------- Backtest comparison ---------- */
+
+interface ComparisonTableProps {
+  rows: BacktestRow[];
+  name: string;
+}
+
+function ComparisonTable({ rows, name }: ComparisonTableProps) {
+  return (
+    <div className="strat-table-wrap">
+      <table className="strat-table">
+        <caption className="strat-table-caption">
+          {name} against buy and hold. Return is the compound annual growth rate for
+          the window; drawdown is the worst fall from a peak. Green marks the better
+          figure in each pair, and a tie stays neutral.
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col" rowSpan={2} className="strat-table-window-head">
+              Window
+            </th>
+            <th scope="colgroup" colSpan={2}>
+              CAGR
+            </th>
+            <th scope="colgroup" colSpan={2}>
+              Max drawdown
+            </th>
+            <th scope="colgroup" colSpan={2}>
+              Sharpe
+            </th>
+          </tr>
+          <tr>
+            <th scope="col">Strategy</th>
+            <th scope="col">Buy and hold</th>
+            <th scope="col">Strategy</th>
+            <th scope="col">Buy and hold</th>
+            <th scope="col">Strategy</th>
+            <th scope="col">Buy and hold</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => {
+            const strategyCagr = isBetter(row.strategy.cagr, row.benchmark.cagr, true);
+            const benchmarkCagr = isBetter(row.benchmark.cagr, row.strategy.cagr, true);
+            const strategyDrawdown = isBetter(
+              row.strategy.max_drawdown,
+              row.benchmark.max_drawdown,
+              false,
+            );
+            const benchmarkDrawdown = isBetter(
+              row.benchmark.max_drawdown,
+              row.strategy.max_drawdown,
+              false,
+            );
+            const strategySharpe = isBetter(row.strategy.sharpe, row.benchmark.sharpe, true);
+            const benchmarkSharpe = isBetter(row.benchmark.sharpe, row.strategy.sharpe, true);
+
+            return (
+              <tr key={row.key}>
+                <th scope="row" className="strat-table-window">
+                  <span className="strat-table-label">{row.label}</span>
+                  <span className="strat-table-dates">{windowDates(row)}</span>
+                </th>
+                <td className={`strat-cell${strategyCagr ? ' is-better' : ''}`}>
+                  {signedPercent(row.strategy.cagr)}
+                  {strategyCagr && <span className="strat-sr"> better</span>}
+                </td>
+                <td className={`strat-cell${benchmarkCagr ? ' is-better' : ''}`}>
+                  {signedPercent(row.benchmark.cagr)}
+                  {benchmarkCagr && <span className="strat-sr"> better</span>}
+                </td>
+                <td className={`strat-cell${strategyDrawdown ? ' is-better' : ''}`}>
+                  {percent(row.strategy.max_drawdown)}
+                  {strategyDrawdown && <span className="strat-sr"> better</span>}
+                </td>
+                <td className={`strat-cell${benchmarkDrawdown ? ' is-better' : ''}`}>
+                  {percent(row.benchmark.max_drawdown)}
+                  {benchmarkDrawdown && <span className="strat-sr"> better</span>}
+                </td>
+                <td className={`strat-cell${strategySharpe ? ' is-better' : ''}`}>
+                  {ratio(row.strategy.sharpe)}
+                  {strategySharpe && <span className="strat-sr"> better</span>}
+                </td>
+                <td className={`strat-cell${benchmarkSharpe ? ' is-better' : ''}`}>
+                  {ratio(row.benchmark.sharpe)}
+                  {benchmarkSharpe && <span className="strat-sr"> better</span>}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function BenchmarkTable({ rows }: { rows: BacktestRow[] }) {
+  return (
+    <div className="strat-table-wrap">
+      <table className="strat-table">
+        <caption className="strat-table-caption">
+          Buy and hold is the market, so there is no second line to compare it with.
+          The same figures appear against each active strategy.
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col" className="strat-table-window-head">
+              Window
+            </th>
+            <th scope="col">CAGR</th>
+            <th scope="col">Max drawdown</th>
+            <th scope="col">Sharpe</th>
+            <th scope="col">Ending value</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.key}>
+              <th scope="row" className="strat-table-window">
+                <span className="strat-table-label">{row.label}</span>
+                <span className="strat-table-dates">{windowDates(row)}</span>
+              </th>
+              <td className="strat-cell">{signedPercent(row.strategy.cagr)}</td>
+              <td className="strat-cell">{percent(row.strategy.max_drawdown)}</td>
+              <td className="strat-cell">{ratio(row.strategy.sharpe)}</td>
+              <td className="strat-cell">{indexValue(row.strategy.ending_value)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function ComparisonCards({ rows }: { rows: BacktestRow[] }) {
+  return (
+    <div className="strat-window-cards">
+      {rows.map((row) => (
+        <article className="strat-window-card" key={row.key}>
+          <header className="strat-window-head">
+            <h4 className="strat-window-title">{row.label}</h4>
+            <span className="strat-window-dates">{windowDates(row)}</span>
+          </header>
+          <div className="strat-window-grid">
+            <span aria-hidden="true" />
+            <span className="strat-window-side">Strategy</span>
+            <span className="strat-window-side">Buy &amp; hold</span>
+
+            <span className="strat-window-label">CAGR</span>
+            <span
+              className={`strat-window-value${
+                isBetter(row.strategy.cagr, row.benchmark.cagr, true) ? ' is-better' : ''
+              }`}
+            >
+              {signedPercent(row.strategy.cagr)}
+            </span>
+            <span
+              className={`strat-window-value${
+                isBetter(row.benchmark.cagr, row.strategy.cagr, true) ? ' is-better' : ''
+              }`}
+            >
+              {signedPercent(row.benchmark.cagr)}
+            </span>
+
+            <span className="strat-window-label">Drawdown</span>
+            <span
+              className={`strat-window-value${
+                isBetter(row.strategy.max_drawdown, row.benchmark.max_drawdown, false)
+                  ? ' is-better'
+                  : ''
+              }`}
+            >
+              {percent(row.strategy.max_drawdown)}
+            </span>
+            <span
+              className={`strat-window-value${
+                isBetter(row.benchmark.max_drawdown, row.strategy.max_drawdown, false)
+                  ? ' is-better'
+                  : ''
+              }`}
+            >
+              {percent(row.benchmark.max_drawdown)}
+            </span>
+
+            <span className="strat-window-label">Sharpe</span>
+            <span
+              className={`strat-window-value${
+                isBetter(row.strategy.sharpe, row.benchmark.sharpe, true) ? ' is-better' : ''
+              }`}
+            >
+              {ratio(row.strategy.sharpe)}
+            </span>
+            <span
+              className={`strat-window-value${
+                isBetter(row.benchmark.sharpe, row.strategy.sharpe, true) ? ' is-better' : ''
+              }`}
+            >
+              {ratio(row.benchmark.sharpe)}
+            </span>
+          </div>
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function BenchmarkCards({ rows }: { rows: BacktestRow[] }) {
+  return (
+    <div className="strat-window-cards">
+      {rows.map((row) => (
+        <article className="strat-window-card" key={row.key}>
+          <header className="strat-window-head">
+            <h4 className="strat-window-title">{row.label}</h4>
+            <span className="strat-window-dates">{windowDates(row)}</span>
+          </header>
+          <div className="strat-window-grid is-single">
+            <span className="strat-window-label">CAGR</span>
+            <span className="strat-window-value">{signedPercent(row.strategy.cagr)}</span>
+            <span className="strat-window-label">Drawdown</span>
+            <span className="strat-window-value">{percent(row.strategy.max_drawdown)}</span>
+            <span className="strat-window-label">Sharpe</span>
+            <span className="strat-window-value">{ratio(row.strategy.sharpe)}</span>
+            <span className="strat-window-label">Ending value</span>
+            <span className="strat-window-value">{indexValue(row.strategy.ending_value)}</span>
+          </div>
+        </article>
+      ))}
+    </div>
+  );
+}
+
 function Backtests({ profile }: { profile: StrategyProfile }) {
   const rows = BACKTESTS[profile.id] ?? [];
   const charts = CHARTS[profile.id] ?? {};
@@ -200,12 +485,28 @@ function Backtests({ profile }: { profile: StrategyProfile }) {
   return (
     <>
       <section className="strat-section">
-        <h3 className="strat-section-title">{rows.length} market windows</h3>
+        <h3 className="strat-section-title">The record, window by window</h3>
         <p className="strat-prose">
-          {isBenchmark
-            ? 'One line per window: buy and hold on its own, starting at an index of 100 on the first session. Daily closes, fees and slippage are included, and the label carries that window’s ending value.'
-            : 'Each run starts at an index of 100 on its first session, so the strategy and the market are read on the same scale. Daily closes, fees and slippage are included; the legend carries the numbers for both lines.'}
+          {isBenchmark ? (
+            'Each window starts the fund at 100 and ends at the value in the last column. There is no second line because this is the line every other strategy is measured against.'
+          ) : (
+            <GlossaryText
+              text={`Each window starts both curves at 100, so the paths can be read on the same scale. The comparison sets ${profile.name} against buy and hold on return, worst fall and risk-adjusted return. The better figure in each pair is green, and the charts below show how each pair got there.`}
+              glossary={profile.glossary}
+            />
+          )}
         </p>
+        {isBenchmark ? (
+          <>
+            <BenchmarkTable rows={rows} />
+            <BenchmarkCards rows={rows} />
+          </>
+        ) : (
+          <>
+            <ComparisonTable rows={rows} name={profile.name} />
+            <ComparisonCards rows={rows} />
+          </>
+        )}
       </section>
 
       <div className="strat-charts">
@@ -232,30 +533,20 @@ function Backtests({ profile }: { profile: StrategyProfile }) {
                 decoding="async"
               />
             )}
+            <div className="strat-chart-foot">
+              {isBenchmark ? (
+                <span>Ending value {indexValue(row.strategy.ending_value)}</span>
+              ) : (
+                <>
+                  <span>{profile.name} {indexValue(row.strategy.ending_value)}</span>
+                  <span>Buy and hold {indexValue(row.benchmark.ending_value)}</span>
+                </>
+              )}
+            </div>
           </figure>
         ))}
       </div>
     </>
-  );
-}
-
-function Glossary({ profile }: { profile: StrategyProfile }) {
-  const terms = Object.entries(profile.glossary);
-  return (
-    <section className="strat-section">
-      <h3 className="strat-section-title">{terms.length} terms used in this strategy</h3>
-      <dl className="strat-glossary">
-        {terms.map(([term, entry]) => (
-          <div key={term} className="strat-glossary-item">
-            <dt>{term.replace(/_/g, ' ')}</dt>
-            <dd>
-              {entry.definition}
-              {entry.example && <span className="strat-glossary-example">{entry.example}</span>}
-            </dd>
-          </div>
-        ))}
-      </dl>
-    </section>
   );
 }
 
@@ -267,7 +558,19 @@ export const StrategiesPage: React.FC = () => {
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   const profile = STRATEGIES.find((strategy) => strategy.id === activeId) ?? STRATEGIES[0];
-  const windows = (BACKTESTS[profile.id] ?? []).length;
+  const rows = BACKTESTS[profile.id] ?? [];
+  const windows = rows.length;
+  const isBenchmark = profile.id === 'buy-and-hold';
+  const record = windowRecord(rows);
+
+  const returnLine =
+    record.returnWins === 0
+      ? 'never finished ahead of buy and hold on return'
+      : `finished ahead of buy and hold on return in ${record.returnWins} of ${record.total} windows`;
+  const drawdownLine =
+    record.drawdownWins === 0
+      ? 'never carried the smaller drawdown'
+      : `carried the smaller drawdown in ${record.drawdownWins}`;
 
   const selectStrategy = (id: string) => {
     setActiveId(id);
@@ -331,6 +634,16 @@ export const StrategiesPage: React.FC = () => {
             <p className="strat-detail-summary">
               <GlossaryText text={profile.summary} glossary={profile.glossary} />
             </p>
+            <p className="strat-detail-record">
+              {isBenchmark ? (
+                'This is the benchmark. It is the line every other strategy here has to beat.'
+              ) : (
+                <GlossaryText
+                  text={`Across ${record.total} market windows it ${returnLine} and ${drawdownLine}.`}
+                  glossary={profile.glossary}
+                />
+              )}
+            </p>
             <dl className="strat-facts">
               {profile.facts.map((fact) => (
                 <div key={fact.label} className="strat-fact">
@@ -376,7 +689,6 @@ export const StrategiesPage: React.FC = () => {
             {tab === 'overview' && <Overview profile={profile} />}
             {tab === 'mechanics' && <Mechanics profile={profile} />}
             {tab === 'backtests' && <Backtests profile={profile} />}
-            {tab === 'glossary' && <Glossary profile={profile} />}
           </div>
         </article>
       </div>

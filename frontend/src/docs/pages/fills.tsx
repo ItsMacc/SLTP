@@ -56,7 +56,7 @@ export const FILLS: DocGroup = {
         { kind: 'h2', id: 'affordability', text: 'An order may be trimmed' },
         {
           kind: 'p',
-          text: <>The manager never lets a fill spend cash that is not there after the fee. A request for the whole book is cut to <C>cash ÷ (equity × 1.001)</C>. So <C>allocation=1.0</C> spends everything and borrows nothing.</>,
+          text: <>The manager prices every fill against the cash left after its own fee. An order whose resolved weight is larger than <C>cash ÷ equity</C> is refused. An order that fits is reduced by the fee at the fill, so <C>allocation=1.0</C> spends the book and borrows nothing.</>,
         },
         {
           kind: 'callout',
@@ -204,12 +204,27 @@ def should_exit(self, ticker, trade, history=None):
     {
       slug: 'position-sizing',
       title: 'Position sizing and constraints',
-      lead: 'Order.allocation is a fraction of current equity. The manager can reduce it. It never raises it.',
+      lead: 'Order.allocation is read in the unit named by Order.sizing. EQUITY and AVAILABLE are fractions of current equity; FIXED is index points. The manager can reduce a fill. It never raises it.',
       source: 'app/engine/portfolio/portfolio_manager.py',
       blocks: [
         {
           kind: 'p',
-          text: <>Notional is <C>equity_at_entry × allocation</C>. Equity at entry is the index value at that moment, so a fixed fraction compounds as the book moves.</>,
+          text: <>Under the default <C>EQUITY</C>, notional is <C>equity_at_entry × allocation</C>. <C>FIXED</C> treats allocation as index points, so notional is the allocation itself. <C>AVAILABLE</C> uses a fraction but caps it at <C>cash ÷ equity</C> before the order reaches the fill.</>,
+        },
+        {
+          kind: 'table',
+          head: ['Sizing', 'Allocation is', 'What the manager uses'],
+          rows: [
+            [<C key="1">EQUITY</C>, 'A fraction of current equity.', 'The fraction unchanged, then trimmed for the entry fee.'],
+            [<C key="2">FIXED</C>, 'A cash value in index points.', <><C>allocation ÷ equity_at_entry</C>, then trimmed for the fee.</>],
+            [<C key="3">AVAILABLE</C>, 'A fraction of equity, capped by cash.', <><C>min(allocation, cash ÷ equity)</C>, then trimmed for the fee.</>],
+          ],
+        },
+        {
+          kind: 'callout',
+          tone: 'note',
+          title: 'A zero AVAILABLE order is skipped',
+          text: <>If cash is non-positive, <C>AVAILABLE</C> resolves to zero and the manager drops the order without counting a rejection. A zero <C>EQUITY</C> or <C>FIXED</C> allocation is still an invalid order.</>,
         },
         {
           kind: 'table',
@@ -259,7 +274,7 @@ def should_exit(self, ticker, trade, history=None):
           kind: 'table',
           head: ['Reason', 'Trigger'],
           rows: [
-            [<C key="1">Invalid allocation percent for ticker: X | allocation: N</C>, 'Allocation of zero or less.'],
+            [<C key="1">Invalid order allocation for ticker: X | allocation: N</C>, 'Resolved allocation of zero or less. A zero AVAILABLE order is skipped, not counted.'],
             [<C key="2">Maximum lots reached for ticker: X | lots: N</C>, 'Already at MAX_LOTS_PER_TICKER.'],
             [<C key="3">Strategy has filled maximum number of positions</C>, 'A new ticker at MAX_POSITIONS.'],
             [<C key="4">Max allocation exceeded for X: Total N% &gt; Limit N%</C>, 'The per-ticker cap would be breached.'],

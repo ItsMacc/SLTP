@@ -155,17 +155,53 @@ class Rotator(Strategy):
           rows: [
             { name: 'ticker', type: 'str', description: 'Symbol to trade. It needs local bars on the fill date.' },
             { name: 'position_type', type: 'PositionType', description: <><C>LONG</C> or <C>SHORT</C>.</> },
-            { name: 'allocation', type: 'float', description: <>Fraction of equity at fill time. <C>0.10</C> is ten percent. The manager trims it to what cash can cover after the fee.</> },
+            { name: 'allocation', type: 'float', description: <>Size in the unit named by <C>sizing</C>. Under <C>EQUITY</C> and <C>AVAILABLE</C> it is a fraction; under <C>FIXED</C> it is index points.</> },
+            { name: 'sizing', type: 'OrderSizing', fallback: 'OrderSizing.EQUITY', description: <>How <C>allocation</C> is read. <C>EQUITY</C> is a fraction of equity, <C>FIXED</C> is index points, and <C>AVAILABLE</C> is a fraction capped by uninvested cash.</> },
             { name: 'order_date', type: 'str', description: 'The date the signal was made. The engine records it; the fill uses the session it actually fills on.' },
             { name: 'stop_loss', type: 'float', description: <>Absolute price. <C>0.0</C> turns it off.</> },
             { name: 'take_profit', type: 'float', description: <>Absolute price. <C>0.0</C> turns it off.</> },
             { name: 'meta_data', type: 'dict | None', fallback: 'None', description: 'Anything you want to carry along. The engine does not read it.' },
           ],
         },
-        { kind: 'h2', id: 'allocation', text: 'Allocation is not a percentage' },
+        { kind: 'h2', id: 'sizing', text: 'OrderSizing' },
         {
           kind: 'p',
-          text: <>Pass <C>0.25</C> for a quarter of the book, not <C>25</C>. Fractions are fine: with <C>MAX_POSITIONS = 20</C>, <C>allocation=1/20</C> spreads the book evenly.</>,
+          text: <>The sizing field decides what allocation means. <C>EQUITY</C> is the default, so a strategy that passes only an allocation keeps the old behaviour. The other two modes change the unit without changing the order record.</>,
+        },
+        {
+          kind: 'table',
+          head: ['Value', 'Allocation is', 'Resolved weight'],
+          rows: [
+            [<C key="1">EQUITY</C>, 'A fraction of current equity. 0.10 is ten percent.', <>The allocation unchanged.</>],
+            [<C key="2">FIXED</C>, 'A cash value in index points. 10.0 is ten points.', <><C>allocation ÷ current equity</C>.</>],
+            [<C key="3">AVAILABLE</C>, 'A fraction of equity, capped by uninvested cash.', <><C>min(allocation, cash ÷ equity)</C>.</>],
+          ],
+        },
+        {
+          kind: 'code',
+          file: 'order_sizing.py',
+          code: `from app.engine.utils.Order import Order, OrderSizing
+
+# EQUITY is the default and needs no keyword.
+Order(..., allocation=0.25)
+
+# FIXED commits 25 index points, whatever equity is at the fill.
+Order(..., allocation=25.0, sizing=OrderSizing.FIXED)
+
+# AVAILABLE asks for 25% but never more than the cash on hand.
+Order(..., allocation=0.25, sizing=OrderSizing.AVAILABLE)`,
+        },
+        {
+          kind: 'callout',
+          tone: 'note',
+          title: 'EQUITY preserves existing strategies',
+          text: <>A strategy that does not set <C>sizing</C> keeps the old behaviour. <C>allocation=0.10</C> is still ten percent of equity at the fill, not ten index points.</>,
+        },
+        {
+          kind: 'callout',
+          tone: 'warning',
+          title: 'A zero AVAILABLE order is a no-op',
+          text: <>When cash is zero, <C>AVAILABLE</C> resolves to a zero weight and the manager skips the order. It is not counted as a rejection. A zero <C>EQUITY</C> or <C>FIXED</C> allocation is still refused.</>,
         },
         { kind: 'h2', id: 'levels', text: 'Levels are prices, not percentages' },
         {

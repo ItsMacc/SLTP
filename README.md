@@ -93,7 +93,7 @@ result = Backtester(TwoFunds(), start_date="2015-01-01", end_date="2024-12-31").
 print(result["metrics"])
 ```
 
-`stop_loss` and `take_profit` are prices, not percentages. `allocation` is a fraction of equity.
+`stop_loss` and `take_profit` are prices, not percentages. `allocation` is a fraction of equity by default; set `sizing=OrderSizing.FIXED` to read it as index points, or `OrderSizing.AVAILABLE` to cap a fraction at uninvested cash.
 
 ## Run the whole app (optional)
 
@@ -129,7 +129,7 @@ The front end talks to `http://localhost:8000` by default; set `VITE_API_BASE_UR
 - Orders and signal exits fill at the next session's open, never at the close that produced the signal.
 - Slippage is 0.05% against the position on every fill and the fee is 0.1% of notional per side. They are applied for you.
 - Stops are checked before targets, against the day's high and low, so a bar that touches both takes the stop. A gap through a level fills at the open, not at the level.
-- Equity is an index that starts at 100. Position sizing is a fraction of that equity, and short exposure is not cash funded.
+- Equity is an index that starts at 100. Position sizing is a fraction of that equity by default; `OrderSizing.FIXED` reads the same field as index points, and `OrderSizing.AVAILABLE` caps it at cash. Short exposure is not cash funded.
 - Rejections are counted by reason instead of raising: too many positions, too many lots on one ticker, an allocation over `MAX_ALLOCATION_PER_TICKER`, no cash left, or a missing bar.
 - Callbacks receive arrays sliced to the current day, which is how lookahead is prevented at the source rather than by convention.
 

@@ -8,9 +8,9 @@
 /* Container for parsed text */
 .textContainer {
   display: inline;
-  color: var(--text-primary);
-  font-family: var(--font-sans);
-  line-height: 1.6;
+  color: inherit;
+  font-family: inherit;
+  line-height: inherit;
 }
 
 /* Interactive underlined term */
@@ -18,8 +18,8 @@
   all: unset;
   display: inline;
   cursor: pointer;
-  font-weight: 500;
-  color: var(--text-primary);
+  font-weight: inherit;
+  color: inherit;
   text-decoration: underline;
   text-decoration-color: var(--accent);
   text-decoration-style: dotted;

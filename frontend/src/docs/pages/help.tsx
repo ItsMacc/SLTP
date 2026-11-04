@@ -139,7 +139,7 @@ export const HELP: DocGroup = {
           kind: 'table',
           head: ['Term', 'Meaning here'],
           rows: [
-            ['Allocation', 'Fraction of equity committed by one entry. 0.10 is ten percent.'],
+            ['Allocation', <>Size of one entry. A fraction of equity by default, index points under <C>FIXED</C>, or a cash-capped fraction under <C>AVAILABLE</C>.</>],
             ['Bar', 'One session of OHLCV data. A period is a count of bars, not calendar days.'],
             ['Book', 'The open lots, cash, costs and equity owned by the portfolio manager.'],
             ['CAGR', 'Compounded annual growth rate of the equity index.'],
@@ -166,6 +166,25 @@ export const HELP: DocGroup = {
       title: 'Changelog',
       lead: 'What changed in the documentation and in the engine surface it describes.',
       blocks: [
+        { kind: 'h2', id: 'order-sizing', text: 'Order sizing — November 2026' },
+        {
+          kind: 'ul',
+          items: [
+            <>Added <C>OrderSizing</C> to <C>Order</C>. <C>EQUITY</C> is the default and keeps the old fraction-of-equity behaviour; <C>FIXED</C> reads <C>allocation</C> as index points; <C>AVAILABLE</C> caps a fraction at uninvested cash.</>,
+            <>A zero <C>AVAILABLE</C> order is now a no-op rather than a rejection. The allocation rejection reason is <C>Invalid order allocation for ticker: X | allocation: N</C>.</>,
+            'Global Trend Allocation and Statistical Mean Reversion opt into EQUITY explicitly; the default is unchanged for every other strategy.',
+            'The Utils and Fills pages describe the three modes, the resolved weight and the cash behaviour.',
+          ],
+        },
+        { kind: 'h2', id: 'global-trend-allocation', text: 'Global Trend Allocation — November 2026' },
+        {
+          kind: 'ul',
+          items: [
+            'Added a five-ETF trend book: a ten-month filter, a low-correlation sleeve, one-year momentum and a GLD-or-TLT haven, rebuilt monthly.',
+            <>Each entry uses <C>OrderSizing.EQUITY</C> at 19.9% of the book; the eight reported windows now carry strategy-versus-benchmark charts.</>,
+            'The strategy page documents the sequential matrix, the cash buffer and the cases where the last fill is refused.',
+          ],
+        },
         { kind: 'h2', id: 'momentum-20', text: 'Momentum 20 — November 2026' },
         {
           kind: 'ul',
