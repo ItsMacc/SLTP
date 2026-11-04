@@ -14,7 +14,7 @@ import numpy as np
 
 # Engine imports
 from app.engine.strategy import Strategy
-from app.engine.utils.Order import Order
+from app.engine.utils.Order import Order, OrderSizing
 from app.engine.utils.Trade import Trade
 from app.engine.utils.StockData import StockData
 from app.engine.utils.PositionType import PositionType
@@ -123,6 +123,7 @@ class StatisticalMeanReversionStrategy(Strategy):
             ticker=ticker,
             position_type=PositionType.LONG,
             allocation=allocation,
+            sizing=OrderSizing.EQUITY,
             order_date=str(data.dates[-1]),
             stop_loss=round(close - distance, 2),
             take_profit=round(close + distance, 2),

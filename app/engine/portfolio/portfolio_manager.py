@@ -16,7 +16,7 @@ from dateutil.relativedelta import relativedelta
 
 # Engine imports
 from app.engine.utils.Event import Event
-from app.engine.utils.Order import Order
+from app.engine.utils.Order import Order, OrderSizing
 from app.engine.utils.Trade import Trade
 from app.engine.utils.Dates import to_code
 from app.engine.strategy import Strategy
@@ -285,7 +285,14 @@ class PortfolioManager:
             self._reject(f"Invalid open price for ticker: {ticker} | open: {open_price}")
             return
 
-        if not self._validate_order_constraints(order, ticker, ticker_lots):
+        equity_at_entry: float = self.portfolio_value
+        allocation: float = order.calculate_weight(equity_at_entry, self.cash)
+
+        # An available-cash order with no cash left is a no-op, not a rejection.
+        if allocation <= 0.0 and order.sizing is OrderSizing.AVAILABLE:
+            return
+
+        if not self._validate_order_constraints(order, ticker, ticker_lots, allocation):
             return
 
         # Entry slippage always moves against the position
@@ -296,8 +303,7 @@ class PortfolioManager:
 
         # Track equity and fees. A fill pays its own fee out of the notional, so an
         # order asking for the whole book spends all the cash instead of borrowing.
-        equity_at_entry: float = self.portfolio_value
-        allocation: float = self._affordable_allocation(order.allocation, equity_at_entry)
+        allocation = self._affordable_allocation(allocation, equity_at_entry)
         entry_fee: float = round(equity_at_entry * allocation * self.FEE_RATE, 4)
 
         history: StockData | None = self._histories.get(ticker)
@@ -399,9 +405,9 @@ class PortfolioManager:
         return open_price
 
     # Check every strategy constraint: lots, positions, allocation and cash.
-    def _validate_order_constraints(self, order: Order, ticker: str, ticker_lots: list[Trade]) -> bool:
-        if order.allocation <= 0:
-            self._reject(f"Invalid allocation percent for ticker: {ticker} | allocation: {order.allocation}")
+    def _validate_order_constraints(self, order: Order, ticker: str, ticker_lots: list[Trade], allocation: float) -> bool:
+        if allocation <= 0:
+            self._reject(f"Invalid order allocation for ticker: {ticker} | allocation: {allocation}")
             return False
 
         # Maximum lots per ticker
@@ -419,10 +425,10 @@ class PortfolioManager:
         # Maximum allocation per ticker
         ticker_allocation: float = round(self._invested_by_ticker.get(ticker, 0.0) / self.portfolio_value, 2)
         max_allocation: float | None = self.strategy.MAX_ALLOCATION_PER_TICKER
-        if max_allocation is not None and ticker_allocation + order.allocation > max_allocation:
+        if max_allocation is not None and ticker_allocation + allocation > max_allocation:
             self._reject(
                 f"Max allocation exceeded for {ticker}: "
-                f"Total {ticker_allocation + order.allocation:.2%} > Limit {max_allocation:.2%}"
+                f"Total {ticker_allocation + allocation:.2%} > Limit {max_allocation:.2%}"
             )
             return False
 
@@ -433,7 +439,7 @@ class PortfolioManager:
             available_allocation: float = self.cash / self.portfolio_value
         else:
             available_allocation = 1.0 - invested
-        if order.allocation > available_allocation + 1e-12:
+        if allocation > available_allocation + 1e-12:
             self._reject(f"Not enough equity to allocate {ticker}")
             return False
 
