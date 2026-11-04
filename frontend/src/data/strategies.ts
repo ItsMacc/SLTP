@@ -283,4 +283,123 @@ export const STRATEGIES: StrategyProfile[] = [
       },
     },
   },
+  {
+    id: 'momentum-20',
+    name: 'Momentum 20',
+    category: 'Trading',
+    summary:
+      'Buys the 20 strongest liquid US stocks and moves the whole book to cash when the S&P 500 loses its 200-day trend.',
+    facts: [
+      { label: 'Horizon', value: 'Months' },
+      { label: 'Activity', value: 'High' },
+      { label: 'Positions', value: 'Up to 20' },
+      { label: 'Rebalance', value: 'Monthly' },
+    ],
+    hypothesis:
+      'Stocks that have outperformed over the past year tend to keep outperforming for a few more months, because investors underreact to new information and then chase the move. The strategy only takes that bet in liquid shares, sizes the signal by volatility, and steps aside when the index itself is below its 200-day average.',
+    whyItWorks: [
+      'The 12-month ranking skips the latest month, avoiding the short-term reversal that often hits the freshest winners.',
+      'Dividing the return by 126-day volatility favours a steady climb over a single parabolic move, and the 60% volatility ceiling removes the stocks most likely to give the whole gain back.',
+      'The $75 million dollar-volume floor keeps the book in names that can actually be traded, while the 200-day market filter cuts exposure before a long decline turns into a portfolio problem.',
+      'The top-40 buffer means a held name is not sold the moment it slips to 21st; it has room to recover without adding turnover.',
+    ],
+    whyItDoesnt: [
+      'Momentum crashes. When the market snaps back, the names that led the fall can rip higher while this book is still in cash.',
+      'The 200-day filter is slow at the top and whipsaws in a sideways market: it can sell after the drop and buy back after the bounce.',
+      'Twenty names is concentrated. One earnings shock can cost more than a broad index fund would lose.',
+      'Monthly turnover creates short-term gains and transaction costs; the backtest charges both, but taxes are not modelled.',
+    ],
+    overviewNotes: [
+      {
+        title: 'Why the volatility ceiling is there',
+        body: 'A plain 12-month momentum screen kept buying parabolic stocks in 2020 and 2021, then held them through 50-70% falls. The 60% annualized volatility ceiling is deliberately loose: it does not turn this into a low-volatility fund, it just refuses the names whose own price action says the move is a lottery ticket.',
+      },
+      {
+        title: 'What would change our mind',
+        body: 'If the strategy stopped beating the index over a full cycle after costs, or if the volatility filter only worked in the one window it was fitted to, the rules would be retired rather than re-tuned until the curve looked good again.',
+      },
+    ],
+    universe:
+      'US common stocks with at least 252 bars, a close above $5 and at least $75 million of average daily dollar volume over the last 63 sessions. ETFs are excluded; SPY is used only as the market filter.',
+    rebalance:
+      'Monthly. The book is rebuilt from the latest ranking, with a top-40 buffer for names already held.',
+    settings: [
+      { label: 'Max positions', value: '20' },
+      { label: 'Lots per ticker', value: '1' },
+      { label: 'Rebalance', value: 'Monthly' },
+      { label: 'Lookback', value: '12 months, skipping 1' },
+      { label: 'Score', value: '12-1 return ÷ 126-day volatility' },
+      { label: 'Max volatility', value: '60% annualized' },
+      { label: 'Liquidity floor', value: '$75M average daily volume' },
+      { label: 'Market filter', value: 'SPY above its 200-day average' },
+      { label: 'Position size', value: '1/22 of the book, about 4.5%' },
+      { label: 'Buffer', value: 'Top 40 names' },
+      { label: 'Stops', value: 'None; the market filter is the exit' },
+      { label: 'Minimum history', value: '252 bars' },
+    ],
+    notes: [
+      {
+        title: 'How the score is built',
+        body: 'For each stock, the strategy takes the close from 21 bars ago and divides it by the close from 252 bars ago. That is the 12-month return with the latest month removed. It then divides that return by the annualized standard deviation of daily returns over the last 126 bars. A stock that climbed 40% with 20% volatility scores higher than one that climbed 40% with 60% volatility.',
+      },
+      {
+        title: 'What happens when the filter turns off',
+        body: 'When SPY closes below its 200-day average, the target list is emptied and every open lot is queued for the next open. The strategy does not try to pick the bottom or hold a defensive sleeve; it sits in cash until the index reclaims the average.',
+      },
+      {
+        title: 'How a day runs, in order',
+        body: 'At the open, exits queued yesterday fill first, then entries. The monthly rebalance ranks the universe and refreshes the target list. Each target is checked once: already held, skip; market filter off, skip; no slot, skip; otherwise queue a 4.5% order for the next open. Stops and targets are not used; a name leaves when it drops out of the top 40 or the market filter turns off.',
+      },
+    ],
+    glossary: {
+      momentum: {
+        definition:
+          'The tendency of recent winners to keep winning for a while, and recent losers to keep losing.',
+        example: 'A stock up 40% over the past year is a momentum candidate.',
+      },
+      volatility: {
+        definition:
+          'How much a price moves around over a window, usually quoted as an annualized percentage.',
+        example: 'A stock with 60% volatility typically moves much more than one with 20%.',
+      },
+      '200-day average': {
+        definition:
+          'The average closing price over the last 200 trading days, a common long-term trend line.',
+        example: 'SPY above its 200-day average is the risk-on state for this strategy.',
+      },
+      drawdown: {
+        definition: 'The percentage drop from a peak to the lowest point before a new peak.',
+        example: 'A book that goes from 120 to 90 has a 25% drawdown.',
+      },
+      whipsaw: {
+        definition:
+          'A signal that flips just after you act, so you sell low and buy back higher.',
+        example:
+          'A one-month dip below the 200-day average that immediately reverses is a whipsaw.',
+      },
+      liquidity: {
+        definition: 'How easily a stock can be traded without moving its own price.',
+        example:
+          'A $75 million daily dollar-volume floor keeps the book in liquid names.',
+      },
+      'position size': {
+        definition: 'The share of the account one holding uses.',
+        example:
+          'Twenty positions at 4.5% each leave roughly 10% in cash for fees and rebalancing.',
+      },
+      universe: {
+        definition: 'The list of stocks a strategy is allowed to buy.',
+        example:
+          'This universe is every US stock that passes the price and liquidity floors.',
+      },
+      'transaction cost': {
+        definition: 'Fees and slippage paid when buying or selling.',
+        example: 'The backtest charges 0.1% per fill plus 0.05% slippage.',
+      },
+      'market filter': {
+        definition: 'A rule that cuts exposure when the broad market is in a downtrend.',
+        example: 'SPY below its 200-day average turns this strategy to cash.',
+      },
+    },
+  },
 ];

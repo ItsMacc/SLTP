@@ -166,6 +166,15 @@ export const HELP: DocGroup = {
       title: 'Changelog',
       lead: 'What changed in the documentation and in the engine surface it describes.',
       blocks: [
+        { kind: 'h2', id: 'momentum-20', text: 'Momentum 20 — November 2026' },
+        {
+          kind: 'ul',
+          items: [
+            'Added a long-only momentum strategy: the top 20 liquid US stocks by 12-month return, skipping the latest month, with the score divided by 126-day volatility.',
+            'A 60% annualized volatility ceiling removes the parabolic names that wreck a plain momentum screen; SPY above its 200-day average is the risk switch.',
+            'Monthly rebalance, a top-40 holding buffer, and eight report windows with fees, slippage and dividends included.',
+          ],
+        },
         { kind: 'h2', id: 'dividends', text: 'Cash dividends — November 2026' },
         {
           kind: 'ul',

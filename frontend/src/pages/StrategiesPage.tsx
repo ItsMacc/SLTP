@@ -14,9 +14,18 @@ import { STRATEGIES, type StrategyProfile } from '../data/strategies';
 import { BACKTESTS, type BacktestRow } from '../data/backtestResults';
 import './StrategiesPage.css';
 
-// Report charts, one per reported window. Statistical Mean Reversion is drawn
-// against the benchmark; buy and hold is the benchmark, so it gets the simple
-// single-line version from app/reports/single_curves.py.
+// Report charts, one per reported window. Active strategies are drawn against
+// the benchmark; buy and hold is the benchmark, so it gets the simple single-line
+// version from app/reports/single_curves.py.
+import momBearDotcom from '../assets/strategies/momentum-20/graph_bear-dotcom.svg';
+import momBearGfc from '../assets/strategies/momentum-20/graph_bear-gfc.svg';
+import momBearCovid from '../assets/strategies/momentum-20/graph_bear-covid.svg';
+import momBear2022 from '../assets/strategies/momentum-20/graph_bear-2022.svg';
+import momBull2012 from '../assets/strategies/momentum-20/graph_bull-2012.svg';
+import momBullReopening from '../assets/strategies/momentum-20/graph_bull-reopening.svg';
+import momBullAi from '../assets/strategies/momentum-20/graph_bull-ai.svg';
+import momBull2003 from '../assets/strategies/momentum-20/graph_bull-2003.svg';
+
 import smrBearDotcom from '../assets/strategies/statistical-mean-reversion/graph_bear-dotcom.svg';
 import smrBearGfc from '../assets/strategies/statistical-mean-reversion/graph_bear-gfc.svg';
 import smrBearCovid from '../assets/strategies/statistical-mean-reversion/graph_bear-covid.svg';
@@ -55,6 +64,16 @@ const CHARTS: Record<string, Record<string, string>> = {
     'bull-reopening': smrBullReopening,
     'bull-ai': smrBullAi,
     'bull-2003': smrBull2003,
+  },
+  'momentum-20': {
+    'bear-dotcom': momBearDotcom,
+    'bear-gfc': momBearGfc,
+    'bear-covid': momBearCovid,
+    'bear-2022': momBear2022,
+    'bull-2012': momBull2012,
+    'bull-reopening': momBullReopening,
+    'bull-ai': momBullAi,
+    'bull-2003': momBull2003,
   },
 };
 

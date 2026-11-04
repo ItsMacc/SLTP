@@ -10,6 +10,7 @@
 
 # -------- Imports --------
 from app.strategies.benchmark import Benchmark
+from app.strategies.momentum_20 import Momentum20
 from app.strategies.statistical_mean_reversion import StatisticalMeanReversionStrategy
 
 
@@ -17,6 +18,7 @@ from app.strategies.statistical_mean_reversion import StatisticalMeanReversionSt
 # strategy id -> (class, kind). kind is "investing" or "trading"; the onboarding wizard filters on it.
 REGISTRY: dict[str, tuple[type, str]] = {
     "buy-and-hold": (Benchmark, "investing"),
+    "momentum-20": (Momentum20, "trading"),
     "statistical-mean-reversion": (StatisticalMeanReversionStrategy, "investing"),
 }
 
@@ -25,5 +27,6 @@ REGISTRY: dict[str, tuple[type, str]] = {
 __all__ = [
     "REGISTRY",
     "Benchmark",
+    "Momentum20",
     "StatisticalMeanReversionStrategy",
 ]
