@@ -35,6 +35,15 @@ import gtaBullReopening from '../assets/strategies/global-trend-allocation/graph
 import gtaBullAi from '../assets/strategies/global-trend-allocation/graph_bull-ai.svg';
 import gtaBull2003 from '../assets/strategies/global-trend-allocation/graph_bull-2003.svg';
 
+import lvBearDotcom from '../assets/strategies/low-volatility-30/graph_bear-dotcom.svg';
+import lvBearGfc from '../assets/strategies/low-volatility-30/graph_bear-gfc.svg';
+import lvBearCovid from '../assets/strategies/low-volatility-30/graph_bear-covid.svg';
+import lvBear2022 from '../assets/strategies/low-volatility-30/graph_bear-2022.svg';
+import lvBull2012 from '../assets/strategies/low-volatility-30/graph_bull-2012.svg';
+import lvBullReopening from '../assets/strategies/low-volatility-30/graph_bull-reopening.svg';
+import lvBullAi from '../assets/strategies/low-volatility-30/graph_bull-ai.svg';
+import lvBull2003 from '../assets/strategies/low-volatility-30/graph_bull-2003.svg';
+
 import smrBearDotcom from '../assets/strategies/statistical-mean-reversion/graph_bear-dotcom.svg';
 import smrBearGfc from '../assets/strategies/statistical-mean-reversion/graph_bear-gfc.svg';
 import smrBearCovid from '../assets/strategies/statistical-mean-reversion/graph_bear-covid.svg';
@@ -93,6 +102,16 @@ const CHARTS: Record<string, Record<string, string>> = {
     'bull-reopening': gtaBullReopening,
     'bull-ai': gtaBullAi,
     'bull-2003': gtaBull2003,
+  },
+  'low-volatility-30': {
+    'bear-dotcom': lvBearDotcom,
+    'bear-gfc': lvBearGfc,
+    'bear-covid': lvBearCovid,
+    'bear-2022': lvBear2022,
+    'bull-2012': lvBull2012,
+    'bull-reopening': lvBullReopening,
+    'bull-ai': lvBullAi,
+    'bull-2003': lvBull2003,
   },
 };
 

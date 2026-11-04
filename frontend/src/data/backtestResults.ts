@@ -636,5 +636,159 @@ export const BACKTESTS: Record<string, BacktestRow[]> = {
         "ending_value": 176.7985
       }
     }
+  ],
+  "low-volatility-30": [
+    {
+      "key": "bear-dotcom",
+      "kind": "bear",
+      "label": "Dot-com bust",
+      "start": "2000-01-03",
+      "end": "2003-03-31",
+      "strategy": {
+        "cagr": -1.32,
+        "sharpe": 0.0065,
+        "max_drawdown": 23.70,
+        "ending_value": 95.7855
+      },
+      "benchmark": {
+        "cagr": -13.60,
+        "sharpe": -0.5079,
+        "max_drawdown": 46.67,
+        "ending_value": 62.2782
+      }
+    },
+    {
+      "key": "bear-gfc",
+      "kind": "bear",
+      "label": "Global financial crisis",
+      "start": "2007-10-01",
+      "end": "2009-03-31",
+      "strategy": {
+        "cagr": -20.75,
+        "sharpe": -0.8339,
+        "max_drawdown": 37.63,
+        "ending_value": 70.5850
+      },
+      "benchmark": {
+        "cagr": -33.75,
+        "sharpe": -0.9175,
+        "max_drawdown": 54.24,
+        "ending_value": 53.9747
+      }
+    },
+    {
+      "key": "bear-covid",
+      "kind": "bear",
+      "label": "COVID crash",
+      "start": "2020-02-03",
+      "end": "2020-05-29",
+      "strategy": {
+        "cagr": -40.68,
+        "sharpe": -0.7167,
+        "max_drawdown": 33.41,
+        "ending_value": 84.7150
+      },
+      "benchmark": {
+        "cagr": -20.29,
+        "sharpe": -0.1586,
+        "max_drawdown": 33.69,
+        "ending_value": 93.0508
+      }
+    },
+    {
+      "key": "bear-2022",
+      "kind": "bear",
+      "label": "Rate-hike bear market",
+      "start": "2022-01-03",
+      "end": "2023-10-31",
+      "strategy": {
+        "cagr": -3.11,
+        "sharpe": -0.1702,
+        "max_drawdown": 17.30,
+        "ending_value": 94.4026
+      },
+      "benchmark": {
+        "cagr": -5.94,
+        "sharpe": -0.2082,
+        "max_drawdown": 24.76,
+        "ending_value": 89.4377
+      }
+    },
+    {
+      "key": "bull-2012",
+      "kind": "bull",
+      "label": "Slow recovery bull",
+      "start": "2012-01-03",
+      "end": "2015-05-29",
+      "strategy": {
+        "cagr": 13.30,
+        "sharpe": 1.4698,
+        "max_drawdown": 6.77,
+        "ending_value": 152.9157
+      },
+      "benchmark": {
+        "cagr": 17.80,
+        "sharpe": 1.4932,
+        "max_drawdown": 9.65,
+        "ending_value": 174.5551
+      }
+    },
+    {
+      "key": "bull-reopening",
+      "kind": "bull",
+      "label": "Pandemic reopening",
+      "start": "2020-06-01",
+      "end": "2021-11-30",
+      "strategy": {
+        "cagr": 11.28,
+        "sharpe": 1.0655,
+        "max_drawdown": 7.03,
+        "ending_value": 117.3567
+      },
+      "benchmark": {
+        "cagr": 31.74,
+        "sharpe": 1.8958,
+        "max_drawdown": 9.39,
+        "ending_value": 151.1130
+      }
+    },
+    {
+      "key": "bull-ai",
+      "kind": "bull",
+      "label": "AI-led rally",
+      "start": "2023-01-03",
+      "end": "2025-06-30",
+      "strategy": {
+        "cagr": 10.20,
+        "sharpe": 0.9805,
+        "max_drawdown": 12.18,
+        "ending_value": 127.3405
+      },
+      "benchmark": {
+        "cagr": 22.43,
+        "sharpe": 1.3667,
+        "max_drawdown": 18.31,
+        "ending_value": 165.4724
+      }
+    },
+    {
+      "key": "bull-2003",
+      "kind": "bull",
+      "label": "Mid-2000s bull",
+      "start": "2003-04-01",
+      "end": "2007-07-31",
+      "strategy": {
+        "cagr": 13.03,
+        "sharpe": 1.5459,
+        "max_drawdown": 5.99,
+        "ending_value": 169.9944
+      },
+      "benchmark": {
+        "cagr": 14.06,
+        "sharpe": 1.2476,
+        "max_drawdown": 7.41,
+        "ending_value": 176.7985
+      }
+    }
   ]
 };

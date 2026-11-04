@@ -12,6 +12,7 @@
 from app.strategies.benchmark import Benchmark
 from app.strategies.momentum_20 import Momentum20
 from app.strategies.global_trend_allocation import GlobalTrendAllocation
+from app.strategies.low_volatility import LowVolatility30
 from app.strategies.statistical_mean_reversion import StatisticalMeanReversionStrategy
 
 
@@ -21,6 +22,7 @@ REGISTRY: dict[str, tuple[type, str]] = {
     "buy-and-hold": (Benchmark, "investing"),
     "momentum-20": (Momentum20, "trading"),
     "global-trend-allocation": (GlobalTrendAllocation, "investing"),
+    "low-volatility-30": (LowVolatility30, "investing"),
     "statistical-mean-reversion": (StatisticalMeanReversionStrategy, "trading"),
 }
 
@@ -31,5 +33,6 @@ __all__ = [
     "Benchmark",
     "Momentum20",
     "GlobalTrendAllocation",
+    "LowVolatility30",
     "StatisticalMeanReversionStrategy",
 ]

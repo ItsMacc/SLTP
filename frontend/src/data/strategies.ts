@@ -209,7 +209,7 @@ export const STRATEGIES: StrategyProfile[] = [
   {
     id: 'statistical-mean-reversion',
     name: 'Statistical Mean Reversion',
-    category: 'Investing',
+    category: 'Trading',
     summary:
       'Buys stocks that have fallen further than their own volatility explains, then waits for the selling to exhaust itself. Two independent filters have to agree before a position is opened.',
     facts: [
@@ -711,6 +711,154 @@ export const STRATEGIES: StrategyProfile[] = [
         definition:
           'One asset’s return compared with the other assets in the same universe.',
         example: 'The top one-year return among the remaining ETFs gets the third slot.',
+      },
+    },
+  },
+  {
+    id: 'low-volatility-30',
+    name: 'Low Volatility 30',
+    category: 'Investing',
+    summary:
+      'Holds the 30 least volatile liquid US stocks, equal-weighted and rebuilt quarterly. The book stays in stocks through the cycle and has no market filter; the defensive tilt comes from the names themselves.',
+    facts: [
+      { label: 'Horizon', value: 'Years' },
+      { label: 'Activity', value: 'Low' },
+      { label: 'Positions', value: '30 stocks' },
+      { label: 'Rebalance', value: 'Quarterly' },
+    ],
+    hypothesis:
+      'Volatility is sticky. A stock that has moved quietly over the past year tends to keep moving quietly over the next few months, and a portfolio of the quietest liquid names has historically given up less in declines than the index. The strategy does not forecast a crash or time the market. It owns the calm end of the market all the time, equal-weighted, and rebalances quarterly.',
+    whyItWorks: [
+      {
+        title: 'Volatility clusters',
+        description:
+          'A stock that has spent the past year making small daily moves usually keeps making them. Ranking on 252 bars of realized volatility uses that persistence without asking where the market is going. The window is long enough to smooth one bad quarter and short enough to react when a company’s behaviour changes.',
+      },
+      {
+        title: 'Thirty equal sleeves spread the risk',
+        description:
+          'Each entry uses 3.2% of the book, so no single name can dominate the result. The remaining cash covers entry fees and the gap between the price used to size an order and the price it fills at. There is no leverage, no short and no options overlay.',
+      },
+      {
+        title: 'The buffer sets the turnover',
+        description:
+          'A held name stays in the book while it remains in the 45 least volatile names. It is sold only when it falls outside that wider group, not the moment it slips from 30th to 31st. The buffer reduces the small, expensive trades that a strict top-30 rule would create each quarter.',
+      },
+      {
+        title: 'The universe is built for fills',
+        description:
+          'Every candidate must trade at least $50 million a day and close above $5. A quiet name is only useful if the position can be entered and exited at a realistic price, and the liquidity floor keeps the book out of names where a small order would move the market.',
+      },
+    ],
+    whyItDoesnt: [
+      {
+        title: 'Bull markets leave it behind',
+        description:
+          'The strategy owns the defensive end of the market by design. In a rally led by a handful of high-growth companies, the quiet book can lag for years. That is the cost of the lower drawdown, not a temporary malfunction to tune away.',
+      },
+      {
+        title: '2020 was not a defensive crash',
+        description:
+          'The COVID sell-off was a dash for cash, and some high-beta technology names were treated as defensive while quieter sectors were sold. A low-volatility ranking cannot protect a book when the correlation between everything goes to one.',
+      },
+      {
+        title: 'The quiet names can share a hidden bet',
+        description:
+          'Utilities, consumer staples and REITs often rank as low volatility, so the book can become a rates and bond-proxy bet without saying so. A rise in yields can hurt those names together even when their individual price histories look calm.',
+      },
+      {
+        title: 'No filter means the full decline',
+        description:
+          'There is no 200-day gate and no move to cash. The book stays invested through a bear market, so its drawdown is smaller than the index only if the selected names actually hold up. In the global financial crisis the book still suffered a severe drawdown.',
+      },
+    ],
+    overviewNotes: [
+      {
+        title: 'Why one year of volatility',
+        body: 'The ranking uses 252 trading bars of daily returns, annualized. A one-year window is the standard low-volatility formation period: long enough to average through a single earnings shock, short enough that a company which has genuinely become more risky can leave the book within a few quarters. The same window is used for every name, so the comparison is consistent.',
+      },
+      {
+        title: 'Why the buffer is 45 names',
+        body: 'The target list is 30 names and the retention list is 45. A held name is sold only when it drops out of the wider group, which cuts turnover without changing the entry list. The book is rebuilt quarterly, so the ranking has time to change before a trade is forced.',
+      },
+      {
+        title: 'What the run includes',
+        body: 'The reported windows use daily closes, next-open fills, 0.05% slippage, a 0.1% fee per side and cash dividends. Fund expense ratios and taxes on realised gains are not modelled, so a taxable account would keep less than the curve shows.',
+      },
+      {
+        title: 'What would change our mind',
+        body: 'If the low-volatility book stopped reducing drawdown across a full cycle, or if its return advantage disappeared after costs, the rule would be retired rather than re-tuned until the curve looked better.',
+      },
+    ],
+    universe:
+      'US common stocks only, with at least 252 bars, a close above $5, and at least $50 million of average daily dollar volume over the last 63 sessions. ETFs are excluded, so the book is a stock portfolio rather than a fund-of-funds.',
+    rebalance:
+      'Quarterly. Every liquid stock is ranked by its 252-bar annualized volatility. The 30 lowest names are bought equal-weight; a held name stays while it remains in the top 45. The 45-name buffer is the only turnover control.',
+    settings: [
+      { label: 'Max positions', value: '30' },
+      { label: 'Lots per ticker', value: '1' },
+      { label: 'Rebalance', value: 'Quarterly' },
+      { label: 'Volatility window', value: '252 bars' },
+      { label: 'Selection', value: '30 lowest' },
+      { label: 'Retention buffer', value: '45 names' },
+      { label: 'Liquidity floor', value: '$50M average daily volume' },
+      { label: 'Price floor', value: '$5' },
+      { label: 'Position size', value: '3.2% of equity' },
+      { label: 'Order sizing', value: 'EQUITY' },
+      { label: 'Stops and targets', value: 'None' },
+      { label: 'Minimum history', value: '252 bars' },
+    ],
+    notes: [
+      {
+        title: 'Why there is no market filter',
+        body: 'A 200-day filter would improve the bear windows, but it also turns the strategy into a timing rule and gives up part of the recovery. The point of this book is to hold the defensive end of the market through the cycle, so the only defence is the selection itself. The trade-off is visible in 2020, when the book fell more than the index.',
+      },
+      {
+        title: 'How a quarter runs, in order',
+        body: 'On the first session after a quarter changes, every liquid stock is scored and the target and buffer lists are replaced. A held name outside the buffer is queued for exit at the next open. Each target is then checked once: already held, skip; no slot, skip; otherwise queue a 3.2% order for the next open.',
+      },
+    ],
+    glossary: {
+      volatility: {
+        definition:
+          'How much a price moves around over a window, usually quoted as an annualized percentage.',
+        example:
+          'A stock that moves 1% on most days has lower volatility than one that moves 4%.',
+      },
+      'low-volatility anomaly': {
+        definition:
+          'The historical tendency of quieter stocks to deliver better risk-adjusted returns than louder ones.',
+        example:
+          'A book of calm stocks can lag in a rally but lose less in a decline.',
+      },
+      'equal weight': {
+        definition: 'Giving every holding the same share of the book instead of sizing by market value.',
+        example: 'Thirty holdings at 3.2% each leave a small cash buffer.',
+      },
+      rebalance: {
+        definition: 'Rebuilding the holdings on a schedule so the book returns to its target weights.',
+        example: 'A quarterly rebalance refreshes the low-volatility ranking four times a year.',
+      },
+      liquidity: {
+        definition: 'How easily a stock can be traded without moving its own price.',
+        example:
+          'A $50 million daily dollar-volume floor keeps the book in names that can absorb an order.',
+      },
+      drawdown: {
+        definition: 'The percentage drop from a peak to the lowest point before a new peak.',
+        example: 'A book that falls from 120 to 90 has a 25% drawdown.',
+      },
+      beta: {
+        definition: 'How much a stock or portfolio tends to move when the market moves.',
+        example: 'A beta below one means the book usually moves less than the index.',
+      },
+      sector: {
+        definition: 'A group of companies that share the same part of the economy.',
+        example: 'Utilities and consumer staples often supply low-volatility candidates.',
+      },
+      cash: {
+        definition: 'The part of the book that is not invested in a position.',
+        example: 'Thirty positions at 3.2% leave roughly 4% in cash before fees.',
       },
     },
   },
