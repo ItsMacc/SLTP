@@ -51,25 +51,10 @@
 
 @media (max-width: 56.25rem) { /* ≈900px */
   .learn-layout { grid-template-columns: 1fr; }
-  .learn-toc {
-    position: static;
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: var(--space-xs);
-    padding-bottom: var(--space-2xs);
-    border-bottom: 1px solid var(--border-subtle);
-    max-height: none;
-    overflow: visible;
-  }
-  .learn-toc-heading { width: 100%; margin-bottom: var(--space-3xs); }
-  .learn-toc-link {
-    border-left: none;
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-full);
-    padding: var(--space-xs) calc(var(--space-sm) * 1.5);
-    font-size: 0.9rem;
-  }
-  .learn-toc-link.is-active { border-color: var(--accent); }
+
+  /* The course map carries the same tier links in the content column. Keeping
+     the full rail above it pushes the lesson below a screen of navigation. */
+  .learn-toc { display: none; }
 }
 
 .learn-toc-heading {

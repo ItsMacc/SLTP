@@ -5,6 +5,7 @@
 // links and back/forward work without a router or a server rewrite. The content
 // itself lives in src/docs/pages; this file only frames it.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
@@ -18,6 +19,7 @@ import {
 import { BlockList } from '../docs/Blocks';
 import { DOCS_GROUPS, VERSION } from '../docs';
 import { groupOf, headingsOf, neighbours } from '../docs/types';
+import type { Block } from '../docs/types';
 import { applyTheme, saveUserTheme } from '../../lib/settings';
 import './DocsPage.css';
 
@@ -35,6 +37,7 @@ type PaletteHit = {
   slug: string;
   title: string;
   context: string;
+  search: string;
   anchor?: string;
 };
 
@@ -50,17 +53,63 @@ function readRoute(): { slug: string; anchor: string | null } {
 
 /* ---------- Search index ---------- */
 
+/** Flatten the prose inside a block's JSX so body terms are searchable. */
+function textOf(node: ReactNode): string {
+  if (node === null || node === undefined || typeof node === 'boolean') return '';
+  if (typeof node === 'string' || typeof node === 'number') return String(node);
+  if (Array.isArray(node)) return node.map(textOf).join(' ');
+  if (typeof node === 'object' && 'props' in node) {
+    return textOf((node as { props?: { children?: ReactNode } }).props?.children);
+  }
+  return '';
+}
+
+function blockText(block: Block): string {
+  switch (block.kind) {
+    case 'h2':
+    case 'h3':
+      return block.text;
+    case 'p':
+      return textOf(block.text);
+    case 'ul':
+    case 'ol':
+      return block.items.map(textOf).join(' ');
+    case 'callout':
+      return [block.title, textOf(block.text)].filter(Boolean).join(' ');
+    case 'table':
+      return block.rows.flat().map(textOf).join(' ');
+    case 'params':
+      return block.rows
+        .map((row) => [row.name, row.type, row.fallback, textOf(row.description)].filter(Boolean).join(' '))
+        .join(' ');
+    case 'cards':
+      return block.items
+        .map((item) => [item.title, textOf(item.text), item.badge].filter(Boolean).join(' '))
+        .join(' ');
+    case 'tabs':
+      return block.tabs.map((tab) => tab.blocks.map(blockText).join(' ')).join(' ');
+    case 'code':
+      return [block.file, block.code].filter(Boolean).join(' ');
+    default:
+      return '';
+  }
+}
+
 const SEARCH_INDEX: PaletteHit[] = DOCS_GROUPS.flatMap((group) =>
-  group.pages.flatMap((page) => [
-    { kind: 'page' as const, slug: page.slug, title: page.title, context: group.title },
-    ...headingsOf(page.blocks).map((heading) => ({
-      kind: 'heading' as const,
-      slug: page.slug,
-      title: heading.text,
-      context: page.title,
-      anchor: heading.id,
-    })),
-  ]),
+  group.pages.flatMap((page) => {
+    const pageText = [page.title, page.lead, ...page.blocks.map(blockText)].join(' ');
+    return [
+      { kind: 'page' as const, slug: page.slug, title: page.title, context: group.title, search: pageText },
+      ...headingsOf(page.blocks).map((heading) => ({
+        kind: 'heading' as const,
+        slug: page.slug,
+        title: heading.text,
+        context: page.title,
+        search: heading.text,
+        anchor: heading.id,
+      })),
+    ];
+  }),
 );
 
 /* ---------- Sidebar ---------- */
@@ -302,6 +351,7 @@ export default function DocsPage({ userId }: DocsPageProps) {
       else if (title.includes(` ${needle}`)) score = 1;
       else if (title.includes(needle)) score = 2;
       else if (hit.context.toLowerCase().includes(needle)) score = 3;
+      else if (hit.search.toLowerCase().includes(needle)) score = 4;
       return { hit, order, score };
     });
 

@@ -23,7 +23,7 @@ from pathlib import Path
 
 
 # -------- Paths & Constants --------
-_REPO_ROOT = Path(__file__).resolve().parents[2]
+_REPO_ROOT = Path(__file__).resolve().parents[3]
 
 # Project path -> the repo file it mirrors.
 CORE_FILES: dict[str, Path] = {
