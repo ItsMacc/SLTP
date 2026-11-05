@@ -1,11 +1,11 @@
-// HomePage.tsx — Landing page: what SLTP is, the five parts of it, and how to
+// HomePage.tsx — Landing page: what SLTP is, the four parts of it, and how to
 // read a backtest.
 //
 // Kept deliberately plain: a headline, a sentence, one button, the tools as
 // cards, then the honest note on what a backtest is. No numbered labels, no
 // scroll animations, no decorative bands.
 import { type ComponentType } from 'react';
-import { ArrowRight, FileCode2, FlaskConical, Layers, LineChart, Wallet } from 'lucide-react';
+import { ArrowRight, FileCode2, FlaskConical, Layers, LineChart } from 'lucide-react';
 import Button from '../ui/Button';
 import './HomePage.css';
 
@@ -25,7 +25,7 @@ interface ToolData {
   icon: IconType;
 }
 
-/* ---------- The five parts of the site ---------- */
+/* ---------- The four parts of the site ---------- */
 const TOOLS: ToolData[] = [
   {
     id: 'lab',
@@ -44,15 +44,6 @@ const TOOLS: ToolData[] = [
       'A collection of tested strategies, with the rules that drive them, and the backtest results over eight different market regimes.',
     cta: 'Open the library',
     icon: Layers,
-  },
-  {
-    id: 'portfolio',
-    nav: 'portfolio',
-    title: 'Portfolio',
-    description:
-      'A place to track your investments, and receive alerts about market events and signals from the strategies you follow.',
-    cta: 'Manage portfolio',
-    icon: Wallet,
   },
   {
     id: 'research',
@@ -161,7 +152,7 @@ export default function HomePage({ onNavigate, onOpenGuide }: HomePageProps) {
           A Quantitative research platform built for better investing and trading decisions.
           </h1>
           <p className="home-hero-lede">
-            SLTP is an open-source platform that provides a comprehensive set of tools for quantitative research, backtesting, investment insights, and portfolio management. Join SLTP to explore our strategies, learn the fundamentals of investing, and make informed decisions with confidence.
+            SLTP is an open-source platform that provides a comprehensive set of tools for quantitative research, backtesting, and investment insights. Join SLTP to explore our strategies, learn the fundamentals of investing, and make informed decisions with confidence.
           </p>
 
           <div className="home-hero-actions">
@@ -191,7 +182,7 @@ export default function HomePage({ onNavigate, onOpenGuide }: HomePageProps) {
         <header className="home-tools-head">
           <h2 className="home-tools-title">See what SLTP can do, and how you can use it</h2>
           <p className="home-tools-lede">
-            SLTP brings your entire investing workflow into one place. You can build custom models using our <strong>Python-based Lab</strong>, study the rules behind our <strong>tested strategies</strong>, manage your portfolio while staying informed with our automated entry and exit alerts, and dive into <strong>research</strong> to inspect historical price charts and run backtest simulations. Our <strong>documentation</strong> provides a comprehensive reference for the strategy class, data access, and API usage, helping you to write your own rules and strategies.
+            SLTP brings your research workflow into one place. You can build custom models using our <strong>Python-based Lab</strong>, study the rules behind our <strong>tested strategies</strong>, and dive into <strong>research</strong> to inspect historical price charts and run backtest simulations. Our <strong>documentation</strong> provides a comprehensive reference for the strategy class, data access, and API usage, helping you to write your own rules and strategies.
           </p>
         </header>
 

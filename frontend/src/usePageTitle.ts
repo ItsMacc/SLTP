@@ -12,7 +12,7 @@ const SITE = 'SLTP';
 const PAGE_TITLES: Record<string, string> = {
   home: `${SITE} — Stock market research platform`,
   learn: `Learn — ${SITE}`,
-  portfolio: `Portfolio — ${SITE}`,
+  portfolio: `Not found — ${SITE}`,
   strategies: `Strategies — ${SITE}`,
   research: `Research — ${SITE}`,
   lab: `Lab — ${SITE}`,

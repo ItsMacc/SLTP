@@ -19,8 +19,6 @@ interface HeaderProps {
 const navItems = [
   { id: 'home', label: 'Home' },
   { id: 'learn', label: 'Learn' },
-  
-  { id: 'portfolio', label: 'Portfolio' },
   { id: 'strategies', label: 'Strategies' },
   { id: 'research', label: 'Research' },
   { id: 'lab', label: 'Lab' },

@@ -9,7 +9,6 @@ import {
   LineChart,
   FlaskConical,
   Code2,
-  Wallet,
   MousePointerClick,
   LifeBuoy,
   Lock,
@@ -135,15 +134,6 @@ function SlideHowToUse() {
           body: (
             <GlossaryText
               text="Advanced users can write their own strategies in the Lab and backtest them the same way."
-              glossary={GUIDE_GLOSSARY}
-            />
-          ),
-    },
-    {
-      icon: Wallet,          title: 'Track your portfolio',
-          body: (
-            <GlossaryText
-              text="Set up a portfolio, follow the built-in strategies, and receive their signals as a second opinion."
               glossary={GUIDE_GLOSSARY}
             />
           ),
@@ -328,12 +318,6 @@ function findDocsNav(): Element | null {
 }
 
 const PAGE_TOURS: PageTour[] = [
-  {
-    tab: 'portfolio',
-    label: 'Portfolio',
-    blurb: 'Your settings, watchlist, and preferences.',
-    steps: null,
-  },
   {
     tab: 'strategies',
     label: 'Strategies',
