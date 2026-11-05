@@ -1,0 +1,150 @@
+# -------- backtest.yml --------
+# Runs one backtest on a GitHub Actions runner and publishes the JSON result.
+#
+# Why here: the full-universe load materialises 678 MiB of bar arrays and peaks at
+# ~1.35 GiB, which no free application host gives you. A runner has 16 GB and the
+# work finishes in seconds, so the engine runs here and the site only submits jobs.
+#
+# Trigger it from the UI, the gh CLI, or the REST API:
+#   gh workflow run backtest.yml --ref test -f strategy_id=momentum-20
+#
+# Result: the `backtest-result` artifact holds result.json, byte-identical in shape
+# to GET /api/backtest/run. Set a callback URL to have it POSTed back instead.
+
+name: backtest
+
+on:
+  workflow_dispatch:
+    inputs:
+      strategy_id:
+        description: "Strategy id, e.g. momentum-20, buy-and-hold, low-volatility-30"
+        required: true
+        type: string
+      start_date:
+        description: "Start date (YYYY-MM-DD)"
+        required: false
+        default: "2023-01-01"
+        type: string
+      end_date:
+        description: "End date (YYYY-MM-DD), empty means today"
+        required: false
+        default: ""
+        type: string
+      data_revision:
+        description: "Bump this when the market data changes, so the cache refreshes"
+        required: false
+        default: "v1"
+        type: string
+      job_id:
+        description: "Opaque id the caller uses to match the result"
+        required: false
+        default: ""
+        type: string
+      callback_url:
+        description: "Optional URL to POST the result to"
+        required: false
+        default: ""
+        type: string
+
+# One run at a time: a second dispatch waits instead of competing for the data cache.
+concurrency:
+  group: backtest
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  PYTHONUNBUFFERED: "1"
+  # Where the runner gets the 430 MB data bundle. Either a direct URL (R2, S3,
+  # a signed link) or a release asset created by scripts/pack_market_data.sh.
+  MARKET_DATA_URL: ${{ secrets.MARKET_DATA_URL || vars.MARKET_DATA_URL }}
+  MARKET_DATA_RELEASE_TAG: ${{ vars.MARKET_DATA_RELEASE_TAG || 'market-data-v1' }}
+  CALLBACK_SECRET: ${{ secrets.CALLBACK_SECRET }}
+
+jobs:
+  run:
+    name: backtest ${{ inputs.strategy_id }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      # The bars are identical between runs, so a cache hit skips the 430 MB
+      # download entirely. The key carries data_revision because caches are
+      # immutable: new data needs a new key.
+      - name: Restore market data
+        id: data-cache
+        uses: actions/cache@v4
+        with:
+          path: .market-data
+          key: market-data-${{ inputs.data_revision }}
+          restore-keys: |
+            market-data-
+
+      - name: Fetch market data
+        if: steps.data-cache.outputs.cache-hit != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p .market-data
+          if [ -n "${MARKET_DATA_URL}" ]; then
+            echo "Downloading the data bundle from MARKET_DATA_URL"
+            curl -fL --retry 3 --retry-delay 5 -o /tmp/market-data.tar.gz "${MARKET_DATA_URL}"
+          else
+            echo "Downloading release asset ${MARKET_DATA_RELEASE_TAG}"
+            gh release download "${MARKET_DATA_RELEASE_TAG}" \
+              --pattern 'market-data.tar.gz' --dir /tmp --clobber
+          fi
+          tar -xzf /tmp/market-data.tar.gz -C .market-data
+          ls -lh .market-data/market .market-data/symbol_data
+
+      # The loader resolves its paths from the package directory, so the files go
+      # exactly where market_data_service.py already looks for them.
+      - name: Install market data
+        run: |
+          set -euo pipefail
+          mkdir -p app/database/market app/database/symbol_data
+          cp -a .market-data/market/. app/database/market/
+          cp -a .market-data/symbol_data/. app/database/symbol_data/
+          test -f app/database/market/market_data.parquet
+          ls -lh app/database/market app/database/symbol_data
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run the backtest
+        env:
+          STRATEGY: ${{ inputs.strategy_id }}
+          START_DATE: ${{ inputs.start_date }}
+          END_DATE: ${{ inputs.end_date }}
+          JOB_ID: ${{ inputs.job_id }}
+          CALLBACK_URL: ${{ inputs.callback_url }}
+        run: |
+          set -euo pipefail
+          args=(--strategy "$STRATEGY" --start "$START_DATE" --out result.json)
+          [ -n "$END_DATE" ] && args+=(--end "$END_DATE")
+          [ -n "$JOB_ID" ] && args+=(--job-id "$JOB_ID")
+          [ -n "$CALLBACK_URL" ] && args+=(--callback-url "$CALLBACK_URL")
+          python scripts/run_backtest.py "${args[@]}"
+
+      - name: Upload the result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backtest-result
+          path: result.json
+          if-no-files-found: warn
+          retention-days: 7
