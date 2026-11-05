@@ -57,6 +57,21 @@ const METRICS: Metric[] = [
     text: 'The longest stretch the account spent below an earlier peak. It counts sessions rather than calendar days, so it measures the recovery in market time.',
   },
   {
+    name: 'Turnover',
+    group: 'Trades',
+    text: 'The value bought and sold, divided by average equity and annualized. A 100% reading means the book traded one full equity value in a year. It measures activity, not skill: a low-turnover book can still be expensive if it trades illiquid names.',
+  },
+  {
+    name: 'Cost drag',
+    group: 'Trades',
+    text: 'Fees plus slippage, divided by average equity and annualized. This is the yearly return given up to trading. It is already inside the equity curve, so do not subtract it again.',
+  },
+  {
+    name: 'Total trading cost',
+    group: 'Trades',
+    text: 'Fees plus slippage paid since the first session, in index points. Read it beside turnover to see whether a busy strategy is also an expensive one.',
+  },
+  {
     name: 'Trades',
     group: 'Trades',
     text: 'How many closed trades the run produced. A small number makes every other trade figure unreliable, because one or two outcomes can swing the averages.',
@@ -371,6 +386,12 @@ export default function StrategyGuide() {
                 <GlossaryText text="slippage" glossary={STRATEGY_GLOSSARY} /> and a 0.1% fee,
                 and orders fill at the next open. The figures are after those costs, so do not
                 subtract them again, and do not assume a real account would do better.
+              </p>
+              <p>
+                Turnover and cost drag make that cost visible. Turnover measures how much the
+                book traded; cost drag is the annualized fees and slippage it paid. A strategy
+                can have high turnover and still be cheap if its positions are small, and a
+                low-turnover book can still be costly in an illiquid name.
               </p>
 
               <h3 className="guide-subhead">The trade list</h3>

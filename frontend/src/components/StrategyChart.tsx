@@ -16,6 +16,7 @@ export interface BacktestChartPoint {
   portfolio_value: number
   active_positions?: number
   transaction_cost?: number
+  trading_cost?: number
 }
 
 export interface StrategyOption {
@@ -50,15 +51,23 @@ const formatNumber = (val: number) =>
 const formatMetricKey = (key: string) => {
   if (key.toLowerCase() === 'cagr') return 'CAGR'
   if (key.toLowerCase() === 'psr') return 'PSR'
+  if (key.toLowerCase() === 'turnover') return 'Turnover (annualized)'
+  if (key.toLowerCase() === 'cost_drag') return 'Cost drag (annualized)'
+  if (key.toLowerCase() === 'total_trading_cost') return 'Total trading cost'
   return key
     .replace(/_/g, ' ')
     .replace(/([a-z])([A-Z])/g, '$1 $2')
     .replace(/\b\w/g, (char) => char.toUpperCase())
 }
 
-const formatMetricValue = (val: any): string => {
+const formatMetricValue = (val: any, key = ''): string => {
   if (val === null || val === undefined) return '—'
   if (typeof val === 'number') {
+    const normalized = key.toLowerCase().replace(/[^a-z0-9]/g, '')
+    if (normalized === 'turnover' || normalized === 'costdrag') {
+      return `${val.toFixed(2)}%`
+    }
+    if (normalized === 'totaltradingcost') return `${val.toFixed(2)} pts`
     if (Number.isInteger(val)) return val.toLocaleString()
     return val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })
   }
@@ -272,6 +281,9 @@ export default function StrategyChart() {
       'average_win',
       'average_loss',
       'max_drawdown',
+      'turnover',
+      'cost_drag',
+      'total_trading_cost',
       'expectancy',
       'drawdown_recovery',
       'unrealized_profit',
@@ -552,7 +564,7 @@ export default function StrategyChart() {
                   <div className="strategy-metrics-grid">
                     {orderedMetricsList.map(({ key, label, value }) => {
                       const normalizedKey = key.toLowerCase().replace(/[^a-z0-9]/g, '')
-                      const formattedVal = formatMetricValue(value)
+                      const formattedVal = formatMetricValue(value, key)
                       const isNumeric = typeof value === 'number'
                       const isPositive = isNumeric && value > 0
                       const isNegative = isNumeric && value < 0
@@ -563,6 +575,8 @@ export default function StrategyChart() {
                       } else if (normalizedKey.includes('return') || normalizedKey.includes('cagr')) {
                         colorClass = isPositive ? 'is-positive' : isNegative ? 'is-negative' : ''
                       } else if (normalizedKey.includes('drawdown') || normalizedKey.includes('lossrate')) {
+                        colorClass = 'is-negative'
+                      } else if (normalizedKey.includes('cost')) {
                         colorClass = 'is-negative'
                       }
 

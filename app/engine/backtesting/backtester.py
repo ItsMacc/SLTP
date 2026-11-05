@@ -144,6 +144,7 @@ class Backtester:
                 "portfolio_value": float(self.manager.portfolio_value),
                 "active_positions": self.manager.active_positions,
                 "total_transaction_cost": float(self.manager.total_cost),
+                "total_trading_cost": float(self.manager.total_trading_cost),
             })
 
         self.manager.refresh_view()
@@ -167,7 +168,11 @@ class Backtester:
         ending_value: float = float(equity_values[-1])
         start_dt: datetime = datetime.strptime(str(dates[0]), "%Y-%m-%d")
         end_dt: datetime = datetime.strptime(str(dates[-1]), "%Y-%m-%d")
-        years: float = max(1, (end_dt - start_dt).days) / 365.25
+        elapsed_days: int = max(1, (end_dt - start_dt).days)
+        years: float = max(1, elapsed_days) / 365.25
+        # Annualisation for turnover and cost drag uses the actual elapsed time, unlike
+        # CAGR, which deliberately treats a run shorter than a year as a year.
+        elapsed_years: float = elapsed_days / 365.25
         cagr: float = float(((ending_value / starting_value) ** (1.0 / years) - 1.0) * 100.0) if starting_value > 0 else 0.0
 
         daily_returns = np.diff(equity_values) / equity_values[:-1] if len(equity_values) > 1 else np.array([0.0])
@@ -194,6 +199,10 @@ class Backtester:
         peaks = np.maximum.accumulate(equity_values)
         drawdowns = np.divide(peaks - equity_values, peaks, out=np.zeros_like(peaks), where=peaks != 0)
         max_drawdown: float = round(float(np.max(drawdowns)) * 100.0, 2)
+        average_equity: float = float(np.mean(equity_values))
+        total_trading_cost: float = round(self.manager.total_trading_cost, 2)
+        turnover: float = round(self.manager.traded_notional / average_equity / elapsed_years * 100.0, 2) if average_equity > 0 else 0.0
+        cost_drag: float = round(total_trading_cost / average_equity / elapsed_years * 100.0, 2) if average_equity > 0 else 0.0
         below_peak = equity_values < peaks
         max_duration: int = 0
         current_duration: int = 0
@@ -235,6 +244,9 @@ class Backtester:
             "average_win": round(average_win, 2),
             "average_loss": round(average_loss, 2),
             "max_drawdown": max_drawdown,
+            "turnover": turnover,
+            "cost_drag": cost_drag,
+            "total_trading_cost": total_trading_cost,
             "drawdown_recovery": max_duration,
             "unrealized_profit": round(self._unrealized_at_end, 2),
             "dividend_income": round(self.manager.dividend_income, 2),

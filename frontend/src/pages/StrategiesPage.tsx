@@ -6,7 +6,7 @@
 // committed under assets/strategies, so the page renders the same output the
 // report script produced without a backend call.
 
-import { useRef, useState } from 'react';
+import { Fragment, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { GlossaryText } from '../components/GlossaryText';
@@ -273,90 +273,162 @@ interface ComparisonTableProps {
 }
 
 function ComparisonTable({ rows, name }: ComparisonTableProps) {
-  return (
-    <div className="strat-table-wrap">
-      <table className="strat-table">
-        <caption className="strat-table-caption">
-          {name} against buy and hold. Return is the compound annual growth rate for
-          the window; drawdown is the worst fall from a peak. Green marks the better
-          figure in each pair, and a tie stays neutral.
-        </caption>
-        <thead>
-          <tr>
-            <th scope="col" rowSpan={2} className="strat-table-window-head">
-              Window
-            </th>
-            <th scope="colgroup" colSpan={2}>
-              CAGR
-            </th>
-            <th scope="colgroup" colSpan={2}>
-              Max drawdown
-            </th>
-            <th scope="colgroup" colSpan={2}>
-              Sharpe
-            </th>
-          </tr>
-          <tr>
-            <th scope="col">Strategy</th>
-            <th scope="col">Buy and hold</th>
-            <th scope="col">Strategy</th>
-            <th scope="col">Buy and hold</th>
-            <th scope="col">Strategy</th>
-            <th scope="col">Buy and hold</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => {
-            const strategyCagr = isBetter(row.strategy.cagr, row.benchmark.cagr, true);
-            const benchmarkCagr = isBetter(row.benchmark.cagr, row.strategy.cagr, true);
-            const strategyDrawdown = isBetter(
-              row.strategy.max_drawdown,
-              row.benchmark.max_drawdown,
-              false,
-            );
-            const benchmarkDrawdown = isBetter(
-              row.benchmark.max_drawdown,
-              row.strategy.max_drawdown,
-              false,
-            );
-            const strategySharpe = isBetter(row.strategy.sharpe, row.benchmark.sharpe, true);
-            const benchmarkSharpe = isBetter(row.benchmark.sharpe, row.strategy.sharpe, true);
+  const record = windowRecord(rows);
+  const sharpeWins = rows.filter((row) =>
+    isBetter(row.strategy.sharpe, row.benchmark.sharpe, true),
+  ).length;
+  const costWins = rows.filter((row) =>
+    isBetter(row.strategy.cost_drag, row.benchmark.cost_drag, false),
+  ).length;
 
-            return (
-              <tr key={row.key}>
-                <th scope="row" className="strat-table-window">
-                  <span className="strat-table-label">{row.label}</span>
-                  <span className="strat-table-dates">{windowDates(row)}</span>
+  const summary = [
+    { label: 'CAGR', wins: record.returnWins },
+    { label: 'Drawdown', wins: record.drawdownWins },
+    { label: 'Sharpe', wins: sharpeWins },
+    { label: 'Cost drag', wins: costWins },
+  ];
+
+  const scoreMetrics: Array<{
+    label: string;
+    hint: string;
+    strategy: (row: BacktestRow) => number;
+    benchmark: (row: BacktestRow) => number;
+    format: (value: number) => string;
+    higherIsBetter: boolean | null;
+  }> = [
+    {
+      label: 'CAGR',
+      hint: 'higher is better',
+      strategy: (row) => row.strategy.cagr,
+      benchmark: (row) => row.benchmark.cagr,
+      format: signedPercent,
+      higherIsBetter: true,
+    },
+    {
+      label: 'Max drawdown',
+      hint: 'lower is better',
+      strategy: (row) => row.strategy.max_drawdown,
+      benchmark: (row) => row.benchmark.max_drawdown,
+      format: percent,
+      higherIsBetter: false,
+    },
+    {
+      label: 'Sharpe',
+      hint: 'higher is better',
+      strategy: (row) => row.strategy.sharpe,
+      benchmark: (row) => row.benchmark.sharpe,
+      format: ratio,
+      higherIsBetter: true,
+    },
+    {
+      label: 'Cost drag',
+      hint: 'lower is better',
+      strategy: (row) => row.strategy.cost_drag,
+      benchmark: (row) => row.benchmark.cost_drag,
+      format: percent,
+      higherIsBetter: false,
+    },
+    {
+      label: 'Turnover',
+      hint: 'context, not scored',
+      strategy: (row) => row.strategy.turnover,
+      benchmark: (row) => row.benchmark.turnover,
+      format: percent,
+      higherIsBetter: null,
+    },
+  ];
+
+  return (
+    <div className="strat-scorecard">
+      <div className="strat-scorecard-summary">
+        <div className="strat-scorecard-summary-copy">
+          <span className="strat-scorecard-summary-eyebrow">Scorecard</span>
+          <span>Windows where {name} beat buy and hold</span>
+        </div>
+        {summary.map((item) => (
+          <div className="strat-scorecard-summary-item" key={item.label}>
+            <strong>{item.wins}/{record.total}</strong>
+            <span>{item.label}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="strat-table-wrap strat-scorecard-wrap">
+        <table className="strat-scorecard-table">
+          <caption className="strat-table-caption">
+            Each row is a metric and each pair of columns is one window. Green marks
+            the better figure in that window. Turnover is shown for context and is not
+            scored; cost drag is annualized fees plus slippage, and lower is better.
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col" rowSpan={2} className="strat-scorecard-metric-head">
+                Metric
+              </th>
+              {rows.map((row) => (
+                <th
+                  key={row.key}
+                  scope="colgroup"
+                  colSpan={2}
+                  className="strat-scorecard-window-head"
+                >
+                  <span className="strat-scorecard-window-name">{row.label}</span>
+                  <span className="strat-scorecard-window-dates">{windowDates(row)}</span>
                 </th>
-                <td className={`strat-cell${strategyCagr ? ' is-better' : ''}`}>
-                  {signedPercent(row.strategy.cagr)}
-                  {strategyCagr && <span className="strat-sr"> better</span>}
-                </td>
-                <td className={`strat-cell${benchmarkCagr ? ' is-better' : ''}`}>
-                  {signedPercent(row.benchmark.cagr)}
-                  {benchmarkCagr && <span className="strat-sr"> better</span>}
-                </td>
-                <td className={`strat-cell${strategyDrawdown ? ' is-better' : ''}`}>
-                  {percent(row.strategy.max_drawdown)}
-                  {strategyDrawdown && <span className="strat-sr"> better</span>}
-                </td>
-                <td className={`strat-cell${benchmarkDrawdown ? ' is-better' : ''}`}>
-                  {percent(row.benchmark.max_drawdown)}
-                  {benchmarkDrawdown && <span className="strat-sr"> better</span>}
-                </td>
-                <td className={`strat-cell${strategySharpe ? ' is-better' : ''}`}>
-                  {ratio(row.strategy.sharpe)}
-                  {strategySharpe && <span className="strat-sr"> better</span>}
-                </td>
-                <td className={`strat-cell${benchmarkSharpe ? ' is-better' : ''}`}>
-                  {ratio(row.benchmark.sharpe)}
-                  {benchmarkSharpe && <span className="strat-sr"> better</span>}
-                </td>
+              ))}
+            </tr>
+            <tr>
+              {rows.map((row) => (
+                <Fragment key={row.key}>
+                  <th scope="col" className="strat-scorecard-side-head">
+                    Buy and hold
+                  </th>
+                  <th scope="col" className="strat-scorecard-side-head is-strategy">
+                    Strategy
+                  </th>
+                </Fragment>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {scoreMetrics.map((metric) => (
+              <tr key={metric.label}>
+                <th scope="row" className="strat-scorecard-metric">
+                  <span className="strat-scorecard-metric-label">{metric.label}</span>
+                  <span className="strat-scorecard-metric-hint">{metric.hint}</span>
+                </th>
+                {rows.flatMap((row) => {
+                  const strategyValue = metric.strategy(row);
+                  const benchmarkValue = metric.benchmark(row);
+                  const strategyBetter =
+                    metric.higherIsBetter !== null &&
+                    isBetter(strategyValue, benchmarkValue, metric.higherIsBetter);
+                  const benchmarkBetter =
+                    metric.higherIsBetter !== null &&
+                    isBetter(benchmarkValue, strategyValue, metric.higherIsBetter);
+
+                  return [
+                    <td
+                      key={`${row.key}-benchmark`}
+                      className={`strat-scorecard-value${benchmarkBetter ? ' is-better' : ''}`}
+                    >
+                      {metric.format(benchmarkValue)}
+                      {benchmarkBetter && <span className="strat-sr"> better</span>}
+                    </td>,
+                    <td
+                      key={`${row.key}-strategy`}
+                      className={`strat-scorecard-value${strategyBetter ? ' is-better' : ''}`}
+                    >
+                      {metric.format(strategyValue)}
+                      {strategyBetter && <span className="strat-sr"> better</span>}
+                    </td>,
+                  ];
+                })}
               </tr>
-            );
-          })}
-        </tbody>
-      </table>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -377,6 +449,7 @@ function BenchmarkTable({ rows }: { rows: BacktestRow[] }) {
             <th scope="col">CAGR</th>
             <th scope="col">Max drawdown</th>
             <th scope="col">Sharpe</th>
+            <th scope="col" title="Annualized turnover / annualized cost drag">Turnover / cost</th>
             <th scope="col">Ending value</th>
           </tr>
         </thead>
@@ -390,6 +463,15 @@ function BenchmarkTable({ rows }: { rows: BacktestRow[] }) {
               <td className="strat-cell">{signedPercent(row.strategy.cagr)}</td>
               <td className="strat-cell">{percent(row.strategy.max_drawdown)}</td>
               <td className="strat-cell">{ratio(row.strategy.sharpe)}</td>
+              <td
+                className="strat-cell"
+                aria-label={`Turnover ${percent(row.strategy.turnover)}, cost drag ${percent(row.strategy.cost_drag)}`}
+              >
+                <span className="strat-trade-cell">
+                  <span>{percent(row.strategy.turnover)}</span>
+                  <span className="strat-trade-cost">{percent(row.strategy.cost_drag)}</span>
+                </span>
+              </td>
               <td className="strat-cell">{indexValue(row.strategy.ending_value)}</td>
             </tr>
           ))}
@@ -464,6 +546,26 @@ function ComparisonCards({ rows }: { rows: BacktestRow[] }) {
             >
               {ratio(row.benchmark.sharpe)}
             </span>
+
+            <span className="strat-window-label">Turnover</span>
+            <span className="strat-window-value">{percent(row.strategy.turnover)}</span>
+            <span className="strat-window-value">{percent(row.benchmark.turnover)}</span>
+
+            <span className="strat-window-label">Cost drag</span>
+            <span
+              className={`strat-window-value${
+                isBetter(row.strategy.cost_drag, row.benchmark.cost_drag, false) ? ' is-better' : ''
+              }`}
+            >
+              {percent(row.strategy.cost_drag)}
+            </span>
+            <span
+              className={`strat-window-value${
+                isBetter(row.benchmark.cost_drag, row.strategy.cost_drag, false) ? ' is-better' : ''
+              }`}
+            >
+              {percent(row.benchmark.cost_drag)}
+            </span>
           </div>
         </article>
       ))}
@@ -487,6 +589,10 @@ function BenchmarkCards({ rows }: { rows: BacktestRow[] }) {
             <span className="strat-window-value">{percent(row.strategy.max_drawdown)}</span>
             <span className="strat-window-label">Sharpe</span>
             <span className="strat-window-value">{ratio(row.strategy.sharpe)}</span>
+            <span className="strat-window-label">Turnover</span>
+            <span className="strat-window-value">{percent(row.strategy.turnover)}</span>
+            <span className="strat-window-label">Cost drag</span>
+            <span className="strat-window-value">{percent(row.strategy.cost_drag)}</span>
             <span className="strat-window-label">Ending value</span>
             <span className="strat-window-value">{indexValue(row.strategy.ending_value)}</span>
           </div>
@@ -510,7 +616,7 @@ function Backtests({ profile }: { profile: StrategyProfile }) {
             'Each window starts the fund at 100 and ends at the value in the last column. There is no second line because this is the line every other strategy is measured against.'
           ) : (
             <GlossaryText
-              text={`Each window starts both curves at 100, so the paths can be read on the same scale. The comparison sets ${profile.name} against buy and hold on return, worst fall and risk-adjusted return. The better figure in each pair is green, and the charts below show how each pair got there.`}
+              text={`Each window starts both curves at 100, so the paths can be read on the same scale. The scorecard marks the better figure in each pair with a check; turnover is context rather than a score. The charts below show how each pair got there.`}
               glossary={profile.glossary}
             />
           )}

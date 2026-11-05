@@ -58,6 +58,8 @@ class PortfolioManager:
         self.realized_pnl: float = 0.0
         self.dividend_income: float = 0.0
         self.total_cost: float = 0.0
+        self.total_slippage: float = 0.0
+        self.traded_notional: float = 0.0
 
         # Records
         self.trades: list[Trade] = []
@@ -116,6 +118,12 @@ class PortfolioManager:
     @property
     def open_tickers(self) -> set[str]:
         return set(self._open_tickers)
+
+    # Fees plus slippage, in index points. Slippage is already inside the fill price;
+    # this is a reporting total, not another deduction from equity.
+    @property
+    def total_trading_cost(self) -> float:
+        return self.total_cost + self.total_slippage
 
     # The equity curve as (dates, equities, cash) arrays.
     @property
@@ -344,6 +352,9 @@ class PortfolioManager:
         self._open_tickers.add(ticker)
 
         notional: float = trade.equity_at_entry * trade.allocation
+        shares: float = notional / entry_price
+        self.total_slippage += shares * abs(entry_price - open_price)
+        self.traded_notional += notional
         self._invested_by_ticker[ticker] = self._invested_by_ticker.get(ticker, 0.0) + notional
         self._invested_notional += notional
         self._strategy_view_dirty = True
@@ -368,6 +379,9 @@ class PortfolioManager:
             direction = -1.0
 
         notional: float = trade.equity_at_entry * trade.allocation
+        shares: float = notional / trade.entry_price
+        self.traded_notional += shares * exit_price
+        self.total_slippage += shares * abs(exit_price - price)
         self._invested_notional -= notional
 
         ticker_notional: float = self._invested_by_ticker[trade.ticker] - notional

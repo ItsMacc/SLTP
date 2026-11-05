@@ -76,7 +76,9 @@ def render_curve(name: str, strategy: dict[str, Any], period: curve_store.Period
         f'end {float(metrics.get("ending_value", 0.0)):,.1f}  ·  '
         f'CAGR {float(metrics.get("cagr", 0.0)):.1f}%  ·  '
         f'Sharpe {float(metrics.get("sharpe", 0.0)):.2f}  ·  '
-        f'max DD {float(metrics.get("max_drawdown", 0.0)):.1f}%'
+        f'max DD {float(metrics.get("max_drawdown", 0.0)):.1f}%  ·  '
+        f'turnover {float(metrics.get("turnover", 0.0)):.1f}%/yr  ·  '
+        f'cost {float(metrics.get("cost_drag", 0.0)):.2f}%/yr'
     )
 
     last_x: float = x_of(points[-1][0])
@@ -99,7 +101,7 @@ def render_curve(name: str, strategy: dict[str, Any], period: curve_store.Period
         f'<text class="value" x="{last_x + 10:.1f}" y="{last_y + 4:.1f}" fill="{STRATEGY_COLOR}">'
         f'{float(strategy["metrics"]["ending_value"]):,.1f}</text>',
         f'<text class="note" x="{left}" y="{HEIGHT - 16}">Index = 100 on the first session · daily closes, '
-        f'fees, slippage and dividends included</text>',
+        f'fees, slippage and dividends included · turnover and cost drag annualised</text>',
         "</svg>",
     ]
     return "\n".join(part for part in parts if part)

@@ -53,8 +53,8 @@ class LowVolatility30(Strategy):
         self.LIQUIDITY_BARS: int = 63
 
         # Current decision state, refreshed on every rebalance.
-        self.targets: set[str] = set()
-        self.keep: set[str] = set()
+        self.targets: list[str] = []
+        self.keep: list[str] = []
         self._stocks: set[str] = set(self.available_stocks)
 
     # Rank stocks only; the strategy never holds an ETF.
@@ -120,9 +120,12 @@ class LowVolatility30(Strategy):
 
             scored.append((ticker, volatility))
 
-        scored.sort(key=lambda pair: pair[1])
-        self.keep = {ticker for ticker, _ in scored[: self.BUFFER_N]}
-        self.targets = {ticker for ticker, _ in scored[: self.TOP_N]}
+        # Ticker is the tiebreak so identical volatility cannot depend on set order.
+        scored.sort(key=lambda pair: (pair[1], pair[0]))
+        # Keep ranked lists, not sets: at the open the order decides which target
+        # fills first when cash or position slots run out.
+        self.keep = [ticker for ticker, _ in scored[: self.BUFFER_N]]
+        self.targets = [ticker for ticker, _ in scored[: self.TOP_N]]
 
     # A stock needs price, volume and enough history for the volatility window.
     def _is_liquid(self, history: StockData) -> bool:

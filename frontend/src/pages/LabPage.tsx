@@ -143,6 +143,21 @@ const METRICS: { name: string; full?: string; note: string; text: string }[] = [
     text: 'The largest peak-to-trough decline in total equity before a new peak is reached. It is the worst stretch the account would have held through, and it sets the boundary on how much risk the strategy actually carried.',
   },
   {
+    name: 'Turnover',
+    note: 'How much the book traded, annualized',
+    text: 'The value bought and sold, divided by average equity and annualized. A 100% reading means one full equity value was traded in a year. It measures activity rather than skill, and it is the first thing to read before judging a trading-cost number.',
+  },
+  {
+    name: 'Cost Drag',
+    note: 'Annualized fees plus slippage',
+    text: 'The yearly return given up to fees and slippage, expressed as a percentage of average equity. It is already inside the equity curve, so it is a reporting measure, not another deduction. Compare it with CAGR to see how much of the return trading consumed.',
+  },
+  {
+    name: 'Total Trading Cost',
+    note: 'Fees plus slippage since the start',
+    text: 'The cumulative fees and slippage paid over the run, in index points. It shows the absolute bill behind the annualized cost drag, and it grows with both turnover and the size of the book.',
+  },
+  {
     name: 'Win Rate',
     note: 'Share of closed trades that made money',
     text: 'The share of closed positions that finished in profit: winning trades divided by total executed trades. Read it next to the size of the average win and the average loss, because a high hit rate with large losers still loses money.',

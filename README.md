@@ -128,6 +128,7 @@ The front end talks to `http://localhost:8000` by default; set `VITE_API_BASE_UR
 
 - Orders and signal exits fill at the next session's open, never at the close that produced the signal.
 - Slippage is 0.05% against the position on every fill and the fee is 0.1% of notional per side. They are applied for you.
+- `turnover` is annualized two-way traded notional divided by average equity. `cost_drag` is annualized fees plus slippage as a share of average equity, and `total_trading_cost` is the cumulative bill in index points. Slippage is already inside the fill prices, so these are reporting measures, not extra deductions.
 - Stops are checked before targets, against the day's high and low, so a bar that touches both takes the stop. A gap through a level fills at the open, not at the level.
 - Equity is an index that starts at 100. Position sizing is a fraction of that equity by default; `OrderSizing.FIXED` reads the same field as index points, and `OrderSizing.AVAILABLE` caps it at cash. Short exposure is not cash funded.
 - Rejections are counted by reason instead of raising: too many positions, too many lots on one ticker, an allocation over `MAX_ALLOCATION_PER_TICKER`, no cash left, or a missing bar.

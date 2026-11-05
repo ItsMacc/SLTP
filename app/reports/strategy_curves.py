@@ -73,11 +73,15 @@ def render_chart(name: str, benchmark: dict[str, Any], strategy: dict[str, Any],
         _style(),
         _header(name, benchmark, strategy, period),
         _grid(low, high, bench_points, x_of, y_of),
-        _series(mine_points, x_of, y_of, STRATEGY_COLOR, 2.6, with_area=True, bottom=bottom),
+        # The fill belongs under both series. The benchmark is then painted first and
+        # the wider strategy stroke last, so their shared 100 start has one clean edge
+        # instead of a thin amber-over-indigo halo.
+        _series(mine_points, x_of, y_of, STRATEGY_COLOR, 2.6, with_area=True, bottom=bottom, with_stroke=False),
         _series(bench_points, x_of, y_of, BENCHMARK_COLOR, 2.2, with_area=False, bottom=bottom),
+        _series(mine_points, x_of, y_of, STRATEGY_COLOR, 2.6, with_area=False, bottom=bottom),
         _end_labels(benchmark, strategy, bench_points, mine_points, x_of, y_of),
         f'<text class="note" x="{left}" y="{HEIGHT - 16}">Index = 100 on the first session · daily closes, '
-        f'fees, slippage and dividends included</text>',
+        f'fees, slippage and dividends included · turnover and cost drag annualised</text>',
         "</svg>",
     ]
     return "\n".join(part for part in parts if part)
@@ -102,7 +106,9 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit(f"Unknown strategy '{args.strategy}'. Known ids: {', '.join(sorted(REGISTRY))}")
 
     # A comparison needs both sides, so the benchmark is built before anything is drawn
-    benchmark: dict[str, Any] = curve_store.ensure_curves(curve_store.BENCHMARK_ID)
+    benchmark: dict[str, Any] = curve_store.ensure_curves(
+        curve_store.BENCHMARK_ID, force=args.force and args.strategy == curve_store.BENCHMARK_ID
+    )
     strategy: dict[str, Any] = curve_store.ensure_curves(args.strategy, force=args.force)
 
     out_dir: str = curve_store.chart_dir(args.strategy)
@@ -190,7 +196,9 @@ def _legend_row(x: float, y: float, color: str, width: float, label: str, curve:
         f'end {float(metrics.get("ending_value", 0.0)):,.1f}  ·  '
         f'CAGR {float(metrics.get("cagr", 0.0)):.1f}%  ·  '
         f'Sharpe {float(metrics.get("sharpe", 0.0)):.2f}  ·  '
-        f'max DD {float(metrics.get("max_drawdown", 0.0)):.1f}%'
+        f'max DD {float(metrics.get("max_drawdown", 0.0)):.1f}%  ·  '
+        f'turnover {float(metrics.get("turnover", 0.0)):.1f}%/yr  ·  '
+        f'cost {float(metrics.get("cost_drag", 0.0)):.2f}%/yr'
     )
     return (
         f'<line x1="{x - 34:.1f}" y1="{y - 4:.1f}" x2="{x - 12:.1f}" y2="{y - 4:.1f}" '
@@ -226,7 +234,16 @@ def _grid(low: float, high: float, bench_points: list[tuple[str, float]], x_of, 
 
 
 # One line, optionally with a soft fill underneath it.
-def _series(points: list[tuple[str, float]], x_of, y_of, color: str, width: float, with_area: bool, bottom: float) -> str:
+def _series(
+    points: list[tuple[str, float]],
+    x_of,
+    y_of,
+    color: str,
+    width: float,
+    with_area: bool,
+    bottom: float,
+    with_stroke: bool = True,
+) -> str:
     if len(points) < 2:
         return ""
 
@@ -237,7 +254,7 @@ def _series(points: list[tuple[str, float]], x_of, y_of, color: str, width: floa
     stroke: str = f'<path d="{" ".join(path)}" fill="none" stroke="{color}" stroke-width="{width}" stroke-linejoin="round" stroke-linecap="round"/>'
 
     if not with_area:
-        return stroke
+        return stroke if with_stroke else ""
 
     first_x: float = x_of(points[0][0])
     last_x: float = x_of(points[-1][0])
@@ -245,7 +262,7 @@ def _series(points: list[tuple[str, float]], x_of, y_of, color: str, width: floa
         f'<path d="{" ".join(path)} L{last_x:.1f},{bottom:.1f} L{first_x:.1f},{bottom:.1f} Z" '
         f'fill="{color}" fill-opacity="0.10" stroke="none"/>'
     )
-    return area + "\n" + stroke
+    return area + "\n" + stroke if with_stroke else area
 
 
 # A dot and a value at the end of each line, nudged apart when the two lines meet.

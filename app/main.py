@@ -106,6 +106,7 @@ def run_backtest(
                 "portfolio_value": point["portfolio_value"],
                 "active_positions": point["active_positions"],
                 "transaction_cost": point["total_transaction_cost"],
+                "trading_cost": point["total_trading_cost"],
             }
             for point in equity_curve
         ]
