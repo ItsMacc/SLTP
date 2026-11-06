@@ -31,6 +31,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.config import SUPABASE_URL, SUPABASE_SERVICE_KEY, SUPABASE_TIMEOUT, service_headers
 from app.notify.mailer import admin_recipient, ops_report_email
+from app.turso import userdata
 from app.users import store
 
 SUPABASE_PAGE_SIZE: int = 1000
@@ -118,7 +119,7 @@ def summarize_accounts(accounts: list[dict[str, Any]], now: datetime) -> dict[st
 # How many users follow each strategy, most followed first.
 def followed_strategies() -> list[tuple[str, int]]:
     counts: dict[str, int] = {}
-    for preferences in store.all_portfolio_preferences():
+    for preferences in userdata.all_portfolio_preferences():
         if not isinstance(preferences, dict):
             continue
         for item in preferences.get("followedStrategies") or []:
@@ -139,13 +140,21 @@ def deletion_summary(now: datetime) -> dict[str, Any]:
     return {"total": len(rows), "recent_30d": recent}
 
 
+# Usage blends both stores: identity in Supabase, everything bulky in Turso.
+def usage_summary() -> dict[str, Any]:
+    usage = dict(store.usage_counts())
+    usage["onboarded"] = userdata.count_portfolios_onboarded()
+    usage["api_keys"] = userdata.count_api_keys()
+    return usage
+
+
 def build_report() -> dict[str, Any]:
     now = datetime.now(timezone.utc)
     accounts = fetch_auth_accounts()
     return {
         "date": now.date().isoformat(),
         "accounts": summarize_accounts(accounts, now),
-        "usage": store.usage_counts(),
+        "usage": usage_summary(),
         "deletions": deletion_summary(now),
         "followed_strategies": followed_strategies(),
     }

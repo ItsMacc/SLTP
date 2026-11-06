@@ -14,6 +14,7 @@ from fastapi import APIRouter, Depends
 from app.auth.jwt_auth import get_current_user
 
 # Database imports
+from app.turso import userdata
 from app.users import store
 
 router = APIRouter()
@@ -60,7 +61,7 @@ def _followed_ids(preferences: dict[str, Any]) -> list[str]:
 # Frontend read: onboarding state plus the saved wizard answers.
 @router.get("/api/portfolio/status")
 async def portfolio_status(user: dict[str, Any] = Depends(get_current_user)) -> dict[str, Any]:
-    pf: dict[str, Any] | None = store.get_portfolio(user["id"])
+    pf: dict[str, Any] | None = userdata.get_portfolio(user["id"])
     if not pf:
         return {"id": None, "onboarded": False, "name": "My Portfolio",
                 "base_currency": "USD", "starting_cash": 0, "preferences": {}}
@@ -86,7 +87,7 @@ async def complete_setup(
     # the Settings page and read from profile settings.
     prefs: dict[str, Any] = {k: v for k, v in body.preferences.items() if k not in NOTIFICATION_KEYS}
 
-    store.upsert_portfolio(
+    userdata.upsert_portfolio(
         user_id,
         name=body.name.strip() or "My Portfolio",
         base_currency=body.base_currency,

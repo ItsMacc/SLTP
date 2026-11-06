@@ -76,6 +76,7 @@ def _verify_token(token: str) -> dict[str, Any]:
 async def get_current_user(authorization: str = Header(default="")) -> dict[str, Any]:
     # Returns { 'id': <supabase uid>, 'email': ..., 'name': ..., 'settings': {...} }
     from app.users import store
+    from app.turso import userdata
 
     if not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing bearer token")
@@ -88,7 +89,7 @@ async def get_current_user(authorization: str = Header(default="")) -> dict[str,
         import hashlib
 
         key_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
-        key_user_id: str | None = store.user_id_for_key_hash(key_hash)
+        key_user_id: str | None = userdata.user_id_for_key_hash(key_hash)
         if not key_user_id:
             raise HTTPException(status_code=401, detail="Invalid API key")
         profile = store.get_profile(key_user_id) or {}

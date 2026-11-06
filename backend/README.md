@@ -1,7 +1,11 @@
 # SLTP backend
 
-Thin HTTP over `pip install sltp` for market data, plus Supabase-only
-accounts. No engine code lives here, and there is exactly one database.
+Thin HTTP over `pip install sltp` for market data, plus accounts in two
+stores split by size. No engine code lives here.
+
+- Supabase: auth, the small profile row (settings), the churn log.
+- Turso: everything bulky, keyed by the Supabase uid — portfolios, API
+  keys (+tier, free for now), watchlists, Lab strategies, cached backtests.
 
 ## Run
 
@@ -33,6 +37,9 @@ Reads degrade to empty until then; writes need the tables.
 | GET/POST/DELETE | `/api/user/api-keys...` | Personal API keys (hashes only) |
 | POST | `/api/user/login-event` | Record sign-in device (IP hash only) |
 | DELETE | `/api/user/account` | Full erasure: auth, profile, portfolios, keys |
+| GET/PUT | `/api/user/watchlist` | Tracked symbols |
+| GET/POST/DELETE | `/api/lab/strategies...` | Cloud copies of Lab code |
+| GET/POST/DELETE | `/api/backtest/results...` | Cached runs, reopen without rerunning |
 
 First data call downloads the needed chunks from R2 into `~/.sltp/cache`.
 Later calls are local.

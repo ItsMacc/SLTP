@@ -1,8 +1,8 @@
-# config.py — one place for environment, Supabase access and tiny helpers.
+# config.py — one place for environment, database access and tiny helpers.
 #
-# Single-store design: Supabase holds auth, the profile row, portfolios,
-# API keys and the churn log. There is no second database, so there is no
-# mirror to keep in sync.
+# Two-store design, split by size. Supabase holds auth, the small profile row
+# and the churn log. Turso holds everything bulky, keyed by the Supabase uid:
+# portfolios, API keys, watchlists, Lab strategies and cached backtest runs.
 
 # -------- Imports --------
 import os
@@ -30,6 +30,10 @@ SUPABASE_URL: str = os.environ.get("SUPABASE_URL", "").rstrip("/")
 SUPABASE_SERVICE_KEY: str | None = os.environ.get("SUPABASE_SERVICE_ROLE")
 SUPABASE_TIMEOUT: int = 15
 
+TURSO_URL: str = os.environ.get("TURSO_DATABASE_URL", "")
+TURSO_TOKEN: str | None = os.environ.get("TURSO_AUTH_TOKEN")
+TURSO_TIMEOUT: int = 15
+
 
 # -------- Supabase REST --------
 # Service-role headers. The backend is a trusted client: it bypasses RLS and
@@ -48,6 +52,11 @@ def service_headers(extra: dict[str, str] | None = None) -> dict[str, str]:
 def require_supabase() -> None:
     if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
         raise RuntimeError("Supabase is not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE in .env")
+
+
+def require_turso() -> None:
+    if not TURSO_URL or not TURSO_TOKEN:
+        raise RuntimeError("Turso is not configured. Set TURSO_DATABASE_URL and TURSO_AUTH_TOKEN in .env")
 
 
 # -------- Helpers --------

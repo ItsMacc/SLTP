@@ -8,7 +8,8 @@
 #             endpoint exists to close. Once it is gone the person cannot
 #             sign in, so a later failure in the data cleanup below can
 #             leave orphaned rows but never a live account with missing data.
-#   Supabase  public.users profile row, portfolios and api_keys rows
+#   Supabase  public.users profile row
+#   Turso     portfolios, api_keys, watchlists, Lab strategies, cached results
 #   Churn log the wipe leaves no trace of the account, so the operator
 #             report reads from this log instead.
 #
@@ -28,6 +29,7 @@ from app.auth.jwt_auth import get_current_user
 
 # Database imports
 from app.config import SUPABASE_URL, SUPABASE_SERVICE_KEY, SUPABASE_TIMEOUT, service_headers
+from app.turso import userdata
 from app.users import store
 
 router = APIRouter()
@@ -49,6 +51,7 @@ async def delete_account(
         "supabase_profile": False,
         "portfolios": False,
         "api_keys": False,
+        "lab_data": False,
     }
     warnings: list[str] = []
 
@@ -101,15 +104,21 @@ async def delete_account(
         warnings.append(f"Profile row not deleted: {e}")
 
     try:
-        store.delete_portfolios(user_id)
+        userdata.delete_portfolios(user_id)
         removed["portfolios"] = True
     except Exception as e:  # noqa: BLE001 - report, never abort the cascade
         warnings.append(f"Portfolios not deleted: {e}")
 
     try:
-        store.delete_user_api_keys(user_id)
+        userdata.delete_user_api_keys(user_id)
         removed["api_keys"] = True
     except Exception as e:  # noqa: BLE001
         warnings.append(f"API keys not deleted: {e}")
+
+    try:
+        userdata.delete_user_lab_data(user_id)
+        removed["lab_data"] = True
+    except Exception as e:  # noqa: BLE001
+        warnings.append(f"Lab data not deleted: {e}")
 
     return {"deleted": True, "user_id": user_id, "removed": removed, "warnings": warnings}

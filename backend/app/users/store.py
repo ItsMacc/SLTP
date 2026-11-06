@@ -2,9 +2,8 @@
 #
 # Tables (see backend/schema.sql):
 #   users             profile row: id (auth uid), name, email, settings
-#   portfolios        one row per user: wizard answers, onboarded flag
-#   api_keys          personal keys: only the SHA-256 hash is stored
 #   account_deletions churn log: the only trace left after erasure
+# (Portfolios, API keys and everything bulky moved to Turso: app/turso/.)
 #
 # All calls use the service role and are scoped to the authenticated user's id
 # from the verified JWT. A missing table (schema.sql not pasted yet) reads as
@@ -120,114 +119,6 @@ def delete_profile(user_id: str) -> None:
         return
 
 
-# -------- Portfolios --------
-# One portfolio row with preferences decoded, or None (also None before setup).
-def get_portfolio(user_id: str) -> dict[str, Any] | None:
-    try:
-        row = _rest("GET", "portfolios", params={"user_id": f"eq.{user_id}"}, single=True)
-    except MissingTable:
-        return None
-    if not row:
-        return None
-    row["preferences"] = _parse_json(row.get("preferences"), {})
-    return row
-
-
-# Insert or update the user's portfolio row.
-def upsert_portfolio(user_id: str, *, name: str, base_currency: str,
-                      starting_cash: float, preferences: dict[str, Any],
-                      onboarded: bool) -> None:
-    from app.config import now_iso
-
-    payload = {
-        "user_id": user_id,
-        "name": name,
-        "base_currency": base_currency,
-        "starting_cash": starting_cash,
-        "preferences": preferences or {},
-        "onboarded": onboarded,
-        "updated_at": now_iso(),
-    }
-    existing = get_portfolio(user_id)
-    if existing:
-        _rest("PATCH", "portfolios", params={"user_id": f"eq.{user_id}"}, body=payload)
-    else:
-        _rest("POST", "portfolios", body={**payload, "created_at": now_iso()})
-
-
-# Delete the user's portfolio row; absence counts as success.
-def delete_portfolios(user_id: str) -> None:
-    try:
-        _rest("DELETE", "portfolios", params={"user_id": f"eq.{user_id}"})
-    except MissingTable:
-        return
-
-
-# -------- API keys --------
-# Every active key the user owns, newest first, without secrets.
-def list_api_keys(user_id: str) -> list[dict[str, Any]]:
-    try:
-        rows = _rest("GET", "api_keys", params={
-            "user_id": f"eq.{user_id}",
-            "select": "id,name,key_prefix,created_at,last_used_at",
-            "order": "created_at.desc",
-        })
-    except MissingTable:
-        return []
-    return rows or []
-
-
-# The owner of a key hash, touching last_used_at. None when unknown.
-def user_id_for_key_hash(key_hash: str) -> str | None:
-    from app.config import now_iso
-
-    try:
-        row = _rest("GET", "api_keys", params={"key_hash": f"eq.{key_hash}"}, single=True)
-    except MissingTable:
-        return None
-    if not row:
-        return None
-    _rest("PATCH", "api_keys", params={"id": f"eq.{row['id']}"}, body={"last_used_at": now_iso()})
-    return row.get("user_id")
-
-
-# Store one key and return its row id.
-def insert_api_key(user_id: str, name: str, key_prefix: str, key_hash: str) -> str:
-    from app.config import now_iso
-    import uuid
-
-    key_id = str(uuid.uuid4())
-    _rest("POST", "api_keys", body={
-        "id": key_id,
-        "user_id": user_id,
-        "name": name,
-        "key_prefix": key_prefix,
-        "key_hash": key_hash,
-        "created_at": now_iso(),
-    })
-    return key_id
-
-
-# Delete one of the user's keys; True when a row was removed.
-def delete_api_key(user_id: str, key_id: str) -> bool:
-    try:
-        row = _rest("GET", "api_keys", params={"id": f"eq.{key_id}", "user_id": f"eq.{user_id}"}, single=True)
-    except MissingTable:
-        return False
-    if not row:
-        return False
-    _rest("DELETE", "api_keys", params={"id": f"eq.{key_id}", "user_id": f"eq.{user_id}"})
-    return True
-
-
-# Hard-delete every key a user owns; used by account deletion.
-def delete_user_api_keys(user_id: str) -> None:
-    try:
-        _rest("DELETE", "api_keys", params={"user_id": f"eq.{user_id}"})
-    except MissingTable:
-        return
-
-
 # -------- Churn log --------
 # Append one deletion; a repeat call for the same account is ignored.
 def record_account_deletion(user_id: str, *, email: str | None = None,
@@ -282,16 +173,8 @@ def _count(table: str, params: dict[str, str] | None = None, column: str = "id")
 def usage_counts() -> dict[str, int | None]:
     return {
         "profiles": _count("users"),
-        "onboarded": _count("portfolios", {"onboarded": "eq.true"}),
-        "api_keys": _count("api_keys"),
         "deletions": _count("account_deletions", column="user_id"),
     }
 
 
-# Raw preferences blobs, for the followed-strategies tally in the report.
-def all_portfolio_preferences() -> list[dict[str, Any]]:
-    try:
-        rows = _rest("GET", "portfolios", params={"select": "preferences"})
-    except MissingTable:
-        return []
-    return [_parse_json((row or {}).get("preferences"), {}) for row in (rows or [])]
+

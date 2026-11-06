@@ -20,7 +20,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from app.auth.jwt_auth import get_current_user
 
 # Database imports
-from app.users import store
+from app.turso import userdata
 
 router = APIRouter()
 
@@ -43,7 +43,7 @@ class CreateApiKeyIn(BaseModel):
 # List the caller's keys, without the secrets.
 @router.get("/api/user/api-keys")
 async def list_api_keys(user: dict[str, Any] = Depends(get_current_user)) -> dict[str, Any]:
-    return {"keys": store.list_api_keys(user["id"])}
+    return {"keys": userdata.list_api_keys(user["id"])}
 
 
 # Mint a new key and return it once; only the hash is kept.
@@ -59,7 +59,7 @@ async def create_api_key(
         raise HTTPException(status_code=400, detail=f"Name must be {NAME_MAX} characters or fewer.")
 
     raw_key: str = KEY_PREFIX + secrets.token_urlsafe(32)
-    key_id = store.insert_api_key(user["id"], name, raw_key[:12], hash_key(raw_key))
+    key_id = userdata.insert_api_key(user["id"], name, raw_key[:12], hash_key(raw_key))
 
     # The full key is returned only in this response and never stored
     return {"id": key_id, "name": name, "key_prefix": raw_key[:12], "key": raw_key}
@@ -71,6 +71,6 @@ async def delete_api_key(
     key_id: str,
     user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
-    if not store.delete_api_key(user["id"], key_id):
+    if not userdata.delete_api_key(user["id"], key_id):
         raise HTTPException(status_code=404, detail="API key not found.")
     return {"id": key_id, "deleted": True}

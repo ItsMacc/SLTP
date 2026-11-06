@@ -27,13 +27,16 @@ from fastapi.responses import JSONResponse
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.auth.security import router as security_router
+from app.lab.strategies import router as lab_strategies_router
 from app.registry import STRATEGIES, strategy_by_id
 from app.users.store import MissingTable
 from app.users.account import router as account_router
 from app.users.api_keys import router as api_keys_router
 from app.users.portfolio import router as portfolio_router
 from app.users.provision import router as provision_router
+from app.users.results import router as results_router
 from app.users.settings import router as settings_router
+from app.users.watchlist import router as watchlist_router
 
 app = FastAPI(title="SLTP engine API", version="0.2.0")
 app.include_router(provision_router)
@@ -41,6 +44,9 @@ app.include_router(settings_router)
 app.include_router(portfolio_router)
 app.include_router(account_router)
 app.include_router(api_keys_router)
+app.include_router(watchlist_router)
+app.include_router(results_router)
+app.include_router(lab_strategies_router)
 app.include_router(security_router)
 
 # CORS for the frontend (browser path calls this API from the site origin).
