@@ -1,25 +1,64 @@
-# main.py — SLTP backend: thin HTTP over `pip install sltp`.
+# main.py — SLTP backend: thin HTTP over `pip install sltp`, plus accounts.
 #
-# No engine code lives here. Bars and backtests come from the published sltp
-# package; this file only maps them onto the JSON the webpage already reads.
+# Two halves:
+#   market  no engine code lives here; bars and backtests come from the
+#           published sltp package mapped onto JSON the webpage reads.
+#   users   Supabase-only accounts: JWT auth, profile settings, portfolios,
+#           API keys, login devices, full erasure. One store, no mirror.
+#
 # Run it with:  uvicorn app.main:app --reload   (from backend/)
 # Then open http://127.0.0.1:8000/docs to try every endpoint.
 #
-# Data: the engine reads local bars when it finds them, otherwise it fetches
-# the missing chunks from the public R2 bucket into ~/.sltp/cache on first
-# use. The first history/backtest call is slow; later ones are local.
+# Market data: the engine reads local bars when it finds them, otherwise it
+# fetches the missing chunks from the public R2 bucket into ~/.sltp/cache on
+# first use. The first history/backtest call is slow; later ones are local.
+#
+# Database: paste backend/schema.sql ONCE into the Supabase SQL editor. Reads
+# degrade to empty until then; writes need the tables.
 
 import sys
 from datetime import date
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from app.auth.security import router as security_router
 from app.registry import STRATEGIES, strategy_by_id
+from app.users.store import MissingTable
+from app.users.account import router as account_router
+from app.users.api_keys import router as api_keys_router
+from app.users.portfolio import router as portfolio_router
+from app.users.provision import router as provision_router
+from app.users.settings import router as settings_router
 
-app = FastAPI(title="SLTP engine API", version="0.1.0")
+app = FastAPI(title="SLTP engine API", version="0.2.0")
+app.include_router(provision_router)
+app.include_router(settings_router)
+app.include_router(portfolio_router)
+app.include_router(account_router)
+app.include_router(api_keys_router)
+app.include_router(security_router)
+
+# CORS for the frontend (browser path calls this API from the site origin).
+@app.exception_handler(MissingTable)
+async def _missing_table_handler(request, exc):
+    return JSONResponse(
+        status_code=503,
+        content={"detail": f"Database table missing: {exc}. Paste backend/schema.sql into the Supabase SQL editor."},
+    )
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 # -------- Helpers --------
@@ -93,6 +132,13 @@ def ticker_details() -> list[dict]:
     from sltp.data.market_data_service import get_tradable_ticker_directory
 
     return [{"ticker": row["ticker"], "name": row["name"]} for row in get_tradable_ticker_directory()]
+
+
+@app.get("/api/stock/all-tickers")
+def all_tickers() -> list[str]:
+    from sltp.data.market_data_service import get_tradable_ticker_directory
+
+    return sorted(row["ticker"] for row in get_tradable_ticker_directory())
 
 
 @app.get("/api/stock/history")
