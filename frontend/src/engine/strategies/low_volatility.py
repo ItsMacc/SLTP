@@ -16,12 +16,12 @@
 import numpy as np
 
 # Engine imports
-from app.engine.strategy import Strategy
-from app.engine.utils.Order import Order, OrderSizing
-from app.engine.utils.StockData import StockData
-from app.engine.utils.Trade import Trade
-from app.engine.utils.PositionType import PositionType
-from app.engine.utils.RebalanceFrequency import RebalanceFrequency
+from sltp import Strategy
+from sltp import Order, OrderSizing
+from sltp import StockData
+from sltp import Trade
+from sltp import PositionType
+from sltp import RebalanceFrequency
 
 
 # -------- Low Volatility 30 Strategy --------

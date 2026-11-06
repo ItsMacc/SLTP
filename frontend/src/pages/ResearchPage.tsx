@@ -17,8 +17,8 @@ import { GlossaryText } from '../components/GlossaryText'
 import { STRATEGY_GLOSSARY } from '../../lib/glossary'
 import './ResearchPage.css'
 import { chartMaxBarsToNumber, readChartMaxBars, type ResearchTimeframe } from '../../lib/settings'
+import { getStockHistory, getTickerDirectory } from '../engine/sltpClient'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 const TIMEFRAMES: ResearchTimeframe[] = ['1y', '2y', '5y', 'all']
 
 const TIMEFRAME_LABEL: Record<ResearchTimeframe, string> = {
@@ -307,11 +307,7 @@ export default function ResearchPage({ initialSettings }: ResearchPageProps) {
 
   useEffect(() => {
     let cancelled = false
-    fetch(`${API_BASE_URL}/api/stock/ticker-details`)
-      .then((res) => {
-        if (!res.ok) throw new Error('Could not load ticker names')
-        return res.json()
-      })
+    getTickerDirectory()
       .then((data: TickerInfo[]) => {
         if (cancelled) return
         const list = Array.isArray(data) ? data : []
@@ -380,12 +376,7 @@ export default function ResearchPage({ initialSettings }: ResearchPageProps) {
         if (!ticker || pendingQuotes.current.has(ticker)) continue
         pendingQuotes.current.add(ticker)
         try {
-          const res = await fetch(
-            `${API_BASE_URL}/api/stock/history?ticker=${encodeURIComponent(ticker)}&timeframe=1y`,
-            { signal: controller.signal }
-          )
-          if (!res.ok) continue
-          const payload = (await res.json()) as StockHistoryResponse
+          const payload = await getStockHistory(ticker, '1y')
           const quote = buildQuote(payload.data ?? [])
           if (!quote || cancelled) continue
           quotesRef.current = { ...quotesRef.current, [ticker]: quote }
@@ -413,16 +404,10 @@ export default function ResearchPage({ initialSettings }: ResearchPageProps) {
     setLoading(true)
     setError(null)
 
-    fetch(`${API_BASE_URL}/api/stock/history?ticker=${selectedTicker}&timeframe=${timeframe}`, {
-      signal: controller.signal,
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error(`No history found for ${selectedTicker}`)
-        return res.json() as Promise<StockHistoryResponse>
-      })
+    getStockHistory(selectedTicker, timeframe)
       .then((data) => setStockData(data))
       .catch((err: Error) => {
-        if (err.name !== 'AbortError') setError(err.message || 'Something went wrong fetching that ticker.')
+        setError(err.message || 'Something went wrong fetching that ticker.')
       })
       .finally(() => setLoading(false))
 

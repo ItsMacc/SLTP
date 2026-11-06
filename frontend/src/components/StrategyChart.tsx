@@ -6,10 +6,10 @@ import TradeResults, { type TradeRecord } from './TradeResults'
 import DatePicker from '../ui/DatePicker'
 import ErrorToast from '../ui/ErrorToast'
 import StrategyGuide from './StrategyGuide'
+import { listStrategies, runBacktest } from '../engine/sltpClient'
 import { LoaderRow, LoaderScreen } from '../ui/Loader'
 import Button from '../ui/Button'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 
 export interface BacktestChartPoint {
   date: string
@@ -101,11 +101,10 @@ export default function StrategyChart() {
 
   useEffect(() => {
     let cancelled = false
-    fetch(`${API_BASE_URL}/api/strategies`)
-      .then((res) => {
-        if (!res.ok) throw new Error('Failed to load strategies list')
-        return res.json()
-      })
+    // The runnable strategies live in the browser bundle now: the registry
+    // above, executed by the engine worker. No server decides what can run.
+    Promise.resolve()
+      .then(() => listStrategies())
       .then((data: StrategyOption[]) => {
         if (!cancelled && Array.isArray(data) && data.length > 0) {
           setStrategies(data)
@@ -174,24 +173,13 @@ export default function StrategyChart() {
     setLoading(true)
 
     try {
-      let url = `${API_BASE_URL}/api/backtest/run?strategy_id=${encodeURIComponent(
-        selectedStrategy
-      )}&start_date=${encodeURIComponent(startDate)}`
-
-      if (endDate) {
-        url += `&end_date=${encodeURIComponent(endDate)}`
-      }
-
-      const response = await fetch(url)
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}))
-        const detail = errData.detail
-        throw new Error(
-          typeof detail === 'string' ? detail : 'Backtest run failed. Please check your inputs and dates.'
-        )
-      }
-
-      const data: BacktestApiResponse = await response.json()
+      // The run happens in the engine worker: same strategies, same math,
+      // no backend. The response keeps the old shape so nothing below changes.
+      const data: BacktestApiResponse = await runBacktest(
+        selectedStrategy,
+        startDate,
+        endDate || undefined
+      )
       setBacktestResult(data)
     } catch (err: any) {
       setError(err?.message || 'Error executing backtest.')

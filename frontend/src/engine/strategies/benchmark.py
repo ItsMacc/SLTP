@@ -8,11 +8,11 @@
 
 # -------- Imports --------
 # Engine imports
-from app.engine.strategy import Strategy
-from app.engine.utils.Order import Order
-from app.engine.utils.StockData import StockData
-from app.engine.utils.PositionType import PositionType
-from app.engine.utils.RebalanceFrequency import RebalanceFrequency
+from sltp import Strategy
+from sltp import Order
+from sltp import StockData
+from sltp import PositionType
+from sltp import RebalanceFrequency
 
 
 # -------- Benchmark Strategy --------
