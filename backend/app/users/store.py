@@ -28,6 +28,8 @@ def _rest(method: str, table: str, *, params: dict[str, str] | None = None,
     headers = service_headers()
     if single:
         headers["Accept"] = "application/vnd.pgrst.object+json"
+    if method in ("POST", "PATCH", "PUT"):
+        headers["Prefer"] = "return=representation"
     resp = requests.request(
         method,
         f"{SUPABASE_URL}/rest/v1/{table}",
@@ -36,10 +38,18 @@ def _rest(method: str, table: str, *, params: dict[str, str] | None = None,
         headers=headers,
         timeout=SUPABASE_TIMEOUT,
     )
+    # PostgREST answers an object query over zero rows with 406, not 404:
+    # that just means "no row yet", the normal state before onboarding.
+    if resp.status_code == 406 and single:
+        return None
     if resp.status_code in (200, 201, 204):
         if resp.status_code == 204 or not resp.text:
             return None
-        return resp.json()
+        data = resp.json()
+        # Writes can answer with a one-row array; unwrap it for object callers.
+        if single and isinstance(data, list):
+            return data[0] if data else None
+        return data
     if resp.status_code == 404 and single:
         return None
     if resp.status_code == 404 and is_missing_table(resp.text):
@@ -247,12 +257,12 @@ def list_account_deletions() -> list[dict[str, Any]]:
 # -------- Operator counts --------
 # Small aggregates for the morning report. A missing table reports as None
 # instead of blanking the rest of the report.
-def _count(table: str, params: dict[str, str] | None = None) -> int | None:
+def _count(table: str, params: dict[str, str] | None = None, column: str = "id") -> int | None:
     require_supabase()
     try:
         resp = requests.get(
             f"{SUPABASE_URL}/rest/v1/{table}",
-            params={**(params or {}), "select": "id", "limit": "1"},
+            params={**(params or {}), "select": column, "limit": "1"},
             headers=service_headers({"Prefer": "count=exact"}),
             timeout=SUPABASE_TIMEOUT,
         )
@@ -274,7 +284,7 @@ def usage_counts() -> dict[str, int | None]:
         "profiles": _count("users"),
         "onboarded": _count("portfolios", {"onboarded": "eq.true"}),
         "api_keys": _count("api_keys"),
-        "deletions": _count("account_deletions"),
+        "deletions": _count("account_deletions", column="user_id"),
     }
 
 
