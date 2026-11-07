@@ -80,7 +80,7 @@
   align-items: stretch;
 }
 
-.wl-onboard-ticker-row > *:first-child { flex: 1; }
+.wl-onboard-ticker-row > *:first-child { flex: 1; min-width: 0; }
 
 .wl-onboard-chips {
   display: flex;
@@ -290,4 +290,23 @@
   gap: var(--space-sm);
   padding-top: var(--space-sm);
   border-top: 1px solid var(--border-subtle);
+}
+
+/* ---------- Small screens ---------- */
+@media (max-width: 30rem) {
+  .wl-onboard { padding: var(--space-md) var(--space-sm); }
+  .wl-onboard-card { padding: var(--space-lg) var(--space-md); }
+  .wl-onboard-step { min-height: 0; }
+
+  /* Experience options stack instead of crushing three-across */
+  .wl-onboard-step .radio-options-container.horizontal { flex-direction: column; }
+
+  /* Search box: tighter gap, and 16px text so iOS does not zoom on focus */
+  .wl-onboard-ticker-row { gap: var(--space-xs); }
+  .wl-onboard-step .input-field { font-size: 1rem; }
+
+  /* Starter rows stack: blurb on top, Watch button full width below */
+  .wl-onboard-starter { flex-direction: column; align-items: stretch; }
+
+  .wl-onboard-results { max-height: 12rem; }
 }
