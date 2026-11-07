@@ -1,5 +1,5 @@
-# -------- momentum_20.py --------
-# Momentum 20: hold the strongest liquid stocks while the market trend is up.
+# -------- trend_leaders.py --------
+# Trend Leaders: hold the strongest liquid stocks while the market trend is up.
 #
 # Long-only cross-sectional momentum. Each month the strategy ranks liquid US
 # stocks by 12-month return, skipping the most recent month so a short-term
@@ -25,13 +25,13 @@ from sltp import PositionType
 from sltp import RebalanceFrequency
 
 
-# -------- Momentum 20 Strategy --------
-class Momentum20(Strategy):
+# -------- Trend Leaders Strategy --------
+class TrendLeaders(Strategy):
     # Set the book policy, the ranking windows and the market filter.
     def __init__(self):
         super().__init__()
 
-        self.name: str = "Momentum 20"
+        self.name: str = "Trend Leaders"
         self.description: str = "Holds the 20 strongest liquid US stocks while the S&P 500 is above its 200-day average."
 
         # Book policy. The allocation leaves a small cash buffer for entry fees and

@@ -369,8 +369,8 @@ export const STRATEGIES: StrategyProfile[] = [
     },
   },
   {
-    id: 'momentum-20',
-    name: 'Momentum 20',
+    id: 'trend-leaders',
+    name: 'Trend Leaders',
     category: 'Trading',
     summary:
       'Holds the 20 strongest liquid US stocks while the S&P 500 is above its 200-day average, and moves the entire book to cash when it is not.',
@@ -715,8 +715,8 @@ export const STRATEGIES: StrategyProfile[] = [
     },
   },
   {
-    id: 'low-volatility-30',
-    name: 'Low Volatility 30',
+    id: 'steady',
+    name: 'Steady',
     category: 'Investing',
     summary:
       'Holds the 30 least volatile liquid US stocks, equal-weighted and rebuilt quarterly. The book stays in stocks through the cycle and has no market filter; the defensive tilt comes from the names themselves.',

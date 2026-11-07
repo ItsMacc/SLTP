@@ -7,8 +7,8 @@
 
 from strategies.benchmark import Benchmark
 from strategies.global_trend_allocation import GlobalTrendAllocation
-from strategies.low_volatility import LowVolatility30
-from strategies.momentum_20 import Momentum20
+from strategies.steady import Steady
+from strategies.trend_leaders import TrendLeaders
 from strategies.statistical_mean_reversion import StatisticalMeanReversionStrategy
 
 STRATEGIES = [
@@ -20,11 +20,11 @@ STRATEGIES = [
         "cls": Benchmark,
     },
     {
-        "id": "momentum-20",
-        "name": "Momentum 20",
+        "id": "trend-leaders",
+        "name": "Trend Leaders",
         "description": "Holds the 20 strongest liquid US stocks while SPY is above its 200-day average.",
         "type": "trading",
-        "cls": Momentum20,
+        "cls": TrendLeaders,
     },
     {
         "id": "global-trend-allocation",
@@ -34,11 +34,11 @@ STRATEGIES = [
         "cls": GlobalTrendAllocation,
     },
     {
-        "id": "low-volatility-30",
-        "name": "Low Volatility 30",
+        "id": "steady",
+        "name": "Steady",
         "description": "Equal-weighted 30 least volatile liquid US stocks, rebuilt quarterly.",
         "type": "investing",
-        "cls": LowVolatility30,
+        "cls": Steady,
     },
     {
         "id": "statistical-mean-reversion",

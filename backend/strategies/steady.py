@@ -1,5 +1,5 @@
-# -------- low_volatility.py --------
-# Low Volatility 30: hold the quietest liquid US stocks, equal-weight.
+# -------- steady.py --------
+# Steady: hold the quietest liquid US stocks, equal-weight.
 #
 # Long-only. Once a quarter, rank every liquid US stock by its trailing
 # 252-bar realized volatility and hold the 30 lowest. A 45-name buffer keeps
@@ -24,13 +24,13 @@ from sltp import PositionType
 from sltp import RebalanceFrequency
 
 
-# -------- Low Volatility 30 Strategy --------
-class LowVolatility30(Strategy):
+# -------- Steady Strategy --------
+class Steady(Strategy):
     # Set the book policy, the ranking window and the liquidity screen.
     def __init__(self):
         super().__init__()
 
-        self.name: str = "Low Volatility 30"
+        self.name: str = "Steady"
         self.description: str = "Holds the 30 least volatile liquid US stocks, equal-weighted and rebuilt quarterly."
 
         # Book policy. Thirty entries at 3.2% use 96% of the book.
