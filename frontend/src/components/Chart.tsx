@@ -1,0 +1,411 @@
+// Chart.tsx — Candlestick chart with toolbar and tooltip
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import Button from '../ui/Button'
+import './Chart.css'
+
+export interface Bar {
+  date: string
+  open: number
+  high: number
+  low: number
+  close: number
+  volume: number
+}
+
+interface ChartProps {
+  bars: Bar[]
+  ticker: string
+  chartStyle?: 'candles' | 'line'
+  defaultZoom?: number
+  /** Open with the whole series on screen instead of the last DEFAULT_VISIBLE bars.
+   *  The page uses it for an all-history range, so the range label is truthful. */
+  showAll?: boolean
+  /** Most bars that may be visible at once; Infinity removes the ceiling. */
+  maxVisible?: number
+  /** Render the ticker/price line inside the toolbar. Pages that show the
+   *  quote themselves in a larger header pass false and keep the actions. */
+  showQuote?: boolean
+}
+
+const AXIS_WIDTH = 54
+const PADDING_TOP = 16
+const PADDING_BOTTOM = 24
+const VOLUME_RATIO = 0.18
+const MIN_VISIBLE = 15
+// Ceiling on how many candles can be on screen at once. Past this, the chart stops
+// keeping up with the pointer, so older bars are reached by panning rather than by
+// zooming the whole history out. The reader can raise it in Settings.
+const DEFAULT_MAX_VISIBLE = 1500
+const ZOOM_OPTIONS = [30, 60, 90] as const
+const DEFAULT_VISIBLE = 90
+
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
+
+// A restated price runs into the millions on a fund that reverse-split repeatedly, which
+// an axis tick has no room for. Past five digits the label switches to a short suffix.
+const priceLabel = (value: number) => {
+  const abs = Math.abs(value)
+  if (abs >= 1_000_000_000_000) return `${(value / 1_000_000_000_000).toFixed(1)}T`
+  if (abs >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}B`
+  if (abs >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`
+  if (abs >= 10_000) return `${(value / 1_000).toFixed(1)}K`
+  return abs >= 1000 ? value.toFixed(0) : abs >= 10 ? value.toFixed(1) : value.toFixed(2)
+}
+
+const dateLabel = (iso: string) => {
+  if (!iso) return ''
+  const [y, m, d] = iso.split('-')
+  if (!y || !m || !d) return iso
+  return `${d}/${m}/${y.slice(2)}`
+}
+
+const volumeLabel = (value: number) => {
+  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}B`
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`
+  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`
+  return `${value}`
+}
+
+/**
+ * Candle + volume chart with wheel-zoom, click-drag panning, and a
+ * crosshair tooltip. All the interaction state lives here so the page
+ * itself only ever has to pass in a ticker and a list of bars.
+ */
+export default function Chart({
+  bars,
+  ticker,
+  chartStyle = 'candles',
+  defaultZoom,
+  showAll = false,
+  maxVisible = DEFAULT_MAX_VISIBLE,
+  showQuote = true,
+}: ChartProps) {
+  // One number for every clamp below, whatever the setting resolves to.
+  const ceiling = Math.max(MIN_VISIBLE, Math.min(bars.length || MIN_VISIBLE, maxVisible))
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [width, setWidth] = useState(360)
+  const [height, setHeight] = useState(420)
+
+  const preferred = useRef(defaultZoom && ZOOM_OPTIONS.includes(defaultZoom as 30 | 60 | 90) ? defaultZoom : DEFAULT_VISIBLE)
+  const [visible, setVisibleState] = useState(preferred.current)
+  const setVisible = useCallback((next: number | ((current: number) => number)) => {
+    setVisibleState((current) => {
+      const value = typeof next === 'function' ? next(current) : next
+      preferred.current = value
+      return value
+    })
+  }, [])
+
+  const [end, setEnd] = useState(bars.length)
+  const [hover, setHover] = useState<{ index: number; x: number; y: number } | null>(null)
+
+  useEffect(() => {
+    if (bars.length === 0) return
+    const wanted = showAll ? ceiling : clamp(preferred.current, MIN_VISIBLE, ceiling)
+    preferred.current = wanted
+    setVisibleState(wanted)
+    setEnd(bars.length)
+  }, [bars, showAll, ceiling])
+
+  useLayoutEffect(() => {
+    const element = containerRef.current
+    if (!element) return
+    const observer = new ResizeObserver(([entry]) => {
+      if (!entry) return
+      const w = entry.contentRect.width
+      setWidth(w)
+      setHeight(w < 560 ? 360 : 440)
+    })
+    observer.observe(element)
+    setWidth(element.clientWidth)
+    setHeight(element.clientWidth < 560 ? 360 : 440)
+    return () => observer.disconnect()
+  }, [])
+
+  const count = Math.min(visible, bars.length)
+  const safeEnd = clamp(end, count, bars.length)
+  const start = Math.max(0, safeEnd - count)
+  const windowData = useMemo(() => bars.slice(start, safeEnd), [bars, start, safeEnd])
+
+  const plotWidth = Math.max(100, width - AXIS_WIDTH)
+  const volumeHeight = Math.round((height - PADDING_TOP - PADDING_BOTTOM) * VOLUME_RATIO)
+  const priceHeight = height - PADDING_TOP - PADDING_BOTTOM - volumeHeight - 10
+  const slot = plotWidth / Math.max(1, windowData.length)
+  const candleWidth = Math.max(1, Math.min(14, slot * 0.66))
+
+  const { min, max, maxVolume } = useMemo(() => {
+    if (windowData.length === 0) return { min: 0, max: 1, maxVolume: 1 }
+    let lo = Infinity
+    let hi = -Infinity
+    let vol = 0
+    for (const bar of windowData) {
+      lo = Math.min(lo, bar.low)
+      hi = Math.max(hi, bar.high)
+      vol = Math.max(vol, bar.volume)
+    }
+    const pad = (hi - lo) * 0.06 || 1
+    // A price cannot go below zero, so a penny stock's padding stops at the floor
+    // instead of drawing a negative tick under the axis.
+    const floor = lo >= 0 ? Math.max(0, lo - pad) : lo - pad
+    return { min: floor, max: hi + pad, maxVolume: vol || 1 }
+  }, [windowData])
+
+  const yPrice = useCallback(
+    (value: number) => PADDING_TOP + ((max - value) / (max - min)) * priceHeight,
+    [max, min, priceHeight]
+  )
+  const volumeTop = PADDING_TOP + priceHeight + 10
+  const yVolume = useCallback(
+    (value: number) => volumeTop + volumeHeight - (value / maxVolume) * volumeHeight,
+    [volumeTop, volumeHeight, maxVolume]
+  )
+
+  const gridLines = useMemo(() => {
+    const steps = 4
+    return Array.from({ length: steps + 1 }, (_, i) => min + ((max - min) * i) / steps)
+  }, [min, max])
+
+  const dateTicks = useMemo(() => {
+    if (windowData.length === 0) return []
+    const target = Math.max(2, Math.floor(plotWidth / (width < 560 ? 84 : 120)))
+    const step = Math.max(1, Math.floor(windowData.length / target))
+    const ticks: { index: number; label: string }[] = []
+    for (let i = windowData.length - 1; i >= 0; i -= step) {
+      ticks.push({ index: i, label: dateLabel(windowData[i]!.date) })
+    }
+    return ticks
+  }, [windowData, plotWidth, width])
+
+  // Built once per view, not once per hover: a full window is thousands of SVG nodes,
+  // and rebuilding them on every pointer move is what made the crosshair stutter.
+  const priceSeries = useMemo(() => {
+    if (chartStyle === 'line') {
+      const points = windowData
+        .map((bar, index) => `${(index * slot + slot / 2).toFixed(1)},${yPrice(bar.close).toFixed(1)}`)
+        .join(' ')
+      return (
+        <g>
+          <polyline points={points} className="chart-line" fill="none" />
+          {/* Volume bars carry the same up/down class as candles, so the line style
+              still reads green/red instead of falling back to the SVG default fill. */}
+          {windowData.map((bar, index) => (
+            <g key={bar.date || index} className={bar.close >= bar.open ? 'candle-up' : 'candle-down'}>
+              <rect
+                x={index * slot + slot / 2 - candleWidth / 2}
+                y={yVolume(bar.volume)}
+                width={candleWidth}
+                height={Math.max(1, volumeTop + volumeHeight - yVolume(bar.volume))}
+                className="candle-volume"
+              />
+            </g>
+          ))}
+        </g>
+      )
+    }
+
+    return windowData.map((bar, index) => {
+      const cx = index * slot + slot / 2
+      const up = bar.close >= bar.open
+      const top = yPrice(Math.max(bar.open, bar.close))
+      const bottom = yPrice(Math.min(bar.open, bar.close))
+
+      return (
+        <g key={bar.date || index} className={up ? 'candle-up' : 'candle-down'}>
+          <line x1={cx} x2={cx} y1={yPrice(bar.high)} y2={yPrice(bar.low)} className="candle-wick" />
+          <rect x={cx - candleWidth / 2} y={top} width={candleWidth} height={Math.max(1, bottom - top)} className="candle-body" />
+          <rect
+            x={cx - candleWidth / 2}
+            y={yVolume(bar.volume)}
+            width={candleWidth}
+            height={Math.max(1, volumeTop + volumeHeight - yVolume(bar.volume))}
+            className="candle-volume"
+          />
+        </g>
+      )
+    })
+  }, [chartStyle, windowData, slot, candleWidth, yPrice, yVolume, volumeTop, volumeHeight])
+
+  const stateRef = useRef({ count, safeEnd, total: bars.length, slot, ceiling })
+  stateRef.current = { count, safeEnd, total: bars.length, slot, ceiling }
+
+  useEffect(() => {
+    const element = containerRef.current
+    if (!element) return
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault()
+      const s = stateRef.current
+      const factor = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? 100 : 1
+      const dx = event.deltaX * factor
+      const dy = event.deltaY * factor
+      if (event.ctrlKey || Math.abs(dx) < Math.abs(dy)) {
+        const next = clamp(Math.round(s.count * Math.exp(dy * 0.0018)), MIN_VISIBLE, s.ceiling)
+        setVisible(next)
+        setEnd((e) => clamp(e, next, s.total))
+      } else {
+        const barsMoved = dx / Math.max(1, s.slot)
+        setEnd((e) => clamp(Math.round(e + barsMoved), s.count, s.total))
+      }
+    }
+    element.addEventListener('wheel', onWheel, { passive: false })
+    return () => element.removeEventListener('wheel', onWheel)
+  }, [setVisible])
+
+  const dragRef = useRef<{ x: number; end: number } | null>(null)
+  const [dragging, setDragging] = useState(false)
+
+  const handlePointerDown = (event: React.PointerEvent) => {
+    dragRef.current = { x: event.clientX, end: safeEnd }
+    setDragging(true)
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+
+  const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect()
+    const px = event.clientX - rect.left
+    const drag = dragRef.current
+
+    if (drag) {
+      const moved = (drag.x - event.clientX) / Math.max(1, slot)
+      setEnd(clamp(Math.round(drag.end + moved), count, bars.length))
+      return
+    }
+
+    if (px > plotWidth || windowData.length === 0) {
+      setHover(null)
+      return
+    }
+    const index = clamp(Math.floor(px / slot), 0, windowData.length - 1)
+    setHover({ index, x: index * slot + slot / 2, y: event.clientY - rect.top })
+  }
+
+  const endDrag = () => {
+    dragRef.current = null
+    setDragging(false)
+  }
+
+  const hovered = hover ? windowData[hover.index] : undefined
+  const atLatest = safeEnd >= bars.length
+  const first = bars[0]
+  const last = bars[bars.length - 1]
+  const change = first && last ? last.close - first.close : 0
+  const changePct = first && last && first.close !== 0 ? (change / first.close) * 100 : 0
+
+  return (
+    <div className="chart-card">
+      <div className={`chart-toolbar${showQuote ? '' : ' is-actions-only'}`}>
+        {showQuote && (
+          <div className="chart-toolbar-info">
+            <span className="chart-ticker">{ticker}</span>
+            {last && (
+              <span className="chart-last-price">
+                ${priceLabel(last.close)}
+                <span className={`chart-change ${change >= 0 ? 'is-up' : 'is-down'}`}>
+                  {change >= 0 ? '+' : ''}
+                  {change.toFixed(2)} ({changePct >= 0 ? '+' : ''}
+                  {changePct.toFixed(2)}%)
+                </span>
+              </span>
+            )}
+          </div>
+        )}
+        <div className="chart-toolbar-actions">
+          <span className="chart-bars-count">{windowData.length} bars visible</span>
+          <div className="chart-zoom-group">
+            <button
+              type="button"
+              aria-label="Zoom out"
+              className="chart-zoom-btn"                onClick={() => setVisible((v) => clamp(Math.round(v * 1.3), MIN_VISIBLE, ceiling))}
+            >
+              −
+            </button>
+            <button
+              type="button"
+              aria-label="Zoom in"
+              className="chart-zoom-btn"
+              onClick={() => setVisible((v) => clamp(Math.round(v / 1.3), MIN_VISIBLE, bars.length))}
+            >
+              +
+            </button>
+          </div>
+          <Button variant="secondary" size="sm" onClick={() => setEnd(bars.length)} disabled={atLatest}>
+            Latest
+          </Button>
+        </div>
+      </div>
+
+      <div
+        ref={containerRef}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+        onPointerLeave={() => {
+          endDrag()
+          setHover(null)
+        }}
+        className="chart-plot-area"
+        style={{ height, cursor: dragging ? 'grabbing' : 'crosshair' }}
+      >
+        <svg width={width} height={height}>
+          {gridLines.map((value) => (
+            <g key={value}>
+              <line x1={0} x2={plotWidth} y1={yPrice(value)} y2={yPrice(value)} className="chart-grid-line" />
+              <text x={plotWidth + 8} y={yPrice(value) + 4} className="chart-axis-label">
+                {priceLabel(value)}
+              </text>
+            </g>
+          ))}
+
+          {priceSeries}
+
+          {dateTicks.map((tick) => (
+            // The first and last ticks sit half off the plot, so their labels are held
+            // inside the frame instead of being cut in half at the edge.
+            <text
+              key={tick.index}
+              x={clamp(tick.index * slot + slot / 2, 24, plotWidth - 24)}
+              y={height - 6}
+              textAnchor="middle"
+              className="chart-axis-label"
+            >
+              {tick.label}
+            </text>
+          ))}
+
+          {hover && hovered && (
+            <g pointerEvents="none">
+              <line x1={hover.x} x2={hover.x} y1={PADDING_TOP} y2={height - PADDING_BOTTOM} className="chart-crosshair" />
+              <line x1={0} x2={plotWidth} y1={hover.y} y2={hover.y} className="chart-crosshair" />
+            </g>
+          )}
+        </svg>
+
+        {hover && hovered && (
+          <div
+            className="chart-tooltip"
+            style={{
+              left: clamp(hover.x + 12, 8, Math.max(8, plotWidth - 160)),
+              top: clamp(hover.y - 10, 8, height - 140),
+            }}
+          >
+            <p className="chart-tooltip-date">{hovered.date}</p>
+            <dl className="chart-tooltip-grid">
+              <dt>Open</dt>
+              <dd>${priceLabel(hovered.open)}</dd>
+              <dt>High</dt>
+              <dd className="is-up">${priceLabel(hovered.high)}</dd>
+              <dt>Low</dt>
+              <dd className="is-down">${priceLabel(hovered.low)}</dd>
+              <dt>Close</dt>
+              <dd className={hovered.close >= hovered.open ? 'is-up' : 'is-down'}>${priceLabel(hovered.close)}</dd>
+              <dt>Volume</dt>
+              <dd>{volumeLabel(hovered.volume)}</dd>
+            </dl>
+          </div>
+        )}
+      </div>
+
+      <p className="chart-hint">Scroll to zoom, drag to pan, hover for detail.</p>
+    </div>
+  )
+}

@@ -125,7 +125,8 @@ def root() -> dict:
 @app.get("/api/strategies")
 def list_strategies() -> list[dict]:
     return [
-        {"id": entry["id"], "name": entry["name"], "description": entry["description"]}
+        {"id": entry["id"], "name": entry["name"], "description": entry["description"],
+         "type": entry["type"]}
         for entry in STRATEGIES
     ]
 

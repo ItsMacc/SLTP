@@ -1,0 +1,191 @@
+// Header.tsx — Top nav: brand, links, auth actions, mobile drawer
+import { useEffect, useState } from 'react';
+import Button from '../ui/Button';
+import UserMenu from './UserMenu';
+import './Header.css';
+
+interface HeaderProps {
+  activeTab: string;
+  onTabChange: (tab: string) => void;
+  onAuthClick: (mode: 'login' | 'signup') => void;
+  sessionUserName?: string | null;
+  sessionUserEmail?: string | null;
+  onSignOut: () => void;
+  onSettingsClick: () => void;
+}
+
+/* Order tells a story: read about the market, use the platform,
+   then the reference material. */
+const navItems = [
+  { id: 'home', label: 'Home' },
+  { id: 'learn', label: 'Learn' },
+  { id: 'strategies', label: 'Strategies' },
+  { id: 'research', label: 'Research' },
+  { id: 'portfolio', label: 'Portfolio' },
+  { id: 'lab', label: 'Lab' },
+  { id: 'docs', label: 'Docs' },
+];
+
+export default function Header({ 
+  activeTab, 
+  onTabChange, 
+  onAuthClick, 
+  sessionUserName,
+  sessionUserEmail, 
+  onSignOut,
+  onSettingsClick 
+}: HeaderProps) {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [hidden, setHidden] = useState(false);
+  const [focusWithin, setFocusWithin] = useState(false);
+
+  /* Hide while scrolling down, reveal on any scroll up or at the top.
+     Small threshold so trackpad jitter doesn't flicker the bar. */
+  useEffect(() => {
+    let lastY = window.scrollY;
+    let ticking = false;
+    const update = () => {
+      const y = window.scrollY;
+      const delta = y - lastY;
+      if (y <= 0 || delta < -8) setHidden(false);
+      else if (delta > 8) setHidden(true);
+      if (Math.abs(delta) > 8) lastY = y;
+      ticking = false;
+    };
+    const onScroll = () => {
+      if (!ticking) {
+        ticking = true;
+        requestAnimationFrame(update);
+      }
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  const handleTabClick = (id: string) => {
+    onTabChange(id);
+    setMobileMenuOpen(false);
+  };
+
+  return (
+    <header
+      className={`header-container ${hidden && !mobileMenuOpen && !focusWithin ? 'is-hidden' : ''}`}
+      onFocus={() => setFocusWithin(true)}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFocusWithin(false);
+      }}
+    >
+      <div className="header-brand" onClick={() => handleTabClick('home')}>
+        <span className="brand-title">SLTP</span>
+      </div>
+
+      <nav className="header-nav desktop-only">
+        {navItems.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            className={`nav-link ${activeTab === item.id ? 'active' : ''}`}
+            onClick={() => handleTabClick(item.id)}
+          >
+            {item.label}
+          </button>
+        ))}
+      </nav>
+
+      <div className="header-actions">
+        <div className="desktop-only auth-buttons-group">
+          {sessionUserEmail ? (
+            <UserMenu 
+              userName={sessionUserName}
+              userEmail={sessionUserEmail}
+              onSettingsClick={onSettingsClick}
+              onSignOut={onSignOut}
+            />
+          ) : (
+            <>
+              <Button variant="primary" size="md" onClick={() => onAuthClick('login')}>
+                Sign In
+              </Button>
+              <Button variant="secondary" size="md" onClick={() => onAuthClick('signup')}>
+                Sign Up
+              </Button>
+            </>
+          )}
+        </div>
+
+        <button 
+          type="button" 
+          className={`hamburger-toggle ${mobileMenuOpen ? 'is-open' : ''}`}
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          aria-label="Toggle Navigation Menu"
+        >
+          <span className="hamburger-line"></span>
+          <span className="hamburger-line"></span>
+          <span className="hamburger-line"></span>
+        </button>
+      </div>
+
+      {mobileMenuOpen && (
+        <div className="mobile-menu-drawer">
+          <nav className="mobile-nav-list">
+            {navItems.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className={`mobile-nav-link ${activeTab === item.id ? 'active' : ''}`}
+                onClick={() => handleTabClick(item.id)}
+              >
+                {item.label}
+              </button>
+            ))}
+          </nav>
+          
+          <div className="mobile-auth-group">            {sessionUserEmail ? (
+              <>
+                <div className="mobile-user-info">
+                  {sessionUserName && (
+                    <span className="mobile-user-name">{sessionUserName}</span>
+                  )}
+                  <span className="mobile-user-email">
+                    Signed in as&nbsp;{sessionUserEmail}
+                  </span>
+                </div>
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onClick={() => { setMobileMenuOpen(false); onSettingsClick(); }}
+                >
+                  Settings
+                </Button>
+                <Button
+                  variant="primary"
+                  size="md"
+                  onClick={() => { setMobileMenuOpen(false); onSignOut(); }}
+                >
+                  Sign Out
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  variant="primary"
+                  size="md"
+                  onClick={() => { setMobileMenuOpen(false); onAuthClick('login'); }}
+                >
+                  Sign In
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onClick={() => { setMobileMenuOpen(false); onAuthClick('signup'); }}
+                >
+                  Sign Up
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </header>
+  );
+}

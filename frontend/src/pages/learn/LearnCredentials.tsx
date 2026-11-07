@@ -1,0 +1,134 @@
+// LearnCredentials.tsx — The short tier quiz that earns a tier's certificate.
+// Rendered at the END of each tier's lessons, not on its own page.
+
+import { useMemo, useState } from 'react';
+import { Check, Lock, ShieldCheck, Sparkles } from 'lucide-react';
+import Button from '../../ui/Button';
+import type { Tier } from '../../learn/curriculum';
+import { scoreGate, type useLearn } from '../../learn/useLearn';
+import { shuffleQuestions } from '../../learn/quizOrder';
+
+type LearnApi = ReturnType<typeof useLearn>;
+
+/* ============================================================
+   Formative Validation Gate: short quiz, all correct to pass
+   ============================================================ */
+export function GateQuiz({ tier, learn }: { tier: Tier; learn: LearnApi }) {
+  const [answers, setAnswers] = useState<(number | null)[]>(tier.gate.map(() => null));
+  const [submitted, setSubmitted] = useState(false);
+  // Same stable shuffle as the lesson quizzes, so scoring and display agree.
+  const gate = useMemo(() => shuffleQuestions(tier.gate), [tier.gate]);
+  const { correct, passed } = scoreGate(gate, answers);
+
+  const answered = answers.every((a) => a !== null);
+
+  const submit = () => {
+    if (!answered) return;
+    setSubmitted(true);
+    if (passed) learn.certifyTier(tier);
+  };
+
+  const retry = () => {
+    setAnswers(tier.gate.map(() => null));
+    setSubmitted(false);
+  };
+
+  if (learn.isCertified(tier.id)) {
+    return (
+      <div className="learn-gate learn-gate-passed">
+        <p className="learn-gate-title">
+          <ShieldCheck size={16} /> Certificate earned: {tier.certification}
+        </p>
+        <p className="learn-gate-note">
+          You passed the {tier.name} quiz. The next level is open.
+        </p>
+      </div>
+    );
+  }
+
+  if (!learn.gateAvailable(tier)) {
+    const done = tier.sections.filter((s) => s.content && learn.isSectionDone(s.id)).length;
+    const total = tier.sections.filter((s) => s.content).length;
+    return (
+      <div className="learn-gate learn-gate-locked">
+        <p className="learn-gate-title">
+          <Lock size={15} /> Quiz locked: {done} of {total} lessons done
+        </p>
+        <p className="learn-gate-note">
+          Finish every lesson in this level to open the quiz.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="learn-gate">
+      <p className="learn-gate-title">
+        <Sparkles size={16} /> {tier.name} quiz: {tier.certification}
+      </p>
+      <p className="learn-gate-note">
+        Get every question right to earn the certificate. Try as often as you need.
+      </p>
+
+      {gate.map((q, qi) => (
+        <div key={qi} className="learn-gate-q">
+          <p className="learn-gate-q-text">
+            {qi + 1}. {q.q}
+          </p>
+          <div className="learn-gate-options">
+            {q.options.map((opt, oi) => {
+              const chosen = answers[qi] === oi;
+              let cls = 'learn-gate-option';
+              if (submitted && oi === q.answer) cls += ' is-correct';
+              else if (submitted && chosen && oi !== q.answer) cls += ' is-wrong';
+              else if (chosen) cls += ' is-chosen';
+              return (
+                <button
+                  key={oi}
+                  type="button"
+                  className={cls}
+                  disabled={submitted}
+                  onClick={() =>
+                    setAnswers((a) => a.map((v, i) => (i === qi ? oi : v)))
+                  }
+                >
+                  {opt}
+                </button>
+              );
+            })}
+          </div>
+          {submitted && (
+            <p className={`learn-gate-explain ${answers[qi] === q.answer ? 'is-right' : 'is-wrong'}`}>
+              {answers[qi] === q.answer ? <Check size={13} /> : null} {q.explain}
+            </p>
+          )}
+        </div>
+      ))}
+
+      {!submitted ? (
+        <Button variant="outline" size="sm" disabled={!answered} onClick={submit}>
+          {answered ? 'Submit answers' : 'Answer every question to submit'}
+        </Button>
+      ) : (
+        <div className="learn-gate-result">
+          {passed ? (
+            <p className="learn-quiz-right">
+              <Check size={14} /> {correct}/{gate.length}. Certificate earned:{' '}
+              <strong>{tier.certification}</strong>
+            </p>
+          ) : (
+            <>
+              <p className="learn-quiz-wrong">
+                {correct}/{gate.length} correct. Read the explanations below the
+                questions, then try again. Every answer has to be right.
+              </p>
+              <Button variant="outline" size="sm" onClick={retry}>
+                Try again
+              </Button>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

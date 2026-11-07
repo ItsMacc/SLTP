@@ -1,0 +1,163 @@
+/* ============================================================
+   TradeResults.css — Executed trades table + pagination
+
+   Width conventions: % / vw for layout widths; rem for fixed
+   UI atoms. Breakpoints in rem.
+   ============================================================ */
+
+/* ---------- Container ---------- */
+.trade-results-container {
+  margin-top: var(--space-xl);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.625rem; /* 10px, like every other panel on the page */
+  padding: var(--space-lg);
+  overflow: hidden;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.trade-results-heading {
+  font-size: var(--text-lg);
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: var(--space-md);
+}
+
+.trade-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.trade-table {
+  width: 100%;
+  min-width: 47.5rem; /* ≈760px — table scrolls horizontally below this */
+  border-collapse: collapse;
+  text-align: left;
+  font-size: var(--text-sm);
+  table-layout: fixed;
+}
+
+.trade-table th {
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-surface-hover);
+  color: var(--text-muted);
+  font-weight: 600;
+  border-bottom: 1px solid var(--border-strong);
+}
+
+.trade-table td {
+  padding: var(--space-md);
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trade-table tr:last-child td {
+  border-bottom: none;
+}
+
+.trade-table-note {
+  margin: var(--space-md) 0 0;
+  font-size: var(--text-xs);
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.trade-ticker-cell {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  color: var(--accent);
+}
+
+.trade-badge {
+  display: inline-block;
+  padding: var(--space-2xs) var(--space-xs);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.025em;
+}
+
+.trade-badge.is-buy {
+  background-color: var(--accent-muted);
+  color: var(--accent);
+}
+
+.trade-badge.is-short {
+  background-color: var(--error-muted);
+  color: var(--error);
+}
+
+.trade-badge.is-winning,
+.trade-badge.is-take-profit {
+  background-color: var(--success-muted);
+  color: var(--success);
+}
+
+.trade-badge.is-losing,
+.trade-badge.is-stop-loss {
+  background-color: var(--error-muted);
+  color: var(--error);
+}
+
+.trade-badge.is-exit {
+  background-color: var(--bg-surface-hover);
+  color: var(--text-muted);
+}
+
+.trade-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-md);
+  margin-top: var(--space-lg);
+}
+
+.trade-page-btn {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  color: var(--text-primary);
+  width: 2rem;  /* ≈32px — fixed-size control */
+  height: 2rem;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.trade-page-btn:hover:not(:disabled) {
+  background: var(--bg-surface-hover);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.trade-page-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.trade-page-indicator {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+/* ---------- Mobile: tighter cells so more columns stay visible ---------- */
+@media (max-width: 48rem) {
+  .trade-results-container {
+    padding: var(--space-md);
+  }
+
+  .trade-table th,
+  .trade-table td {
+    padding: var(--space-sm);
+  }
+}

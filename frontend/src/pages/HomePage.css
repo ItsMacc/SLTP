@@ -1,0 +1,817 @@
+/* ============================================================
+   HomePage.css — Landing page: hero, the four parts of the site,
+   and how to read a backtest.
+
+   Width conventions: % / vw for layout widths; rem for fixed
+   UI atoms. Breakpoints in rem.
+
+   Two hairlines divide the page into three blocks. No bands, no
+   gradients, no motion beyond a border colour on hover.
+   ============================================================ */
+
+.home-page {
+  width: min(68.75rem, 100%); /* ≈1100px, the site's content measure */
+  margin: 0 auto;
+  padding: var(--space-xl) 0 var(--space-2xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+}
+
+@media (min-width: 48rem) {
+  .home-page {
+    padding-top: var(--space-2xl);
+    gap: var(--space-2xl);
+  }
+}
+
+/* ---------- Hero ----------
+   The headline is deliberately trimmed to a narrow measure so it breaks over
+   three lines, while the lede underneath runs the full width of the block.
+   That asymmetry is the composition: a short statement, then a wide one. */
+.home-hero {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: var(--space-lg);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+@media (min-width: 48rem) {
+  .home-hero {
+    padding-bottom: var(--space-2xl);
+  }
+}
+
+.home-hero-copy {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  width: 100%;
+}
+
+.home-hero-title {
+  margin: 0;
+  max-width: 20ch;
+  color: var(--text-primary);
+  font-family: var(--font-heading);
+  font-size: clamp(2.25rem, 4.6vw, 3.5rem);
+  font-weight: 400;
+  letter-spacing: -0.025em;
+  line-height: 1.05;
+  text-wrap: balance;
+}
+
+.home-hero-lede {
+  margin: 0;
+  /* A reading measure, not the full column: at the lede's size a 100%-wide
+     line runs past 90 characters. */
+  max-width: min(42rem, 100%);
+  color: var(--text-muted);
+  font-size: var(--text-lg);
+  line-height: 1.6;
+  text-wrap: pretty;
+}
+
+/* One row on desktop: action, secondary action, then the beginner note
+   pushed to the right edge so it sits on the same baseline as the button. */
+.home-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-md) var(--space-xl);
+  margin-top: var(--space-sm);
+  width: 100%;
+}
+
+.home-hero-actions .btn-link {
+  font-size: var(--text-base);
+}
+
+.home-btn-icon {
+  margin-left: var(--space-2xs);
+}
+
+.home-hero-note {
+  margin: 0 0 0 auto;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  text-align: right;
+}
+
+/* Not enough width for three things on one line: the note drops to its own
+   line but stays in the row, rather than jumping to the far edge. */
+@media (max-width: 63.99rem) {
+  .home-hero-note {
+    margin-left: 0;
+    text-align: left;
+  }
+}
+
+.home-inline-link {
+  all: unset;
+  color: var(--accent);
+  font-size: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-thickness: 0.0625rem;
+  text-underline-offset: 0.1875rem;
+}
+
+.home-inline-link:hover {
+  color: var(--accent-hover);
+}
+
+.home-inline-link:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* ---------- Bento ----------
+   Twelve columns, one tall feature on the left and a stack of three on the
+   right, with two small cards under the feature. The pattern is decoration
+   only: it sits under the copy, never behind it, and fades into the card.
+
+   Both the pattern and the accents are driven by --accent, so they are the
+   site's purple in light and its amber in dark — always, never a literal. */
+.bento {
+  --bento-gap: clamp(1rem, 1.4vw, 1.5rem);
+  --bento-pad: clamp(1.5rem, 1.9vw, 2rem);
+
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: var(--bento-gap);
+
+  /* The same hairline and air every other band on the page opens with. */
+  padding-top: var(--space-xl);
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* Left: the feature, two rows tall. Right: short, tall, then the CTA on the
+   last row beside the two small cards. */
+.bento__feature {
+  grid-column: 1 / span 7;
+  grid-row: 1 / span 2;
+
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+}
+
+/* No background: the pillows are painted straight onto the card, so the seams
+   and the stars between them take whatever surface the card has, light or dark.
+
+   The panel is a whole number of tile rows tall — the artwork is halved, so a
+   row is 85.5 px — because nothing is painted behind the last row any more and
+   a fraction of one would be sliced off against the card. */
+.bento__pattern {
+  position: relative;
+  /* Half the old three-row band, now pinned to the top of the card. */
+  height: calc(85.5px * 1.5);
+}
+
+.bento__pattern svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.bento__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: var(--bento-pad);
+}
+
+.bento__title {
+  margin: 0;
+  color: var(--text-strong);
+  font-family: var(--font-heading);
+  font-size: var(--text-xl);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  text-wrap: balance;
+}
+
+.bento__copy {
+  max-width: 46ch;
+  margin: var(--space-sm) 0 0;
+  color: var(--text-muted);
+  font-size: var(--text-base);
+  line-height: 1.6;
+  text-wrap: pretty;
+}
+
+/* Every card is a stack of three bands: the heading, the copy that fills the
+   card, and an optional footer (the install command) pinned to the bottom.
+   The body row is the only one that grows, so a card with less copy than its
+   neighbour still ends its text at the same place instead of drifting down. */
+.bento__card {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: var(--space-2xs);
+  padding: var(--bento-pad);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+}
+
+/* The feature spans two rows, so these two end up taller than their copy needs;
+   the heading sits at the top and the copy follows it. */
+.bento__short {
+  grid-column: 8 / -1;
+  grid-row: 1;
+}
+
+.bento__tall {
+  grid-column: 8 / -1;
+  grid-row: 2;
+}
+
+.bento__card-title {
+  margin: 0;
+  color: var(--text-strong);
+  font-family: var(--font-heading);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+}
+
+.bento__card-text {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: 1.55;
+}
+
+/* The one oversized number in the section, sitting inside its own sentence so
+   the card reads as a claim rather than a stat block. The accent is used here
+   and on the CTA arrow, nowhere else. */
+.bento__stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin: var(--space-md) 0 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+/* The number and the words that frame it hold one line, so the stat never
+   breaks away from "securities". */
+.bento__stat-lead {
+  display: block;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.bento__stat-tail {
+  display: block;
+  line-height: 1.85;
+  text-wrap: pretty;
+}
+
+.bento__stat-value {
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: clamp(2rem, 3.2vw, 2.2rem);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  letter-spacing: -0.04em;
+  line-height: 0.9;
+  margin: 0 0.22em 0 0.14em;
+  vertical-align: baseline;
+}
+
+/* The install command sits on its own line and selects as one piece, so it
+   can be copied without dragging across the sentence above it. */
+.bento__code {
+  display: block;
+  justify-self: start;
+  max-width: 100%;
+  margin-top: var(--space-sm);
+  padding: var(--space-2xs) var(--space-sm);
+  overflow-x: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface-hover);
+  color: var(--text-secondary);
+  cursor: text;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  user-select: all;
+}
+
+/* The two cards under the feature share one set of bands, so their headings sit
+   on the same line, their copy starts together, and the install command stays
+   flush with the bottom whether or not the card beside it ever has one. */
+.bento__minis {
+  grid-column: 1 / span 7;
+  grid-row: 3;
+
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: auto 1fr auto;
+  column-gap: var(--bento-gap);
+  row-gap: var(--space-2xs);
+}
+
+.bento__minis .bento__card {
+  grid-row: 1 / -1;
+  grid-template-rows: subgrid;
+}
+
+/* The CTA is a link tile, but it carries the same three bands as the cards
+   beside it, so its heading lines up with theirs instead of floating in the
+   middle of the row. */
+.bento__cta {
+  grid-column: 8 / -1;
+  grid-row: 3;
+
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: var(--space-2xs);
+  padding: var(--bento-pad);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  color: var(--text-strong);
+  text-decoration: none;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.bento__cta-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin-top: var(--space-sm);
+}
+
+.bento__cta-label {
+  font-size: var(--text-base);
+  font-weight: 500;
+}
+
+.bento__cta-arrow {
+  flex: none;
+  color: var(--accent);
+}
+
+.bento__cta:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+}
+
+.bento__cta:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bento__cta {
+    transition: none;
+  }
+
+  .bento__cta:hover {
+    transform: none;
+  }
+}
+
+/* Single column, and a different reading order from the desktop grid: the
+   feature, then the data card, then the two small cards, the tuning card and
+   the docs link. Only the data card moves up, and nothing interactive moves,
+   so tab order still follows the page. The small pair stays two-up while it
+   has room. */
+@media (max-width: 56.25rem) {
+  .bento {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .bento__feature,
+  .bento__short,
+  .bento__tall,
+  .bento__minis,
+  .bento__cta {
+    grid-column: 1 / -1;
+    grid-row: auto;
+  }
+
+  .bento__feature {
+    order: 1;
+  }
+
+  .bento__tall {
+    order: 2;
+  }
+
+  .bento__minis {
+    order: 3;
+  }
+
+  .bento__short {
+    order: 4;
+  }
+
+  .bento__cta {
+    order: 5;
+  }
+
+  .bento__pattern {
+    height: calc(85.5px * 1);
+  }
+}
+
+@media (max-width: 30rem) {
+  .bento__minis {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* Stacked, the pair no longer shares rows, so each card owns its bands. */
+  .bento__minis .bento__card {
+    grid-row: auto;
+    grid-template-rows: auto 1fr auto;
+  }
+}
+
+/* ---------- Section heads ---------- */
+.home-tools,
+.home-reading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+}
+
+.home-reading {
+  padding-top: var(--space-xl);
+  border-top: 1px solid var(--border-subtle);
+  align-items: flex-start;
+}
+
+.home-tools-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  max-width: min(42rem, 100%);
+}
+
+.home-tools-title {
+  margin: 0;
+  color: var(--text-primary);
+  font-family: var(--font-heading);
+  font-size: clamp(1.75rem, 3vw, 2.25rem);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.home-tools-lede {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-base);
+  line-height: 1.7;
+}
+
+/* ---------- Tool cards ---------- */
+/* Flex rather than a fixed column count: however many cards there are, a
+   short last row stretches its cards to fill the width instead of leaving
+   a hole beside the final one. */
+.home-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+}
+
+.home-card {
+  display: flex;
+  flex: 1 1 18rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2xs);
+  padding: var(--space-lg);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: inherit;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .home-card:hover {
+    border-color: var(--border-strong);
+  }
+}
+
+.home-card:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.home-card-icon {
+  margin-bottom: var(--space-sm);
+  color: var(--accent);
+}
+
+.home-card-title {
+  margin: 0;
+  color: var(--text-primary);
+  font-family: var(--font-heading);
+  font-size: var(--text-xl);
+  font-weight: 400;
+  line-height: 1.2;
+}
+
+.home-card-desc {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: 1.65;
+}
+
+.home-card-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  margin-top: auto;
+  padding-top: var(--space-md);
+  color: var(--accent);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+/* ---------- Reading a backtest ---------- */
+.home-reading .btn {
+  gap: var(--space-xs);
+}
+
+.home-reading-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-lg);
+  width: 100%;
+}
+
+/* Stacked: each note is its own row, so there is no shared height to fill. */
+.home-reading-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+/* Three across only once the columns are wide enough to hold the text at its
+   current size. Below that the notes stack full width, where each one gets the
+   measure it needs instead of breaking every four words. */
+@media (min-width: 64rem) {
+  .home-reading-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    /* Two rows shared by all three notes: one for the headings, one for the
+       text. A note with more lines than its neighbours makes this row taller,
+       and the other notes inherit that height rather than being sized to
+       themselves. */
+    grid-template-rows: auto 1fr;
+    column-gap: var(--space-lg);
+    row-gap: 0;
+  }
+
+  /* Each note spans both shared rows and borrows their tracks, so the three
+     headings sit on one line even if one of them wraps to two. */
+  .home-reading-item {
+    display: grid;
+    grid-row: span 2;
+    grid-template-rows: subgrid;
+    row-gap: var(--space-md);
+  }
+
+  /* Pinned to the foot of the shared text row, so all three notes finish on the
+     same line. Whatever slack a shorter note leaves lands in the gap beneath
+     its heading, which is the only place it can go if the headings and the last
+     lines are both to line up. */
+  .home-reading-text {
+    align-self: end;
+  }
+}
+
+.home-reading-title {
+  margin: 0;
+  color: var(--text-primary);
+  font-family: var(--font-heading);
+  font-size: var(--text-xl);
+  font-weight: 400;
+  line-height: 1.2;
+}
+
+.home-reading-text {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-base);
+  line-height: 1.7;
+}
+
+/* Touch screens: the text link and outline button get a full tap target */
+@media (pointer: coarse) {
+  .home-hero-actions .btn-link,
+  .home-reading .btn {
+    min-height: 2.75rem;
+  }
+}
+
+/* ---------- Mobile composition ----------
+   A phone gets its own arrangement rather than the desktop page squeezed into
+   one column. Three modules stack in a fixed order — hero, the tools, the
+   notes — and each one opens with the same hairline, so the page reads as a
+   set of labelled sections instead of one long scroll.
+
+   The five tools become a tappable list instead of five bordered cards: an
+   icon, the name, a description and a chevron on one row. That is roughly a
+   third of the height of the boxed version, which matters on the device where
+   the cards are the bulk of the page. */
+@media (max-width: 47.99rem) {
+  .home-page {
+    padding: var(--space-lg) 0 var(--space-xl);
+    gap: var(--space-xl);
+  }
+
+  /* ---- Hero ---- */
+  .home-hero {
+    padding-bottom: var(--space-lg);
+  }
+
+  /* Full measure on a narrow screen: 20ch at this size would force four short
+     lines where the balanced wrap can use three. */
+  .home-hero-title {
+    max-width: 100%;
+  }
+
+  /* One step down from the desktop lede. At 1.125rem the paragraph runs to
+     seven lines on a phone and reads as a wall before the first button. */
+  .home-hero-lede {
+    font-size: var(--text-base);
+    line-height: 1.65;
+  }
+
+  .home-hero-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-md);
+    margin-top: var(--space-sm);
+  }
+
+  /* Two actions of the same size rather than a button with a bare text link
+     under it. The link had no padding of its own, so on a phone it sat a few
+     pixels below a 52px button and the pair read as one cramped block. The
+     secondary action becomes an outlined button at the same height, which
+     keeps the hierarchy obvious and gives both a comfortable target. */
+  .home-hero-actions .btn-primary,
+  .home-hero-actions .btn-link {
+    width: 100%;
+    min-height: 3rem;
+  }
+
+  .home-hero-actions .btn-link {
+    justify-content: center;
+    padding: var(--space-md) var(--space-lg);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-lg);
+    background-color: var(--bg-surface);
+    color: var(--text-primary);
+    font-size: var(--text-base);
+    text-decoration: none;
+  }
+
+  .home-hero-actions .btn-link:active {
+    background-color: var(--bg-surface-hover);
+  }
+
+  /* The beginner note is a footnote to the actions above it, so it sits one
+     step below the pair rather than inside it. */
+  .home-hero-note {
+    align-self: flex-start;
+    margin: var(--space-xs) 0 0;
+    text-align: left;
+  }
+
+  /* ---- Section heads ---- */
+  .home-tools,
+  .home-reading {
+    gap: var(--space-md);
+  }
+
+  .home-tools-head {
+    gap: var(--space-xs);
+  }
+
+  /* Supporting copy sits one step below the heading here, which is what makes
+     the section read as a heading with a note under it rather than two equal
+     paragraphs. */
+  .home-tools-lede {
+    font-size: var(--text-sm);
+    line-height: 1.65;
+  }
+
+  /* ---- Tools: a list, not a stack of boxes ---- */
+  .home-cards {
+    flex-direction: column;
+    gap: 0;
+    border-top: 1px solid var(--border-subtle);
+  }
+
+  .home-card {
+    display: grid;
+    grid-template-columns: 1.25rem 1fr auto;
+    grid-template-areas:
+      'icon title arrow'
+      '.    desc  desc';
+    align-items: start;
+    column-gap: var(--space-md);
+    row-gap: var(--space-xs);
+    flex: 0 0 auto;
+    padding: var(--space-md) 0;
+    border: 0;
+    border-bottom: 1px solid var(--border-subtle);
+    border-radius: 0;
+    background: transparent;
+    transition: background-color 0.15s ease;
+  }
+
+  /* Pressed state in place of the desktop hover border, so the row still
+     responds on a device with no pointer. */
+  .home-card:active {
+    background-color: var(--bg-surface-hover);
+  }
+
+  .home-card-icon {
+    grid-area: icon;
+    margin: 0;
+    align-self: center;
+  }
+
+  .home-card-title {
+    grid-area: title;
+  }
+
+  .home-card-desc {
+    grid-area: desc;
+  }
+
+  .home-card-cta {
+    grid-area: arrow;
+    margin: 0;
+    padding: 0;
+    align-self: center;
+  }
+
+  /* The arrow carries the affordance on a touch list; the label is repeated
+     five times and is what made the boxed cards tall. */
+  .home-card-cta-label {
+    display: none;
+  }
+
+  /* The list closes on the section gap rather than on its own rule: the next
+     section opens with a hairline of its own, and two of them a few pixels
+     apart read as a mistake. */
+  .home-card:last-child {
+    border-bottom: 0;
+  }
+
+  /* ---- Notes ---- */
+  .home-reading {
+    padding-top: var(--space-lg);
+  }
+
+  .home-reading-grid {
+    gap: 0;
+  }
+
+  /* Hairlines between notes rather than a large gap: they are three readings of
+     the same subject, so they belong to one block. */
+  .home-reading-item {
+    gap: var(--space-xs);
+    padding: var(--space-md) 0;
+    border-top: 1px solid var(--border-subtle);
+  }
+
+  /* Every note carries its own top rule, including the first: it separates the
+     notes from the section's own intro paragraph, which is the same size as
+     them and would otherwise run straight into the first heading. */
+  .home-reading-item:last-child {
+    padding-bottom: 0;
+  }
+
+  .home-reading-text {
+    line-height: 1.65;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-card {
+    transition: none;
+  }
+}

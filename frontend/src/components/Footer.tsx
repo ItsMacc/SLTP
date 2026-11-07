@@ -1,0 +1,116 @@
+// Footer.tsx — Site footer: nav columns, legal links, disclaimer
+import type { LegalPageKind } from '../pages/LegalPage';
+import './Footer.css';
+
+interface FooterProps {
+  activeTab: string;
+  onNavigate: (tab: string) => void;
+  onLegalPage: (page: LegalPageKind) => void;
+}
+
+/* Mirrors the Header nav so the two never offer different destinations. */
+const navLinks = [
+  { id: 'home', label: 'Home' },
+  { id: 'learn', label: 'Learn' },
+  { id: 'strategies', label: 'Strategies' },
+  { id: 'research', label: 'Research' },
+  { id: 'portfolio', label: 'Portfolio' },
+  { id: 'lab', label: 'Lab' },
+  { id: 'docs', label: 'Docs' },
+];
+
+export default function Footer({ activeTab, onNavigate, onLegalPage }: FooterProps) {
+  return (
+    <footer className="st-footer">
+      <div className="st-footer-container">
+        <div className="st-footer-grid">
+          <div className="st-footer-brand">
+            <span className="st-footer-brand-title" onClick={() => onNavigate('home')}>
+              SLTP
+            </span>
+            <p className="st-footer-brand-tagline">
+              A research-first platform for market analysis, strategy building, and informed
+              investing.
+            </p>
+            <a className="st-footer-contact" href="mailto:legal.sltp@gmail.com">
+              legal.sltp@gmail.com
+            </a>
+          </div>
+
+          <nav className="st-footer-col" aria-label="Site navigation">
+            <h4 className="st-footer-col-title">Navigate</h4>
+            <ul className="st-footer-col-list">
+              {navLinks.map((link) => (
+                <li key={link.id}>
+                  <button
+                    type="button"
+                    className={`st-footer-link ${activeTab === link.id ? 'is-active' : ''}`}
+                    onClick={() => onNavigate(link.id)}
+                  >
+                    {link.label}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </nav>
+
+          <nav className="st-footer-col" aria-label="Legal">
+            <h4 className="st-footer-col-title">Legal</h4>
+            <ul className="st-footer-col-list">
+              <li>
+                <button
+                  type="button"
+                  className="st-footer-link"
+                  onClick={() => onLegalPage('privacy')}
+                >
+                  Privacy Policy
+                </button>
+              </li>
+              <li>
+                <button
+                  type="button"
+                  className="st-footer-link"
+                  onClick={() => onLegalPage('terms')}
+                >
+                  Terms of Service
+                </button>
+              </li>
+            </ul>
+          </nav>
+        </div>
+
+        <div className="st-footer-disclaimer">
+          <span className="st-footer-disclaimer-label">Disclaimer</span>
+          <p className="st-footer-disclaimer-text">
+            SLTP is a research platform built to help you invest with better information. Every
+            strategy is documented and backtested, so you can see the rules, the risk and the track
+            record behind each signal before you act on it. Markets carry risk and no result, past
+            or projected, is guaranteed, so treat what you find here as a starting point for your
+            own research and decisions. By using this website, you agree to our{' '}
+            <button
+              type="button"
+              className="st-footer-inline-link"
+              onClick={() => onLegalPage('terms')}
+            >
+              Terms
+            </button>{' '}
+            and{' '}
+            <button
+              type="button"
+              className="st-footer-inline-link"
+              onClick={() => onLegalPage('privacy')}
+            >
+              Privacy Policy
+            </button>
+            .
+          </p>
+        </div>
+
+        <div className="st-footer-bottom">
+          <span>© 2026 SLTP. All rights reserved.</span>
+          <span>Independent research to support your own investment decisions.</span>
+        </div>
+      </div>
+    </footer>
+  );
+}

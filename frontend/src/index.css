@@ -1,0 +1,470 @@
+/* ============================================================
+   index.css — Global styles & design tokens
+
+   Sizing conventions (apply to every stylesheet in src/):
+   - Layout widths use %, vw/vh, or min(Xvw, Yrem) fluid caps.
+     Never hardcode px widths on containers or sections.
+   - rem is reserved for fixed-size UI atoms (icons, buttons,
+     dots) and for exact px-equivalent caps inside min() so the
+     desktop rendering stays identical.
+   - Padding/gap/margins use the --space-* scale.
+   - Media-query breakpoints are written in rem (Xpx / 16).
+
+   Mobile conventions:
+   - Never size a full-bleed band with 100vw. 100vw includes the
+     scrollbar, so it is wider than the layout viewport by ~15px
+     and forces a horizontal scrollbar. Break out of #root with
+     negative --gutter margins instead (see .is-full-bleed).
+   - html/body clip horizontal overflow as a safety net; content
+     must still fit without it. `clip` is used rather than `hidden`
+     because `hidden` makes the body a scroll container, which
+     silently breaks `position: sticky` descendants.
+   ============================================================ */
+
+/* ---------- Fonts ---------- */
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400..700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+/* ---------- Design tokens ---------- */
+:root, :root[data-theme="light"] {
+  --bg-canvas: oklch(96.727% 0.01097 89.715);
+  --bg-surface: #fffff5;
+  --bg-surface-hover: #f3efe9;
+
+  --text-primary: #1c1922;
+  --text-muted: #524c58;
+  --text-inverse: #ffffff;
+
+  /* A heavier pair for data workspaces: near-black for readings and values,
+     a darker tone than muted for labels. */
+  --text-strong: #0f0d13;
+  --text-secondary: #423c49;
+
+  --border-subtle: #e6dec9;
+  --border-strong: #d2c8b0;
+
+  --accent: #4f46e5;
+  --accent-hover: #4338ca;
+  --accent-muted: rgba(79, 70, 229, 0.12);
+
+  --success: #059669;
+  --error: #dc2626;
+  /* A choice that is allowed but costs something, like a heavier chart. */
+  --warning: #a16207;
+
+  /* RGB triples for the three semantic colours. Needed wherever an
+     alpha other than the token's own is required — e.g. a 0.25
+     accent border on a 0.08 accent fill. Kept in sync with the
+     hex values above; dark-mode overrides follow their accent. */
+  --accent-rgb: 79, 70, 229;
+  --success-rgb: 5, 150, 105;
+  --error-rgb: 220, 38, 38;
+
+  /* Tinted fills for the two semantic states. The base colours are
+     identical in both themes, so these hold their alpha everywhere. */
+  --success-muted: rgba(5, 150, 105, 0.12);
+  --error-muted: rgba(220, 38, 38, 0.12);
+
+  /* Dimming scrim behind modals and dialogs */
+  --overlay: rgba(0, 0, 0, 0.45);
+
+  /* Focus ring colour, shared by every control that draws its own outline */
+  --focus-ring: var(--accent);
+
+  /* Award tiers on the Learn shelf and the reward toast. Each tier is a
+     name for a colour, not a themeable role, so the values are literal
+     on purpose; only the light and dark variants differ. */
+  --tier-bronze: #b45309;
+  --tier-bronze-muted: rgba(180, 83, 9, 0.1);
+  --tier-silver: #64748b;
+  --tier-silver-muted: rgba(148, 163, 184, 0.12);
+  --tier-gold: #ca8a04;
+  --tier-gold-muted: rgba(202, 138, 4, 0.12);
+  --tier-emerald: #059669;
+  --tier-emerald-muted: rgba(5, 150, 105, 0.12);
+  --tier-diamond: #0284c7;
+  --tier-diamond-muted: rgba(56, 189, 248, 0.12);
+  --tier-mystery: #7c3aed;
+  --tier-mystery-muted: rgba(124, 58, 237, 0.12);
+
+  /* Spacing scale */
+  --space-3xs: 0.125rem;
+  --space-2xs: 0.25rem;
+  --space-xs: 0.375rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2.5rem;
+  --space-2xl: 4rem;
+
+  /* Typography */
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  /* Interface face for data-heavy screens: taller x-height, so the same size
+     reads larger and steadier than the geometric sans above. */
+  --font-ui: 'Inter', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-heading: 'Instrument Serif', Georgia, serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  --text-xs: 0.85rem;
+  --text-sm: 1rem;
+  --text-base: 1.125rem;
+  --text-lg: clamp(1.25rem, 2vw, 1.5rem);
+  --text-xl: clamp(1.75rem, 3vw, 2.25rem);
+  --text-2xl: clamp(2.5rem, 4vw, 3rem);
+
+  /* Corner radii */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1.25rem;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(59, 55, 63, 0.04);
+  --shadow-md: 0 4px 12px rgba(59, 55, 63, 0.08);
+  --shadow-lg: 0 12px 24px -4px rgba(59, 55, 63, 0.12);
+
+  /* Page shell fills the layout viewport; sections carry their own caps */
+  --container-max: 100%;
+
+  /* Side gutter shared by #root padding and full-bleed bands */
+  --gutter: var(--space-md);
+}
+
+/* Dark palette from OS preference, or the manual dark override below */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg-canvas: #0e0d0c;
+    --bg-surface: #171514;
+    --bg-surface-hover: #211e1c;
+
+    --text-primary: #f7f2ea;
+    --text-muted: #a8998a;
+    --text-strong: #fffdf7;
+    /* Warm sand rather than a neutral grey: on a near-black canvas the
+       accent is amber, so secondary copy keeps that warmth. */
+    --text-secondary: #d6c5ad;
+
+    --border-subtle: #292421;
+    --border-strong: #3d3632;
+
+    --accent: #d97706;
+    --accent-hover: #f59e0b;
+    --accent-muted: rgba(217, 119, 6, 0.12);
+
+    --success: #059669;
+    --error: #dc2626;
+
+    --accent-rgb: 217, 119, 6;
+
+    --tier-bronze: #d08a3c;
+    --tier-bronze-muted: rgba(208, 138, 60, 0.14);
+    --tier-silver: #94a3b8;
+    --tier-silver-muted: rgba(148, 163, 184, 0.16);
+    --tier-gold: #eab308;
+    --tier-gold-muted: rgba(234, 179, 8, 0.14);
+    --tier-emerald: #10b981;
+    --tier-emerald-muted: rgba(16, 185, 129, 0.14);
+    --tier-diamond: #38bdf8;
+    --tier-diamond-muted: rgba(56, 189, 248, 0.14);
+    --tier-mystery: #a78bfa;
+    --tier-mystery-muted: rgba(167, 139, 250, 0.14);
+
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.6);
+    --shadow-lg: 0 12px 32px -4px rgba(0, 0, 0, 0.8);
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg-canvas: #0e0d0c;
+  --bg-surface: #171514;
+  --bg-surface-hover: #211e1c;
+
+  --text-primary: #f7f2ea;
+  --text-muted: #a8998a;
+  --text-strong: #fffdf7;
+  /* Warm sand rather than a neutral grey: on a near-black canvas the
+     accent is amber, so secondary copy keeps that warmth. */
+  --text-secondary: #d6c5ad;
+
+  --border-subtle: #292421;
+  --border-strong: #3d3632;
+
+  --accent: #d97706;
+  --accent-hover: #f59e0b;
+  --accent-muted: rgba(217, 119, 6, 0.12);
+
+  --success: #059669;
+  --error: #dc2626;
+  --warning: #fbbf24;
+
+  --accent-rgb: 217, 119, 6;
+
+  --tier-bronze: #d08a3c;
+  --tier-bronze-muted: rgba(208, 138, 60, 0.14);
+  --tier-silver: #94a3b8;
+  --tier-silver-muted: rgba(148, 163, 184, 0.16);
+  --tier-gold: #eab308;
+  --tier-gold-muted: rgba(234, 179, 8, 0.14);
+  --tier-emerald: #10b981;
+  --tier-emerald-muted: rgba(16, 185, 129, 0.14);
+  --tier-diamond: #38bdf8;
+  --tier-diamond-muted: rgba(56, 189, 248, 0.14);
+  --tier-mystery: #a78bfa;
+  --tier-mystery-muted: rgba(167, 139, 250, 0.14);
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 12px 32px -4px rgba(0, 0, 0, 0.8);
+}
+
+/* ---------- Base / reset ---------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Clip stray horizontal overflow so a wide child can never scroll the page */
+html,
+body {
+  overflow-x: clip;
+  max-width: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: 1.6;
+  color: var(--text-primary);
+  background-color: var(--bg-canvas);
+  min-height: 100vh;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+/* Monospace + tabular numbers keep financial figures aligned */
+.font-mono, .ticker, .price {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+#root {
+  width: 100%;
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding: 0 var(--gutter) var(--space-sm) var(--gutter);
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* Band that escapes #root's gutter to reach both viewport edges */
+.is-full-bleed {
+  width: auto;
+  margin-left: calc(-1 * var(--gutter));
+  margin-right: calc(-1 * var(--gutter));
+}
+
+/* Shared full-bleed hero skin. Pages keep their own content, but use one
+   surface, border, spacing, grid, and inner measure for a consistent shell. */
+.page-hero-band {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--bg-surface) 0%, var(--bg-canvas) 100%);
+  border-top: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+  padding: var(--space-2xl) var(--gutter);
+}
+
+.page-hero-inner {
+  position: relative;
+  width: 100%;
+  max-width: min(72rem, 95vw); /* ≈1150px, shared hero measure */
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+}
+
+/* ---------- Shared hero typography ----------
+   Every page hero is built from the same three parts, in the same order:
+   an eyebrow (the small mono label), a title, and a description. They use
+   these shared classes so a change here lands on all six heroes at once
+   instead of drifting page by page.
+
+   Page CSS keeps only the deltas that are genuinely page-specific — the
+   copy column's measure, extra hero elements, and the odd override —
+   and scopes them to the page wrapper (e.g. `.home-hero .page-hero-title`). */
+.page-hero-eyebrow {
+  margin: 0;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.page-hero-title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-weight: 400;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  font-size: clamp(1.9rem, 3.2vw, 3rem);
+  line-height: 1.15;
+}
+
+.page-hero-description {
+  margin: 0;
+  max-width: min(38rem, 100%); /* shared hero reading measure */
+  color: var(--text-muted);
+  font-size: var(--text-lg);
+  line-height: 1.7;
+}
+
+/* Faint dot grid that fades out toward the bottom edge. Used by the hero
+   bands; the band's own content is lifted above the dots. */
+.is-dot-grid {
+  position: relative;
+  overflow: hidden;
+}
+
+.is-dot-grid::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(var(--border-strong) 1px, transparent 1px);
+  background-size: 1.25rem 1.25rem;
+  opacity: 0.5;
+  mask-image: linear-gradient(180deg, #000 0%, transparent 85%);
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, transparent 85%);
+  pointer-events: none;
+}
+
+.is-dot-grid > * {
+  position: relative;
+  z-index: 1;
+}
+
+@media (min-width: 48rem) {
+  #root {
+    padding: 0 var(--gutter) var(--space-md) var(--gutter);
+  }
+}
+
+/* Small phones: tighten the whole type scale a touch so copy and
+   controls breathe without overflowing the viewport */
+@media (max-width: 30rem) {
+  html {
+    font-size: 95%;
+  }
+}
+
+/* ---------- Motion guard ----------
+   One global switch for the whole app. Every animated component in src/
+   is covered here rather than repeating the same block in each file.
+   Transforms are reset, not just the animation, so nothing is left
+   offset when the animation is switched off. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .page-transition,
+  .home-reveal,
+  .learn-story-step,
+  .learn-beat,
+  .learn-substep,
+  .learn-check,
+  .learn-badge,
+  .learn-claim {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .home-reveal {
+    transition: none !important;
+  }
+}
+
+/* ---------- App shell ---------- */
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Boot screen: shown while the session check runs, before the shell exists. */
+.app-boot {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-canvas);
+}
+
+.app-main {
+  width: 100%;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Placeholder shown for tabs that have no page yet */
+.app-placeholder {
+  padding: var(--space-2xl) var(--space-lg);
+  text-align: center;
+}
+
+.app-placeholder-title {
+  font-size: var(--text-2xl);
+  margin-bottom: var(--space-md);
+}
+
+.app-placeholder-text {
+  color: var(--text-muted);
+}
+
+/* Page Navigation Transition */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* No `forwards` fill on purpose. A filled transform stays applied as an identity
+   matrix, and any applied transform makes this wrapper the containing block for
+   its fixed descendants, anchoring them to the page box rather than the viewport.
+   The end state matches the base style anyway, so nothing is lost. */
+.page-transition {
+  animation: fadeIn 0.6s ease-out;
+  width: 100%;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
