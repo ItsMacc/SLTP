@@ -2711,10 +2711,22 @@
 .learn-step.is-certified .learn-step-dot { border-color: var(--accent); background: var(--accent); color: var(--bg-canvas); }
 .learn-step.is-locked .learn-step-dot { border-style: dashed; }
 
-.learn-step-body { display: flex; flex-direction: column; gap: var(--space-3xs); min-width: 0; }
-.learn-step-title { font-size: 0.8rem; color: var(--text-primary); }
+/* The connector hairline runs at dot height straight through where the tier
+   name sits, so the text masks it: same canvas background the dot uses, with
+   its own stacking level to paint above the absolutely-positioned line. */
+.learn-step-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3xs);
+  min-width: 0;
+  position: relative;
+  z-index: 1;
+  background: var(--bg-canvas);
+  padding-right: var(--space-xs);
+}
+.learn-step-title { font-size: 0.95rem; font-weight: 600; color: var(--text-primary); }
 .learn-step.is-locked .learn-step-title { color: var(--text-muted); }
-.learn-step-meta { font-family: var(--font-mono); font-size: 0.6rem; color: var(--text-muted); }
+.learn-step-meta { font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-muted); }
 
 /* ============================================================
    Lesson trail: one node per lesson, certificate at the end
