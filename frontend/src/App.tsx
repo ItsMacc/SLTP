@@ -13,7 +13,7 @@ import { applyAndStoreUserSettings, readStoredUserSettings } from '../lib/settin
 import LegalPage, { type LegalPageKind } from './pages/LegalPage';
 import ResearchPage from './pages/ResearchPage';
 import StrategiesPage from './pages/StrategiesPage';
-import PortfolioPage from './pages/PortfolioPage';
+import WatchlistPage from './pages/WatchlistPage';
 import LabPage from './pages/LabPage';
 import DocsPage from './pages/DocsPage';
 import LearnPage from './pages/LearnPage';
@@ -38,7 +38,7 @@ export interface UserProfile {
   settings?: { theme?: string; [key: string]: any };
 }
 
-const AUTH_REQUIRED_TABS = ['lab', 'portfolio'];
+const AUTH_REQUIRED_TABS = ['lab', 'watchlist'];
 
 const LEGAL_TITLES: Record<LegalPageKind, string> = {
   privacy: 'Privacy Policy — SLTP',
@@ -337,8 +337,8 @@ export default function App() {
               <DocsPage userId={user?.id} />
             ) : activeTab === 'learn' ? (
               <LearnPage onNavigate={handleTabChange} />
-            ) : activeTab === 'portfolio' ? (
-              <PortfolioPage defaultName={user?.name} settings={user?.settings} />
+            ) : activeTab === 'watchlist' ? (
+              <WatchlistPage userId={user?.id} settings={user?.settings} onNavigate={handleTabChange} />
             ) : activeTab === 'lab' && (user?.id || LAB_PREVIEW) ? (
               <LabPage onNavigate={handleTabChange} />
             ) : activeTab === 'home' || activeTab === 'guide' ? (

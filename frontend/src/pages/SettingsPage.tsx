@@ -599,7 +599,7 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
                     label="Daily Market Summary"
                   />
                   <span className="st-settings-hint is-indented">
-                    Receive an aggregated morning overview of portfolio performance and watchlist movements.
+                    Receive an aggregated morning overview of the market and your watchlist movements.
                   </span>
                 </div>
 
@@ -622,7 +622,7 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
                   />
                   <span className="st-settings-hint is-indented">
                     When a strategy generates a signal, automatically record the trade in your portfolio at our
-                    pre-calculated prices. Leave this off to add trades manually from the Portfolio page.
+                    pre-calculated prices. Leave this off to review each signal on the Watchlist page first.
                   </span>
                 </div>
               </div>

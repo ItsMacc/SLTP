@@ -21,7 +21,7 @@ const navItems = [
   { id: 'learn', label: 'Learn' },
   { id: 'strategies', label: 'Strategies' },
   { id: 'research', label: 'Research' },
-  { id: 'portfolio', label: 'Portfolio' },
+  { id: 'watchlist', label: 'Watchlist' },
   { id: 'lab', label: 'Lab' },
   { id: 'docs', label: 'Docs' },
 ];

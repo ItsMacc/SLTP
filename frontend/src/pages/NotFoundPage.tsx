@@ -1,4 +1,4 @@
-// NotFoundPage.tsx — the public 404 used when an unshipped route is opened.
+// NotFoundPage.tsx — the public 404 used when an unknown route is opened.
 import Button from '../ui/Button';
 import './NotFoundPage.css';
 
@@ -11,12 +11,11 @@ export default function NotFoundPage({ onNavigate }: NotFoundPageProps) {
     <section className="notfound-page" aria-labelledby="notfound-title">
       <p className="notfound-eyebrow">404 / Not found</p>
       <h1 id="notfound-title" className="notfound-title">
-        Portfolio is still in development.
+        This page does not exist.
       </h1>
       <p className="notfound-copy">
-        We are currently still developing this page. Portfolio tracking is not part
-        of this release; the research engine, tested strategies, research tools and
-        Lab are live.
+        The address is unknown. The research engine, tested strategies, research tools
+        and Lab are live.
       </p>
       <div className="notfound-actions">
         <Button variant="primary" size="md" onClick={() => onNavigate('strategies')}>
@@ -27,8 +26,7 @@ export default function NotFoundPage({ onNavigate }: NotFoundPageProps) {
         </Button>
       </div>
       <p className="notfound-meta">
-        SLTP is a research engine first. Portfolio tracking will return when it can
-        meet the same standard as the rest of the platform.
+        SLTP is a research engine first. Start from the strategies or the watchlist.
       </p>
     </section>
   );

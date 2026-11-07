@@ -128,6 +128,12 @@ export function clearLocalUserData(): void {
     // prefix (the prefix carries a trailing dot), so without this it would
     // sit in localStorage forever holding a previous account's badges.
     localStorage.removeItem('sltp_learn_progress');
+    // Watchlist setup and items, namespaced per account like the learn cache.
+    for (const k of Object.keys(localStorage)) {
+      if (k.startsWith(WATCHLIST_SETUP_PREFIX) || k.startsWith(WATCHLIST_ITEMS_PREFIX)) {
+        localStorage.removeItem(k);
+      }
+    }
     localStorage.removeItem('st_user_name');
     localStorage.removeItem('st_user_theme');
   } catch { /* private mode */ }
@@ -138,6 +144,10 @@ export function clearLocalUserData(): void {
 
 // Shared with learn/progress.ts — the learn cache is namespaced per account.
 const LEARN_CACHE_PREFIX = 'sltp_learn_progress.';
+
+// Shared with watchlistStore.ts — the watchlist setup and items, same deal.
+const WATCHLIST_SETUP_PREFIX = 'sltp_watchlist_setup.';
+const WATCHLIST_ITEMS_PREFIX = 'sltp_watchlist.';
 
 /**
  * Asks the API to provision this account.

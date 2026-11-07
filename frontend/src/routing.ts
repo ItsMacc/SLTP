@@ -10,7 +10,7 @@
 export const TAB_ROUTES = [
   'home',
   'learn',
-  'portfolio',
+  'watchlist',
   'strategies',
   'research',
   'lab',

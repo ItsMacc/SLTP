@@ -1,0 +1,291 @@
+/* ============================================================
+   WatchlistPage.css — market overview, stocks, signals, alerts
+   ============================================================ */
+
+.wl-page {
+  width: 100%;
+  max-width: min(96vw, 64rem);
+  margin: 0 auto;
+  padding: var(--space-xl) var(--space-md) var(--space-2xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+}
+
+/* Header */
+.wl-header-kicker {
+  font-size: var(--text-xs);
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.wl-header-title {
+  font-size: var(--text-2xl);
+  margin: var(--space-2xs) 0 var(--space-xs);
+}
+
+.wl-header-sub {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  max-width: 36rem;
+  margin: 0;
+}
+
+/* Sections */
+.wl-section-title {
+  font-size: var(--text-lg);
+  margin: 0 0 var(--space-sm);
+}
+
+.wl-muted {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  margin: 0 0 var(--space-sm);
+  max-width: 38rem;
+}
+
+.wl-error {
+  color: var(--error);
+  font-size: var(--text-sm);
+  margin: var(--space-xs) 0 0;
+}
+
+/* Cards */
+.wl-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: var(--space-md);
+}
+
+.wl-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-md) var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  min-width: 0;
+}
+
+.wl-card-label {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.wl-card-value {
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+.wl-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-top: var(--space-2xs);
+}
+
+.wl-change {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.wl-change.is-up { color: var(--gain, #2e7d4f); }
+.wl-change.is-down { color: var(--loss, #c0392b); }
+
+.wl-spark { margin-top: var(--space-2xs); }
+.wl-spark path { stroke: currentColor; }
+.wl-spark.is-up { color: var(--gain, #2e7d4f); }
+.wl-spark.is-down { color: var(--loss, #c0392b); }
+
+/* Add row */
+.wl-add-row {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: stretch;
+  max-width: 26rem;
+  margin-bottom: var(--space-md);
+}
+
+.wl-add-row > *:first-child { flex: 1; }
+
+/* Stock rows */
+.wl-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.wl-row {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-md);
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.wl-row-id {
+  display: flex;
+  flex-direction: column;
+  min-width: 7rem;
+}
+
+.wl-row-ticker {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: var(--text-sm);
+}
+
+.wl-row-name {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 10rem;
+}
+
+.wl-row-quote {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  margin-left: auto;
+}
+
+.wl-row-quote .wl-spark { margin-top: 0; }
+
+.wl-row-price {
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+
+.wl-row-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  flex: none;
+}
+
+.wl-row-remove:hover {
+  color: var(--error);
+  border-color: var(--border-strong);
+}
+
+/* Follow toggles */
+.wl-unfollow {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.wl-unfollow:hover { color: var(--error); }
+
+.wl-follow-more {
+  margin-top: var(--space-md);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  padding: var(--space-sm) var(--space-md);
+}
+
+.wl-follow-more summary {
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.wl-follow-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  margin-top: var(--space-sm);
+}
+
+.wl-follow-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: var(--space-xs) var(--space-sm);
+  font-family: var(--font-sans);
+  cursor: pointer;
+  text-align: left;
+}
+
+.wl-follow-item:hover { background: var(--bg-canvas); }
+
+.wl-follow-name {
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.wl-follow-state {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.wl-follow-item.is-on .wl-follow-state { color: var(--accent); }
+
+/* Empty states */
+.wl-empty {
+  background: var(--bg-surface);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl) var(--space-lg);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.wl-empty-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: var(--radius-full);
+  background: var(--accent-muted);
+  color: var(--accent);
+  margin-bottom: var(--space-2xs);
+}
+
+.wl-empty-title {
+  font-size: var(--text-xl);
+  margin: 0;
+}
+
+.wl-empty-sub {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  max-width: 28rem;
+  margin: 0;
+}

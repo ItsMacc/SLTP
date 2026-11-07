@@ -1,11 +1,11 @@
-// HomePage.tsx — Landing page: what SLTP is, the four parts of it, and how to
+// HomePage.tsx — Landing page: what SLTP is, the five parts of it, and how to
 // read a backtest.
 //
 // Kept deliberately plain: a headline, a sentence, one button, the tools as
 // cards, then the honest note on what a backtest is. No numbered labels, no
 // scroll animations, no decorative bands.
 import { type ComponentType } from 'react';
-import { ArrowRight, FileCode2, FlaskConical, Layers, LineChart } from 'lucide-react';
+import { ArrowRight, FileCode2, FlaskConical, Layers, LineChart, Radar } from 'lucide-react';
 import Button from '../ui/Button';
 import './HomePage.css';
 
@@ -25,7 +25,7 @@ interface ToolData {
   icon: IconType;
 }
 
-/* ---------- The four parts of the site ---------- */
+/* ---------- The five parts of the site ---------- */
 const TOOLS: ToolData[] = [
   {
     id: 'lab',
@@ -44,6 +44,15 @@ const TOOLS: ToolData[] = [
       'A collection of tested strategies, with the rules that drive them, and the backtest results over eight different market regimes.',
     cta: 'Open the library',
     icon: Layers,
+  },
+  {
+    id: 'watchlist',
+    nav: 'watchlist',
+    title: 'Watchlist',
+    description:
+      'Your market radar: the stocks you follow with live quotes, the market around them, and signals from the strategies you trust.',
+    cta: 'Open your watchlist',
+    icon: Radar,
   },
   {
     id: 'research',
@@ -182,7 +191,7 @@ export default function HomePage({ onNavigate, onOpenGuide }: HomePageProps) {
         <header className="home-tools-head">
           <h2 className="home-tools-title">See what SLTP can do, and how you can use it</h2>
           <p className="home-tools-lede">
-            SLTP brings your research workflow into one place. You can build custom models using our <strong>Python-based Lab</strong>, study the rules behind our <strong>tested strategies</strong>, and dive into <strong>research</strong> to inspect historical price charts and run backtest simulations. Our <strong>documentation</strong> provides a comprehensive reference for the strategy class, data access, and API usage, helping you to write your own rules and strategies.
+            SLTP brings your research workflow into one place. You can build custom models using our <strong>Python-based Lab</strong>, study the rules behind our <strong>tested strategies</strong>, track tickers and signals on your <strong>watchlist</strong>, and dive into <strong>research</strong> to inspect historical price charts and run backtest simulations. Our <strong>documentation</strong> provides a comprehensive reference for the strategy class, data access, and API usage, helping you to write your own rules and strategies.
           </p>
         </header>
 
