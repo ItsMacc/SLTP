@@ -2,7 +2,8 @@
 // panel, and the notes that explain what a run returns.
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowRight, ChevronRight, FileCode, Folder, Search, Trash2 } from 'lucide-react';
-import { getSessionToken } from '../../lib/session';
+import { getSessionToken, getSessionUserId } from '../../lib/session';
+import { readSession, sessionKeyFor, writeSession } from '../../lib/sessionCache';
 import {
   createLabProject,
   createLabWorkspace,
@@ -55,6 +56,9 @@ function formatDate(iso: string): string {
   if (Number.isNaN(date.getTime())) return '—';
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
+
+/* The tab-scoped copy of the workspace list. Closing the tab drops it. */
+const LAB_WORKSPACES_KEY = 'sltp_session_lab_workspaces';
 
 /** "1 project" / "3 projects". */
 function plural(count: number, word: string): string {
@@ -239,20 +243,35 @@ export default function LabPage({ onNavigate }: LabPageProps) {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  // The tab-scoped copy of the workspace list. Closing the tab drops it.
+  const workspacesKey = useCallback(async () => sessionKeyFor(LAB_WORKSPACES_KEY, await getSessionUserId()), []);
+
   // Reads the signed-in user's workspaces (and their projects) from Turso.
+  // The tab copy paints first; the network then confirms or corrects it.
   const loadWorkspaces = useCallback(async () => {
-    setLoading(true);
+    const key = await workspacesKey();
+    const cached = readSession<LabWorkspace[]>(key);
+    if (cached) {
+      setWorkspaces(cached);
+      setLoadError(null);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
     try {
       const token = await getSessionToken();
       const data = await listLabWorkspaces(token);
       setWorkspaces(data);
+      writeSession(key, data);
       setLoadError(null);
     } catch (err) {
-      setLoadError(err instanceof Error ? err.message : 'Could not load your workspaces.');
+      // A failed revalidation keeps the tab copy on screen rather than
+      // blanking a working panel. A first load with no copy shows the error.
+      if (!cached) setLoadError(err instanceof Error ? err.message : 'Could not load your workspaces.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [workspacesKey]);
 
   useEffect(() => {
     void loadWorkspaces();

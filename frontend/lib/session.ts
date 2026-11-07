@@ -10,3 +10,12 @@ export async function getSessionToken(): Promise<string> {
   if (!token) throw new Error('Your session has expired. Please sign in again.');
   return token;
 }
+
+/** The signed-in user's id, or null without a session. Never throws. */
+export async function getSessionUserId(): Promise<string | null> {
+  try {
+    return (await supabase.auth.getSession()).data.session?.user?.id ?? null;
+  } catch {
+    return null;
+  }
+}

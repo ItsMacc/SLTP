@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowRight, BellRing, Newspaper, Plus, Radar, X } from 'lucide-react';
 import { getStockHistory, getTickerDirectory } from '../engine/sltpClient';
 import { listStrategies, type StrategyCatalogEntry } from '../../lib/api';
+import { readSession, sessionKeyFor, writeSession } from '../../lib/sessionCache';
 import { BACKTESTS } from '../data/backtestResults';
 import { STRATEGIES } from '../data/strategies';
 import {
@@ -45,6 +46,12 @@ const MARKET_TICKERS = [
 ];
 
 const ITEMS_MAX = 30;
+
+/* Tab-scoped copies of the fetched data. The symbols themselves already load
+   instantly from localStorage; this pairs them with their quotes, so a
+   remount paints numbers at once instead of waiting on the network. */
+const WATCH_MARKET_KEY_BASE = 'sltp_session_watch_market';
+const WATCH_QUOTES_KEY_BASE = 'sltp_session_watch_quotes';
 
 /* ---------- tiny helpers ---------- */
 
@@ -107,9 +114,14 @@ export default function WatchlistPage({ userId, settings, onNavigate }: Watchlis
   const [inputError, setInputError] = useState<string | null>(null);
   const [directory, setDirectory] = useState<Set<string> | null>(null);
 
-  const [market, setMarket] = useState<Quote[]>([]);
-  const [marketLoading, setMarketLoading] = useState(true);
-  const [quotes, setQuotes] = useState<Record<string, Quote>>({});
+  const marketKey = sessionKeyFor(WATCH_MARKET_KEY_BASE, userId);
+  const quotesKey = sessionKeyFor(WATCH_QUOTES_KEY_BASE, userId);
+  const [market, setMarket] = useState<Quote[]>(() => readSession<Quote[]>(marketKey) ?? []);
+  const [marketLoading, setMarketLoading] = useState(market.length === 0);
+  const [quotes, setQuotes] = useState<Record<string, Quote>>(() => {
+    const cached = readSession<Record<string, Quote>>(quotesKey);
+    return cached && typeof cached === 'object' ? cached : {};
+  });
   const [quotesLoading, setQuotesLoading] = useState(false);
 
   const [catalog, setCatalog] = useState<StrategyCatalogEntry[]>([]);
@@ -168,13 +180,13 @@ export default function WatchlistPage({ userId, settings, onNavigate }: Watchlis
         }),
       );
       if (cancelled) return;
-      setMarket(
-        settled.flatMap((r, i) =>
-          r.status === 'fulfilled' && r.value
-            ? [r.value]
-            : [{ ticker: MARKET_TICKERS[i].ticker, label: MARKET_TICKERS[i].label, last: NaN, changePct: NaN, spark: [], stale: true }],
-        ),
+      const next = settled.flatMap((r, i) =>
+        r.status === 'fulfilled' && r.value
+          ? [r.value]
+          : [{ ticker: MARKET_TICKERS[i].ticker, label: MARKET_TICKERS[i].label, last: NaN, changePct: NaN, spark: [], stale: true }],
       );
+      setMarket(next);
+      writeSession(marketKey, next);
       setMarketLoading(false);
     })();
     return () => {
@@ -182,13 +194,16 @@ export default function WatchlistPage({ userId, settings, onNavigate }: Watchlis
     };
   }, []);
 
-  // Quotes for the user's own list.
+  // Quotes for the user's own list. The tab copy decides the loader: a
+  // remount with cached rows revalidates quietly instead of flashing.
   const refreshQuotes = useCallback(async (tickers: string[]) => {
     if (tickers.length === 0) {
       setQuotes({});
+      writeSession(quotesKey, {});
       return;
     }
-    setQuotesLoading(true);
+    const cached = readSession<Record<string, Quote>>(quotesKey);
+    setQuotesLoading(!tickers.every((t) => cached?.[t]));
     const settled = await Promise.allSettled(
       tickers.map(async (ticker) => {
         const res = await getStockHistory(ticker, '1y');
@@ -201,8 +216,9 @@ export default function WatchlistPage({ userId, settings, onNavigate }: Watchlis
       else next[tickers[i]] = { ticker: tickers[i], label: tickers[i], last: NaN, changePct: NaN, spark: [], stale: true };
     });
     setQuotes(next);
+    writeSession(quotesKey, next);
     setQuotesLoading(false);
-  }, []);
+  }, [quotesKey]);
 
   useEffect(() => {
     void refreshQuotes(items);

@@ -11,6 +11,7 @@
 // component along with it.
 
 import { supabase } from './supabase'
+import { readSession, sessionKeyFor, writeSession } from './sessionCache'
 
 export type ResearchTimeframe = '1y' | '2y' | '5y' | 'all'
 
@@ -56,6 +57,9 @@ export function chartMaxBarsToNumber(limit: ChartMaxBars): number {
 // before Supabase answers, and a failed profile fetch falls back to the last
 // known settings instead of the defaults.
 const SETTINGS_CACHE_KEY = 'st_user_settings'
+// The tab-scoped copy of the same object. Closing the tab drops it; the next
+// tab rebuilds it from the account row on first load.
+const SESSION_SETTINGS_BASE = 'st_session_settings'
 
 /** Applies a theme to the DOM and remembers it for the next boot. */
 export function applyTheme(theme: string) {
@@ -81,6 +85,20 @@ export function applyAndStoreUserSettings(settings: UserSettings, name?: string,
     // The cache is best-effort: private browsing or a full quota must never be
     // able to break a save.
   }
+  // The tab copy is rewritten on every call, and every update funnels through
+  // here (saves, loads, theme switches alike), so it can never lag the row.
+  writeSession(sessionKeyFor(SESSION_SETTINGS_BASE, userId), settings)
+}
+
+/**
+ * The tab-scoped settings copy, or an empty object on a miss.
+ *
+ * Layer it under the longer-lived caches: session first, then stored, then
+ * server. A tab that just opened reads what this tab already confirmed.
+ */
+export function readSessionUserSettings(userId?: string): UserSettings {
+  const cached = readSession<UserSettings>(sessionKeyFor(SESSION_SETTINGS_BASE, userId))
+  return cached && typeof cached === 'object' ? cached : {}
 }
 
 /**

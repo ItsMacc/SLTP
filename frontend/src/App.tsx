@@ -9,7 +9,7 @@ import HomePage from './pages/HomePage';
 import SiteGuide from './components/SiteGuide';
 import 'driver.js/dist/driver.css';
 import SettingsPage from './pages/SettingsPage';
-import { applyAndStoreUserSettings, readStoredUserSettings } from '../lib/settings';
+import { applyAndStoreUserSettings, readSessionUserSettings, readStoredUserSettings } from '../lib/settings';
 import LegalPage, { type LegalPageKind } from './pages/LegalPage';
 import ResearchPage from './pages/ResearchPage';
 import StrategiesPage from './pages/StrategiesPage';
@@ -153,7 +153,7 @@ export default function App() {
       // Supabase is the source of truth, but the cached copy fills in when the
       // profile cannot be read, so the user keeps their chart style offline
       // instead of silently dropping back to the defaults.
-      const settings = { ...readStoredUserSettings(userId), ...(data?.settings || {}) };
+      const settings = { ...readSessionUserSettings(userId), ...readStoredUserSettings(userId), ...(data?.settings || {}) };
 
       applyAndStoreUserSettings(settings, name, userId);
       setUser({ id: userId, email, name, settings });

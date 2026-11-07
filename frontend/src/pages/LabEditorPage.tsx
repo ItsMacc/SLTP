@@ -53,6 +53,8 @@ import {
   saveLabFile,
   type LabProject,
 } from '../../lib/api';
+import { readSession, sessionKeyFor, writeSession } from '../../lib/sessionCache';
+import { readSessionUserSettings } from '../../lib/settings';
 import { loadProject, setDiagnosticsTarget, syncDocument, type Monaco } from '../lab/pyright';
 import { applyLabEditorTheme } from '../lab/editorTheme';
 import { pickLocalFolder, type FolderFileMap } from '../lab/fileReader';
@@ -158,6 +160,18 @@ const DEFAULT_EDITOR_SETTINGS: EditorSettings = {
   fontLigatures: true,
 };
 
+/** Editor prefs from a settings object, with defaults for missing keys. */
+function pickEditorSettings(s: Record<string, unknown>): EditorSettings {
+  return {
+    fontSize: typeof s.editorFontSize === 'number' ? s.editorFontSize : DEFAULT_EDITOR_SETTINGS.fontSize,
+    tabSize: typeof s.editorTabSize === 'number' ? s.editorTabSize : DEFAULT_EDITOR_SETTINGS.tabSize,
+    wordWrap: typeof s.editorWordWrap === 'boolean' ? s.editorWordWrap : DEFAULT_EDITOR_SETTINGS.wordWrap,
+    minimap: typeof s.editorMinimap === 'boolean' ? s.editorMinimap : DEFAULT_EDITOR_SETTINGS.minimap,
+    lineNumbers: typeof s.editorLineNumbers === 'boolean' ? s.editorLineNumbers : DEFAULT_EDITOR_SETTINGS.lineNumbers,
+    fontLigatures: typeof s.editorFontLigatures === 'boolean' ? s.editorFontLigatures : DEFAULT_EDITOR_SETTINGS.fontLigatures,
+  };
+}
+
 interface LabEditorPageProps {
   project: LabProject;
   workspaceName: string;
@@ -173,6 +187,9 @@ function isDirty(file: EditorFile): boolean {
   return !file.locked && file.draft !== file.saved;
 }
 
+/* Tab-scoped project trees, keyed by project. Closing the tab drops them. */
+const LAB_FILES_KEY_BASE = 'sltp_session_lab_files';
+
 const PYRIGHT_LABEL: Record<PyrightState, string> = {
   starting: 'Pyright starting…',
   active: 'Pyright active',
@@ -187,6 +204,7 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
   const [tabs, setTabs] = useState<string[]>([]);
   const [active, setActive] = useState<string | null>(null);
   const queryClient = useQueryClient();
+  const projectFilesKey = sessionKeyFor(LAB_FILES_KEY_BASE, project.id);
   const projectFilesQuery = useQuery({
     queryKey: ['lab', 'project-files', project.id],
     queryFn: async () => {
@@ -194,6 +212,8 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
       if (!token) throw new Error('Your session has expired. Please sign in again.');
       return getLabProjectFiles(token, project.id);
     },
+    // The tab copy paints the tree at once; the fetch then confirms it.
+    placeholderData: () => readSession<Awaited<ReturnType<typeof getLabProjectFiles>>>(projectFilesKey) ?? undefined,
   });
   const [actionError, setActionError] = useState<string | null>(null);
   const error = actionError ?? (projectFilesQuery.error instanceof Error
@@ -231,29 +251,23 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
   // The cursor readout lives in its own component, so moving the cursor does not re-render the page.
   const cursorListenerRef = useRef<((position: { line: number; column: number }) => void) | null>(null);
 
-  // Read the account's saved Code editor settings. Missing keys (accounts that
-  // predate them) fall back to the defaults.
+  // Read the account's saved Code editor settings. The tab copy paints
+  // first; the row then confirms it. Missing keys (accounts that predate
+  // them) fall back to the defaults.
   useEffect(() => {
     let cancelled = false;
     (async () => {
       const { data: { session } } = await supabase.auth.getSession();
       const userId = session?.user?.id;
-      if (!userId) return;
+      if (!userId || cancelled) return;
+      setEditorSettings(pickEditorSettings(readSessionUserSettings(userId)));
       const { data } = await supabase
         .from('users')
         .select('settings')
         .eq('id', userId)
         .maybeSingle();
-      const s = (data?.settings ?? {}) as Record<string, unknown>;
       if (cancelled) return;
-      setEditorSettings({
-        fontSize: typeof s.editorFontSize === 'number' ? s.editorFontSize : DEFAULT_EDITOR_SETTINGS.fontSize,
-        tabSize: typeof s.editorTabSize === 'number' ? s.editorTabSize : DEFAULT_EDITOR_SETTINGS.tabSize,
-        wordWrap: typeof s.editorWordWrap === 'boolean' ? s.editorWordWrap : DEFAULT_EDITOR_SETTINGS.wordWrap,
-        minimap: typeof s.editorMinimap === 'boolean' ? s.editorMinimap : DEFAULT_EDITOR_SETTINGS.minimap,
-        lineNumbers: typeof s.editorLineNumbers === 'boolean' ? s.editorLineNumbers : DEFAULT_EDITOR_SETTINGS.lineNumbers,
-        fontLigatures: typeof s.editorFontLigatures === 'boolean' ? s.editorFontLigatures : DEFAULT_EDITOR_SETTINGS.fontLigatures,
-      });
+      setEditorSettings(pickEditorSettings((data?.settings ?? {}) as Record<string, unknown>));
     })().catch(() => { /* keep defaults if the settings read fails */ });
     return () => { cancelled = true; };
   }, []);
@@ -296,6 +310,10 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
   useEffect(() => {
     const data = projectFilesQuery.data;
     if (!data) return;
+    // Every snapshot refreshes the tab copy: saves, creates, renames,
+    // deletes and imports all land in the query cache, so this one write
+    // keeps the copy behind all of them without touching each handler.
+    writeSession(projectFilesKey, data);
     const list: EditorFile[] = data.files.map((file) => {
       const previous = latestFilesRef.current.find((item) => item.name === file.name);
       return { name: file.name, locked: file.locked, saved: file.content, draft: previous?.draft ?? file.content };
