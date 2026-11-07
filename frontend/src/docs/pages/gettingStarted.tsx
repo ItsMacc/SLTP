@@ -121,10 +121,8 @@ export const GETTING_STARTED: DocGroup = {
         {
           kind: 'code',
           file: 'hold_three.py',
-          code: `from app.engine.backtesting import Backtester
-from app.engine.strategy import Strategy
-from app.engine.utils.Order import Order
-from app.engine.utils.PositionType import PositionType
+          code: `from sltp import Order, PositionType, Strategy
+from sltp.backtesting import Backtester
 
 
 class HoldThree(Strategy):
@@ -159,12 +157,12 @@ print(result["metrics"]["cagr"], result["metrics"]["max_drawdown"])`,
           kind: 'code',
           language: 'bash',
           file: 'terminal',
-          code: `cd /path/to/sltp
+          code: `pip install sltp
 python hold_three.py`,
         },
         {
           kind: 'p',
-          text: <>Use <C>python3</C> if your shell has no <C>python</C> alias. The project virtualenv is the reliable option: <C>.venv/bin/python hold_three.py</C>.</>,
+          text: <>Use <C>python3</C> if your shell has no <C>python</C> alias. The first run downloads the market data it needs into <C>~/.sltp/cache</C>, so it takes longer than the rest.</>,
         },
         { kind: 'h2', id: 'what-happened', text: 'What happened' },
         {

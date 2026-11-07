@@ -25,7 +25,7 @@ export const ENGINE: DocGroup = {
         {
           kind: 'code',
           file: 'run.py',
-          code: `from app.engine.backtesting import Backtester
+          code: `from sltp.backtesting import Backtester
 
 backtester = Backtester(strategy=MyStrategy(), start_date="2020-01-01", end_date="2024-12-31")
 result = backtester.run()`,

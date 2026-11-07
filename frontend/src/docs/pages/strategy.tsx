@@ -20,7 +20,7 @@ export const STRATEGY: DocGroup = {
         {
           kind: 'code',
           file: 'strategy.py',
-          code: `from app.engine.strategy import Strategy
+          code: `from sltp import Strategy
 
 class MyStrategy(Strategy):
     def __init__(self):
@@ -230,12 +230,12 @@ class MyStrategy(Strategy):
     {
       slug: 'indicators',
       title: 'Indicators',
-      lead: 'The base class wraps twenty TA-Lib indicators. They take the arrays from StockData and return arrays of the same length.',
+      lead: 'The base class wraps twenty built-in indicators. They take the arrays from StockData and return arrays of the same length.',
       source: 'app/engine/strategy/base_strategy.py',
       blocks: [
         {
           kind: 'p',
-          text: <>Every helper widens float32 market data to float64 before calling TA-Lib, which needs double precision. You do not cast anything.</>,
+          text: <>Every helper is computed in-process from the arrays you pass in, so there is no native library to install. You do not cast anything.</>,
         },
         { kind: 'h2', id: 'trend', text: 'Trend' },
         {

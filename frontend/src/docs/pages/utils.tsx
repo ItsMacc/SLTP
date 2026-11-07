@@ -23,8 +23,7 @@ export const UTILS: DocGroup = {
         {
           kind: 'code',
           file: 'order.py',
-          code: `from app.engine.utils.Order import Order
-from app.engine.utils.PositionType import PositionType
+          code: `from sltp import Order, PositionType
 
 order = Order(
     ticker="AAPL",
@@ -77,7 +76,7 @@ order = Order(
         {
           kind: 'code',
           file: 'strategy.py',
-          code: `from app.engine.utils.RebalanceFrequency import RebalanceFrequency
+          code: `from sltp import RebalanceFrequency
 
 class Rotator(Strategy):
     def __init__(self):
@@ -180,7 +179,7 @@ class Rotator(Strategy):
         {
           kind: 'code',
           file: 'order_sizing.py',
-          code: `from app.engine.utils.Order import Order, OrderSizing
+          code: `from sltp import Order, OrderSizing
 
 # EQUITY is the default and needs no keyword.
 Order(..., allocation=0.25)

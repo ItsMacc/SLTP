@@ -242,7 +242,7 @@ export const HELP: DocGroup = {
           kind: 'callout',
           tone: 'note',
           title: 'Versioning',
-          text: <>These docs track the engine on <C>main</C>. There is no separate release cadence yet; the version label reflects the API surface, not a tagged build.</>,
+          text: <>These docs track the <C>sltp</C> package on PyPI. The backend and the site release separately; the headings below name behaviour, not a tagged build.</>,
         },
       ],
     },
