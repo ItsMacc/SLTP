@@ -185,7 +185,7 @@ export const HELP: DocGroup = {
             'The strategy page documents the sequential matrix, the cash buffer and the cases where the last fill is refused.',
           ],
         },
-        { kind: 'h2', id: 'trend-leaders', text: 'Trend Leaders — November 2026' },
+        { kind: 'h2', id: 'adaptive-momentum', text: 'Adaptive Momentum — November 2026' },
         {
           kind: 'ul',
           items: [

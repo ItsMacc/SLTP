@@ -227,7 +227,7 @@ export const BACKTESTS: Record<string, BacktestRow[]> = {
       }
     }
   ],
-  "trend-leaders": [
+  "adaptive-momentum": [
     {
       "key": "bear-dotcom",
       "kind": "bear",
@@ -631,7 +631,7 @@ export const BACKTESTS: Record<string, BacktestRow[]> = {
       }
     }
   ],
-  "steady": [
+  "minimum-volatility": [
     {
       "key": "bear-dotcom",
       "kind": "bear",

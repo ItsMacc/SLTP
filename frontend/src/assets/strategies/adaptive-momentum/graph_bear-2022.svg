@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 520" width="1000" height="520" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" role="img" aria-label="Trend Leaders against the benchmark, Rate-hike bear market, 2022-01-03 to 2023-10-31">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 520" width="1000" height="520" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" role="img" aria-label="Adaptive Momentum against the benchmark, Rate-hike bear market, 2022-01-03 to 2023-10-31">
 <style>
   .title { fill:#0F172A; font-size:21px; font-weight:650; }
   .sub { fill:#475569; font-size:13px; }
@@ -26,11 +26,11 @@
     .badge-text-bull { fill:#34D399; }
   }
 </style>
-<text class="title" x="40" y="42">Trend Leaders</text>
+<text class="title" x="40" y="42">Adaptive Momentum</text>
 <rect class="badge-bear" x="886.0" y="22" width="74.0" height="24" rx="12"/>
 <text class="badge-text badge-text-bear" x="923.0" y="38" text-anchor="middle">BEAR</text>
 <text class="sub" x="40" y="68">Rate-hike bear market · 2022-01-03 → 2023-10-31 · 666 days</text>
-<line x1="40.0" y1="96.0" x2="62.0" y2="96.0" stroke="#6366F1" stroke-width="2.6" stroke-linecap="round"/><text class="legend" x="74.0" y="100"><tspan class="legend-name">Trend Leaders</tspan><tspan>  ·  end 86.3  ·  CAGR -7.8%  ·  Sharpe -0.52  ·  max DD 15.0%  ·  turnover 533.6%/yr  ·  cost 0.80%/yr</tspan></text>
+<line x1="40.0" y1="96.0" x2="62.0" y2="96.0" stroke="#6366F1" stroke-width="2.6" stroke-linecap="round"/><text class="legend" x="74.0" y="100"><tspan class="legend-name">Adaptive Momentum</tspan><tspan>  ·  end 86.3  ·  CAGR -7.8%  ·  Sharpe -0.52  ·  max DD 15.0%  ·  turnover 533.6%/yr  ·  cost 0.80%/yr</tspan></text>
 <line x1="40.0" y1="120.0" x2="62.0" y2="120.0" stroke="#F59E0B" stroke-width="2.2" stroke-linecap="round"/><text class="legend" x="74.0" y="124"><tspan class="legend-name">Benchmark (SPY)</tspan><tspan>  ·  end 89.4  ·  CAGR -5.9%  ·  Sharpe -0.21  ·  max DD 24.8%  ·  turnover 62.6%/yr  ·  cost 0.09%/yr</tspan></text>
 <line class="grid" x1="72.0" y1="383.3" x2="868.0" y2="383.3"/>
 <text class="axis" x="62.0" y="387.3" text-anchor="end">80</text>

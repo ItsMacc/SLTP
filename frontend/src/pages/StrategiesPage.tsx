@@ -17,14 +17,14 @@ import './StrategiesPage.css';
 // Report charts, one per reported window. Active strategies are drawn against
 // the benchmark; buy and hold is the benchmark, so it gets the simple single-line
 // version from app/reports/single_curves.py.
-import momBearDotcom from '../assets/strategies/trend-leaders/graph_bear-dotcom.svg';
-import momBearGfc from '../assets/strategies/trend-leaders/graph_bear-gfc.svg';
-import momBearCovid from '../assets/strategies/trend-leaders/graph_bear-covid.svg';
-import momBear2022 from '../assets/strategies/trend-leaders/graph_bear-2022.svg';
-import momBull2012 from '../assets/strategies/trend-leaders/graph_bull-2012.svg';
-import momBullReopening from '../assets/strategies/trend-leaders/graph_bull-reopening.svg';
-import momBullAi from '../assets/strategies/trend-leaders/graph_bull-ai.svg';
-import momBull2003 from '../assets/strategies/trend-leaders/graph_bull-2003.svg';
+import momBearDotcom from '../assets/strategies/adaptive-momentum/graph_bear-dotcom.svg';
+import momBearGfc from '../assets/strategies/adaptive-momentum/graph_bear-gfc.svg';
+import momBearCovid from '../assets/strategies/adaptive-momentum/graph_bear-covid.svg';
+import momBear2022 from '../assets/strategies/adaptive-momentum/graph_bear-2022.svg';
+import momBull2012 from '../assets/strategies/adaptive-momentum/graph_bull-2012.svg';
+import momBullReopening from '../assets/strategies/adaptive-momentum/graph_bull-reopening.svg';
+import momBullAi from '../assets/strategies/adaptive-momentum/graph_bull-ai.svg';
+import momBull2003 from '../assets/strategies/adaptive-momentum/graph_bull-2003.svg';
 
 import gtaBearDotcom from '../assets/strategies/global-trend-allocation/graph_bear-dotcom.svg';
 import gtaBearGfc from '../assets/strategies/global-trend-allocation/graph_bear-gfc.svg';
@@ -35,14 +35,14 @@ import gtaBullReopening from '../assets/strategies/global-trend-allocation/graph
 import gtaBullAi from '../assets/strategies/global-trend-allocation/graph_bull-ai.svg';
 import gtaBull2003 from '../assets/strategies/global-trend-allocation/graph_bull-2003.svg';
 
-import lvBearDotcom from '../assets/strategies/steady/graph_bear-dotcom.svg';
-import lvBearGfc from '../assets/strategies/steady/graph_bear-gfc.svg';
-import lvBearCovid from '../assets/strategies/steady/graph_bear-covid.svg';
-import lvBear2022 from '../assets/strategies/steady/graph_bear-2022.svg';
-import lvBull2012 from '../assets/strategies/steady/graph_bull-2012.svg';
-import lvBullReopening from '../assets/strategies/steady/graph_bull-reopening.svg';
-import lvBullAi from '../assets/strategies/steady/graph_bull-ai.svg';
-import lvBull2003 from '../assets/strategies/steady/graph_bull-2003.svg';
+import lvBearDotcom from '../assets/strategies/minimum-volatility/graph_bear-dotcom.svg';
+import lvBearGfc from '../assets/strategies/minimum-volatility/graph_bear-gfc.svg';
+import lvBearCovid from '../assets/strategies/minimum-volatility/graph_bear-covid.svg';
+import lvBear2022 from '../assets/strategies/minimum-volatility/graph_bear-2022.svg';
+import lvBull2012 from '../assets/strategies/minimum-volatility/graph_bull-2012.svg';
+import lvBullReopening from '../assets/strategies/minimum-volatility/graph_bull-reopening.svg';
+import lvBullAi from '../assets/strategies/minimum-volatility/graph_bull-ai.svg';
+import lvBull2003 from '../assets/strategies/minimum-volatility/graph_bull-2003.svg';
 
 import smrBearDotcom from '../assets/strategies/statistical-mean-reversion/graph_bear-dotcom.svg';
 import smrBearGfc from '../assets/strategies/statistical-mean-reversion/graph_bear-gfc.svg';
@@ -83,7 +83,7 @@ const CHARTS: Record<string, Record<string, string>> = {
     'bull-ai': smrBullAi,
     'bull-2003': smrBull2003,
   },
-  'trend-leaders': {
+  'adaptive-momentum': {
     'bear-dotcom': momBearDotcom,
     'bear-gfc': momBearGfc,
     'bear-covid': momBearCovid,
@@ -103,7 +103,7 @@ const CHARTS: Record<string, Record<string, string>> = {
     'bull-ai': gtaBullAi,
     'bull-2003': gtaBull2003,
   },
-  'steady': {
+  'minimum-volatility': {
     'bear-dotcom': lvBearDotcom,
     'bear-gfc': lvBearGfc,
     'bear-covid': lvBearCovid,
