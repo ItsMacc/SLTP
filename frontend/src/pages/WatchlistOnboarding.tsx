@@ -275,10 +275,10 @@ export default function WatchlistOnboarding({ userId, onDone }: WatchlistOnboard
           <div className="wl-onboard-step">
             {experience === 'beginner' ? (
               <>
-                <h1 className="wl-onboard-title">New to the market? Start here.</h1>
+                <h1 className="wl-onboard-title">New to the market?</h1>
                 <p className="wl-onboard-sub">
                   You need zero ticker knowledge. Beginners usually start by watching
-                  the whole market through a single fund — each one below holds
+                  the whole market through a single fund. Each one below holds
                   hundreds of companies at once.
                 </p>
                 <div className="wl-onboard-starters">
@@ -308,7 +308,7 @@ export default function WatchlistOnboarding({ userId, onDone }: WatchlistOnboard
                   })}
                 </div>
                 <p className="wl-onboard-sub">
-                  Know a company already? Search it below — anything else can wait.
+                  Know a company already? Search it below. Anything else can wait.
                 </p>
               </>
             ) : (
@@ -400,7 +400,7 @@ export default function WatchlistOnboarding({ userId, onDone }: WatchlistOnboard
               <div className="wl-onboard-callout">
                 <p className="wl-onboard-callout-title">New to strategies? Learn by watching.</p>
                 <p className="wl-onboard-callout-body">
-                  Follow them all and see what each one does in practice — every
+                  Follow them all and see what each one does in practice. Every
                   signal links the backtest behind it, and unfollowing takes one tap.
                 </p>
                 <Button variant="secondary" size="md" onClick={followAll}>
@@ -433,7 +433,7 @@ export default function WatchlistOnboarding({ userId, onDone }: WatchlistOnboard
               )}
             </div>
             <p className="wl-onboard-sub" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
-              Signal emails are on by default — manage them anytime in Settings.
+              Signal emails are on by default. Manage them anytime in Settings.
             </p>
           </div>
         )}
@@ -451,9 +451,8 @@ export default function WatchlistOnboarding({ userId, onDone }: WatchlistOnboard
               Continue
             </Button>
           ) : (
-            <Button variant="primary" size="md" onClick={handleFinish}>
-              Start watching
-            </Button>
+            <Button variant="primary" size="md" onClick={handleFinish}                >Start
+              </Button>
           )}
         </div>
       </div>

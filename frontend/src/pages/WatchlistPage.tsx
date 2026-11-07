@@ -229,7 +229,7 @@ export default function WatchlistPage({ userId, settings, onNavigate }: Watchlis
     setInput('');
     setInputError(
       directory && !directory.has(symbol)
-        ? `${symbol} is not in the tradable directory — its row may stay empty.`
+        ? `${symbol} is not in the tradable directory. Its row may stay empty.`
         : null,
     );
   };
@@ -387,7 +387,7 @@ export default function WatchlistPage({ userId, settings, onNavigate }: Watchlis
         <h2 id="wl-signals-title" className="wl-section-title">Strategy signals</h2>
         <p className="wl-muted">
           What your followed strategies did in their latest reported window. Fresh
-          signals arrive by email — manage them in Settings.
+          signals arrive by email. Manage them in Settings.
         </p>
         {followedProfiles.length === 0 ? (
           <div className="wl-empty">
