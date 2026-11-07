@@ -4,13 +4,14 @@
 // no backend write happens here. When the visitor previously finished the old
 // portfolio setup, its experience level and followed strategies are adopted
 // instead of asking again.
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import RadioGroup from '../ui/RadioGroup';
 import { LoaderInline } from '../ui/Loader';
 import { getSessionToken } from '../../lib/session';
 import { getPortfolioStatus, listStrategies, type StrategyCatalogEntry } from '../../lib/api';
+import { getTickerDirectory, type TickerInfo } from '../engine/sltpClient';
 import {
   loadWatchlistSetup,
   saveWatchlistSetup,
@@ -24,6 +25,14 @@ interface WatchlistOnboardingProps {
   onDone: () => void;
 }
 
+// The no-knowledge starter pack: one fund per row, each holding hundreds of
+// companies, so a beginner watches the market without picking a stock.
+const STARTERS = [
+  { ticker: 'SPY', name: 'S&P 500', blurb: 'Five hundred large US companies in one fund.' },
+  { ticker: 'QQQ', name: 'Nasdaq 100', blurb: 'A hundred large growth companies, heavy on tech.' },
+  { ticker: 'DIA', name: 'Dow Jones', blurb: 'Thirty blue-chip stocks, the oldest index.' },
+];
+
 export default function WatchlistOnboarding({ userId, onDone }: WatchlistOnboardingProps) {
   const [step, setStep] = useState(0);
   const [checking, setChecking] = useState(true);
@@ -34,6 +43,11 @@ export default function WatchlistOnboarding({ userId, onDone }: WatchlistOnboard
   const [tickers, setTickers] = useState<string[]>([]);
   const [tickerInput, setTickerInput] = useState('');
   const [tickerError, setTickerError] = useState<string | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [activeIdx, setActiveIdx] = useState(0);
+
+  // The searchable directory for the ticker search box.
+  const [directory, setDirectory] = useState<TickerInfo[] | null>(null);
   const [selectedStrategies, setSelectedStrategies] = useState<string[]>([]);
 
   const [catalog, setCatalog] = useState<StrategyCatalogEntry[]>([]);
@@ -81,6 +95,21 @@ export default function WatchlistOnboarding({ userId, onDone }: WatchlistOnboard
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // One fetch, then every keystroke filters in memory.
+  useEffect(() => {
+    let cancelled = false;
+    getTickerDirectory()
+      .then((list) => {
+        if (!cancelled) setDirectory(list);
+      })
+      .catch(() => {
+        // Without the directory the box falls back to plain symbol entry.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     listStrategies()
@@ -102,8 +131,26 @@ export default function WatchlistOnboarding({ userId, onDone }: WatchlistOnboard
   const canAdvance =
     (step === 0 && experience !== '' && goal !== '') || step === 1 || step === 2;
 
-  const addTicker = () => {
-    const symbol = tickerInput.trim().toUpperCase();
+  // Symbol-first matches rank above name matches; already-added rows drop out.
+  const matches = useMemo(() => {
+    const query = tickerInput.trim().toUpperCase();
+    if (!directory || query.length === 0) return [];
+    const starts: TickerInfo[] = [];
+    const contains: TickerInfo[] = [];
+    for (const entry of directory) {
+      const symbol = entry.ticker.toUpperCase();
+      if (tickers.includes(symbol)) continue;
+      if (symbol.startsWith(query)) starts.push(entry);
+      else if (symbol.includes(query) || entry.name.toUpperCase().includes(query)) {
+        contains.push(entry);
+      }
+      if (starts.length + contains.length >= 24) break;
+    }
+    return [...starts, ...contains].slice(0, 8);
+  }, [directory, tickerInput, tickers]);
+
+  const addSymbol = (raw: string) => {
+    const symbol = raw.trim().toUpperCase();
     if (!symbol) return;
     if (!/^[A-Z][A-Z0-9.\-]{0,9}$/.test(symbol)) {
       setTickerError('Use a plain ticker symbol, like AAPL.');
@@ -116,6 +163,33 @@ export default function WatchlistOnboarding({ userId, onDone }: WatchlistOnboard
     setTickers((prev) => [...prev, symbol]);
     setTickerInput('');
     setTickerError(null);
+    setSearchOpen(false);
+  };
+
+  const addTicker = () => addSymbol(tickerInput);
+
+  const onSearchKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowDown' && matches.length > 0) {
+      e.preventDefault();
+      setSearchOpen(true);
+      setActiveIdx((i) => (i + 1) % matches.length);
+    } else if (e.key === 'ArrowUp' && matches.length > 0) {
+      e.preventDefault();
+      setSearchOpen(true);
+      setActiveIdx((i) => (i - 1 + matches.length) % matches.length);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (searchOpen && matches[activeIdx]) addSymbol(matches[activeIdx].ticker);
+      else addTicker();
+    } else if (e.key === 'Escape') {
+      setSearchOpen(false);
+    }
+  };
+
+  const followAll = () => {
+    setSelectedStrategies((prev) =>
+      prev.length === catalog.length && catalog.length > 0 ? [] : catalog.map((s) => s.id),
+    );
   };
 
   const toggleStrategy = (id: string) => {
@@ -196,34 +270,102 @@ export default function WatchlistOnboarding({ userId, onDone }: WatchlistOnboard
           </div>
         )}
 
-        {/* Step 1 — First tickers */}
+        {/* Step 1 — First tickers; beginners get a starter pack, not a blank box */}
         {step === 1 && (
           <div className="wl-onboard-step">
-            <h1 className="wl-onboard-title">Name a few stocks to watch.</h1>
-            <p className="wl-onboard-sub">
-              Symbols only, like AAPL or SPY. You can add and remove them anytime.
-            </p>
-            <div className="wl-onboard-ticker-row">
-              <Input
-                type="text"
-                value={tickerInput}
-                onChange={(e) => {
-                  setTickerInput(e.target.value);
-                  setTickerError(null);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    addTicker();
-                  }
-                }}
-                placeholder="e.g. AAPL"
-                maxLength={12}
-                autoFocus
-              />
-              <Button variant="secondary" size="md" onClick={addTicker}>
-                Add
-              </Button>
+            {experience === 'beginner' ? (
+              <>
+                <h1 className="wl-onboard-title">New to the market? Start here.</h1>
+                <p className="wl-onboard-sub">
+                  You need zero ticker knowledge. Beginners usually start by watching
+                  the whole market through a single fund — each one below holds
+                  hundreds of companies at once.
+                </p>
+                <div className="wl-onboard-starters">
+                  {STARTERS.map((s) => {
+                    const added = tickers.includes(s.ticker);
+                    return (
+                      <div key={s.ticker} className="wl-onboard-starter">
+                        <div>
+                          <span className="wl-onboard-starter-name">
+                            {s.ticker} · {s.name}
+                          </span>
+                          <span className="wl-onboard-starter-blurb">{s.blurb}</span>
+                        </div>
+                        <Button
+                          variant={added ? 'ghost' : 'secondary'}
+                          size="md"
+                          onClick={() =>
+                            added
+                              ? setTickers((prev) => prev.filter((t) => t !== s.ticker))
+                              : addSymbol(s.ticker)
+                          }
+                        >
+                          {added ? 'Watching' : 'Watch'}
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="wl-onboard-sub">
+                  Know a company already? Search it below — anything else can wait.
+                </p>
+              </>
+            ) : (
+              <>
+                <h1 className="wl-onboard-title">Name a few stocks to watch.</h1>
+                <p className="wl-onboard-sub">
+                  Search by company name or symbol. You can add and remove them anytime.
+                </p>
+              </>
+            )}
+            <div className="wl-onboard-search">
+              <div className="wl-onboard-ticker-row">
+                <Input
+                  type="text"
+                  value={tickerInput}
+                  onChange={(e) => {
+                    setTickerInput(e.target.value);
+                    setTickerError(null);
+                    setSearchOpen(true);
+                    setActiveIdx(0);
+                  }}
+                  onKeyDown={onSearchKeyDown}
+                  onFocus={() => setSearchOpen(true)}
+                  onBlur={() => setSearchOpen(false)}
+                  placeholder={directory ? 'Try “Apple” or “AAPL”…' : 'e.g. AAPL'}
+                  maxLength={40}
+                  autoFocus={experience !== 'beginner'}
+                  role="combobox"
+                  aria-expanded={searchOpen && matches.length > 0}
+                  aria-controls="wl-ticker-results"
+                  aria-activedescendant={matches[activeIdx] ? `wl-result-${matches[activeIdx].ticker}` : undefined}
+                />
+                <Button variant="secondary" size="md" onClick={addTicker}>
+                  Add
+                </Button>
+              </div>
+              {searchOpen && matches.length > 0 && (
+                <ul id="wl-ticker-results" className="wl-onboard-results" role="listbox">
+                  {matches.map((m, i) => (
+                    <li key={m.ticker} role="option" aria-selected={i === activeIdx} id={`wl-result-${m.ticker}`}>
+                      <button
+                        type="button"
+                        className={`wl-onboard-result ${i === activeIdx ? 'is-active' : ''}`}
+                        onMouseDown={(e) => {
+                          // Fires before the input blur closes the list.
+                          e.preventDefault();
+                          addSymbol(m.ticker);
+                        }}
+                        onMouseEnter={() => setActiveIdx(i)}
+                      >
+                        <span className="wl-onboard-result-ticker">{m.ticker}</span>
+                        <span className="wl-onboard-result-name">{m.name}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
             {tickerError && <div className="wl-onboard-error">{tickerError}</div>}
             {tickers.length > 0 && (
@@ -254,6 +396,18 @@ export default function WatchlistOnboarding({ userId, onDone }: WatchlistOnboard
               Followed strategies appear on your watchlist with their latest reported
               stance. Fresh signals arrive by email; you can change this later.
             </p>
+            {experience === 'beginner' && catalog.length > 0 && (
+              <div className="wl-onboard-callout">
+                <p className="wl-onboard-callout-title">New to strategies? Learn by watching.</p>
+                <p className="wl-onboard-callout-body">
+                  Follow them all and see what each one does in practice — every
+                  signal links the backtest behind it, and unfollowing takes one tap.
+                </p>
+                <Button variant="secondary" size="md" onClick={followAll}>
+                  {selectedStrategies.length === catalog.length ? 'Unfollow all' : 'Follow all strategies'}
+                </Button>
+              </div>
+            )}
             <div className="wl-onboard-strategies">
               {catalog.map((s) => (
                 <button

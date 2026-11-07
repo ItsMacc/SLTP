@@ -161,6 +161,119 @@
   color: var(--text-muted);
 }
 
+/* Searchable ticker box: results float over the steps below */
+.wl-onboard-search {
+  position: relative;
+}
+
+.wl-onboard-results {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + var(--space-2xs));
+  left: 0;
+  right: 0;
+  list-style: none;
+  margin: 0;
+  padding: var(--space-2xs);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  max-height: 16rem;
+  overflow-y: auto;
+}
+
+.wl-onboard-result {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: var(--space-xs) var(--space-sm);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  text-align: left;
+}
+
+.wl-onboard-result.is-active {
+  background: var(--accent-muted);
+}
+
+.wl-onboard-result-ticker {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  flex: none;
+  min-width: 3.5rem;
+}
+
+.wl-onboard-result-name {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Beginner starter pack: one market fund per row */
+.wl-onboard-starters {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.wl-onboard-starter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-canvas);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-md);
+}
+
+.wl-onboard-starter-name {
+  display: block;
+  font-weight: 600;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.wl-onboard-starter-blurb {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* Beginner strategy callout: following everything is a valid start */
+.wl-onboard-callout {
+  border: 1px solid var(--accent);
+  background: var(--accent-muted);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  align-items: flex-start;
+}
+
+.wl-onboard-callout-title {
+  margin: 0;
+  font-weight: 600;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.wl-onboard-callout-body {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
 /* Error + actions */
 .wl-onboard-error {
   background: var(--error-muted);
