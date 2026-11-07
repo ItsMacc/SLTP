@@ -46,6 +46,44 @@ CREATE TABLE IF NOT EXISTS user_strategies (
 );
 CREATE INDEX IF NOT EXISTS idx_strategies_user ON user_strategies(user_id);
 
+-- Lab code workspaces: each workspace holds projects, each project holds files.
+-- lab_files is the working tree (one row per file path); lab_folders records
+-- real-but-empty folders so an import round-trips them instead of dropping
+-- them. The editor's file tree is the union of both.
+CREATE TABLE IF NOT EXISTS lab_workspaces (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_lab_workspaces_user ON lab_workspaces(user_id);
+
+CREATE TABLE IF NOT EXISTS lab_projects (
+  id TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  template TEXT NOT NULL DEFAULT 'blank',
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_lab_projects_workspace ON lab_projects(workspace_id);
+
+CREATE TABLE IF NOT EXISTS lab_files (
+  project_id TEXT NOT NULL,
+  path TEXT NOT NULL,
+  content TEXT NOT NULL DEFAULT '',
+  locked INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT,
+  PRIMARY KEY (project_id, path)
+);
+CREATE INDEX IF NOT EXISTS idx_lab_files_project ON lab_files(project_id);
+
+CREATE TABLE IF NOT EXISTS lab_folders (
+  project_id TEXT NOT NULL,
+  path TEXT NOT NULL,
+  PRIMARY KEY (project_id, path)
+);
+CREATE INDEX IF NOT EXISTS idx_lab_folders_project ON lab_folders(project_id);
+
 CREATE TABLE IF NOT EXISTS backtest_results (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,

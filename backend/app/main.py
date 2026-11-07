@@ -27,6 +27,7 @@ from fastapi.responses import JSONResponse
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.auth.security import router as security_router
+from app.lab.projects import router as lab_projects_router
 from app.lab.strategies import router as lab_strategies_router
 from app.registry import STRATEGIES, strategy_by_id
 from app.users.store import MissingTable
@@ -46,6 +47,7 @@ app.include_router(account_router)
 app.include_router(api_keys_router)
 app.include_router(watchlist_router)
 app.include_router(results_router)
+app.include_router(lab_projects_router)
 app.include_router(lab_strategies_router)
 app.include_router(security_router)
 

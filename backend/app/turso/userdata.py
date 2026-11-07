@@ -247,6 +247,530 @@ def delete_result(user_id: str, result_id: str) -> bool:
     return True
 
 
+# -------- Lab code workspaces (projects, files, folders) --------
+# The working tree behind the Lab editor: workspaces hold projects, projects
+# hold files, and lab_folders records real-but-empty folders so imports
+# round-trip them. Ownership always resolves through the workspace's user_id.
+WORKSPACE_NAME_MAX = 60
+PROJECT_NAME_MAX = 60
+FILE_CONTENT_MAX = 200_000
+PATH_MAX = 200
+FILES_PER_PROJECT_MAX = 100
+FOLDERS_PER_PROJECT_MAX = 50
+
+
+class LabError(Exception):
+    """A client-caused Lab failure. The router turns it into an HTTP error."""
+    def __init__(self, message: str, status: int = 400):
+        super().__init__(message)
+        self.status = status
+
+
+def _clean_path(raw: str, *, folder: bool = False) -> str:
+    cleaned = (raw or "").replace("\\", "/").strip().strip("/")
+    parts = [p for p in cleaned.split("/") if p not in ("", ".")]
+    if not parts or any(p == ".." for p in parts):
+        raise LabError("Give the file a name, like notes.txt.", 400)
+    if any(len(p) > 80 for p in parts):
+        raise LabError("That path has a segment over 80 characters.", 400)
+    path = "/".join(parts)
+    if len(path) > PATH_MAX:
+        raise LabError(f"Paths must be {PATH_MAX} characters or fewer.", 400)
+    if not folder and path.endswith("/"):
+        raise LabError("Give the file a name, like notes.txt.", 400)
+    return path
+
+
+def _project_owned(user_id: str, project_id: str) -> dict[str, Any] | None:
+    return execute_one(
+        "SELECT p.id, p.workspace_id, p.name, p.template, p.created_at"
+        " FROM lab_projects p JOIN lab_workspaces w ON w.id = p.workspace_id"
+        " WHERE p.id = ? AND w.user_id = ?",
+        [project_id, user_id],
+    )
+
+
+def _file_count(project_id: str) -> int:
+    row = execute_one("SELECT COUNT(*) AS n FROM lab_files WHERE project_id = ?", [project_id])
+    return int(row["n"]) if row else 0
+
+
+def list_workspaces(user_id: str) -> list[dict[str, Any]]:
+    spaces = execute(
+        "SELECT id, name, created_at FROM lab_workspaces WHERE user_id = ? ORDER BY created_at",
+        [user_id],
+    )
+    if not spaces:
+        return []
+    projects = execute(
+        f"SELECT id, workspace_id, name, created_at FROM lab_projects"
+        f" WHERE workspace_id IN ({','.join(['?'] * len(spaces))}) ORDER BY created_at",
+        [s["id"] for s in spaces],
+    )
+    counts = {
+        row["project_id"]: int(row["n"])
+        for row in execute(
+            f"SELECT project_id, COUNT(*) AS n FROM lab_files"
+            f" WHERE project_id IN (SELECT id FROM lab_projects"
+            f" WHERE workspace_id IN ({','.join(['?'] * len(spaces))}))"
+            f" GROUP BY project_id",
+            [s["id"] for s in spaces],
+        )
+    }
+    by_space: dict[str, list[dict[str, Any]]] = {s["id"]: [] for s in spaces}
+    for p in projects:
+        by_space[p["workspace_id"]].append({
+            "id": p["id"], "name": p["name"], "created_at": p["created_at"],
+            "file_count": counts.get(p["id"], 0),
+        })
+    return [
+        {"id": s["id"], "name": s["name"], "created_at": s["created_at"],
+         "projects": by_space[s["id"]]}
+        for s in spaces
+    ]
+
+
+def create_workspace(user_id: str, name: str) -> dict[str, Any]:
+    name = (name or "").strip()
+    if not name:
+        raise LabError("Name the workspace.", 400)
+    if len(name) > WORKSPACE_NAME_MAX:
+        raise LabError(f"Workspace names must be {WORKSPACE_NAME_MAX} characters or fewer.", 400)
+    wid = _new_id()
+    now = now_iso()
+    execute(
+        "INSERT INTO lab_workspaces (id, user_id, name, created_at) VALUES (?, ?, ?, ?)",
+        [wid, user_id, name, now],
+    )
+    return {"id": wid, "name": name, "created_at": now, "projects": []}
+
+
+def delete_workspace(user_id: str, workspace_id: str) -> bool:
+    row = execute_one(
+        "SELECT id FROM lab_workspaces WHERE id = ? AND user_id = ?", [workspace_id, user_id]
+    )
+    if not row:
+        return False
+    project_ids = [r["id"] for r in execute(
+        "SELECT id FROM lab_projects WHERE workspace_id = ?", [workspace_id]
+    )]
+    for pid in project_ids:
+        execute("DELETE FROM lab_files WHERE project_id = ?", [pid])
+        execute("DELETE FROM lab_folders WHERE project_id = ?", [pid])
+    execute("DELETE FROM lab_projects WHERE workspace_id = ?", [workspace_id])
+    execute("DELETE FROM lab_workspaces WHERE id = ?", [workspace_id])
+    return True
+
+
+def create_project(user_id: str, workspace_id: str, name: str, template: str) -> dict[str, Any]:
+    owner = execute_one(
+        "SELECT id FROM lab_workspaces WHERE id = ? AND user_id = ?", [workspace_id, user_id]
+    )
+    if not owner:
+        raise LabError("Workspace not found.", 404)
+    name = (name or "").strip()
+    if not name:
+        raise LabError("Name the project.", 400)
+    if len(name) > PROJECT_NAME_MAX:
+        raise LabError(f"Project names must be {PROJECT_NAME_MAX} characters or fewer.", 400)
+    pid = _new_id()
+    now = now_iso()
+    template = (template or "blank").strip().lower()
+    if template not in TEMPLATE_SEEDS:
+        template = "blank"
+    execute(
+        "INSERT INTO lab_projects (id, workspace_id, name, template, created_at)"
+        " VALUES (?, ?, ?, ?, ?)",
+        [pid, workspace_id, name, template, now],
+    )
+    for path, content in TEMPLATE_SEEDS[template]:
+        execute(
+            "INSERT INTO lab_files (project_id, path, content, locked, updated_at)"
+            " VALUES (?, ?, ?, 0, ?)",
+            [pid, path, content, now],
+        )
+    return {"id": pid, "name": name, "created_at": now, "file_count": len(TEMPLATE_SEEDS[template])}
+
+
+def rename_project(user_id: str, project_id: str, name: str) -> dict[str, Any] | None:
+    if not _project_owned(user_id, project_id):
+        return None
+    name = (name or "").strip()
+    if not name:
+        raise LabError("Name the project.", 400)
+    if len(name) > PROJECT_NAME_MAX:
+        raise LabError(f"Project names must be {PROJECT_NAME_MAX} characters or fewer.", 400)
+    execute("UPDATE lab_projects SET name = ? WHERE id = ?", [name, project_id])
+    row = _project_owned(user_id, project_id)
+    assert row is not None
+    return {"id": row["id"], "name": row["name"], "created_at": row["created_at"],
+            "file_count": _file_count(project_id)}
+
+
+def delete_project(user_id: str, project_id: str) -> bool:
+    if not _project_owned(user_id, project_id):
+        return False
+    execute("DELETE FROM lab_files WHERE project_id = ?", [project_id])
+    execute("DELETE FROM lab_folders WHERE project_id = ?", [project_id])
+    execute("DELETE FROM lab_projects WHERE id = ?", [project_id])
+    return True
+
+
+def get_project_tree(user_id: str, project_id: str) -> dict[str, Any] | None:
+    project = _project_owned(user_id, project_id)
+    if not project:
+        return None
+    files = execute(
+        "SELECT path, content, locked FROM lab_files WHERE project_id = ? ORDER BY path",
+        [project_id],
+    )
+    explicit = [
+        r["path"] for r in execute(
+            "SELECT path FROM lab_folders WHERE project_id = ? ORDER BY path", [project_id]
+        )
+    ]
+    # Folders implied by file paths join the explicit ones, so the tree shows
+    # every level even when nothing recorded it.
+    derived: set[str] = set()
+    for f in files:
+        parts = f["path"].split("/")[:-1]
+        for i in range(1, len(parts) + 1):
+            derived.add("/".join(parts[:i]))
+    folders = sorted(set(explicit) | derived)
+    return {
+        "project": {"id": project["id"], "name": project["name"]},
+        "files": [
+            {"name": f["path"], "content": f["content"], "locked": bool(f["locked"])}
+            for f in files
+        ],
+        "folders": folders,
+    }
+
+
+def create_project_file(user_id: str, project_id: str, name: str) -> dict[str, Any]:
+    if not _project_owned(user_id, project_id):
+        raise LabError("Project not found.", 404)
+    path = _clean_path(name)
+    if _file_count(project_id) >= FILES_PER_PROJECT_MAX:
+        raise LabError(f"Projects hold at most {FILES_PER_PROJECT_MAX} files.", 400)
+    if execute_one("SELECT path FROM lab_files WHERE project_id = ? AND path = ?",
+                   [project_id, path]):
+        raise LabError("A file with that name already exists.", 409)
+    now = now_iso()
+    execute(
+        "INSERT INTO lab_files (project_id, path, content, locked, updated_at)"
+        " VALUES (?, ?, '', 0, ?)",
+        [project_id, path, now],
+    )
+    return {"name": path, "content": "", "locked": False}
+
+
+def save_project_file(user_id: str, project_id: str, path: str, content: str) -> dict[str, Any]:
+    if not _project_owned(user_id, project_id):
+        raise LabError("Project not found.", 404)
+    path = _clean_path(path)
+    if len(content or "") > FILE_CONTENT_MAX:
+        raise LabError("That file is too large to save.", 400)
+    row = execute_one("SELECT locked FROM lab_files WHERE project_id = ? AND path = ?",
+                      [project_id, path])
+    if row and row["locked"]:
+        raise LabError("That file is locked and cannot be edited.", 400)
+    now = now_iso()
+    if row:
+        execute("UPDATE lab_files SET content = ?, updated_at = ? WHERE project_id = ? AND path = ?",
+                [content or "", now, project_id, path])
+    else:
+        if _file_count(project_id) >= FILES_PER_PROJECT_MAX:
+            raise LabError(f"Projects hold at most {FILES_PER_PROJECT_MAX} files.", 400)
+        execute(
+            "INSERT INTO lab_files (project_id, path, content, locked, updated_at)"
+            " VALUES (?, ?, ?, 0, ?)",
+            [project_id, path, content or "", now],
+        )
+    return {"name": path, "content": content or "", "locked": False}
+
+
+def rename_project_file(user_id: str, project_id: str, old: str, new: str) -> dict[str, Any]:
+    if not _project_owned(user_id, project_id):
+        raise LabError("Project not found.", 404)
+    old_path = _clean_path(old)
+    new_path = _clean_path(new)
+    row = execute_one("SELECT locked FROM lab_files WHERE project_id = ? AND path = ?",
+                      [project_id, old_path])
+    if not row:
+        raise LabError("File not found.", 404)
+    if row["locked"]:
+        raise LabError("That file is locked and cannot be renamed.", 400)
+    if old_path != new_path and execute_one(
+            "SELECT path FROM lab_files WHERE project_id = ? AND path = ?", [project_id, new_path]):
+        raise LabError("A file with that name already exists.", 409)
+    execute("UPDATE lab_files SET path = ?, updated_at = ? WHERE project_id = ? AND path = ?",
+            [new_path, now_iso(), project_id, old_path])
+    return {"name": new_path, "previous": old_path}
+
+
+def delete_project_file(user_id: str, project_id: str, path: str) -> bool:
+    if not _project_owned(user_id, project_id):
+        raise LabError("Project not found.", 404)
+    clean = _clean_path(path)
+    row = execute_one("SELECT locked FROM lab_files WHERE project_id = ? AND path = ?",
+                      [project_id, clean])
+    if not row:
+        return False
+    if row["locked"]:
+        raise LabError("That file is locked and cannot be deleted.", 400)
+    execute("DELETE FROM lab_files WHERE project_id = ? AND path = ?", [project_id, clean])
+    return True
+
+
+def create_project_folder(user_id: str, project_id: str, name: str) -> dict[str, Any]:
+    if not _project_owned(user_id, project_id):
+        raise LabError("Project not found.", 404)
+    path = _clean_path(name, folder=True)
+    count = execute_one("SELECT COUNT(*) AS n FROM lab_folders WHERE project_id = ?", [project_id])
+    if int((count or {}).get("n", 0)) >= FOLDERS_PER_PROJECT_MAX:
+        raise LabError(f"Projects hold at most {FOLDERS_PER_PROJECT_MAX} folders.", 400)
+    execute("INSERT OR IGNORE INTO lab_folders (project_id, path) VALUES (?, ?)", [project_id, path])
+    return {"name": path}
+
+
+def delete_project_folder(user_id: str, project_id: str, path: str) -> bool:
+    if not _project_owned(user_id, project_id):
+        raise LabError("Project not found.", 404)
+    clean = _clean_path(path, folder=True)
+    prefix = clean + "/"
+    has_files = execute_one(
+        "SELECT path FROM lab_files WHERE project_id = ? AND path LIKE ? LIMIT 1",
+        [project_id, prefix + "%"],
+    )
+    has_folders = execute_one(
+        "SELECT path FROM lab_folders WHERE project_id = ? AND (path = ? OR path LIKE ?)",
+        [project_id, clean, prefix + "%"],
+    )
+    if not has_files and not has_folders:
+        return False
+    execute("DELETE FROM lab_files WHERE project_id = ? AND path LIKE ?", [project_id, prefix + "%"])
+    execute("DELETE FROM lab_folders WHERE project_id = ? AND (path = ? OR path LIKE ?)",
+            [project_id, clean, prefix + "%"])
+    return True
+
+
+def delete_user_lab_projects(user_id: str) -> None:
+    project_ids = [r["id"] for r in execute(
+        "SELECT p.id FROM lab_projects p"
+        " JOIN lab_workspaces w ON w.id = p.workspace_id WHERE w.user_id = ?", [user_id]
+    )]
+    for pid in project_ids:
+        execute("DELETE FROM lab_files WHERE project_id = ?", [pid])
+        execute("DELETE FROM lab_folders WHERE project_id = ?", [pid])
+    execute(
+        "DELETE FROM lab_projects WHERE workspace_id IN"
+        " (SELECT id FROM lab_workspaces WHERE user_id = ?)", [user_id],
+    )
+    execute("DELETE FROM lab_workspaces WHERE user_id = ?", [user_id])
+
+
+# -------- Template seeds --------
+# The starter file each project template creates. Ids match the Lab wizard's
+# template list, so the preview it shows is the file the project opens with.
+_BLANK_SEED = '''\
+# custom_strategy.py — your strategy lives here. The engine calls run_daily
+# once per day and on_signal for each ticker, and fills the Orders you return.
+from sltp import Order, OrderSizing, PositionType, StockData, Strategy
+
+
+class CustomStrategy(Strategy):
+    def __init__(self):
+        super().__init__()
+        self.name = "Custom strategy"
+        self.description = "Describe what this strategy does."
+        self.MAX_POSITIONS = 10
+        self.ALLOCATION = 0.10
+        self.MIN_BARS_REQUIRED = 60
+
+    def run_daily(self, current_date: str) -> None:
+        # Runs once per day, before any ticker is read. Use it for
+        # market-wide work like rankings; it cannot see today's close.
+        pass
+
+    def on_signal(self, ticker: str, data: StockData) -> Order | None:
+        # Runs once per ticker. Return an Order to trade, None to sit out.
+        return None
+'''
+
+_EMA_SEED = '''\
+# ema_crossover_strategy.py — buy when the 12-day EMA crosses above the
+# 26-day EMA. A stop 8% below and a target 16% above frame every position.
+import numpy as np
+
+from sltp import Order, OrderSizing, PositionType, StockData, Strategy
+
+
+def _ema(closes: np.ndarray, bars: int) -> np.ndarray:
+    weight = 2.0 / (bars + 1.0)
+    out = np.empty_like(closes, dtype=float)
+    out[0] = closes[0]
+    for i in range(1, len(closes)):
+        out[i] = closes[i] * weight + out[i - 1] * (1.0 - weight)
+    return out
+
+
+class EmaCrossover(Strategy):
+    def __init__(self):
+        super().__init__()
+        self.name = "EMA crossover"
+        self.description = "Buy when the 12-day EMA crosses above the 26-day EMA."
+        self.MAX_POSITIONS = 10
+        self.ALLOCATION = 0.10
+        self.MIN_BARS_REQUIRED = 60
+
+    def on_signal(self, ticker: str, data: StockData) -> Order | None:
+        if ticker in self.open_tickers:
+            return None
+        closes = data.close_price
+        if len(closes) < 27:
+            return None
+        fast = _ema(closes, 12)
+        slow = _ema(closes, 26)
+        if not (fast[-2] <= slow[-2] and fast[-1] > slow[-1]):
+            return None
+        close = float(closes[-1])
+        return Order(
+            ticker=ticker,
+            position_type=PositionType.LONG,
+            allocation=self.ALLOCATION,
+            sizing=OrderSizing.EQUITY,
+            order_date=str(data.dates[-1]),
+            stop_loss=round(close * 0.92, 2),
+            take_profit=round(close * 1.16, 2),
+        )
+'''
+
+_RSI_SEED = '''\
+# rsi_pullback_strategy.py — buy an oversold dip while the close is still
+# above its 50-day average. A stop 6% below and a target 12% above frame it.
+import numpy as np
+
+from sltp import Order, OrderSizing, PositionType, StockData, Strategy
+
+
+def _rsi(closes: np.ndarray, bars: int = 14) -> np.ndarray:
+    deltas = np.diff(closes, prepend=closes[0])
+    gains = np.clip(deltas, 0.0, None)
+    losses = np.clip(-deltas, 0.0, None)
+    avg_gain = np.convolve(gains, np.ones(bars) / bars, mode="same")
+    avg_loss = np.convolve(losses, np.ones(bars) / bars, mode="same")
+    denom = np.where(avg_loss == 0.0, 1e-9, avg_loss)
+    return 100.0 - 100.0 / (1.0 + avg_gain / denom)
+
+
+class RsiPullback(Strategy):
+    def __init__(self):
+        super().__init__()
+        self.name = "RSI pullback"
+        self.description = "Buy an oversold dip while the close holds above its 50-day average."
+        self.MAX_POSITIONS = 10
+        self.ALLOCATION = 0.10
+        self.MIN_BARS_REQUIRED = 60
+
+    def on_signal(self, ticker: str, data: StockData) -> Order | None:
+        if ticker in self.open_tickers:
+            return None
+        closes = data.close_price
+        if len(closes) < 51:
+            return None
+        if float(closes[-1]) <= float(np.mean(closes[-50:])):
+            return None
+        if float(_rsi(closes)[-1]) >= 30.0:
+            return None
+        close = float(closes[-1])
+        return Order(
+            ticker=ticker,
+            position_type=PositionType.LONG,
+            allocation=self.ALLOCATION,
+            sizing=OrderSizing.EQUITY,
+            order_date=str(data.dates[-1]),
+            stop_loss=round(close * 0.94, 2),
+            take_profit=round(close * 1.12, 2),
+        )
+'''
+
+_SAR_SEED = '''\
+# parabolic_sar_strategy.py — enter when price flips above the Parabolic SAR
+# and use the SAR as the stop. The target sits 25% above the entry.
+import numpy as np
+
+from sltp import Order, OrderSizing, PositionType, StockData, Strategy
+
+
+def _sar(high: np.ndarray, low: np.ndarray) -> np.ndarray:
+    out = np.empty_like(high, dtype=float)
+    out[0] = low[0]
+    trend_up = True
+    extreme = high[0]
+    accel = 0.02
+    for i in range(1, len(high)):
+        prior = out[i - 1]
+        out[i] = prior + accel * (extreme - prior)
+        if trend_up:
+            if low[i] < out[i]:
+                trend_up = False
+                out[i] = extreme
+                extreme = low[i]
+                accel = 0.02
+            else:
+                if high[i] > extreme:
+                    extreme = high[i]
+                    accel = min(0.20, accel + 0.02)
+        else:
+            if high[i] > out[i]:
+                trend_up = True
+                out[i] = extreme
+                extreme = high[i]
+                accel = 0.02
+            else:
+                if low[i] < extreme:
+                    extreme = low[i]
+                    accel = min(0.20, accel + 0.02)
+    return out
+
+
+class ParabolicSarTrend(Strategy):
+    def __init__(self):
+        super().__init__()
+        self.name = "Parabolic SAR trend"
+        self.description = "Enter when price flips above the SAR; the SAR is the stop."
+        self.MAX_POSITIONS = 10
+        self.ALLOCATION = 0.10
+        self.MIN_BARS_REQUIRED = 60
+
+    def on_signal(self, ticker: str, data: StockData) -> Order | None:
+        if ticker in self.open_tickers:
+            return None
+        if len(data.close_price) < 10:
+            return None
+        sar = _sar(data.high, data.low)
+        if not (data.low[-2] <= sar[-2] and data.close_price[-1] > sar[-1]):
+            return None
+        close = float(data.close_price[-1])
+        return Order(
+            ticker=ticker,
+            position_type=PositionType.LONG,
+            allocation=self.ALLOCATION,
+            sizing=OrderSizing.EQUITY,
+            order_date=str(data.dates[-1]),
+            stop_loss=round(float(sar[-1]), 2),
+            take_profit=round(close * 1.25, 2),
+        )
+'''
+
+TEMPLATE_SEEDS: dict[str, list[tuple[str, str]]] = {
+    "blank": [("workspace/custom_strategy.py", _BLANK_SEED)],
+    "ema-crossover": [("workspace/ema_crossover_strategy.py", _EMA_SEED)],
+    "rsi-pullback": [("workspace/rsi_pullback_strategy.py", _RSI_SEED)],
+    "parabolic-sar": [("workspace/parabolic_sar_strategy.py", _SAR_SEED)],
+}
+
 # -------- Operator counts --------
 # Small aggregates for the morning report. Turso down reads as None instead
 # of blanking the rest of the report.
@@ -284,3 +808,4 @@ def delete_user_lab_data(user_id: str) -> None:
     execute("DELETE FROM watchlists WHERE user_id = ?", [user_id])
     execute("DELETE FROM user_strategies WHERE user_id = ?", [user_id])
     execute("DELETE FROM backtest_results WHERE user_id = ?", [user_id])
+    delete_user_lab_projects(user_id)

@@ -181,12 +181,6 @@ const LEARN: { title: string; text: string; slug: string }[] = [
   { title: 'Gotchas', text: 'The behaviors that most often surprise people.', slug: 'gotchas' },
 ];
 
-/* The code workspace APIs do not exist yet — the backend stores Lab snapshots,
-   not files — so the panels below stay visible but nothing opens. Every
-   button that would lead into the editor is disabled until the file APIs
-   land. Flip this when they do. */
-const LAB_CODE_ENABLED = false;
-
 /* ---------- Sort ---------- */
 type SortOrder = 'newest' | 'name';
 
@@ -260,11 +254,8 @@ export default function LabPage({ onNavigate }: LabPageProps) {
     }
   }, []);
 
-  // The workspace endpoints do not exist yet, so there is nothing to load.
-  // The panel below explains that on its own until this flips on.
   useEffect(() => {
-    if (LAB_CODE_ENABLED) void loadWorkspaces();
-    else setLoading(false);
+    void loadWorkspaces();
   }, [loadWorkspaces]);
 
   const q = query.trim().toLowerCase();
@@ -298,15 +289,11 @@ export default function LabPage({ onNavigate }: LabPageProps) {
       return next;
     });
 
-  // Disabled until the file APIs exist: present as a link that goes nowhere.
   const openInEditor = (project: LabProject, workspaceName: string) => {
-    if (!LAB_CODE_ENABLED) return;
     setOpenProject({ project, workspaceName });
   };
 
-  // Disabled until the file APIs exist: present as a button that waits.
   const startWizard = (template: LabTemplateId = 'blank', target: 'existing' | 'new' = 'existing') => {
-    if (!LAB_CODE_ENABLED) return;
     setWizard({ open: true, template, target });
   };
 
@@ -421,7 +408,7 @@ export default function LabPage({ onNavigate }: LabPageProps) {
           </p>
 
           <div className="lab-hero-actions">
-            <Button variant="primary" size="lg" className="lab-hero-new" onClick={() => startWizard()} disabled={!LAB_CODE_ENABLED} title="Project workspaces open soon">
+            <Button variant="primary" size="lg" className="lab-hero-new" onClick={() => startWizard()}>
               New project
               <ArrowRight size={18} className="lab-btn-icon" />
             </Button>
@@ -475,8 +462,6 @@ export default function LabPage({ onNavigate }: LabPageProps) {
                   size="sm"
                   className="lab-ws-new"
                   onClick={() => startWizard('blank', 'new')}
-                  disabled={!LAB_CODE_ENABLED}
-                  title="Project workspaces open soon"
                 >
                   New workspace
                 </Button>
@@ -522,21 +507,13 @@ export default function LabPage({ onNavigate }: LabPageProps) {
 
                 {!loading && !loadError && workspaces.length === 0 && (
                   <li className="lab-ws-state">
-                    <span className="lab-ws-state-title">
-                      {LAB_CODE_ENABLED ? 'No workspaces yet' : 'Code workspaces open soon'}
-                    </span>
-                    <span>
-                      {LAB_CODE_ENABLED
-                        ? 'Create a project and it will appear here.'
-                        : 'Your strategy code will live here. The editor is still being built.'}
-                    </span>
+                    <span className="lab-ws-state-title">No workspaces yet</span>
+                    <span>Create a project and it will appear here.</span>
                     <Button
                       variant="primary"
                       size="sm"
                       className="lab-ws-state-action"
                       onClick={() => startWizard()}
-                      disabled={!LAB_CODE_ENABLED}
-                      title="Project workspaces open soon"
                     >
                       New project
                     </Button>
