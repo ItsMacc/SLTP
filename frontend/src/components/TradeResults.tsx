@@ -127,15 +127,27 @@ export default function TradeResults({ trades }: TradeResultsProps) {
                 action === 'TAKE_PROFIT' ||
                 action === 'STOP_LOSS' ||
                 action === 'EXIT'
+              // Won or lost, read off the fills: a long wins when it sells
+              // higher than it bought, a short wins when it buys back lower.
+              // The server's realized_return_pct wins when present; ties and
+              // open trades stay neutral.
+              const isShortTrade = trade.position_type === 'short' || action === 'SHORT'
+              const entry = Number(trade.entry_price)
+              const exit = Number(trade.exit_price)
               const realizedReturn = Number(trade.realized_return_pct)
+              const won = Number.isFinite(entry) && Number.isFinite(exit) && entry > 0
+                ? isShortTrade ? exit < entry : exit > entry
+                : Number.isFinite(realizedReturn) && realizedReturn !== 0
+                  ? realizedReturn > 0
+                  : null
               const actionClass = action === 'TAKE_PROFIT'
                 ? 'is-winning'
                 : action === 'STOP_LOSS'
                   ? 'is-losing'
                   : isClosedTrade
-                    ? realizedReturn > 0
+                    ? won === true
                       ? 'is-winning'
-                      : realizedReturn < 0
+                      : won === false
                         ? 'is-losing'
                         : 'is-exit'
                     : action === 'SHORT'

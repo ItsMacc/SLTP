@@ -101,8 +101,9 @@ export default function StrategyChart() {
 
   useEffect(() => {
     let cancelled = false
-    // The runnable strategies live in the browser bundle now: the registry
-    // above, executed by the engine worker. No server decides what can run.
+    // The runnable strategies live in the backend registry: the server owns
+    // the list, so a strategy removed there disappears here instead of
+    // offering a run the server will reject.
     Promise.resolve()
       .then(() => listStrategies())
       .then((data: StrategyOption[]) => {
@@ -173,8 +174,8 @@ export default function StrategyChart() {
     setLoading(true)
 
     try {
-      // The run happens in the engine worker: same strategies, same math,
-      // no backend. The response keeps the old shape so nothing below changes.
+      // The run happens on the backend: the registry maps the id to a
+      // strategy class and the sltp engine replays it over the date range.
       const data: BacktestApiResponse = await runBacktest(
         selectedStrategy,
         startDate,
