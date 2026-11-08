@@ -490,6 +490,79 @@ def save_project_file(user_id: str, project_id: str, path: str, content: str) ->
     return {"name": path, "content": content or "", "locked": False}
 
 
+def save_project_files(user_id: str, project_id: str, files: list[dict[str, Any]]) -> dict[str, Any]:
+    # One flush for everything the editor autosaves: ownership, the locked
+    # check and the upsert are three round trips no matter how many files are
+    # dirty, so rapid typing costs one write transaction instead of one per
+    # file. A single multi-row statement is atomic server-side, which is what
+    # keeps concurrent saves from tripping over each other's write locks.
+    project = _project_owned(user_id, project_id)
+    if not project:
+        raise LabError("Project not found.", 404)
+    cleaned: list[tuple[str, str]] = []
+    for entry in files or []:
+        path = _clean_path(str(entry.get("path", "")))
+        content = str(entry.get("content", "") or "")
+        if len(content) > FILE_CONTENT_MAX:
+            raise LabError(f"{path} is too large to save.", 400)
+        cleaned.append((path, content))
+    if not cleaned:
+        return {"saved": [], "locked_skipped": []}
+    if len(cleaned) > FILES_PER_PROJECT_MAX:
+        raise LabError(f"Projects hold at most {FILES_PER_PROJECT_MAX} files.", 400)
+    existing_rows = execute(
+        f"SELECT path, locked FROM lab_files WHERE project_id = ?"
+        f" AND path IN ({','.join(['?'] * len(cleaned))})",
+        [project_id, *[path for path, _ in cleaned]],
+    )
+    existing = {row["path"] for row in existing_rows}
+    new_only = sum(1 for path, _ in cleaned if path not in existing)
+    if _file_count(project_id) + new_only > FILES_PER_PROJECT_MAX:
+        raise LabError(f"Projects hold at most {FILES_PER_PROJECT_MAX} files.", 400)
+    locked = {row["path"] for row in existing_rows if row["locked"]}
+    writable = [(path, content) for path, content in cleaned if path not in locked]
+    if writable:
+        now = now_iso()
+        values = ", ".join(["(?, ?, ?, 0, ?)"] * len(writable))
+        args: list[Any] = []
+        for path, content in writable:
+            args.extend([project_id, path, content, now])
+        execute(
+            f"INSERT INTO lab_files (project_id, path, content, locked, updated_at)"
+            f" VALUES {values}"
+            f" ON CONFLICT (project_id, path) DO UPDATE SET"
+            f" content = excluded.content, updated_at = excluded.updated_at",
+            args,
+        )
+    return {"saved": [path for path, _ in writable], "locked_skipped": sorted(locked)}
+
+
+def import_project_files(
+    user_id: str, project_id: str, files: list[dict[str, Any]], folders: list[str] | None = None,
+) -> dict[str, Any]:
+    # The folder import writes through the same single-statement upsert as
+    # autosave, so a 40-file import is one write transaction, not forty.
+    # Existing files with the same name are replaced.
+    project = _project_owned(user_id, project_id)
+    if not project:
+        raise LabError("Project not found.", 404)
+    result = save_project_files(user_id, project_id, files or [])
+    imported = result["saved"]
+    skipped = [{"path": path, "reason": "That file is locked and cannot be replaced."}
+               for path in result["locked_skipped"]]
+    for raw in folders or []:
+        try:
+            folder = _clean_path(str(raw), folder=True)
+        except LabError:
+            continue
+        count = execute_one("SELECT COUNT(*) AS n FROM lab_folders WHERE project_id = ?", [project_id])
+        if int((count or {}).get("n", 0)) >= FOLDERS_PER_PROJECT_MAX:
+            break
+        execute("INSERT OR IGNORE INTO lab_folders (project_id, path) VALUES (?, ?)",
+                [project_id, folder])
+    return {"imported": imported, "skipped": skipped}
+
+
 def rename_project_file(user_id: str, project_id: str, old: str, new: str) -> dict[str, Any]:
     if not _project_owned(user_id, project_id):
         raise LabError("Project not found.", 404)

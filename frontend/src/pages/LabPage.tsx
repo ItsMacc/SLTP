@@ -398,7 +398,10 @@ export default function LabPage({ onNavigate }: LabPageProps) {
           </div>
         }
       >
+        {/* Keyed by project: drafts, tabs and the VFS belong to one project,
+            so opening another always starts from a clean mount. */}
         <LabEditorPage
+          key={openProject.project.id}
           project={openProject.project}
           workspaceName={openProject.workspaceName}
           onBack={() => {

@@ -692,6 +692,118 @@
   font-weight: 600;
 }
 
+.lab-panel-tabs {
+  display: flex;
+  align-items: stretch;
+  height: 100%;
+  gap: var(--space-xs);
+}
+
+.lab-panel-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  height: 100%;
+  padding: 0 var(--space-xs);
+  border: 0;
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  color: var(--ide-muted);
+  font: inherit;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.lab-panel-tab:hover {
+  color: var(--ide-text);
+}
+
+.lab-panel-tab.is-active {
+  border-bottom-color: var(--ide-text);
+  color: var(--ide-text);
+}
+
+.lab-panel-tab.has-errors {
+  color: var(--ide-error);
+}
+
+.lab-panel-tab.has-errors.is-active {
+  border-bottom-color: var(--ide-error);
+}
+
+.lab-problems-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-xs) var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.lab-problem-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: 0.2rem var(--space-xs);
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ide-text);
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lab-problem-row:hover {
+  background-color: var(--ide-hover);
+}
+
+.lab-problem-severity {
+  flex: 0 0 auto;
+  min-width: 4.5rem;
+  text-transform: capitalize;
+  font-weight: 600;
+}
+
+.lab-problem-row.is-error .lab-problem-severity {
+  color: var(--ide-error);
+}
+
+.lab-problem-row.is-warning .lab-problem-severity {
+  color: var(--ide-warn);
+}
+
+.lab-problem-row.is-info .lab-problem-severity {
+  color: var(--ide-muted);
+}
+
+.lab-problem-message {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lab-problem-code {
+  flex: 0 0 auto;
+  color: var(--ide-muted);
+  font-size: 0.75rem;
+}
+
+.lab-problem-location {
+  flex: 0 0 auto;
+  color: var(--ide-muted);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
 .lab-terminal-status {
   color: var(--ide-muted);
 }

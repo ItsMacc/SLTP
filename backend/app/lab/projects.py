@@ -49,6 +49,20 @@ class FileSaveIn(BaseModel):
     content: str = Field(default="", description="Full new file content.")
 
 
+class FileSaveWithPath(BaseModel):
+    path: str = Field(description="File path, folders separated by slashes.")
+    content: str = Field(default="", description="Full new file content.")
+
+
+class FileBatchSaveIn(BaseModel):
+    files: list[FileSaveWithPath] = Field(default_factory=list, description="Paths with their full new contents.")
+
+
+class FolderImportIn(BaseModel):
+    files: list[FileSaveWithPath] = Field(default_factory=list, description="Files read off disk, stored under workspace/.")
+    folders: list[str] = Field(default_factory=list, description="Real-but-empty folders to keep.")
+
+
 class FileRenameIn(BaseModel):
     name: str = Field(description="New file path.")
 
@@ -168,6 +182,38 @@ async def save_project_file(
 ) -> dict[str, Any]:
     try:
         return userdata.save_project_file(user["id"], project_id, file_path, body.content)
+    except userdata.LabError as err:
+        raise _lab_error(err)
+
+
+# Frontend write: the autosave flush — every dirty file in one write
+# transaction, so rapid typing cannot stack up conflicting writes.
+@router.put("/api/lab/projects/{project_id}/files")
+async def save_project_files(
+    project_id: str,
+    body: FileBatchSaveIn,
+    user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    try:
+        return userdata.save_project_files(
+            user["id"], project_id, [item.model_dump() for item in body.files]
+        )
+    except userdata.LabError as err:
+        raise _lab_error(err)
+
+
+# Frontend write: the folder import — same single-transaction upsert.
+@router.post("/api/lab/projects/{project_id}/import")
+async def import_project_files(
+    project_id: str,
+    body: FolderImportIn,
+    user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    try:
+        return userdata.import_project_files(
+            user["id"], project_id,
+            [item.model_dump() for item in body.files], body.folders,
+        )
     except userdata.LabError as err:
         raise _lab_error(err)
 

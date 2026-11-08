@@ -287,6 +287,26 @@ export async function saveLabFile(
   );
 }
 
+export interface LabBatchSaveResult {
+  saved: string[];
+  locked_skipped: string[];
+}
+
+// The autosave flush: every dirty file in one request, one write transaction
+// on the server. Replaces N per-file PUTs with a single round trip.
+export async function saveLabFiles(
+  token: string,
+  projectId: string,
+  files: { path: string; content: string }[],
+): Promise<LabBatchSaveResult> {
+  return authedFetch(`/api/lab/projects/${projectId}/files`, token, {
+    method: 'PUT',
+    body: JSON.stringify({
+      files: files.map((file) => ({ path: file.path, content: file.content })),
+    }),
+  });
+}
+
 export async function renameLabFile(
   token: string,
   projectId: string,

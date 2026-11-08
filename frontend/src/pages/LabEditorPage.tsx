@@ -1,6 +1,10 @@
 // LabEditorPage.tsx — Lab project editor. A dark IDE frame with a file tree, tabs, a Monaco
 // editor checked live by Pyright (in a Web Worker), and a terminal.
 //
+// Editing is layered: Monaco models hold the text, the VFS in lab/vfs.ts owns
+// drafts and autosaves them in one batched request, and page state only tracks
+// clean→dirty→saved transitions — so typing never re-renders the IDE.
+//
 // A project holds the strategy files the student writes (workspace/ plus any
 // folders they add). The engine is not stored per project: strategies import
 // it with `from sltp import ...`, and Pyright learns it from the bundled
@@ -50,12 +54,13 @@ import {
   getLabProjectFiles,
   importLabFiles,
   renameLabFile,
-  saveLabFile,
+  saveLabFiles,
   type LabProject,
 } from '../../lib/api';
 import { readSession, sessionKeyFor, writeSession } from '../../lib/sessionCache';
 import { readSessionUserSettings } from '../../lib/settings';
 import { loadProject, setDiagnosticsTarget, syncDocument, type Monaco } from '../lab/pyright';
+import { LabVfs, type VfsStatus } from '../lab/vfs';
 import { applyLabEditorTheme } from '../lab/editorTheme';
 import { pickLocalFolder, type FolderFileMap } from '../lab/fileReader';
 import ImportFolderDialog from '../lab/ImportFolderDialog';
@@ -82,11 +87,12 @@ const SIDEBAR_MAX = 420;
 const SIDEBAR_DEFAULT = 232;
 const STUB_REBUILD_DELAY_MS = 700;
 
+// A file's server-acknowledged state. Unsaved edits live in the VFS (and the
+// Monaco model), never in this list, so typing never re-renders the IDE.
 interface EditorFile {
   name: string;
   locked: boolean;
   saved: string;
-  draft: string;
 }
 
 interface TreeNode {
@@ -135,6 +141,14 @@ interface OutputLine {
   text: string;
 }
 
+interface ProblemItem {
+  message: string;
+  severity: 'error' | 'warning' | 'info';
+  line: number;
+  column: number;
+  code?: string;
+}
+
 type PyrightState = 'starting' | 'active' | 'failed';
 
 /** The Code editor settings saved on the account (Settings → Code editor). */
@@ -179,9 +193,7 @@ async function getToken(): Promise<string | null> {
   return session?.access_token ?? null;
 }
 
-function isDirty(file: EditorFile): boolean {
-  return !file.locked && file.draft !== file.saved;
-}
+
 
 /* Tab-scoped project trees, keyed by project. Closing the tab drops them. */
 const LAB_FILES_KEY_BASE = 'sltp_session_lab_files';
@@ -215,6 +227,7 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
   const error = actionError ?? (projectFilesQuery.error instanceof Error
     ? projectFilesQuery.error.message
     : projectFilesQuery.error ? 'Could not load the project files.' : null);
+  // Save failures surface from the VFS (declared below) at the banner site.
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT);
   const [newFileOpen, setNewFileOpen] = useState(false);
   const [newName, setNewName] = useState('');
@@ -230,10 +243,31 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
   // The file or folder currently being removed from the project store.
   const [deletingTarget, setDeletingTarget] = useState<string | null>(null);
   const [fileBusy, setFileBusy] = useState(false);
-  // The file currently being written to the project store, if any.
-  const [savingFile, setSavingFile] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const dismissToast = useCallback(() => setToast(null), []);
+
+  // -------- Virtual file system --------
+  // Drafts live in the VFS (and the Monaco models), keyed by path. Page state
+  // only learns about membership transitions — clean→dirty, saved, failed —
+  // so a burst of keystrokes costs no re-renders and every flush is a single
+  // batched request no matter how many files are dirty.
+  // The instance is state, not a ref, so reading it during render is fine.
+  // The save closure captures this mount's project; the page is keyed by
+  // project upstream, so a different project always mounts a fresh VFS.
+  const [vfs] = useState(() => new LabVfs(async (batch) => {
+    const token = await getToken();
+    if (!token) throw new Error('Your session has expired. Please sign in again.');
+    return saveLabFiles(token, project.id, batch);
+  }));
+  const [vfsStatus, setVfsStatus] = useState<VfsStatus>(() => ({
+    dirty: [],
+    saving: false,
+    error: null,
+    lastSavedAt: null,
+  }));
+  // Membership only; transitions are rare, so tree, tabs and dots re-render
+  // per save cycle, never per keystroke.
+  const dirtySet = useMemo(() => new Set(vfsStatus.dirty), [vfsStatus]);
 
   const [pyright, setPyright] = useState<PyrightState>('starting');
   const [editorReady, setEditorReady] = useState(false);
@@ -244,6 +278,8 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
   });
   const [editorSettings, setEditorSettings] = useState<EditorSettings>(DEFAULT_EDITOR_SETTINGS);
   const [markerCounts, setMarkerCounts] = useState({ errors: 0, warnings: 0 });
+  /** Live diagnostics of the open file, mirrored into the Problems panel. */
+  const [problems, setProblems] = useState<ProblemItem[]>([]);
   // The cursor readout lives in its own component, so moving the cursor does not re-render the page.
   const cursorListenerRef = useRef<((position: { line: number; column: number }) => void) | null>(null);
 
@@ -269,6 +305,7 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
   }, []);
 
   const [terminalOpen, setTerminalOpen] = useState(true);
+  const [panelTab, setPanelTab] = useState<'terminal' | 'problems'>('terminal');
   const [output, setOutput] = useState<OutputLine[]>([]);
   const clearOutput = useCallback(() => setOutput([]), []);
   const closeTerminal = useCallback(() => setTerminalOpen(false), []);
@@ -298,39 +335,44 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, []);
 
-  const latestFilesRef = useRef(files);
-  useEffect(() => {
-    latestFilesRef.current = files;
-  }, [files]);
-
   useEffect(() => {
     const data = projectFilesQuery.data;
     if (!data) return;
     // Every snapshot refreshes the tab copy: saves, creates, renames,
     // deletes and imports all land in the query cache, so this one write
     // keeps the copy behind all of them without touching each handler.
+    // Dirty drafts always win over the snapshot; the VFS keeps them.
     writeSession(projectFilesKey, data);
-    const list: EditorFile[] = data.files.map((file) => {
-      const previous = latestFilesRef.current.find((item) => item.name === file.name);
-      return { name: file.name, locked: file.locked, saved: file.content, draft: previous?.draft ?? file.content };
-    });
+    const list: EditorFile[] = data.files.map((file) => ({
+      name: file.name,
+      locked: file.locked,
+      saved: file.content,
+    }));
+    vfs.setSaved(list);
+    // Publish anything the VFS already acknowledged (autosave completions)
+    // so the meta copy, and the stubs built from it, stay current.
+    const synced = list.map((file) => ({
+      ...file,
+      saved: vfs.savedText(file.name) ?? file.saved,
+    }));
     // The first editable file opens.
-    const first = list.find((file) => !file.locked)?.name ?? list[0]?.name ?? null;
-    setFiles(list);
+    const first = synced.find((file) => !file.locked)?.name ?? synced[0]?.name ?? null;
+    setFiles(synced);
     // The workspace starts open; deeper folders stay as the user left them.
     setExpandedFolders((previous) => new Set([...previous, WORKSPACE_FOLDER]));
     setTabs((previous) => previous.length ? previous.filter((name) => list.some((file) => file.name === name)) : first ? [first] : []);
     setActive((previous) => previous && list.some((file) => file.name === previous) ? previous : first);
   // Keep unsaved drafts local; reconcile only when the cache snapshot changes.
-  }, [projectFilesQuery.data]);
+  }, [projectFilesQuery.data, projectFilesKey, vfs]);
 
   useEffect(() => {
     if (newFileOpen) newFileInputRef.current?.focus();
   }, [newFileOpen]);
 
   const loading = projectFilesQuery.isPending && files.length === 0;
-  const dirtyCount = files.filter(isDirty).length;
+  const dirtyCount = vfsStatus.dirty.length;
   const activeFile = files.find((f) => f.name === active) ?? null;
+  const activeText = active ? vfs.getText(active) : '';
 
   const openFile = (name: string) => {
     setTabs((prev) => (prev.includes(name) ? prev : [...prev, name]));
@@ -351,26 +393,15 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
     );
   }, [project.id, queryClient]);
 
-  const saveFile = async (name: string) => {
-    const file = files.find((f) => f.name === name);
-    if (!file || !isDirty(file)) return;
-    const draft = file.draft;
+  // Manual save: flushes every dirty file in one batch. Autosave already
+  // covers the idle path; this is the Ctrl+S "now, please".
+  const saveFile = async () => {
+    if (vfs.dirtyCount === 0) return;
     setActionError(null);
-    setSavingFile(name);
-    try {
-      const token = await getToken();
-      if (!token) throw new Error('Your session has expired. Please sign in again.');
-      await saveLabFile(token, project.id, name, draft);
-      setFiles((prev) => prev.map((f) => (f.name === name ? { ...f, saved: draft } : f)));
-      updateProjectCache((current) => ({
-        ...current,
-        files: current.files.map((file) => file.name === name ? { ...file, content: draft } : file),
-      }));
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : `Could not save ${name}.`);
-    } finally {
-      setSavingFile((current) => (current === name ? null : current));
-    }
+    appendLine('command', '$ save');
+    await vfs.flushNow();
+    const status = vfs.getStatus();
+    if (!status.error) appendLine('stdout', 'All changes saved.');
   };
 
   // -------- Pyright: live diagnostics --------
@@ -385,6 +416,21 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
       errors: markers.filter((m) => m.severity === monaco.MarkerSeverity.Error).length,
       warnings: markers.filter((m) => m.severity === monaco.MarkerSeverity.Warning).length,
     });
+    // The Problems panel mirrors the open file's diagnostics, capped so a
+    // catastrophic file cannot flood the list.
+    setProblems(
+      markers.slice(0, 200).map((m) => ({
+        message: m.message,
+        severity: m.severity === monaco.MarkerSeverity.Error
+          ? 'error'
+          : m.severity === monaco.MarkerSeverity.Warning
+            ? 'warning'
+            : 'info',
+        line: m.startLineNumber,
+        column: m.startColumn,
+        code: typeof m.code === 'string' ? m.code : undefined,
+      })),
+    );
   }, []);
 
   // Points diagnostics at the shown model and sends its text to Pyright.
@@ -413,7 +459,7 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
     const monaco = monacoRef.current;
     if (!editorReady || loading || !monaco) return;
     const stubs: Record<string, string> = {};
-    for (const f of latestFilesRef.current) stubs[f.name] = f.saved;
+    for (const f of files) stubs[f.name] = f.saved;
     const timer = window.setTimeout(() => {
       loadProject(monaco, stubs)
         .then(() => {
@@ -423,7 +469,7 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
         .catch(() => setPyright('failed'));
     }, STUB_REBUILD_DELAY_MS);
     return () => window.clearTimeout(timer);
-  }, [stubKey, editorReady, loading, bindActiveModel]);
+  }, [stubKey, files, editorReady, loading, bindActiveModel]);
 
   const handleMount: OnMount = (editor, monacoInstance) => {
     const monaco = monacoInstance as Monaco;
@@ -454,6 +500,19 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
     if (monaco) applyLabEditorTheme(monaco, editorTheme);
   }, [editorTheme]);
 
+  const showProblems = useCallback(() => {
+    setPanelTab('problems');
+    setTerminalOpen(true);
+  }, []);
+
+  const jumpToProblem = useCallback((line: number, column: number) => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    editor.setPosition({ lineNumber: line, column });
+    editor.revealLineInCenter(line);
+    editor.focus();
+  }, []);
+
   // Moves the cursor to the next error in the open file, wrapping at the end.
   const jumpToNextError = () => {
     const editor = editorRef.current;
@@ -470,6 +529,7 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
     editor.setPosition({ lineNumber: next.startLineNumber, column: next.startColumn });
     editor.revealLineInCenter(next.startLineNumber);
     editor.focus();
+    showProblems();
   };
 
   // -------- Run --------
@@ -477,11 +537,61 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
   // is wired up, but there is no runner to talk to yet, so it says what is
   // going to happen instead of pretending to execute anything.
 
-  const appendLine = (kind: OutputLine['kind'], text: string) => {
+  const appendLine = useCallback((kind: OutputLine['kind'], text: string) => {
     lineIdRef.current += 1;
     const id = lineIdRef.current;
     setOutput((prev) => [...prev.slice(-1999), { id, kind, text }]);
-  };
+  }, []);
+
+  // A dead language server is worth one terminal line, not a silent status.
+  useEffect(() => {
+    if (pyright === 'failed') {
+      appendLine('stderr', 'Pyright could not start: live errors and completions are off. Reload the page to retry.');
+    }
+  }, [pyright, appendLine]);
+
+  // Publishes acknowledged saves into the meta copy and the tab copy, so the
+  // tree, the query cache and the Pyright stubs agree. Reports failures to
+  // the terminal, where they stay visible until the next successful flush.
+  // updateProjectCache and appendLine are stable, so the subscription only
+  // rebinds when the project changes. The error ref lives inside the
+  // callback, never touching render.
+  const prevVfsErrorRef = useRef<string | null>(null);
+  useEffect(() => {
+    return vfs.subscribe((status) => {
+      setVfsStatus(status);
+      setFiles((prev) => {
+        let changed = false;
+        const next = prev.map((file) => {
+          const saved = vfs.savedText(file.name);
+          if (saved !== undefined && saved !== file.saved) {
+            changed = true;
+            return { ...file, saved };
+          }
+          return file;
+        });
+        return changed ? next : prev;
+      });
+      updateProjectCache((current) => {
+        let changed = false;
+        const files = current.files.map((file) => {
+          const saved = vfs.savedText(file.name);
+          if (saved !== undefined && saved !== file.content) {
+            changed = true;
+            return { ...file, content: saved };
+          }
+          return file;
+        });
+        // Same reference means no change: query subscribers stay asleep.
+        return changed ? { ...current, files } : current;
+      });
+      if (status.error && status.error !== prevVfsErrorRef.current) {
+        appendLine('stderr', `Save failed: ${status.error}`);
+      }
+      if (!status.error) prevVfsErrorRef.current = null;
+      else prevVfsErrorRef.current = status.error;
+    });
+  }, [vfs, updateProjectCache, appendLine]);
 
   const runActive = () => {
     if (!activeFile) return;
@@ -493,7 +603,7 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
   // The shortcut handler reads the latest closure through this ref.
   useEffect(() => {
     saveActiveRef.current = () => {
-      if (active) void saveFile(active);
+      void saveFile();
     };
     runActiveRef.current = runActive;
   });
@@ -539,6 +649,9 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
     deletingRef.current = true;
     setDeletingTarget(name);
     setActionError(null);
+    // Settle unsaved edits first: the flush upserts, the delete removes, in
+    // that order, so a dirty file cannot resurrect itself mid-delete.
+    await vfs.flushNow();
     const beforeFiles = files;
     const prefix = `${name}/`;
     const removed = new Set(files.filter((file) => file.name.startsWith(prefix)).map((file) => file.name));
@@ -552,6 +665,7 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
       const token = await getToken();
       if (!token) throw new Error('Your session has expired. Please sign in again.');
       await deleteLabFolder(token, project.id, name);
+      for (const path of removed) vfs.removePath(path);
       const nextTabs = tabs.filter((tab) => !removed.has(tab));
       setTabs(nextTabs);
       if (active && removed.has(active)) setActive(nextTabs[0] ?? null);
@@ -581,17 +695,22 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
     }
     setActionError(null);
     setCreating(true);
-    const optimisticFile: EditorFile = { name, locked: false, saved: '', draft: '' };
+    const optimisticFile: EditorFile = { name, locked: false, saved: '' };
     setFiles((previous) => [...previous, optimisticFile]);
     openFile(name);
     try {
       const token = await getToken();
       if (!token) throw new Error('Your session has expired. Please sign in again.');
       const file = await createLabFile(token, project.id, name);
+      if (file.name !== name) vfs.renamePath(name, file.name);
+      vfs.addClean(file.name);
       setFiles((previous) => previous.map((item) => item.name === name ? { ...item, name: file.name } : item));
       updateProjectCache((current) => ({ ...current, files: current.files.map((item) => item.name === name ? file : item) }));
       closeNewFile();
     } catch (err) {
+      // The server never created it: drop any keystrokes typed mid-flight so
+      // a later autosave cannot resurrect a file the user saw fail.
+      vfs.removePath(name);
       setFiles((previous) => previous.filter((item) => item.name !== name));
       updateProjectCache((current) => ({
         ...current,
@@ -676,9 +795,12 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
     }
     setActionError(null);
     setFileBusy(true);
+    // Flush first so the rename moves settled text, not a draft mid-flight.
+    await vfs.flushNow();
     try {
       const token = await getToken();
       if (!token) throw new Error('Your session has expired. Please sign in again.');
+      vfs.renamePath(from, to);
       setFiles((prev) => prev.map((file) => file.name === from ? { ...file, name: to } : file));
       setTabs((prev) => prev.map((tab) => tab === from ? to : tab));
       setActive((current) => current === from ? to : current);
@@ -687,6 +809,7 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
         files: current.files.map((file) => file.name === from ? { ...file, name: to } : file),
       }));
       const result = await renameLabFile(token, project.id, from, to);
+      if (result.name !== to) vfs.renamePath(to, result.name);
       setFiles((prev) => prev.map((f) => (f.name === to ? { ...f, name: result.name } : f)));
       updateProjectCache((current) => ({
         ...current,
@@ -697,6 +820,7 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
       setRenaming(null);
       setToast(`Renamed ${from} to ${result.name}`);
     } catch (err) {
+      vfs.renamePath(to, from);
       setFiles((prev) => prev.map((file) => file.name === to ? { ...file, name: from } : file));
       setTabs((prev) => prev.map((tab) => tab === to ? from : tab));
       setActive((current) => current === to ? from : current);
@@ -715,6 +839,7 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
     deletingRef.current = true;
     setDeletingTarget(name);
     setActionError(null);
+    await vfs.flushNow();
     const beforeFiles = files;
     try {
       const token = await getToken();
@@ -726,6 +851,7 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
         files: current.files.filter((file) => file.name !== name),
       }));
       await deleteLabFile(token, project.id, name);
+      vfs.removePath(name);
       const idx = tabs.indexOf(name);
       const nextTabs = tabs.filter((t) => t !== name);
       setTabs(nextTabs);
@@ -820,7 +946,7 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
           {file.locked ? <Lock size={13} aria-hidden="true" /> : <FileCode size={13} aria-hidden="true" />}
           <span className="lab-file-name">{basename(file.name)}</span>
           {file.locked && <span className="lab-file-badge">read-only</span>}
-          {isDirty(file) && <span className="lab-dirty-dot" aria-label="unsaved changes" />}
+          {dirtySet.has(file.name) && <span className="lab-dirty-dot" aria-label="unsaved changes" />}
         </button>
         {!file.locked && (
           <span className="lab-file-actions lab-desktop-only">
@@ -913,14 +1039,16 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
         </div>
         <div className="lab-editor-actions">
           <span
-            className={`lab-editor-status lab-desktop-only ${dirtyCount > 0 ? 'is-dirty' : ''} ${savingFile || deletingTarget ? 'is-busy' : ''}`}
+            className={`lab-editor-status lab-desktop-only ${dirtyCount > 0 ? 'is-dirty' : ''} ${vfsStatus.saving || deletingTarget ? 'is-busy' : ''}`}
             aria-live="polite"
           >
-            {savingFile ? (
+            {vfsStatus.saving ? (
               <>
                 <LoaderInline size={14} />
                 Saving…
               </>
+            ) : vfsStatus.error ? (
+              'Save failed — your edits are kept'
             ) : deletingTarget ? (
               <>
                 <LoaderInline size={14} />
@@ -928,19 +1056,34 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
               </>
             ) : dirtyCount > 0 ? (
               `${dirtyCount} unsaved ${dirtyCount === 1 ? 'change' : 'changes'}`
+            ) : vfsStatus.lastSavedAt ? (
+              `Saved ${new Date(vfsStatus.lastSavedAt).toLocaleTimeString()}`
             ) : (
               'All changes saved'
             )}
           </span>
+          {vfsStatus.error && (
+            <Button
+              variant="secondary"
+              size="sm"
+              className="lab-editor-btn lab-desktop-only"
+              onClick={() => {
+                vfs.clearError();
+                void vfs.flushNow();
+              }}
+            >
+              Retry save
+            </Button>
+          )}
           <Button
             variant="secondary"
             size="sm"
             className="lab-editor-btn lab-desktop-only"
-            disabled={!activeFile || !isDirty(activeFile)}
-            onClick={() => active && void saveFile(active)}
+            disabled={!activeFile || dirtyCount === 0 || vfsStatus.saving}
+            onClick={() => { void saveFile(); }}
             title={`Save (${modShortcut('S')})`}
           >
-            {savingFile ? (
+            {vfsStatus.saving ? (
               <>
                 <LoaderInline tone="inherit" />
                 Saving…
@@ -964,7 +1107,9 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
         </div>
       </header>
 
-      {error && <p className="lab-status is-error lab-editor-error">{error}</p>}
+      {(error ?? vfsStatus.error) && (
+        <p className="lab-status is-error lab-editor-error">{error ?? vfsStatus.error}</p>
+      )}
 
       <p className="lab-mobile-note">
         Editing and running are desktop-only. On a phone, review the project files here.
@@ -1065,7 +1210,7 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
                     >
                       {file?.locked && <Lock size={11} aria-hidden="true" />}
                       {basename(name)}
-                      {file && isDirty(file) && <span className="lab-dirty-dot" aria-hidden="true" />}
+                      {file && dirtySet.has(file.name) && <span className="lab-dirty-dot" aria-hidden="true" />}
                     </button>
                     <button
                       type="button"
@@ -1097,10 +1242,12 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
                   height="100%"
                   path={activeFile.name}
                   language="python"
-                  value={activeFile.draft}
+                  value={activeText}
                   onChange={(value) => {
-                    const next = value ?? '';
-                    setFiles((prev) => prev.map((f) => (f.name === activeFile.name ? { ...f, draft: next } : f)));
+                    // Straight into the VFS: no page state, no re-render. The
+                    // VFS subscription re-renders only on clean→dirty and
+                    // save transitions (dots, status bar, stubs).
+                    vfs.edit(activeFile.name, value ?? '');
                   }}
                   theme={editorTheme === 'vs-dark' ? 'sltp-dark' : 'sltp-light'}
                   onMount={handleMount}
@@ -1123,9 +1270,19 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
                     wordWrap: editorSettings.wordWrap ? 'on' : 'off',
                     scrollBeyondLastLine: false,
                     smoothScrolling: true,
-                    padding: { top: 10 },
+                    cursorSmoothCaretAnimation: 'on',
+                    cursorBlinking: 'smooth',
+                    padding: { top: 12 },
                     tabSize: editorSettings.tabSize,
-                    renderLineHighlight: 'line',
+                    insertSpaces: true,
+                    renderLineHighlight: 'all',
+                    renderWhitespace: 'selection',
+                    bracketPairColorization: { enabled: true },
+                    guides: { bracketPairs: true, indentation: true },
+                    stickyScroll: { enabled: true },
+                    suggest: { preview: true, showStatusBar: true },
+                    fixedOverflowWidgets: true,
+                    scrollbar: { verticalScrollbarSize: 10, horizontalScrollbarSize: 10 },
                     automaticLayout: true,
                   }}
                 />
@@ -1133,7 +1290,16 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
             </div>
 
             {terminalOpen && (
-              <TerminalPanel lines={output} onClear={clearOutput} onClose={closeTerminal} />
+              <BottomPanel
+                lines={output}
+                problems={problems}
+                fileName={activeFile ? basename(activeFile.name) : null}
+                tab={panelTab}
+                onTabChange={setPanelTab}
+                onClear={clearOutput}
+                onClose={closeTerminal}
+                onJumpProblem={jumpToProblem}
+              />
             )}
           </section>
         </div>
@@ -1202,51 +1368,112 @@ function CursorStatus({ listenerRef }: CursorStatusProps) {
   return <span className="lab-statusbar-item">Ln {cursor.line}, Col {cursor.column}</span>;
 }
 
-interface TerminalPanelProps {
+interface BottomPanelProps {
   lines: OutputLine[];
+  problems: ProblemItem[];
+  fileName: string | null;
+  tab: 'terminal' | 'problems';
+  onTabChange: (tab: 'terminal' | 'problems') => void;
   onClear: () => void;
   onClose: () => void;
+  onJumpProblem: (line: number, column: number) => void;
 }
 
-// Output of the run: the command, its output and the exit line.
+// The bottom panel: run output and save failures on the Terminal tab, the
+// open file's live errors and warnings on the Problems tab.
 // Memoized, so typing in the editor does not re-render a long output log.
-const TerminalPanel = memo(TerminalPanelView);
+const BottomPanel = memo(BottomPanelView);
 
-function TerminalPanelView({ lines, onClear, onClose }: TerminalPanelProps) {
+function BottomPanelView({
+  lines,
+  problems,
+  fileName,
+  tab,
+  onTabChange,
+  onClear,
+  onClose,
+  onJumpProblem,
+}: BottomPanelProps) {
   const bodyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const el = bodyRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [lines]);
+  }, [lines, tab]);
+
+  const errorCount = problems.filter((p) => p.severity === 'error').length;
+  const warningCount = problems.filter((p) => p.severity === 'warning').length;
 
   return (
-    <section className="lab-terminal" aria-label="Terminal">
+    <section className="lab-terminal" aria-label="Terminal and problems">
       <header className="lab-terminal-bar">
-        <span className="lab-terminal-tab">
-          <TerminalIcon size={12} aria-hidden="true" /> Terminal
-        </span>
-        <span className="lab-terminal-status">{RUN_LABEL}</span>
+        <div className="lab-panel-tabs" role="tablist" aria-label="Bottom panel">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === 'terminal'}
+            className={`lab-panel-tab ${tab === 'terminal' ? 'is-active' : ''}`}
+            onClick={() => onTabChange('terminal')}
+          >
+            <TerminalIcon size={12} aria-hidden="true" /> Terminal
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === 'problems'}
+            className={`lab-panel-tab ${tab === 'problems' ? 'is-active' : ''} ${errorCount > 0 ? 'has-errors' : ''}`}
+            onClick={() => onTabChange('problems')}
+          >
+            Problems {errorCount > 0 || warningCount > 0 ? `${errorCount + warningCount}` : ''}
+          </button>
+        </div>
+        {tab === 'terminal' && <span className="lab-terminal-status">{RUN_LABEL}</span>}
         <span className="lab-terminal-spacer" />
-        <Button variant="ghost" size="sm" onClick={onClear}>Clear</Button>
-        <Button variant="ghost" size="icon" className="lab-icon-button" aria-label="Close terminal" title="Close" onClick={onClose}>
+        {tab === 'terminal' && <Button variant="ghost" size="sm" onClick={onClear}>Clear</Button>}
+        <Button variant="ghost" size="icon" className="lab-icon-button" aria-label="Close panel" title="Close" onClick={onClose}>
           <X size={13} aria-hidden="true" />
         </Button>
       </header>
-      <div className="lab-terminal-body" ref={bodyRef} role="log" aria-live="polite">
-        {lines.length === 0 ? (
-          <p className="lab-terminal-empty">
-            Press Run (or {modShortcut('Enter')}) to run the open file. It runs on the server, and the
-            output appears here.
-          </p>
-        ) : (
-          lines.map((line) => (
-            <div key={line.id} className={`lab-terminal-line is-${line.kind}`}>
-              {line.text}
-            </div>
-          ))
-        )}
-      </div>
+      {tab === 'terminal' ? (
+        <div className="lab-terminal-body" ref={bodyRef} role="log" aria-live="polite">
+          {lines.length === 0 ? (
+            <p className="lab-terminal-empty">
+              Press Run (or {modShortcut('Enter')}) to run the open file. It runs on the server, and the
+              output appears here. Save failures land here too.
+            </p>
+          ) : (
+            lines.map((line) => (
+              <div key={line.id} className={`lab-terminal-line is-${line.kind}`}>
+                {line.text}
+              </div>
+            ))
+          )}
+        </div>
+      ) : (
+        <div className="lab-problems-body" ref={bodyRef} role="list" aria-label="Problems in the open file">
+          {problems.length === 0 ? (
+            <p className="lab-terminal-empty">
+              {fileName ? `No errors or warnings in ${fileName}.` : 'Open a file to see its errors and warnings.'}
+            </p>
+          ) : (
+            problems.map((problem, index) => (
+              <button
+                key={`${problem.line}:${problem.column}:${index}`}
+                type="button"
+                role="listitem"
+                className={`lab-problem-row is-${problem.severity}`}
+                onClick={() => onJumpProblem(problem.line, problem.column)}
+                title="Jump to this line"
+              >
+                <span className="lab-problem-severity">{problem.severity}</span>
+                <span className="lab-problem-message">{problem.message}</span>
+                {problem.code && <span className="lab-problem-code">{problem.code}</span>}
+                <span className="lab-problem-location">Ln {problem.line}, Col {problem.column}</span>
+              </button>
+            ))
+          )}
+        </div>
+      )}
     </section>
   );
 }
