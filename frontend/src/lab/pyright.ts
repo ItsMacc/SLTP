@@ -185,12 +185,53 @@ export function loadProject(monaco: Monaco, stubs: Record<string, string>): Prom
   return job;
 }
 
-// Points diagnostics at the model that is currently shown in the editor.
-export function setDiagnosticsTarget(next: DiagnosticsTarget | null): void {
-  target = next;
+// Pushes the open buffer to Pyright at most once per window while typing.
+// A pending push carries the latest text, so a burst of keystrokes costs one
+// worker round-trip instead of one per character.
+const SYNC_DEBOUNCE_MS = 400;
+let syncTimer: ReturnType<typeof setTimeout> | null = null;
+let syncListener: { dispose(): void } | null = null;
+let pendingText: string | null = null;
+
+function flushSync(): void {
+  if (syncTimer) {
+    clearTimeout(syncTimer);
+    syncTimer = null;
+  }
+  const text = pendingText;
+  pendingText = null;
+  if (text !== null) void syncDocument(text);
 }
 
-// Sends the current document text to Pyright. Only the open buffer is re-analysed.
+function scheduleSync(text: string): void {
+  pendingText = text;
+  if (syncTimer) return;
+  syncTimer = setTimeout(flushSync, SYNC_DEBOUNCE_MS);
+}
+
+// Points diagnostics at the model that is currently shown in the editor.
+// Typing in that model schedules a throttled sync; switching files flushes
+// the old file's last keystrokes before rebinding.
+export function setDiagnosticsTarget(next: DiagnosticsTarget | null): void {
+  flushSync();
+  syncListener?.dispose();
+  syncListener = null;
+  target = next;
+  if (!next) return;
+  syncListener = next.model.onDidChangeContent(() => {
+    if (target !== next) return;
+    try {
+      scheduleSync(next.model.getValue());
+    } catch {
+      // The model is gone; its pending text is dropped with it.
+      pendingText = null;
+    }
+  });
+}
+
+// Sends the current document text to Pyright at once. Used on file switches
+// and mounts. Typing goes through the throttled target listener above, never
+// here per keystroke. Only the open buffer is re-analysed.
 export function syncDocument(text: string): Promise<void> {
   if (!active) return Promise.resolve();
   return active.lspClient.updateDocVersion(text).then(() => undefined);
