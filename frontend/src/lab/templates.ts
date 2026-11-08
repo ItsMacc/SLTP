@@ -18,11 +18,10 @@ export const LAB_TEMPLATES: LabTemplate[] = [
     id: 'blank',
     name: 'Boilerplate',
     summary: 'A Strategy subclass that returns Orders to the backtester.',
-    rule: 'Engine in core/ · your code in workspace/',
+    rule: 'Engine: the sltp package · your code in workspace/',
     preview: [
       'workspace/custom_strategy.py',
-      'from core.strategy.base_strategy import Strategy',
-      'from core.utils.Order import Order',
+      'from sltp import Order, Strategy',
       'class CustomStrategy(Strategy):',
     ],
     icon: FileCode,

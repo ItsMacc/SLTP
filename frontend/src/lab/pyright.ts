@@ -1,12 +1,15 @@
 // pyright.ts — Pyright running in a Web Worker (monaco-pyright-lsp) for the Lab editor.
 // Each project's files are handed to Pyright as type stubs under /typings, so
-// `from core.strategy.base_strategy import Strategy` and
-// `from core.utils.Order import Order` resolve, and completions,
-// hovers and type errors know the project's own names. Everything runs in the
-// browser: no server call.
+// the project's own modules resolve across files. The sltp engine rides along
+// as a second virtual library (generated from the pinned server runtime),
+// and numpy's real shipped stubs join when the project imports numpy. That
+// covers the three import shapes strategies use: `from sltp import ...`,
+// `import numpy as np`, and one project file importing another.
+// Everything runs in the browser: no server call.
 import type * as MonacoNs from 'monaco-editor';
 import { MonacoPyrightProvider } from 'monaco-pyright-lsp';
 import pyrightWorkerUrl from 'monaco-pyright-lsp/dist/worker.js?url';
+import { numpyStubPack, sltpStubTree, usesNumpy } from './sltpStubs';
 
 type PyrightFileTree = { [key: string]: PyrightFileTree | string | ArrayBuffer };
 
@@ -18,9 +21,9 @@ export interface DiagnosticsTarget {
   model: TextModel;
 }
 
-// Missing-import rules are dropped. A stub-only module (core.strategy.base_strategy) reports
-// "could not be resolved from source" even though it resolves fine, and third-party modules
-// such as numpy are loaded by the server, not known to Pyright. Every other rule
+// Missing-import rules are dropped. The browser knows sltp, numpy and the
+// project's own files; anything outside those would report "could not be
+// resolved" without being wrong, so those reports stay off. Every other rule
 // (undefined names, wrong argument types, syntax errors) is reported.
 const SUPPRESSED_RULES = new Set(['reportMissingImports', 'reportMissingModuleSource']);
 
@@ -109,7 +112,15 @@ function registerLanguageProviders(monaco: Monaco): void {
 // checking meanwhile.
 export function loadProject(monaco: Monaco, stubs: Record<string, string>): Promise<void> {
   const run = async () => {
-    const typeStubs: PyrightFileTree = {};
+    // Static libraries first: the engine every strategy imports, plus numpy
+    // when the project uses it. Project files are layered on afterwards.
+    const typeStubs: PyrightFileTree = { sltp: sltpStubTree() };
+    if (usesNumpy(stubs)) {
+      const pack = await numpyStubPack();
+      // A missing pack only costs numpy's completions; sltp and the project
+      // files below still resolve, so the worker starts regardless.
+      if (pack) typeStubs['numpy'] = pack;
+    }
     // Walks to a folder in the stub tree, creating the folders on the way.
     const folderNode = (path: string) => {
       if (!path) return typeStubs;

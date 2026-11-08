@@ -1,10 +1,10 @@
 // LabEditorPage.tsx — Lab project editor. A dark IDE frame with a file tree, tabs, a Monaco
 // editor checked live by Pyright (in a Web Worker), and a terminal.
 //
-// A project has two packages:
-//   core/       the read-only engine (Strategy, PortfolioManager, Order, Trade,
-//               StockData and supporting types), mirrored from the repo
-//   workspace/  the strategy files the student writes
+// A project holds the strategy files the student writes (workspace/ plus any
+// folders they add). The engine is not stored per project: strategies import
+// it with `from sltp import ...`, and Pyright learns it from the bundled
+// stubs (see lab/sltpStubs.ts) the same way the server learns it from pip.
 //
 // The tree is built from the files themselves, so a folder is only shown when
 // a real file lives in it. Nothing is executed in the browser: the project runs
@@ -66,21 +66,17 @@ import { modShortcut } from '../shortcuts';
 import './LabEditorPage.css';
 
 const FILE_NAME_RE = /^(?:[A-Za-z0-9_-]{1,50}\/)*[A-Za-z0-9_-]{1,50}\.py$/;
-// The two packages every project is built from.
-const CORE_FOLDER = 'core';
+// User code lives in the workspace, which sorts first in the tree. The engine
+// is not stored per project: strategies import it with `from sltp import ...`
+// and Pyright learns it from the bundled stubs (see lab/sltpStubs.ts).
 const WORKSPACE_FOLDER = 'workspace';
-const TOP_FOLDERS = [CORE_FOLDER, WORKSPACE_FOLDER];
-const isCorePath = (path: string) => path === CORE_FOLDER || path.startsWith(`${CORE_FOLDER}/`);
 // Everything the student writes belongs in the workspace.
 const inWorkspace = (name: string) => `${WORKSPACE_FOLDER}/${name.replace(/^\/+/, '')}`;
 const basename = (name: string) => name.split('/').at(-1) ?? name;
 // The path of a file inside its folder, used to place it in the tree.
 const parentPath = (name: string) => name.split('/').slice(0, -1).join('/');
-// core/ is listed before workspace/, so the read-only package reads first.
-const folderRank = (path: string) => {
-  const index = TOP_FOLDERS.indexOf(path.split('/')[0]);
-  return index === -1 ? TOP_FOLDERS.length : index;
-};
+// workspace/ is listed before anything else the user adds beside it.
+const folderRank = (path: string) => (path.split('/')[0] === WORKSPACE_FOLDER ? 0 : 1);
 const SIDEBAR_MIN = 180;
 const SIDEBAR_MAX = 420;
 const SIDEBAR_DEFAULT = 232;
@@ -200,7 +196,7 @@ const RUN_LABEL = 'Runner offline';
 
 export default function LabEditorPage({ project, workspaceName, onBack }: LabEditorPageProps) {
   const [files, setFiles] = useState<EditorFile[]>([]);
-  const [expandedFolders, setExpandedFolders] = useState(new Set<string>(TOP_FOLDERS));
+  const [expandedFolders, setExpandedFolders] = useState(new Set<string>([WORKSPACE_FOLDER]));
   const [tabs, setTabs] = useState<string[]>([]);
   const [active, setActive] = useState<string | null>(null);
   const queryClient = useQueryClient();
@@ -318,11 +314,11 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
       const previous = latestFilesRef.current.find((item) => item.name === file.name);
       return { name: file.name, locked: file.locked, saved: file.content, draft: previous?.draft ?? file.content };
     });
-    // The first editable file opens; the read-only core is there to read, not to edit.
+    // The first editable file opens.
     const first = list.find((file) => !file.locked)?.name ?? list[0]?.name ?? null;
     setFiles(list);
-    // The two packages start open; deeper folders stay as the user left them.
-    setExpandedFolders((previous) => new Set([...previous, ...TOP_FOLDERS]));
+    // The workspace starts open; deeper folders stay as the user left them.
+    setExpandedFolders((previous) => new Set([...previous, WORKSPACE_FOLDER]));
     setTabs((previous) => previous.length ? previous.filter((name) => list.some((file) => file.name === name)) : first ? [first] : []);
     setActive((previous) => previous && list.some((file) => file.name === previous) ? previous : first);
   // Keep unsaved drafts local; reconcile only when the cache snapshot changes.
@@ -407,10 +403,11 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
     if (pyright === 'active') bindActiveModel();
   }, [active, pyright, bindActiveModel]);
 
-  // Each file's saved text becomes a stub, so `from core.strategy.base_strategy import Strategy`
-  // resolves to the project's own core package. Stubs are fixed when a worker starts, so it is
-  // rebuilt when a file is saved, created, renamed or deleted. Unsaved drafts do not trigger
-  // a rebuild.
+  // Each file's saved text becomes a stub, so one project file can import
+  // another. Stubs are fixed when a worker starts, so it is rebuilt when a
+  // file is saved, created, renamed or deleted. Unsaved drafts do not trigger
+  // a rebuild. The sltp engine and numpy arrive as static libraries around
+  // those stubs (see lab/sltpStubs.ts).
   const stubKey = files.map((f) => `${f.name}\u0000${f.saved}`).join('\u0001');
   useEffect(() => {
     const monaco = monacoRef.current;
@@ -538,8 +535,7 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
   };
 
   const deleteFolder = async (name: string) => {
-    // The engine package is not ours to delete.
-    if (isCorePath(name) || deletingRef.current) return;
+    if (deletingRef.current) return;
     deletingRef.current = true;
     setDeletingTarget(name);
     setActionError(null);
@@ -860,7 +856,6 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
     const node = tree.get(path);
     if (!node) return null;
     const open = expandedFolders.has(path);
-    const locked = isCorePath(path);
     return (
       <Collapsible.Root key={path} asChild open={open} onOpenChange={(next) => toggleFolder(path, next)}>
         <li className="lab-folder-group">
@@ -876,10 +871,9 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
             </Collapsible.Trigger>
             <Folder size={13} aria-hidden="true" className="lab-folder-icon" />
             <span className="lab-folder-name">{basename(path)}</span>
-            {locked && <span className="lab-file-badge">read-only</span>}
             {/* The workspace root holds every file the student wrote, so it is
                 not something they can throw away. */}
-            {!locked && path !== WORKSPACE_FOLDER && (
+            {path !== WORKSPACE_FOLDER && (
               <Button
                 variant="danger"
                 size="icon"

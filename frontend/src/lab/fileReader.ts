@@ -11,10 +11,8 @@
 //   - Only Python files are taken; everything else is reported as skipped.
 //   - Paths are folded to the letters, digits, _ and - that Python module
 //     names allow, so a folder called "my strategies" still imports.
-//   - A `core/` folder is never imported. That package is read-only and the
-//     server always serves the real one.
 //   - When the picked folder contains a `workspace/` folder, that folder is
-//     the source, so picking a project root imports exactly its editable half.
+//     the source, so picking a project root imports exactly its strategy code.
 
 /** A file read from disk, with its path relative to the picked folder. */
 export interface LocalFile {
@@ -34,7 +32,7 @@ export interface FolderFileMap {
   root: string;
   /** Relative path -> file text. */
   files: Record<string, string>;
-  /** Every folder path under the root, e.g. "core/utils". */
+  /** Every folder path under the root, e.g. "workspace". */
   folders: string[];
   /** Files that were left out, and why. */
   skipped: SkippedFile[];
@@ -43,10 +41,7 @@ export interface FolderFileMap {
 /** The server rejects anything larger, so the reader stops here too. */
 export const MAX_FILE_BYTES = 200_000;
 
-/** The read-only package. The server owns it; it is never imported. */
-const CORE_FOLDER = 'core';
-
-/** The editable half of a project. */
+/** Where strategy code lives, both in projects and in picked folders. */
 const WORKSPACE_FOLDER = 'workspace';
 
 /** Folders that hold tooling or build output, never strategy code. */
@@ -202,10 +197,6 @@ async function buildMap(root: string, entries: RawFile[]): Promise<FolderFileMap
 
   for (const entry of entries) {
     const path = entry.path;
-    if (path === CORE_FOLDER || path.startsWith(`${CORE_FOLDER}/`)) {
-      skipped.push({ path, reason: `${CORE_FOLDER}/ is read-only and comes from the server.` });
-      continue;
-    }
     if (sourceRoot && !path.startsWith(sourceRoot)) {
       skipped.push({ path, reason: `Outside ${WORKSPACE_FOLDER}/.` });
       continue;

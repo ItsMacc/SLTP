@@ -569,7 +569,7 @@ const PAGE_TOURS: PageTour[] = [
           popover: {
             title: 'Project files',
             description:
-              'core/ holds the strategy classes SLTP provides and cannot be edited. Your own code goes in workspace/.',
+              'Your strategy code lives in workspace/. The SLTP engine arrives with from sltp import ... and is checked from its bundled stubs.',
             side: 'right',
             align: 'start',
           },

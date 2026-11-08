@@ -1,7 +1,7 @@
 // AdvancedNewSections.tsx — the four new Advanced lessons: reading strategy
 // code, writing one, reading company statements, and valuation.
 //
-// Code samples are the real Lab templates (core.strategy.base_strategy), so the
+// Code samples mirror the real Lab templates (from sltp import ...), so the
 // method names and structure match what the engine runs. No code is executed in
 // the browser; each block is copyable and the lessons point at the Lab.
 
@@ -46,10 +46,7 @@ function CodeBlock({ code, label }: { code: string; label: string }) {
    Reading a strategy in code
    ============================================================ */
 
-const RSI_PULLBACK = `from core.strategy.base_strategy import Strategy
-from core.utils.Order import Order
-from core.utils.PositionType import PositionType
-from core.utils.StockData import StockData
+const RSI_PULLBACK = `from sltp import Order, PositionType, StockData, Strategy
 
 
 class RsiPullback(Strategy):
@@ -203,10 +200,7 @@ const BUILD_STEPS = [
     title: 'Step 1: the file and its universe',
     adds: 'A class, the book limits, and which stocks it may hold. Nothing trades yet.',
     mistake: 'Leaving MIN_BARS_REQUIRED at 1 means the indicators are still warming up when the rule reads them.',
-    code: `from core.strategy.base_strategy import Strategy
-from core.utils.Order import Order
-from core.utils.PositionType import PositionType
-from core.utils.StockData import StockData
+    code: `from sltp import Order, PositionType, StockData, Strategy
 
 
 class FiveDayDrop(Strategy):
@@ -225,10 +219,7 @@ class FiveDayDrop(Strategy):
     title: 'Step 2: the signal',
     adds: 'The measurable condition: the 5-day return, and a trend filter so the bet is only taken in an uptrend.',
     mistake: 'Comparing today with yesterday gives a 1-day return, not a 5-day one. Index carefully.',
-    code: `from core.strategy.base_strategy import Strategy
-from core.utils.Order import Order
-from core.utils.PositionType import PositionType
-from core.utils.StockData import StockData
+    code: `from sltp import Order, PositionType, StockData, Strategy
 
 
 class FiveDayDrop(Strategy):
@@ -256,10 +247,7 @@ class FiveDayDrop(Strategy):
     title: 'Step 3: the order',
     adds: 'Turning the signal into a trade: a size, a stop and a target. The engine handles the fill.',
     mistake: 'A stop at the entry price gets knocked out by the first ordinary dip.',
-    code: `from core.strategy.base_strategy import Strategy
-from core.utils.Order import Order
-from core.utils.PositionType import PositionType
-from core.utils.StockData import StockData
+    code: `from sltp import Order, PositionType, StockData, Strategy
 
 
 class FiveDayDrop(Strategy):
@@ -296,11 +284,7 @@ class FiveDayDrop(Strategy):
     title: 'Step 4: an exit that does not wait for the stop',
     adds: 'A time exit: after ten trading days the idea has either worked or not, so the position closes.',
     mistake: 'Exiting on a fixed target alone leaves a losing trade open indefinitely.',
-    code: `from core.strategy.base_strategy import Strategy
-from core.utils.Order import Order
-from core.utils.PositionType import PositionType
-from core.utils.StockData import StockData
-from core.utils.Trade import Trade
+    code: `from sltp import Order, PositionType, StockData, Strategy, Trade
 
 
 class FiveDayDrop(Strategy):
