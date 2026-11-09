@@ -1,87 +1,43 @@
-# Nightly market-data refresh: rebuild the backend image only when R2 moved.
+# Keeps the baked data fresh. Once a day it asks R2 for the current data
+# version; when the publisher ships new chunks, this commits the new version
+# number, and Render auto-rebuilds the image (the Dockerfile bakes the chunks
+# in during the build). No deploy step, no registry, no secrets.
 #
-# Most nights this does nothing: it compares R2's published version against
-# backend/.market-data-version and exits. When the publisher ships new chunks,
-# it rebuilds (data layer only; code layers are cached), pushes a dated tag +
-# latest, records the new version back in the repo, and rolls Cloud Run.
-#
-# Required GitHub Secrets (repo Settings -> Secrets and variables -> Actions):
-#   DOCKERHUB_USERNAME, DOCKERHUB_TOKEN   (Docker Hub PAT, Read & Write)
-#   SUPABASE_URL, SUPABASE_SERVICE_ROLE,
-#   TURSO_DATABASE_URL, TURSO_AUTH_TOKEN   (passed to the host as env vars)
-#   RENDER_DEPLOY_HOOK    (optional: Render service Deploy Hook URL;
-#                          when set, the host pulls the fresh image by itself)
+# Zero GitHub Secrets required. Manual run: Actions -> market-data-refresh
+# -> Run workflow.
 
 name: market-data-refresh
 
 on:
   schedule:
-    - cron: "0 6 * * *" # 06:00 UTC daily; version gate skips no-op nights
-  workflow_dispatch: # manual "run it now" button
-
-permissions:
-  contents: write # to commit the bumped .market-data-version
-
-env:
-  IMAGE: docker.io/${{ secrets.DOCKERHUB_USERNAME }}/sltp-api
-  R2_MANIFEST: https://pub-8fe125f9d291408d9a41fa5228a663e2.r2.dev/META/version.txt
+    - cron: "17 7 * * *"
+  workflow_dispatch:
 
 jobs:
-  check:
+  version-bump:
     runs-on: ubuntu-latest
-    outputs:
-      changed: ${{ steps.diff.outputs.changed }}
-      version: ${{ steps.diff.outputs.version }}
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
-      - id: diff
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: compare R2 version with baked version
         run: |
-          remote=$(curl -s -A sltp "$R2_MANIFEST" | tr -d '[:space:]')
-          local=$(tr -d '[:space:]' < backend/.market-data-version)
-          echo "remote=$remote local=$local"
-          echo "version=$remote" >> "$GITHUB_OUTPUT"
-          if [ "$remote" != "$local" ]; then
-            echo "changed=true" >> "$GITHUB_OUTPUT"
+          pip install -q "sltp==0.1.23"
+          REMOTE=$(python -c "from sltp.data.remote import read_remote_version; print(read_remote_version())")
+          LOCAL=$(cat backend/.market-data-version)
+          echo "baked: $LOCAL | R2: $REMOTE"
+          if [ "$REMOTE" != "$LOCAL" ]; then
+            echo "$REMOTE" > backend/.market-data-version
+            git config user.name "market-data-bot"
+            git config user.email "market-data-bot@users.noreply.github.com"
+            git add backend/.market-data-version
+            git commit -m "market data $LOCAL -> $REMOTE (Render rebuilds)"
+            git push
           else
-            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "already fresh, nothing to do."
           fi
-
-  build-and-deploy:
-    needs: check
-    if: needs.check.outputs.changed == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - uses: docker/setup-buildx-action@v3
-
-      - uses: docker/build-push-action@v6
-        with:
-          context: backend
-          file: backend/Dockerfile
-          push: true
-          tags: |
-            ${{ env.IMAGE }}:${{ needs.check.outputs.version }}
-            ${{ env.IMAGE }}:latest
-
-      - name: record baked version
-        run: |
-          echo "${{ needs.check.outputs.version }}" > backend/.market-data-version
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add backend/.market-data-version
-          git commit -m "Bake market data ${{ needs.check.outputs.version }}" || true
-          git push
-
-      - name: roll the host (Render deploy hook)
-        if: ${{ secrets.RENDER_DEPLOY_HOOK != '' }}
-        run: curl -fsS -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
-        # No hook configured? Then open the Render dashboard after a data
-        # rebuild and hit Manual Deploy -> Deploy latest reference ($0,
-        # 30 seconds). The service keeps serving the previous image until
-        # you do; nothing breaks, it is just one build behind on bars.
