@@ -7,7 +7,7 @@ One-time setup (~20 min), then the nightly workflow owns refreshes.
 ```
 R2 (source of truth, public, free)
   -> Docker Hub private repo `sltp-api` (1 free private repo, holds the image)
-    -> Cloud Run service `sltp-api` in us-central1 (free tier)
+    -> Render free web service, Existing Image (free, $0, no Google needed)
       <- Vercel frontend via VITE_API_BASE_URL
 ```
 
@@ -30,16 +30,22 @@ credentials — a later project, not this one.
    - `DOCKERHUB_USERNAME` = your namespace
    - `DOCKERHUB_TOKEN` = the token
 
-## 2. Google Cloud (runner)
+## 2. Render (runner, $0, no Google involved)
 
-1. https://console.cloud.google.com -> New project, copy its **Project ID**.
-2. APIs & Services -> Enable: **Cloud Run API**, **Secret Manager API**.
-3. IAM & Admin -> Service Accounts -> Create (`github-deployer`):
-   grant **Cloud Run Admin**, **Service Account User**,
-   **Secret Manager Admin**.
-4. On the account -> Keys -> Add key -> JSON. Download it.
-5. GitHub Secrets: `GCP_SA_KEY` = the whole JSON file contents,
-   `GCP_PROJECT_ID` = the project ID.
+1. Render dashboard -> New -> Web Service -> **Existing Image**:
+   image `docker.io/ItsMaccc/sltp-api:latest`.
+   Because the repo is private, enter your Docker Hub username + token as
+   the pull credentials when Render asks.
+2. Plan: **Free**. Region: nearest to your users (Oregon default is fine).
+3. Environment variables: add the same four backend values from your `.env`
+   (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE`,
+   `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`).
+4. In the service Settings, copy its **Deploy Hook** URL into a GitHub
+   secret named `RENDER_DEPLOY_HOOK`. The workflow POSTs to it after each
+   data rebuild so the host pulls the fresh image by itself. (Skip this and
+   the service simply keeps serving the previous image until you hit Manual
+   Deploy -> Deploy latest reference.)
+5. Note the service URL (`https://sltp-api-xxxx.onrender.com`) for step 5.
 
 ## 3. Backend secrets (you paste, I never see them)
 
@@ -54,17 +60,15 @@ The workflow passes them to Cloud Run as env vars on every deploy.
 ## 4. First deploy
 
 Run the workflow manually once (Actions -> market-data-refresh ->
-Run workflow). It builds, pushes, records the version, and deploys.
-
-Then one console step, because the image is private: Cloud Run console ->
-`sltp-api` -> Variables & Secrets -> Registry credentials -> add your
-Docker Hub username + token so Cloud Run is allowed to pull. (Public images
-skip this; private ones need it exactly once.)
+Run workflow). It builds, pushes, and records the version. Then either wait
+for the deploy hook to roll Render, or open the service and hit Manual
+Deploy -> Deploy latest reference. Hit `/api/stock/history?symbol=AAPL`
+and one `/api/backtest/run` to confirm warm, fast responses.
 
 ## 5. Frontend
 
-Set `VITE_API_BASE_URL` in Vercel to the Cloud Run service URL
-(`https://sltp-api-<hash>-uc.a.run.app`). CORS is already `*`, no code change.
+Set `VITE_API_BASE_URL` in Vercel to the Render service URL from step 2
+(`https://sltp-api-xxxx.onrender.com`). CORS is already `*`, no code change.
 
 ## 6. Day-to-day
 
@@ -72,5 +76,6 @@ Set `VITE_API_BASE_URL` in Vercel to the Cloud Run service URL
 - Market publishes new chunks -> next run rebuilds + redeploys by itself.
 - Old image tags: keep `latest` + the newest dated tag; delete older dated
   tags on Docker Hub every few months (tags accumulate, layers do not).
-- If a backtest 500s on wide ranges, the first knob is service memory
-  (`--memory=2Gi` in the workflow); the second is code, not infra.
+- If a backtest 500s on wide ranges, the first knob is Render's instance
+  memory (Free = 512MB; the paid Starter is the next step, not a redesign);
+  the second is code, not infra.

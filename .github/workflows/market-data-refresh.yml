@@ -7,11 +7,10 @@
 #
 # Required GitHub Secrets (repo Settings -> Secrets and variables -> Actions):
 #   DOCKERHUB_USERNAME, DOCKERHUB_TOKEN   (Docker Hub PAT, Read & Write)
-#   GCP_SA_KEY            (service-account JSON: Cloud Run Admin,
-#                          Service Account User, Secret Manager Admin)
-#   GCP_PROJECT_ID        (e.g. sltp-prod-123)
 #   SUPABASE_URL, SUPABASE_SERVICE_ROLE,
-#   TURSO_DATABASE_URL, TURSO_AUTH_TOKEN   (passed through as Cloud Run env)
+#   TURSO_DATABASE_URL, TURSO_AUTH_TOKEN   (passed to the host as env vars)
+#   RENDER_DEPLOY_HOOK    (optional: Render service Deploy Hook URL;
+#                          when set, the host pulls the fresh image by itself)
 
 name: market-data-refresh
 
@@ -79,18 +78,10 @@ jobs:
           git commit -m "Bake market data ${{ needs.check.outputs.version }}" || true
           git push
 
-      - uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
-
-      - uses: google-github-actions/deploy-cloudrun@v2
-        with:
-          service: sltp-api
-          region: us-central1
-          image: ${{ env.IMAGE }}:latest
-          flags: --memory=2Gi --cpu=1 --min-instances=0 --max-instances=3 --port=8080
-          env_vars: |
-            SUPABASE_URL=${{ secrets.SUPABASE_URL }}
-            SUPABASE_SERVICE_ROLE=${{ secrets.SUPABASE_SERVICE_ROLE }}
-            TURSO_DATABASE_URL=${{ secrets.TURSO_DATABASE_URL }}
-            TURSO_AUTH_TOKEN=${{ secrets.TURSO_AUTH_TOKEN }}
+      - name: roll the host (Render deploy hook)
+        if: ${{ secrets.RENDER_DEPLOY_HOOK != '' }}
+        run: curl -fsS -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
+        # No hook configured? Then open the Render dashboard after a data
+        # rebuild and hit Manual Deploy -> Deploy latest reference ($0,
+        # 30 seconds). The service keeps serving the previous image until
+        # you do; nothing breaks, it is just one build behind on bars.
