@@ -1,11 +1,11 @@
-// HomePage.tsx — Landing page: what SLTP is, the five parts of it, and how to
-// read a backtest.
+// HomePage.tsx — Landing page: the hero, the bento grid, and the cards
+// linking out to the Research, Strategies, Lab and Learn pages.
 //
-// Kept deliberately plain: a headline, a sentence, one button, the tools as
-// cards, then the honest note on what a backtest is. No numbered labels, no
-// scroll animations, no decorative bands.
+// Those four pages have addresses but no content yet, so the cards land on a
+// shared placeholder. The pre-trim five-card version (with Watchlist and
+// Docs) lives on the backup-before-trim branch.
 import { type ComponentType } from 'react';
-import { ArrowRight, FileCode2, FlaskConical, Layers, LineChart, Radar } from 'lucide-react';
+import { ArrowRight, FlaskConical, GraduationCap, Layers, LineChart, Radar } from 'lucide-react';
 
 function GithubIcon({ size = 18, className }: { size?: number; className?: string }) {
   return (
@@ -33,16 +33,16 @@ interface ToolData {
   icon: IconType;
 }
 
-/* ---------- The five parts of the site ---------- */
+/* ---------- The four parts of the site ---------- */
 const TOOLS: ToolData[] = [
   {
-    id: 'lab',
-    nav: 'lab',
-    title: 'Lab',
+    id: 'research',
+    nav: 'research',
+    title: 'Research',
     description:
-      'A Python-based environment for building and testing your own strategies, with the same data and backtest engine that runs the site.',
-    cta: 'Open the Lab',
-    icon: FlaskConical,
+      'Access daily price data and historical performance spanning across 11,000+ securities and nearly 3 decades of market history along with a backtest engine to see how our strategies have performed in the past.',
+    cta: 'Open research',
+    icon: LineChart,
   },
   {
     id: 'strategies',
@@ -54,6 +54,15 @@ const TOOLS: ToolData[] = [
     icon: Layers,
   },
   {
+    id: 'lab',
+    nav: 'lab',
+    title: 'Lab',
+    description:
+      'A Python-based environment for building and testing your own strategies, with the same data and backtest engine that runs the site.',
+    cta: 'Open the Lab',
+    icon: FlaskConical,
+  },
+  {
     id: 'watchlist',
     nav: 'watchlist',
     title: 'Watchlist',
@@ -63,28 +72,19 @@ const TOOLS: ToolData[] = [
     icon: Radar,
   },
   {
-    id: 'research',
-    nav: 'research',
-    title: 'Research',
+    id: 'learn',
+    nav: 'learn',
+    title: 'Learn',
     description:
-      'Access daily price data and historical performance spanning across 11,000+ securities and nearly 3 decades of market history along with a backtest engine to see how our strategies have performed in the past.',
-    cta: 'Open research',
-    icon: LineChart,
-  },
-  {
-    id: 'docs',
-    nav: 'docs',
-    title: 'Docs',
-    description:
-      'A comprehensive reference for implementing your own strategies, including examples and full documentation of the strategy class, historical data access, and API usage.',
-    cta: 'Read the docs',
-    icon: FileCode2,
+      'New to investing? A course that starts from zero and walks through the fundamentals of investing step by step.',
+    cta: 'Start the course',
+    icon: GraduationCap,
   },
 ];
 
 /* ---------- Bento section ---------- */
 
-/* Soft tones from the reference palette, orange left out. One per pillow in the
+/* Soft tones from the reference palette, orange left out. One pillow per pill in the
    tile, so the field reads as a patchwork rather than a single colour. Nothing
    is painted behind them, so the three butters are a shade deeper than the
    swatch sheet: on the light card they would otherwise sit within a few points
@@ -144,22 +144,6 @@ const BENTO_MINIS: { title: string; text: string; code?: string }[] = [
   },
 ];
 
-/* ---------- How to read the results ---------- */
-const READING: { title: string; text: string }[] = [
-  {
-    title: 'A backtest is not a prediction',
-    text: 'Backtests are a way to evaluate a strategy using historical data. They are not a guarantee of future performance, and past results do not predict future outcomes. Always consider the inherent risks and uncertainties of investing.',
-  },
-  {
-    title: 'Look at the whole picture',
-    text: 'When evaluating a strategy, it is important you know what principle it is based on. Different strategies take on different levels of risk, so it is crucial to understand how it aligns with your own investment goals and risk tolerance.',
-  },
-  {
-    title: 'The dates decide a lot',
-    text: 'The performance of a strategy can vary greatly depending on the time period chosen for the backtest. Different market conditions, economic events, and trends can significantly impact results.',
-  },
-];
-
 export default function HomePage({ onNavigate, onOpenGuide }: HomePageProps) {
   return (
     <div className="home-page">
@@ -192,37 +176,6 @@ export default function HomePage({ onNavigate, onOpenGuide }: HomePageProps) {
               </button>
             </p>
           </div>
-        </div>
-      </section>
-
-      <section className="home-tools">
-        <header className="home-tools-head">
-          <h2 className="home-tools-title">See what SLTP can do, and how you can use it</h2>
-          <p className="home-tools-lede">
-            SLTP is your research workflow in one place. Build custom models in our Python-based Lab, learn about the rules of our tested strategies, track tickers and signals on your watchlist and research in detail historical price charts as well as backtest simulations. Use our documentation as a comprehensive reference for the strategy class, data access and API usage to write your own rules and strategies.
-          </p>
-        </header>
-
-        <div className="home-cards">
-          {TOOLS.map((tool) => {
-            const Icon = tool.icon;
-            return (
-              <button
-                type="button"
-                key={tool.id}
-                className="home-card"
-                onClick={() => onNavigate(tool.nav)}
-              >
-                <Icon size={20} strokeWidth={1.75} className="home-card-icon" />
-                <h3 className="home-card-title">{tool.title}</h3>
-                <p className="home-card-desc">{tool.description}</p>
-                <span className="home-card-cta">
-                  <span className="home-card-cta-label">{tool.cta}</span>
-                  <ArrowRight size={14} />
-                </span>
-              </button>
-            );
-          })}
         </div>
       </section>
 
@@ -306,21 +259,33 @@ export default function HomePage({ onNavigate, onOpenGuide }: HomePageProps) {
         </a>
       </section>
 
-      <section className="home-reading">
+      <section className="home-tools" aria-labelledby="home-tools-title">
         <header className="home-tools-head">
-          <h2 className="home-tools-title">What SLTP is, and how to read the numbers</h2>
-          <p className="home-tools-lede">
-             SLTP is a research platform designed to support self-directed analysis. While our strategies are rigorously constructed to help inform your market perspective, they are meant to guide your research, not serve as financial advice to follow blindly. Here is how to interpret the data across the platform.
+          <h2 id="home-tools-title" className="home-tools-title">See what SLTP can do, and how you can use it</h2>
+          <p className="home-tools-lede">SLTP puts your entire investment and trading workflow in one place. Everything you need to analyze markets, test ideas, and track strategies lives right here. Beyond core research and strategies, we also give you dedicated spaces to build and expand your skills. Whether you are completely new to quantitative finance or running advanced models, the platform is designed to be easy to pick up from day one.
           </p>
         </header>
 
-        <div className="home-reading-grid">
-          {READING.map((item) => (
-            <div className="home-reading-item" key={item.title}>
-              <h3 className="home-reading-title">{item.title}</h3>
-              <p className="home-reading-text">{item.text}</p>
-            </div>
-          ))}
+        <div className="home-cards">
+          {TOOLS.map((tool) => {
+            const Icon = tool.icon;
+            return (
+              <button
+                type="button"
+                key={tool.id}
+                className="home-card"
+                onClick={() => onNavigate(tool.nav)}
+              >
+                <Icon size={20} strokeWidth={1.75} className="home-card-icon" />
+                <h3 className="home-card-title">{tool.title}</h3>
+                <p className="home-card-desc">{tool.description}</p>
+                <span className="home-card-cta">
+                  <span className="home-card-cta-label">{tool.cta}</span>
+                  <ArrowRight size={14} />
+                </span>
+              </button>
+            );
+          })}
         </div>
       </section>
     </div>

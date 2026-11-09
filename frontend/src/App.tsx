@@ -11,12 +11,9 @@ import 'driver.js/dist/driver.css';
 import SettingsPage from './pages/SettingsPage';
 import { applyAndStoreUserSettings, readSessionUserSettings, readStoredUserSettings } from '../lib/settings';
 import LegalPage, { type LegalPageKind } from './pages/LegalPage';
-import ResearchPage from './pages/ResearchPage';
-import StrategiesPage from './pages/StrategiesPage';
-import WatchlistPage from './pages/WatchlistPage';
-import LabPage from './pages/LabPage';
 import DocsPage from './pages/DocsPage';
-import LearnPage from './pages/LearnPage';
+import Sltp404Page from './pages/Sltp404Page';
+import WatchlistPage from './pages/WatchlistPage';
 import ErrorToast from './ui/ErrorToast';
 import { Loader, LoaderOverlay } from './ui/Loader';
 import { supabase } from '../lib/supabase';
@@ -38,8 +35,6 @@ export interface UserProfile {
   settings?: { theme?: string; [key: string]: any };
 }
 
-const AUTH_REQUIRED_TABS = ['lab', 'watchlist'];
-
 const LEGAL_TITLES: Record<LegalPageKind, string> = {
   privacy: 'Privacy Policy — SLTP',
   terms: 'Terms of Service — SLTP',
@@ -49,10 +44,6 @@ const AUTH_TITLES = {
   login: 'Sign in — SLTP',
   signup: 'Create an account — SLTP',
 };
-
-/* The Lab opens without an account in local development, so the tour is not
-   locked there either. */
-const LAB_PREVIEW = import.meta.env.DEV && import.meta.env.VITE_LAB_PREVIEW === 'true';
 
 /* The address bar is the source of truth: #/research, #/lab, #/docs/<slug>,
    #/legal/privacy. A reload, a shared link and the Back button all land on the
@@ -97,11 +88,8 @@ export default function App() {
     }
 
     setLegalPage(null);
-    const localLabPreview = LAB_PREVIEW && route.tab === 'lab';
-    const gated =
-      (AUTH_REQUIRED_TABS.includes(route.tab) || route.tab === 'settings') &&
-      !userRef.current?.id &&
-      !localLabPreview;
+    // Settings is the only page behind a sign-in now.
+    const gated = route.tab === 'settings' && !userRef.current?.id;
 
     setActiveTab(route.tab);
     if (gated) {
@@ -296,7 +284,6 @@ export default function App() {
         open={guideOpen}
         onClose={() => setGuideOpen(false)}
         onNavigate={handleTabChange}
-        isSignedIn={Boolean(user?.id) || LAB_PREVIEW}
       />
 
       <main className="app-main">
@@ -329,31 +316,20 @@ export default function App() {
                   await handleSignOut();
                 }}
               />
-            ) : activeTab === 'research' ? (
-              <ResearchPage userId={user?.id} initialSettings={user?.settings} />
-            ) : activeTab === 'strategies' ? (
-              <StrategiesPage />
             ) : activeTab === 'docs' ? (
               <DocsPage userId={user?.id} />
-            ) : activeTab === 'learn' ? (
-              <LearnPage onNavigate={handleTabChange} />
             ) : activeTab === 'watchlist' ? (
-              <WatchlistPage userId={user?.id} settings={user?.settings} onNavigate={handleTabChange} />
-            ) : activeTab === 'lab' && (user?.id || LAB_PREVIEW) ? (
-              <LabPage onNavigate={handleTabChange} />
-            ) : activeTab === 'home' || activeTab === 'guide' ? (
-              <HomePage onNavigate={handleTabChange} onOpenGuide={() => setGuideOpen(true)} />
+              // The Watchlist names its planned features instead of the
+              // shared stub, but it is still a placeholder for now.
+              <WatchlistPage onNavigate={handleTabChange} />
+            ) : activeTab === 'research' || activeTab === 'strategies' || activeTab === 'lab' || activeTab === 'learn' ? (
+              // Pages with an address but no content yet: the cards on Home
+              // link here, and each one carries its own title and hash.
+              <Sltp404Page page={activeTab[0].toUpperCase() + activeTab.slice(1)} onNavigate={handleTabChange} />
             ) : (
-              <div className="app-placeholder">
-                <h1 className="app-placeholder-title">
-                  {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} View
-                </h1>
-                <p className="app-placeholder-text">
-                  {activeTab === 'settings'
-                    ? 'Please sign in to access your settings workspace.'
-                    : `Currently rendering the active layout module for ${activeTab}.`}
-                </p>
-              </div>
+              // Home and the guide both land here; an unknown address falls
+              // back to Home too, so a stale link never strands the visitor.
+              <HomePage onNavigate={handleTabChange} onOpenGuide={() => setGuideOpen(true)} />
             )}
           </div>
         )}

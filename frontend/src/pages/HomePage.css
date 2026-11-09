@@ -1,11 +1,11 @@
 /* ============================================================
-   HomePage.css — Landing page: hero, the four parts of the site,
-   and how to read a backtest.
+   HomePage.css — Landing page: hero, bento grid, tool cards.
 
    Width conventions: % / vw for layout widths; rem for fixed
    UI atoms. Breakpoints in rem.
 
-   Two hairlines divide the page into three blocks. No bands, no
+   Every section opens and closes with the same hairline, so the
+   gaps read as double rules between sections. No bands, no
    gradients, no motion beyond a border colour on hover.
    ============================================================ */
 
@@ -142,9 +142,13 @@
   grid-template-columns: repeat(12, minmax(0, 1fr));
   gap: var(--bento-gap);
 
-  /* The same hairline and air every other band on the page opens with. */
+  /* The same hairline and air every other band on the page opens and closes
+     with: the rule above separates it from the hero, the rule below from the
+     tool cards. */
   padding-top: var(--space-xl);
   border-top: 1px solid var(--border-subtle);
+  padding-bottom: var(--space-xl);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 /* Left: the feature, two rows tall. Right: short, tall, then the CTA on the
@@ -439,18 +443,22 @@
   }
 }
 
+/* Touch screens: the text link gets a full tap target */
+@media (pointer: coarse) {
+  .home-hero-actions .btn-link {
+    min-height: 2.75rem;
+  }
+}
+
 /* ---------- Section heads ---------- */
-.home-tools,
-.home-reading {
+.home-tools {
   display: flex;
   flex-direction: column;
   gap: var(--space-xl);
-}
-
-.home-reading {
+  /* Opens with the same hairline the bento closes with: the two rules and
+     the section gap between them are the double break. */
   padding-top: var(--space-xl);
   border-top: 1px solid var(--border-subtle);
-  align-items: flex-start;
 }
 
 .home-tools-head {
@@ -547,92 +555,17 @@
   font-weight: 500;
 }
 
-/* ---------- Reading a backtest ---------- */
-.home-reading .btn {
-  gap: var(--space-xs);
-}
-
-.home-reading-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--space-lg);
-  width: 100%;
-}
-
-/* Stacked: each note is its own row, so there is no shared height to fill. */
-.home-reading-item {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
-}
-
-/* Three across only once the columns are wide enough to hold the text at its
-   current size. Below that the notes stack full width, where each one gets the
-   measure it needs instead of breaking every four words. */
-@media (min-width: 64rem) {
-  .home-reading-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    /* Two rows shared by all three notes: one for the headings, one for the
-       text. A note with more lines than its neighbours makes this row taller,
-       and the other notes inherit that height rather than being sized to
-       themselves. */
-    grid-template-rows: auto 1fr;
-    column-gap: var(--space-lg);
-    row-gap: 0;
-  }
-
-  /* Each note spans both shared rows and borrows their tracks, so the three
-     headings sit on one line even if one of them wraps to two. */
-  .home-reading-item {
-    display: grid;
-    grid-row: span 2;
-    grid-template-rows: subgrid;
-    row-gap: var(--space-md);
-  }
-
-  /* Pinned to the foot of the shared text row, so all three notes finish on the
-     same line. Whatever slack a shorter note leaves lands in the gap beneath
-     its heading, which is the only place it can go if the headings and the last
-     lines are both to line up. */
-  .home-reading-text {
-    align-self: end;
-  }
-}
-
-.home-reading-title {
-  margin: 0;
-  color: var(--text-primary);
-  font-family: var(--font-heading);
-  font-size: var(--text-xl);
-  font-weight: 400;
-  line-height: 1.2;
-}
-
-.home-reading-text {
-  margin: 0;
-  color: var(--text-muted);
-  font-size: var(--text-base);
-  line-height: 1.7;
-}
-
-/* Touch screens: the text link and outline button get a full tap target */
-@media (pointer: coarse) {
-  .home-hero-actions .btn-link,
-  .home-reading .btn {
-    min-height: 2.75rem;
+@media (prefers-reduced-motion: reduce) {
+  .home-card {
+    transition: none;
   }
 }
 
 /* ---------- Mobile composition ----------
    A phone gets its own arrangement rather than the desktop page squeezed into
-   one column. Three modules stack in a fixed order — hero, the tools, the
-   notes — and each one opens with the same hairline, so the page reads as a
-   set of labelled sections instead of one long scroll.
-
-   The five tools become a tappable list instead of five bordered cards: an
-   icon, the name, a description and a chevron on one row. That is roughly a
-   third of the height of the boxed version, which matters on the device where
-   the cards are the bulk of the page. */
+   one column. Two modules stack — hero, then the bento — and each one opens
+   with the same hairline, so the page reads as a set of labelled sections
+   instead of one long scroll. */
 @media (max-width: 47.99rem) {
   .home-page {
     padding: var(--space-lg) 0 var(--space-xl);
@@ -699,8 +632,7 @@
   }
 
   /* ---- Section heads ---- */
-  .home-tools,
-  .home-reading {
+  .home-tools {
     gap: var(--space-md);
   }
 
@@ -769,49 +701,8 @@
   }
 
   /* The arrow carries the affordance on a touch list; the label is repeated
-     five times and is what made the boxed cards tall. */
+     on every row and is what made the boxed cards tall. */
   .home-card-cta-label {
     display: none;
-  }
-
-  /* The list closes on the section gap rather than on its own rule: the next
-     section opens with a hairline of its own, and two of them a few pixels
-     apart read as a mistake. */
-  .home-card:last-child {
-    border-bottom: 0;
-  }
-
-  /* ---- Notes ---- */
-  .home-reading {
-    padding-top: var(--space-lg);
-  }
-
-  .home-reading-grid {
-    gap: 0;
-  }
-
-  /* Hairlines between notes rather than a large gap: they are three readings of
-     the same subject, so they belong to one block. */
-  .home-reading-item {
-    gap: var(--space-xs);
-    padding: var(--space-md) 0;
-    border-top: 1px solid var(--border-subtle);
-  }
-
-  /* Every note carries its own top rule, including the first: it separates the
-     notes from the section's own intro paragraph, which is the same size as
-     them and would otherwise run straight into the first heading. */
-  .home-reading-item:last-child {
-    padding-bottom: 0;
-  }
-
-  .home-reading-text {
-    line-height: 1.65;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .home-card {
-    transition: none;
   }
 }

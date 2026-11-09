@@ -11,11 +11,11 @@ interface FooterProps {
 /* Mirrors the Header nav so the two never offer different destinations. */
 const navLinks = [
   { id: 'home', label: 'Home' },
-  { id: 'learn', label: 'Learn' },
-  { id: 'strategies', label: 'Strategies' },
   { id: 'research', label: 'Research' },
-  { id: 'watchlist', label: 'Watchlist' },
+  { id: 'strategies', label: 'Strategies' },
   { id: 'lab', label: 'Lab' },
+  { id: 'watchlist', label: 'Watchlist' },
+  { id: 'learn', label: 'Learn' },
   { id: 'docs', label: 'Docs' },
 ];
 

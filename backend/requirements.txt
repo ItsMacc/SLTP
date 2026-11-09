@@ -1,6 +1,6 @@
 fastapi>=0.115
 uvicorn[standard]>=0.30
-sltp==0.1.23
+sltp>=0.1.23
 requests>=2.31
 python-dotenv>=1.0
 PyJWT[crypto]>=2.10

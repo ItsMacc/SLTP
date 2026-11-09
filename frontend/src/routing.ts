@@ -1,23 +1,13 @@
 // routing.ts — Every page has an address.
 //
 // The app is one HTML page served by Vite (and by the API in production), so
-// navigation lives in the hash: #/research, #/lab, #/docs/<slug>,
+// navigation lives in the hash: #/home, #/docs/<slug>, #/settings,
 // #/legal/privacy. Hashes need no server rewrite, keep a reload or a shared
 // link on the page it names, and give the browser real history entries — which
 // is what makes Back and Forward work. Before this, every tab shared "/" and
 // Back left the site.
 
-export const TAB_ROUTES = [
-  'home',
-  'learn',
-  'watchlist',
-  'strategies',
-  'research',
-  'lab',
-  'docs',
-  'settings',
-  'guide',
-] as const;
+export const TAB_ROUTES = ['home', 'docs', 'research', 'strategies', 'lab', 'watchlist', 'learn', 'settings', 'guide'] as const;
 
 export type TabRoute = (typeof TAB_ROUTES)[number];
 export type LegalRoute = 'privacy' | 'terms';
