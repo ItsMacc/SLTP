@@ -10,6 +10,7 @@ bucket name in BUCKET below.
     CLOUDFLARE_ACCOUNT_ID=<account id>
 """
 
+# -------- Imports --------
 import json
 import os
 import urllib.request
@@ -17,6 +18,11 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 BUCKET = "sltp-market-data"
+BILLING_RESET_DAY = 6  # SLTP monthly billing cycle reset day
+
+# LIMITS
+CLASS_A_LIMIT = 1_000_000
+CLASS_B_LIMIT = 10_000_000
 
 CLASS_A = {
     "listbuckets", "putbucket", "listobjects", "putobject", "copyobject",
@@ -32,7 +38,7 @@ CLASS_B = {
 }
 
 QUERY = """
-query ($accountTag: string!, $startDate: Time, $endDate: Time, $bucketName: string) {
+query ($accountTag: String!, $startDate: Time, $endDate: Time, $bucketName: String) {
   viewer {
     accounts(filter: { accountTag: $accountTag }) {
       r2OperationsAdaptiveGroups(
@@ -47,11 +53,9 @@ query ($accountTag: string!, $startDate: Time, $endDate: Time, $bucketName: stri
 }
 """
 
-def _load_dotenv() -> None:
-    """Fill missing env vars from the repo-root .env file.
 
-    Never overrides variables already in the environment. Tiny parser:
-    KEY=VALUE lines, # comments, optional matching quotes."""
+def _load_dotenv() -> None:
+    # Fill missing env vars from the repo-root .env file.
     dotenv = Path(__file__).resolve().parent.parent / ".env"
     if not dotenv.is_file():
         return
@@ -68,60 +72,67 @@ def _load_dotenv() -> None:
             os.environ[key] = value
 
 
-_load_dotenv()
+def get_r2_usage(bucket: str = BUCKET) -> dict[str, int]:
+    _load_dotenv()
 
-token = os.environ.get("CLOUDFLARE_API_TOKEN")
-account_id = os.environ.get("CLOUDFLARE_ACCOUNT_ID")
-if not token or not account_id:
-    raise SystemExit(
-        "Missing CLOUDFLARE_API_TOKEN and/or CLOUDFLARE_ACCOUNT_ID.\n"
-        "In PyCharm: Run -> Edit Configurations -> select r2_usage ->\n"
-        "Environment variables -> add both, then Run again."
+    token = os.environ.get("CLOUDFLARE_API_TOKEN")
+    account_id = os.environ.get("CLOUDFLARE_ACCOUNT_ID")
+    if not token or not account_id:
+        raise RuntimeError(
+            "Missing CLOUDFLARE_API_TOKEN and/or CLOUDFLARE_ACCOUNT_ID env vars."
+        )
+
+    end = datetime.now(timezone.utc)
+    if end.day >= BILLING_RESET_DAY:
+        start = end.replace(day=BILLING_RESET_DAY, hour=0, minute=0, second=0, microsecond=0)
+    else:
+        prev_month = end.replace(day=1) - timedelta(days=1)
+        start = prev_month.replace(day=BILLING_RESET_DAY, hour=0, minute=0, second=0, microsecond=0)
+
+    payload = {
+        "query": QUERY,
+        "variables": {
+            "accountTag": account_id,
+            "startDate": start.isoformat(),
+            "endDate": end.isoformat(),
+            "bucketName": bucket,
+        },
+    }
+
+    req = urllib.request.Request(
+        "https://api.cloudflare.com/client/v4/graphql",
+        data=json.dumps(payload).encode(),
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        },
     )
 
-# Cloudflare resets usage on the same day each month. SLTP resets on the 6th
-BILLING_RESET_DAY = 6
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        body = json.loads(resp.read().decode())
 
-end = datetime.now(timezone.utc)
-if end.day >= BILLING_RESET_DAY:
-    start = end.replace(day=BILLING_RESET_DAY, hour=0, minute=0, second=0, microsecond=0)
-else:
-    prev_month = end.replace(day=1) - timedelta(days=1)
-    start = prev_month.replace(day=BILLING_RESET_DAY, hour=0, minute=0, second=0, microsecond=0)
-payload = {
-    "query": QUERY,
-    "variables": {
-        "accountTag": account_id,
-        "startDate": start.isoformat(),
-        "endDate": end.isoformat(),
-        "bucketName": BUCKET,
-    },
-}
-req = urllib.request.Request(
-    "https://api.cloudflare.com/client/v4/graphql",
-    data=json.dumps(payload).encode(),
-    headers={
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json",
-    },
-)
-with urllib.request.urlopen(req, timeout=60) as resp:
-    body = json.loads(resp.read().decode())
+    if body.get("errors"):
+        raise RuntimeError(json.dumps(body["errors"], indent=2))
 
-if body.get("errors"):
-    raise SystemExit(json.dumps(body["errors"], indent=2))
+    groups = body["data"]["viewer"]["accounts"][0]["r2OperationsAdaptiveGroups"]
 
-groups = body["data"]["viewer"]["accounts"][0]["r2OperationsAdaptiveGroups"]
+    class_a = class_b = 0
+    for g in groups:
+        action = "".join(c for c in g["dimensions"]["actionType"].lower() if c.isalnum())
+        n = g["sum"]["requests"]
+        if action in CLASS_A:
+            class_a += n
+        elif action in CLASS_B:
+            class_b += n
 
-class_a = class_b = 0
-for g in groups:
-    action = "".join(c for c in g["dimensions"]["actionType"].lower() if c.isalnum())
-    n = g["sum"]["requests"]
-    if action in CLASS_A:
-        class_a += n
-    elif action in CLASS_B:
-        class_b += n
+    return {"class_a": class_a, "class_b": class_b}
 
-print(f"Bucket: {BUCKET} ({start.date()} to {end.date()})")
-print(f"Class A: {class_a:,}")
-print(f"Class B: {class_b:,}")
+
+if __name__ == "__main__":
+    try:
+        usage = get_r2_usage()
+        print(f"Bucket: {BUCKET}")
+        print(f"Class A: {usage['class_a']:,}")
+        print(f"Class B: {usage['class_b']:,}")
+    except Exception as e:
+        raise SystemExit(str(e))
