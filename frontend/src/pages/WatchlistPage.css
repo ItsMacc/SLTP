@@ -75,6 +75,28 @@
   line-height: 1.65;
 }
 
+.watch-sync {
+  width: 100%;
+  padding: var(--space-md) 0;
+  border-top: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.watch-sync-bar {
+  height: 6px;
+  margin: var(--space-sm) 0;
+  overflow: hidden;
+  background: var(--bg-sunken);
+  border-radius: 999px;
+}
+
+.watch-sync-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
 .watch-note {
   margin: 0;
   color: var(--text-muted);

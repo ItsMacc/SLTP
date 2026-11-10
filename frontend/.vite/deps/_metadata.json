@@ -1,0 +1,86 @@
+{
+  "hash": "7f0025ae",
+  "configHash": "e6ce579d",
+  "lockfileHash": "be23c0a5",
+  "browserHash": "cc35e2e4",
+  "optimized": {
+    "@radix-ui/react-tooltip": {
+      "src": "../../node_modules/@radix-ui/react-tooltip/dist/index.mjs",
+      "file": "@radix-ui_react-tooltip.js",
+      "fileHash": "3dbf675f",
+      "needsInterop": false
+    },
+    "@supabase/supabase-js": {
+      "src": "../../node_modules/@supabase/supabase-js/dist/index.mjs",
+      "file": "@supabase_supabase-js.js",
+      "fileHash": "78b8744b",
+      "needsInterop": false
+    },
+    "@tanstack/react-query": {
+      "src": "../../node_modules/@tanstack/react-query/build/modern/index.js",
+      "file": "@tanstack_react-query.js",
+      "fileHash": "d5d52363",
+      "needsInterop": false
+    },
+    "driver.js": {
+      "src": "../../node_modules/driver.js/dist/driver.js.mjs",
+      "file": "driver__js.js",
+      "fileHash": "0743bb2c",
+      "needsInterop": false
+    },
+    "hyparquet": {
+      "src": "../../node_modules/hyparquet/src/index.js",
+      "file": "hyparquet.js",
+      "fileHash": "47e98e49",
+      "needsInterop": false
+    },
+    "lucide-react": {
+      "src": "../../node_modules/lucide-react/dist/esm/lucide-react.mjs",
+      "file": "lucide-react.js",
+      "fileHash": "e00a4579",
+      "needsInterop": false
+    },
+    "react-dom/client": {
+      "src": "../../node_modules/react-dom/client.js",
+      "file": "react-dom_client.js",
+      "fileHash": "2154f3aa",
+      "needsInterop": true
+    },
+    "react": {
+      "src": "../../node_modules/react/index.js",
+      "file": "react.js",
+      "fileHash": "ffb4801f",
+      "needsInterop": true
+    },
+    "react/jsx-dev-runtime": {
+      "src": "../../node_modules/react/jsx-dev-runtime.js",
+      "file": "react_jsx-dev-runtime.js",
+      "fileHash": "3cafe63b",
+      "needsInterop": true
+    },
+    "zod": {
+      "src": "../../node_modules/zod/index.js",
+      "file": "zod.js",
+      "fileHash": "8a9ea418",
+      "needsInterop": false
+    }
+  },
+  "chunks": {
+    "jsx-runtime-CTl822gQ": {
+      "file": "jsx-runtime-CTl822gQ.js",
+      "isDynamicEntry": false
+    },
+    "react-B4o9JctQ": {
+      "file": "react-B4o9JctQ.js",
+      "isDynamicEntry": false
+    },
+    "react-dom-DCOgAQUj": {
+      "file": "react-dom-DCOgAQUj.js",
+      "isDynamicEntry": false
+    },
+    "rolldown-runtime-SbdDWaPq": {
+      "file": "rolldown-runtime-SbdDWaPq.js",
+      "isDynamicEntry": false
+    }
+  }
+}

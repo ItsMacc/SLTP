@@ -12,11 +12,13 @@ import SettingsPage from './pages/SettingsPage';
 import { applyAndStoreUserSettings, readSessionUserSettings, readStoredUserSettings } from '../lib/settings';
 import LegalPage, { type LegalPageKind } from './pages/LegalPage';
 import DocsPage from './pages/DocsPage';
+import ResearchPage from './pages/ResearchPage';
 import Sltp404Page from './pages/Sltp404Page';
 import WatchlistPage from './pages/WatchlistPage';
 import ErrorToast from './ui/ErrorToast';
 import { Loader, LoaderOverlay } from './ui/Loader';
 import { supabase } from '../lib/supabase';
+import { bootMarketSync } from './market';
 import { invalidatePortfolio, provisionAccount } from '../lib/api';
 import { pageTitleFor, usePageTitle } from './usePageTitle';
 import {
@@ -159,6 +161,13 @@ export default function App() {
 
     syncsRef.current.set(userId, run);
     return run;
+  }, []);
+
+  // Market data downloads itself in the background from the first visit: the
+  // recent eras land in OPFS while the visitor reads, so charts open warm.
+  // Fire-and-forget on purpose — progress lives in the sync status store.
+  useEffect(() => {
+    void bootMarketSync();
   }, []);
 
   // Navigation is manual here (tabs, the docs route, anchor jumps). Leaving the
@@ -322,7 +331,11 @@ export default function App() {
               // The Watchlist names its planned features instead of the
               // shared stub, but it is still a placeholder for now.
               <WatchlistPage onNavigate={handleTabChange} />
-            ) : activeTab === 'research' || activeTab === 'strategies' || activeTab === 'lab' || activeTab === 'learn' ? (
+            ) : activeTab === 'research' ? (
+              // Price history reads the browser's OPFS market cache, so no
+              // server round-trip stands between a tap and the chart.
+              <ResearchPage userId={user?.id} initialSettings={user?.settings} />
+            ) : activeTab === 'strategies' || activeTab === 'lab' || activeTab === 'learn' ? (
               // Pages with an address but no content yet: the cards on Home
               // link here, and each one carries its own title and hash.
               <Sltp404Page page={activeTab[0].toUpperCase() + activeTab.slice(1)} onNavigate={handleTabChange} />

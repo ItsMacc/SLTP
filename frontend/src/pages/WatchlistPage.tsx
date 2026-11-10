@@ -5,6 +5,7 @@
 // it names the planned features so the Home card, the header and the footer
 // can already link here.
 import Button from '../ui/Button';
+import { prefetchOlder, useMarketSyncStatus } from '../market';
 import './WatchlistPage.css';
 
 interface WatchlistPageProps {
@@ -30,6 +31,64 @@ const OFFERINGS: { title: string; text: string }[] = [
   },
 ];
 
+function formatMB(bytes: number): string {
+  return `${(bytes / (1024 * 1024)).toFixed(0)} MB`;
+}
+
+/** What the background download has staged so far, in plain words. */
+function SyncStatusBlock() {
+  const sync = useMarketSyncStatus();
+
+  if (sync.phase === 'idle' || sync.phase === 'checking') {
+    return (
+      <div className="watch-sync">
+        <h2 className="watch-offer-title">Market data</h2>
+        <p className="watch-offer-text">Checking for the latest market data…</p>
+      </div>
+    );
+  }
+
+  if (sync.phase === 'degraded' || sync.phase === 'error') {
+    return (
+      <div className="watch-sync">
+        <h2 className="watch-offer-title">Market data</h2>
+        <p className="watch-offer-text">
+          This browser could not keep a local copy ({sync.error ?? 'storage unavailable'}).
+          Charts will fetch what they need when you open them.
+        </p>
+      </div>
+    );
+  }
+
+  const pct = sync.bytesTotal > 0
+    ? Math.min(100, Math.round((sync.bytesLoaded / sync.bytesTotal) * 100))
+    : 0;
+  const busy = sync.phase === 'priority' || sync.phase === 'prefetch';
+
+  return (
+    <div className="watch-sync">
+      <h2 className="watch-offer-title">Market data</h2>
+      <p className="watch-offer-text">
+        {busy
+          ? `Downloading market history into this browser… ${formatMB(sync.bytesLoaded)} of ${formatMB(sync.bytesTotal)} (${pct}%). Charts already work — older years fill in behind them.`
+          : sync.olderDeferred
+            ? `Recent history is cached in this browser (${sync.loadedFiles.length} of ${sync.totalFiles} files). The rest waits for an unmetered connection.`
+            : `Full history is cached in this browser (${sync.loadedFiles.length} of ${sync.totalFiles} files, dataset ${sync.version}). Charts open instantly.`}
+      </p>
+      {busy && (
+        <div className="watch-sync-bar" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
+          <div className="watch-sync-fill" style={{ width: `${pct}%` }} />
+        </div>
+      )}
+      {!busy && sync.olderDeferred && (
+        <Button variant="secondary" size="md" onClick={() => { void prefetchOlder(); }}>
+          Download full history now
+        </Button>
+      )}
+    </div>
+  );
+}
+
 export default function WatchlistPage({ onNavigate }: WatchlistPageProps) {
   return (
     <div className="watch-page">
@@ -49,6 +108,8 @@ export default function WatchlistPage({ onNavigate }: WatchlistPageProps) {
           </li>
         ))}
       </ul>
+
+      <SyncStatusBlock />
 
       <p className="watch-note">
         Everything here is for learning and research, not financial advice.
