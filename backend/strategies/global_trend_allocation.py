@@ -4,6 +4,7 @@
 
 # -------- Imports --------
 from collections import deque
+from datetime import datetime, timedelta
 
 import numpy as np
 
@@ -145,7 +146,12 @@ class GlobalTrendAllocation(Strategy):
         etf_universe = set(self.available_etfs)
         if self.ETF_UNIVERSE is not None:
             etf_universe &= set(self.ETF_UNIVERSE)
-        histories = get_stock_histories(sorted(etf_universe), None, current_date)
+        # The matrix never looks back more than a year (momentum, correlation)
+        # plus a 210-session SMA, so ~400 sessions is plenty; 600 calendar days
+        # guarantees that many even across long holiday stretches. Loading full
+        # history here re-reads every era chunk on each monthly rebalance.
+        lookback_start = (datetime.strptime(current_date, "%Y-%m-%d") - timedelta(days=600)).strftime("%Y-%m-%d")
+        histories = get_stock_histories(sorted(etf_universe), lookback_start, current_date)
         sorted_etfs = self._sort_universe(histories)
         if not sorted_etfs:
             return []
