@@ -14,6 +14,7 @@ from sltp import StockData
 from sltp import Trade
 from sltp import PositionType
 from sltp import RebalanceFrequency
+from sltp.data.market_data_service import get_stock_histories
 
 
 # -------- Global Trend Allocation Strategy --------
@@ -56,15 +57,18 @@ class GlobalTrendAllocation(Strategy):
 
 
     # -------- Universe Management --------
-    def initialize_universe(self, current_date: str, histories: dict[str, StockData]) -> bool:
+    # Fixed ETF list, so there is nothing to rank in the full cross-section.
+    # Declaring histories=None tells the engine to skip the full-universe load;
+    # the matrix loads its own ETFs selectively.
+    def initialize_universe(self, current_date: str, histories=None) -> bool:
         self.tickers.clear()
-        active_targets = self._execute_selection_matrix(histories)
+        active_targets = self._execute_selection_matrix(current_date)
         self.tickers = active_targets
 
         return bool(self.tickers)
 
-    def on_rebalance(self, current_date: str, histories: dict[str, StockData]) -> None:
-        active_targets = self._execute_selection_matrix(histories)
+    def on_rebalance(self, current_date: str, histories=None) -> None:
+        active_targets = self._execute_selection_matrix(current_date)
         self.tickers = active_targets
 
     def run_daily(self, current_date: str) -> None:
@@ -135,13 +139,13 @@ class GlobalTrendAllocation(Strategy):
             return None
         return self._sma_sums.get(ticker, 0.0) / self.TEN_MONTHS
 
-    def _execute_selection_matrix(self, histories: dict[str, StockData]) -> list[str]:
+    def _execute_selection_matrix(self, current_date: str) -> list[str]:
         # Calculates all 5 structural allocations sequentially using historic data snapshots.
         # This is a global ETF book: rank the ETF universe, not every listed company.
         etf_universe = set(self.available_etfs)
         if self.ETF_UNIVERSE is not None:
             etf_universe &= set(self.ETF_UNIVERSE)
-        histories = {ticker: data for ticker, data in histories.items() if ticker in etf_universe}
+        histories = get_stock_histories(sorted(etf_universe), None, current_date)
         sorted_etfs = self._sort_universe(histories)
         if not sorted_etfs:
             return []

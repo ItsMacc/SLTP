@@ -34,12 +34,12 @@ class Benchmark(Strategy):
         self.LIQUIDATE_ON_END: bool = False
 
     # The book is one fund by definition, so there is nothing to rank or filter.
-    # A start before the fund's first bar says no, and the engine walks forward to
-    # the first session it can trade, which is where a benchmark can begin.
-    def initialize_universe(self, current_date: str, histories: dict[str, StockData]) -> bool:
+    # Declaring histories=None tells the engine to skip the full-universe load;
+    # membership is checked against the catalog instead of the bars.
+    def initialize_universe(self, current_date: str, histories=None) -> bool:
         self.tickers.clear()
 
-        if self.TICKER not in histories:
+        if self.TICKER not in self.available_universe:
             return False
 
         self.add_ticker(self.TICKER)
