@@ -3,8 +3,9 @@
 // Chunk choice mirrors the engine's bar_files_for (filename year overlap, so
 // a 5-year chart never touches the 1998 file), and every missing chunk is
 // fetched on demand: a chart with a cold cache still resolves, it just takes
-// the download first. Files are parsed newest-first and one at a time, which
-// bounds worker memory no matter how deep the requested range goes.
+// the download first. All of the range's chunks decode at once through the
+// two-worker pool; each file prunes to its matching row groups first, so
+// memory stays bounded no matter how deep the requested range goes.
 
 import type { Bar } from '../components/Chart';
 import {
@@ -204,12 +205,12 @@ async function queryFileQuotes(
     if (hit) out[symbol] = hit;
   }
   if (missing.length === 0) return out;
-  const inflightKey = `${version}|${key}|${[...missing].sort().join(',')}`;
-  let inflight = quotesInflight.get(inflightKey);
-  if (!inflight) {
+  const inflightKey = `${version}|${key}|${[...missing].sort().join(',')}`;  let inflight = quotesInflight.get(inflightKey);
+    if (!inflight) {
     inflight = (async () => {
       const file = await getChunkFile(key);
       const data = await runWorker({ kind: 'quotes', file, symbols: missing });
+      perfLog(key, `quotes(${missing.length})`, data.perf);
       const fresh = data.quotes ?? {};
       for (const symbol of missing) {
         rememberFileQuote(`${version}|${key}|${symbol}`, fresh[symbol] ?? null);
@@ -302,6 +303,12 @@ export async function queryQuotes(symbols: string[]): Promise<Record<string, Quo
         pending.delete(symbol);
       }
     };
+    // Files walk newest-first and one at a time: the recent tail usually
+    // answers every live symbol, so the big era file either never parses
+    // (pending empties) or parses for the one or two stragglers. Fetching
+    // both files up front would hand the era file all thirty symbols and
+    // turn a ~1s walk into ~13s (measured Nov 2026) — the shrink is the
+    // whole point. Bars parallelize instead; see queryMarketData.
     for (const key of barKeys) {
       if (pending.size === 0) break;
       const quotes = await queryFileQuotes(key, [...pending]);
@@ -355,8 +362,13 @@ export async function queryMarketData(
   const symbol = ticker.trim().toUpperCase();
   const seen = new Set<string>();
   const out: Bar[] = [];
-  for (const key of chunkKeysForRange(start, end)) {
-    const rows = await queryFile(key, symbol, start, end);
+  // Every chunk decodes in the pool at once (bounded by its two workers);
+  // Promise.all preserves key order, so the newest file still wins overlap
+  // dates exactly as in the old sequential walk.
+  const perFile = await Promise.all(
+    chunkKeysForRange(start, end).map((key) => queryFile(key, symbol, start, end)),
+  );
+  for (const rows of perFile) {
     // Era files and the `recent` tail overlap by a few sessions.
     for (const row of rows) {
       if (!seen.has(row.date)) {

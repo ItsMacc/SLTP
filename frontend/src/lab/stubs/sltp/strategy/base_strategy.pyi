@@ -19,6 +19,7 @@ class Strategy:
     REBALANCE_FREQUENCY: RebalanceFrequency
     MIN_BARS_REQUIRED: int
     LIQUIDATE_ON_END: bool
+    STREAMING_INDICATORS: bool
     tickers: list[str]
     _indicator_series: dict[int, np.ndarray] | None
     _indicator_cache: OrderedDict

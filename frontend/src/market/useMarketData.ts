@@ -91,14 +91,19 @@ export function useMarketData(
         if (cancelled) return;
         const keys = chunkKeysForRange(request.start, request.end);
         if (!cancelled) setFilesTotal(keys.length);
+        // All chunks decode at once through the two-worker pool; each
+        // completion paints immediately, so the chart still extends
+        // leftwards as older eras land instead of waiting for all of them.
         let done = 0;
-        for (const key of keys) {
-          const rows = await queryFile(key, request.symbol, request.start, request.end);
-          if (cancelled) return;
-          done += 1;
-          if (rows.length > 0) setBars((prev) => mergeSorted(prev, rows));
-          setFilesDone(done);
-        }
+        await Promise.all(
+          keys.map(async (key) => {
+            const rows = await queryFile(key, request.symbol, request.start, request.end);
+            if (cancelled) return;
+            done += 1;
+            if (rows.length > 0) setBars((prev) => mergeSorted(prev, rows));
+            setFilesDone(done);
+          }),
+        );
         if (!cancelled) setState('ready');
       } catch (err) {
         if (!cancelled) {
