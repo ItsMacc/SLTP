@@ -64,6 +64,29 @@ export async function getFile(path: string): Promise<File | null> {
   }
 }
 
+/** Every file path under a directory, relative to it (`a.parquet`,
+    `x/y.bin`). A miss means nothing cached yet, so it reads as empty. */
+export async function listFiles(path: string): Promise<string[]> {
+  const out: string[] = [];
+  const walk = async (dir: FileSystemDirectoryHandle, prefix: string): Promise<void> => {
+    for await (const entry of dir.values()) {
+      if (entry.kind === 'file') out.push(prefix + entry.name);
+      else if (entry.kind === 'directory') {
+        await walk(entry as FileSystemDirectoryHandle, `${prefix}${entry.name}/`);
+      }
+    }
+  };
+  try {
+    const parts = path.split('/').filter(Boolean);
+    let dir = await openDir(false);
+    for (const part of parts) dir = await dir.getDirectoryHandle(part);
+    await walk(dir, '');
+  } catch {
+    /* nothing cached yet */
+  }
+  return out;
+}
+
 /** Stores (or replaces) one file. Writes are atomic per file handle. */
 export async function putFile(path: string, data: Blob): Promise<void> {
   const { dir, name } = await parentFor(path, true);

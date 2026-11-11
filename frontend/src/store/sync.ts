@@ -29,6 +29,7 @@ import {
   fileSize,
   getFile,
   hasFile,
+  listFiles,
   opfsSupported,
   putFile,
   readVersion,
@@ -383,6 +384,27 @@ async function runBoot(): Promise<void> {
 
   const stored = await readVersion();
   counted.clear();
+  if (stored !== manifest.version) {
+    // A rollover can strand files the new plan no longer holds: a phone
+    // dropping its oldest era in 2028, a renamed chunk. Sweep on-disk bars
+    // outside the plan so disk strictly equals plan + sidecars + wheels.
+    // Sidecars and the catalog get their own byte checks in the priority
+    // pass below; BARS/ and WHEELS/ are version-stamped and self-cleaning.
+    // Zero download cost, so this runs on metered links too.
+    const planSet = new Set(planList);
+    const onDisk = await listFiles('MARKET_DAILY');
+    await Promise.all(
+      onDisk
+        .map((name) => `MARKET_DAILY/${name}`)
+        .filter(
+          (key) =>
+            key.endsWith('.parquet') &&
+            !key.endsWith('market_actions.parquet') &&
+            !planSet.has(key),
+        )
+        .map((key) => deleteFile(key)),
+    );
+  }
   // One reconciliation path for every boot, version bump or not. Era chunks
   // are effectively immutable — a daily update rewrites only the tail (and
   // sometimes the actions sidecar) — so a new version usually refreshes one
