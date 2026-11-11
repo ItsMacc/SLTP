@@ -16,6 +16,7 @@ import {
 import { Search, X } from 'lucide-react'
 import CandlestickGuide from '../components/CandlestickGuide'
 import Chart, { type Bar } from '../components/Chart'
+import { StrategiesView } from './StrategiesPage'
 import { LoaderRow, LoaderScreen } from '../ui/Loader'
 import { GlossaryText } from '../components/GlossaryText'
 import { STRATEGY_GLOSSARY } from '../../lib/glossary'
@@ -781,16 +782,7 @@ export default function ResearchPage({ initialSettings }: ResearchPageProps) {
             </>
           )}
 
-          {mode === 'strategies' && (
-            <section className="quote-panel">
-              <div className="research-state">
-                <p className="research-state-title">Strategies are on their way.</p>
-                <p className="research-state-body">
-                  Strategy backtests and comparisons will live here.
-                </p>
-              </div>
-            </section>
-          )}
+          {mode === 'strategies' && <StrategiesView />}
         </div>
 
         {mode === 'stocks' && <CandlestickGuide />}

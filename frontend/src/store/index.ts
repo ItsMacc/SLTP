@@ -27,5 +27,12 @@ export {
 } from './query';
 export type { Quote, TickerInfo } from './query';
 export { isMobileDevice, MOBILE_HISTORY_START } from './device';
-export { warmEngine, useEngineStatus, getEngineStatus } from './pyodide';
-export type { EnginePhase, EngineStatus } from './pyodide';
+export {
+  warmEngine,
+  useEngineStatus,
+  getEngineStatus,
+  runStrategy,
+  ENGINE_STRATEGIES,
+  resetEngineForTests,
+} from './pyodide';
+export type { EnginePhase, EngineStatus, EngineRun, EngineStrategy } from './pyodide';

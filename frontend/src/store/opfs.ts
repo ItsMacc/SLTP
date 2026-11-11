@@ -16,6 +16,15 @@ export function opfsSupported(): boolean {
   return typeof navigator !== 'undefined' && !!navigator.storage?.getDirectory;
 }
 
+/**
+ * The raw handle for the cache directory. The engine worker mounts this
+ * into the Emscripten filesystem, so sltp reads the same parquet files the
+ * sync downloads — no bytes are ever copied between the two.
+ */
+export async function cacheDirHandle(create = true): Promise<FileSystemDirectoryHandle> {
+  return openDir(create);
+}
+
 async function openDir(create: boolean): Promise<FileSystemDirectoryHandle> {
   const root = await navigator.storage.getDirectory();
   return root.getDirectoryHandle(DIR_NAME, { create });

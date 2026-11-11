@@ -9,3 +9,9 @@ declare module '*.svg' {
   export default src;
 }
 
+// Strategy sources are bundled as text and exec'd inside the engine worker.
+declare module '*.py?raw' {
+  const src: string;
+  export default src;
+}
+
