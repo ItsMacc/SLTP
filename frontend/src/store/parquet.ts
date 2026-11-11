@@ -1,4 +1,4 @@
-// parquetRead.ts — era-file reads, dense and sparse.
+// parquet.ts — era-file reads, dense and sparse.
 //
 // Two engines, picked per query shape. Dense single-symbol reads (a chart
 // series) prune to matching row groups through the footer's Symbol

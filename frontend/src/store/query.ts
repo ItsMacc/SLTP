@@ -1,24 +1,31 @@
-// marketQuery.ts — one ticker's bars out of the OPFS cache.
+// query.ts — one ticker's bars out of the OPFS cache.
 //
 // Chunk choice mirrors the engine's bar_files_for (filename year overlap, so
-// a 5-year chart never touches the 1998 file), and every missing chunk is
-// fetched on demand: a chart with a cold cache still resolves, it just takes
-// the download first. All of the range's chunks decode at once through the
-// two-worker pool; each file prunes to its matching row groups first, so
-// memory stays bounded no matter how deep the requested range goes.
+// a 5-year chart never touches the 1998 file), then intersects the active
+// sync plan — a phone only ever holds its two newest chunks, so a wide
+// range resolves from what is on disk instead of fetching 28 years.
+// Every missing chunk is fetched on demand: a chart with a cold cache still
+// resolves, it just takes the download first. All of the range's chunks
+// decode at once through the two-worker pool; each file prunes to its
+// matching row groups first, so memory stays bounded no matter how deep
+// the requested range goes.
+//
+// This is the one read path every page uses — Research charts, the future
+// Lab runs and the watchlist all ask here, never the files directly.
 
 import type { Bar } from '../components/Chart';
 import {
   bootMarketSync,
   ensureFile,
+  getActivePlan,
   getChunkFile,
   getManifest,
   keysForRange,
   newestFirst,
-} from './marketSync';
-import { getFile } from './opfsCache';
-import { readTickerSidecar, writeTickerSidecar } from './tickerSidecar';
-import { callWorker } from './workerClient';
+} from './sync';
+import { getFile } from './opfs';
+import { readTickerSidecar, writeTickerSidecar } from './sidecar';
+import { callWorker } from './pool';
 
 export interface QueryPerf {
   fileBytes: number;
@@ -184,8 +191,8 @@ function rememberFileQuote(cacheKey: string, quote: FileQuote | null): void {
 const quotesInflight = new Map<string, Promise<Record<string, FileQuote>>>();
 
 /** One file's latest quotes for many tickers in a single parse. Symbols
- * already answered from this file (present or provably absent) never reach
- * the worker again, so typing a search re-reads nothing it has seen. */
+already answered from this file (present or provably absent) never reach
+the worker again, so typing a search re-reads nothing it has seen. */
 async function queryFileQuotes(
   key: string,
   symbols: string[],
@@ -205,8 +212,9 @@ async function queryFileQuotes(
     if (hit) out[symbol] = hit;
   }
   if (missing.length === 0) return out;
-  const inflightKey = `${version}|${key}|${[...missing].sort().join(',')}`;  let inflight = quotesInflight.get(inflightKey);
-    if (!inflight) {
+  const inflightKey = `${version}|${key}|${[...missing].sort().join(',')}`;
+  let inflight = quotesInflight.get(inflightKey);
+  if (!inflight) {
     inflight = (async () => {
       const file = await getChunkFile(key);
       const data = await runWorker({ kind: 'quotes', file, symbols: missing });
@@ -253,13 +261,13 @@ export interface Quote {
 
 /**
  * Last close and previous-session move for many tickers. Reads the newest
- * chunks until every symbol has two dated sessions (a halted name falls back
- * to older eras, and era-boundary overlaps merge by date, not file order);
- * symbols with no bars at all are left out.
+ * planned chunks until every symbol has two dated sessions (a halted name
+ * falls back to older eras on desktop, and era-boundary overlaps merge by
+ * date, not file order); symbols with no bars at all are left out.
  */
-/* List quotes only ever walk the two newest files (the `recent` tail plus
- * the current era). A quote is a *current* price and yesterday's move: if a
- * symbol's latest session is older than that, its quote would be years
+/* List quotes only ever walk the two newest planned files (the `recent` tail
+ * plus the current era). A quote is a *current* price and yesterday's move:
+ * if a symbol's latest session is older than that, its quote would be years
  * stale, so a blank row is more honest than a 5-second full-depth scan
  * that holds the whole batch hostage. Measured: a symbol missing from the
  * newest files forces ~1s of decode per older era (~5s for a full walk),
@@ -280,11 +288,7 @@ export async function queryQuotes(symbols: string[]): Promise<Record<string, Quo
     await bootMarketSync();
     const manifest = getManifest();
     if (!manifest) return {};
-    const barKeys = newestFirst(
-      keysForRange(
-        manifest.files.filter((f) => f.key.startsWith('MARKET_DAILY/')),
-      ),
-    ).slice(0, MAX_QUOTE_FILES);
+    const barKeys = chunkKeysForRange().slice(0, MAX_QUOTE_FILES);
     const pending = new Set(symbols);
     const sessions = new Map<string, { date: string; close: number }[]>();
     const out: Record<string, Quote> = {};
@@ -346,14 +350,22 @@ export async function queryQuotes(symbols: string[]): Promise<Record<string, Quo
   return promise;
 }
 
-/** Chunk keys for a range, newest first (the paint order). */
+/**
+ * Chunk keys for a range, newest first (the paint order), intersected with
+ * the active sync plan. Before the first manifest lands there is no plan,
+ * so this is empty and the caller waits for boot.
+ */
 export function chunkKeysForRange(start?: string, end?: string): string[] {
   const manifest = getManifest();
   if (!manifest) return [];
-  return newestFirst(keysForRange(manifest.files, start, end));
+  const keys = newestFirst(keysForRange(manifest.files, start, end));
+  const plan = getActivePlan();
+  if (!plan) return keys;
+  return keys.filter((key) => plan.includes(key));
 }
 
-/** Every bar for one ticker over [start, end]. Open ends fetch everything. */
+/** Every bar for one ticker over [start, end]. Open ends fetch everything
+    the plan holds — on a phone that is the recent pair, never 28 years. */
 export async function queryMarketData(
   ticker: string,
   start?: string,

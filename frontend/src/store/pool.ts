@@ -1,4 +1,4 @@
-// workerClient.ts — a pool of exactly two parquet workers for the whole app.
+// pool.ts — a pool of exactly two parquet workers for the whole app.
 //
 // One worker chews one file at a time, and era files are independent: two
 // workers decode two files side by side, which is where the chart speedup
@@ -12,7 +12,7 @@
 // the pool falls back to the same code on the main thread: slower and with
 // visible jank on big files, but the app keeps working.
 
-import type { CatalogEntry, WorkerQuote, WorkerRow } from './parquetRead';
+import type { CatalogEntry, WorkerQuote, WorkerRow } from './parquet';
 
 interface Pending {
   resolve: (data: Record<string, unknown>) => void;
@@ -38,7 +38,7 @@ const normalLane: Queued[] = [];
 /** Runs one query on the main thread when no Worker can be created. */
 async function runInline(message: object): Promise<Record<string, unknown>> {
   const query = message as { kind?: string; file?: Blob; symbol?: string; symbols?: string[] };
-  const mod = await import('./parquetRead');
+  const mod = await import('./parquet');
   if (query.kind === 'bars') {
     const { rows, perf } = await mod.readBars(query.file as Blob, query.symbol as string);
     return { rows: rows as WorkerRow[], perf };

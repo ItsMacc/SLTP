@@ -1,11 +1,11 @@
 // parquet.worker.ts — file parsing off the main thread.
 //
-// The pool (workerClient) keeps two of these alive and feeds each one file
-// at a time; the heavy work itself lives in parquetRead so the main-thread
-// fallback runs the same code when workers are blocked. The message shape
-// is unchanged: every request carries an id, every reply echoes it.
+// The pool keeps two of these alive and feeds each one file at a time; the
+// heavy work itself lives in parquet so the main-thread fallback runs the
+// same code when workers are blocked. The message shape is unchanged: every
+// request carries an id, every reply echoes it.
 
-import { readBars, readCatalog, readQuotes } from './parquetRead';
+import { readBars, readCatalog, readQuotes } from './parquet';
 
 export interface BarsQuery {
   kind: 'bars';

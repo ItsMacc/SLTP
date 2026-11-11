@@ -5,7 +5,7 @@
 // it names the planned features so the Home card, the header and the footer
 // can already link here.
 import Button from '../ui/Button';
-import { prefetchOlder, useMarketSyncStatus } from '../market';
+import { prefetchOlder, useMarketSyncStatus } from '../store';
 import './WatchlistPage.css';
 
 interface WatchlistPageProps {
@@ -73,7 +73,9 @@ function SyncStatusBlock() {
           ? `Downloading market history into this browser… ${formatMB(sync.bytesLoaded)} of ${formatMB(sync.bytesTotal)} (${pct}%). Charts already work — older years fill in behind them.`
           : sync.olderDeferred
             ? `Recent history is cached in this browser (${sync.loadedFiles.length} of ${sync.totalFiles} files). The rest waits for an unmetered connection.`
-            : `Full history is cached in this browser (${sync.loadedFiles.length} of ${sync.totalFiles} files, dataset ${sync.version}). Charts open instantly.`}
+            : sync.plan === 'full'
+              ? `Full history is cached in this browser (${sync.loadedFiles.length} of ${sync.totalFiles} files, dataset ${sync.version}). Charts open instantly.`
+              : `Recent history is cached in this browser (${sync.loadedFiles.length} of ${sync.totalFiles} files, dataset ${sync.version}). Charts open instantly.`}
       </p>
       {busy && (
         <div className="watch-sync-bar" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>

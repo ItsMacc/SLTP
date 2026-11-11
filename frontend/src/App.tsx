@@ -18,7 +18,7 @@ import WatchlistPage from './pages/WatchlistPage';
 import ErrorToast from './ui/ErrorToast';
 import { Loader, LoaderOverlay } from './ui/Loader';
 import { supabase } from '../lib/supabase';
-import { bootMarketSync } from './market';
+import { bootMarketSync } from './store';
 import { invalidatePortfolio, provisionAccount } from '../lib/api';
 import { pageTitleFor, usePageTitle } from './usePageTitle';
 import {

@@ -1,28 +1,38 @@
-// marketSync.ts — the background download sequence.
+// sync.ts — the background download sequence plus where files come from.
 //
-// First visit (or a new dataset version): check the manifest, fetch the two
-// files that cover the last ~5 years for every ticker, then keep going
-// backwards one era file at a time until the whole history sits in OPFS.
-// Later visits only re-check the version and top up what changed (usually
-// just the small `recent` file). Progress is published to subscribers, so any
-// page can show "downloading…" while charts already paint what has landed.
+// First visit (or a new dataset version): check the manifest, fetch the
+// plan's files (desktop: all six era chunks; phone: the two newest), then
+// on desktop keep going backwards one era at a time. Later visits only
+// re-check the version and top up what changed (usually just the `recent`
+// tail). Progress is published to subscribers, so any page can show
+// "downloading…" while charts already paint what has landed.
 //
-// Cost model, measured Nov 2026: the priority pair is ~140MB (~4s on a fast
-// link); each older era is one file, newest first. Reads stay inside the
-// bucket's free Class B allowance because every file downloads once per
-// version and is read from disk afterwards.
+// The plan is why "N of M files" always reads true: totalFiles counts the
+// plan's bars, and loadedFiles can only ever hold plan keys (plus nothing
+// else — sidecars ride along but are never counted). A phone shows 2 of 2,
+// a desktop 6 of 6, and neither can drift apart again.
+//
+// Cost model, measured Nov 2026: the desktop priority pair is ~140MB (~4s
+// on a fast link) and the full set ~445MB; the phone plan is ~147MB. Reads
+// stay inside the bucket's free Class B allowance because every file
+// downloads once per version and is read from disk afterwards. The R2
+// bucket is public today, so files download with a plain GET and no
+// credentials exist anywhere in this bundle; if it ever goes private, only
+// resolveFileUrl changes (it will ask our server to mint a short-lived
+// URL per file) and nothing that reads, caches or queries data changes.
 
 import { useSyncExternalStore } from 'react';
-import { fetchManifest, resolveFileUrl, type Manifest, type ManifestFile } from './remote';
+import { MOBILE_PLAN_CHUNKS, isMobileDevice } from './device';
 import {
   deleteFile,
+  fileSize,
   getFile,
   hasFile,
   opfsSupported,
   putFile,
   readVersion,
   writeVersion,
-} from './opfsCache';
+} from './opfs';
 
 export type SyncPhase =
   | 'idle'
@@ -33,13 +43,18 @@ export type SyncPhase =
   | 'degraded'
   | 'error';
 
+/** What this browser intends to hold: everything, or the recent pair. */
+export type SyncPlan = 'full' | 'recent';
+
 export interface SyncStatus {
   phase: SyncPhase;
   /** Published dataset version (null until the first manifest lands). */
   version: string | null;
-  /** Chunk keys fully on disk, newest first. */
+  /** Which plan is running: full history, or the phone-sized recent pair. */
+  plan: SyncPlan;
+  /** Chunk keys on disk, newest first — always a subset of the plan. */
   loadedFiles: string[];
-  /** Era chunks in the current manifest (excludes the actions sidecar). */
+  /** Planned era chunks in the current manifest (what "of M" counts). */
   totalFiles: number;
   bytesLoaded: number;
   bytesTotal: number;
@@ -51,6 +66,7 @@ export interface SyncStatus {
 const INITIAL: SyncStatus = {
   phase: 'idle',
   version: null,
+  plan: 'full',
   loadedFiles: [],
   totalFiles: 0,
   bytesLoaded: 0,
@@ -83,6 +99,48 @@ export function useMarketSyncStatus(): SyncStatus {
   return useSyncExternalStore(subscribeSyncStatus, getSyncStatus, getSyncStatus);
 }
 
+/** Public reader for the sltp-market-data bucket (mirrors sltp.data.remote). */
+export const R2_BASE_URL =
+  'https://pub-8fe125f9d291408d9a41fa5228a663e2.r2.dev';
+
+/** Small file naming which chunks exist and what data version they belong to. */
+export const MANIFEST_KEY = 'META/manifest.json';
+
+export interface ManifestFile {
+  key: string;
+  bytes: number;
+  rows: number;
+  row_groups: number;
+  first_session: string | null;
+  last_session: string | null;
+}
+
+export interface Manifest {
+  version: string;
+  files: ManifestFile[];
+}
+
+/** The published dataset version, e.g. "2026-11-11". A few bytes. */
+export async function fetchManifest(): Promise<Manifest> {
+  const res = await fetch(`${R2_BASE_URL}/${MANIFEST_KEY}`, { cache: 'no-store' });
+  if (!res.ok) throw new Error(`Manifest fetch failed (${res.status})`);
+  const manifest = (await res.json()) as Manifest;
+  if (!manifest?.version || !Array.isArray(manifest.files)) {
+    throw new Error('Manifest had an unexpected shape');
+  }
+  return manifest;
+}
+
+/**
+ * The URL the browser downloads one file from. Public bucket: the file's own
+ * address. Private bucket (future): ask our server for a short-lived signed
+ * URL for this key — the R2 credentials never leave the server, and the
+ * caller below keeps working unchanged.
+ */
+export async function resolveFileUrl(key: string): Promise<string> {
+  return `${R2_BASE_URL}/${key}`;
+}
+
 /** "market_data_1998_2003.parquet" -> [1998, 2003]; else null. */
 export function chunkRange(key: string): [number, number] | null {
   const match = /market_data_(\d{4})_(\d{4})\.parquet$/.exec(key);
@@ -105,7 +163,27 @@ function barKeys(files: ManifestFile[]): string[] {
 /** The ticker directory sidecar: small, and watchlist search will want it. */
 const CATALOG_KEY = 'SYMBOL_DATA/symbol_catalog.parquet';
 
-/** Adds a key to loadedFiles unless it is already counted. */
+/**
+ * The chunk keys this browser plans to hold, newest first. Phones keep the
+ * two newest (tail + current era, ~10 years of sessions); desktops everything.
+ * Sidecars are outside the plan — they always download with the priority pair.
+ */
+export function planKeys(files: ManifestFile[]): string[] {
+  const ordered = newestFirst(barKeys(files));
+  return isMobileDevice() ? ordered.slice(0, MOBILE_PLAN_CHUNKS) : ordered;
+}
+
+/** The active plan's keys (null until the first manifest lands). Queries
+    intersect their chunk choice with this, so a phone never fetches outside
+    its two files and a desktop never fetches the actions sidecar as bars. */
+let activePlan: string[] | null = null;
+
+export function getActivePlan(): string[] | null {
+  return activePlan;
+}
+
+/** Adds a key to loadedFiles unless it is already counted. Plan keys only:
+    callers pass bars; sidecars are downloaded with track=false. */
 function markLoaded(key: string): void {
   if (status.loadedFiles.includes(key)) return;
   setStatus({ loadedFiles: newestFirst([...status.loadedFiles, key]) });
@@ -193,15 +271,15 @@ export function getManifest(): Manifest | null {
   return manifestCache;
 }
 
-/** The two files a chart needs first: the tail plus the current era chunk. */
-function priorityKeys(files: ManifestFile[]): string[] {
-  const keys = barKeys(files);
-  const recent = keys.filter((key) => key.includes('recent'));
-  const chunks = keys.filter((key) => chunkRange(key) !== null);
+/** The files a chart needs first: the tail plus the current era chunk.
+    Always inside the plan — on a phone that pair IS the whole plan. */
+function priorityKeys(plan: string[]): string[] {
+  const recent = plan.filter((key) => key.includes('recent'));
+  const chunks = plan.filter((key) => chunkRange(key) !== null);
   const newest = newestFirst(chunks)[0];
   const priority = [...recent];
   if (newest && !priority.includes(newest)) priority.push(newest);
-  return priority;
+  return priority.length > 0 ? priority : plan.slice(0, 1);
 }
 
 /**
@@ -209,20 +287,25 @@ function priorityKeys(files: ManifestFile[]): string[] {
  * Concurrent callers (background prefetch + an open chart) share the same
  * download instead of fetching the same bytes twice.
  */
-async function downloadFile(file: ManifestFile): Promise<void> {
+async function downloadFile(file: ManifestFile, track = true): Promise<void> {
   const existing = inflight.get(file.key);
   if (existing) {
     await existing;
     return;
   }
-  const run = storeFile(file).finally(() => {
+  const run = storeFile(file, track).finally(() => {
     inflight.delete(file.key);
   });
   inflight.set(file.key, run);
   await run;
 }
 
-async function storeFile(file: ManifestFile): Promise<void> {
+/**
+ * Downloads one file into OPFS. History chunks join loadedFiles (the
+ * "N of M files" count); sidecars pass track=false so the count stays
+ * about history.
+ */
+async function storeFile(file: ManifestFile, track = true): Promise<void> {
   const url = await resolveFileUrl(file.key);
   const res = await fetch(url, { cache: 'no-store' });
   if (!res.ok || !res.body) throw new Error(`Download failed (${res.status}): ${file.key}`);
@@ -243,7 +326,7 @@ async function storeFile(file: ManifestFile): Promise<void> {
   setStatus({
     bytesLoaded: status.bytesLoaded + Math.max(0, file.bytes - received),
   });
-  markLoaded(file.key);
+  if (track) markLoaded(file.key);
 }
 
 /**
@@ -287,12 +370,15 @@ async function runBoot(): Promise<void> {
     /* best-effort; the sequence works without it */
   }
 
-  setStatus({ ...INITIAL, phase: 'checking' });
+  const mobile = isMobileDevice();
+  const plan: SyncPlan = mobile ? 'recent' : 'full';
+  setStatus({ ...INITIAL, phase: 'checking', plan });
 
   const manifest = await fetchManifest();
   manifestCache = manifest;
-  const bars = barKeys(manifest.files);
-  setStatus({ version: manifest.version, totalFiles: bars.length });
+  const planList = planKeys(manifest.files);
+  activePlan = planList;
+  setStatus({ version: manifest.version, totalFiles: planList.length });
 
   const stored = await readVersion();
   counted.clear();
@@ -300,12 +386,26 @@ async function runBoot(): Promise<void> {
     // A new dataset version replaces history wholesale, so stale chunks go
     // before the fresh ones land. Best-effort: a half-cleaned cache still
     // self-heals, because queries fetch any chunk they cannot find.
-    await Promise.all(bars.map((key) => deleteFile(key)));
+    await Promise.all(barKeys(manifest.files).map((key) => deleteFile(key)));
     setStatus({ loadedFiles: [], bytesLoaded: 0 });
   } else {
+    // Same version: keep what matches, refresh what changed. A daily script
+    // rewrites files in place, so presence is not freshness — the manifest's
+    // byte count is. Mismatches are deleted up front so the passes below
+    // fetch them like any other miss. Only plan files count as loaded: a
+    // desktop-sized cache opened in a phone emulator keeps its extra files
+    // on disk but out of the count.
+    const expectedBytes = new Map(manifest.files.map((f) => [f.key, f.bytes]));
     const present: string[] = [];
-    for (const key of bars) {
-      if (await hasFile(key)) present.push(key);
+    for (const key of planList) {
+      const actual = await fileSize(key);
+      if (actual === null) continue;
+      const expected = expectedBytes.get(key);
+      if (expected !== undefined && actual !== expected) {
+        await deleteFile(key);
+        continue;
+      }
+      present.push(key);
     }
     const presentBytes = manifest.files
       .filter((f) => present.includes(f.key))
@@ -315,7 +415,7 @@ async function runBoot(): Promise<void> {
   }
 
   // The pair every chart needs: the daily tail plus the current era.
-  const priority = priorityKeys(manifest.files);
+  const priority = priorityKeys(planList);
   const missing = [];
   for (const key of priority) {
     if (!(await hasFile(key))) missing.push(key);
@@ -339,17 +439,24 @@ async function runBoot(): Promise<void> {
       }
     }
     await writeVersion(manifest.version);
-    // The sidecars ride with the priority pair: the actions file (1.2MB —
-    // every adjusted chart wants splits and dividends) and the ticker
-    // directory (381KB — watchlist search will read it). Neither counts as
-    // a history file; they just stop future pages fetching them piecemeal.
+    // The sidecars ride with the priority pair on every device: the actions
+    // file (~1MB — every adjusted chart wants splits and dividends) and the
+    // ticker directory (~380KB — search will read it). Neither counts as a
+    // history file; they just stop future pages fetching them piecemeal.
     for (const sidecar of manifest.files.filter(
       (f) => f.key.endsWith('market_actions.parquet') || f.key === CATALOG_KEY,
     )) {
-      if (await hasFile(sidecar.key)) continue;
+      const actual = await fileSize(sidecar.key);
+      if (actual === null) {
+        /* missing — downloaded below */
+      } else if (actual === sidecar.bytes) {
+        continue;
+      } else {
+        await deleteFile(sidecar.key);
+      }
       try {
         countBytes(sidecar);
-        await downloadFile(sidecar);
+        await downloadFile(sidecar, false);
       } catch (err) {
         setStatus({
           error: err instanceof Error ? err.message : `Could not fetch ${sidecar.key}`,
@@ -357,12 +464,13 @@ async function runBoot(): Promise<void> {
       }
     }
   } else {
-    // Warm visit: the priority pair is already home, and the present scan
-    // above already counted its bytes. Nothing left to add.
+    // Warm visit: the plan is already home, and the present scan above
+    // already counted its bytes. Nothing left to add.
   }
 
-  // Then the rest of history, newest era first, one file at a time.
-  const remaining = newestFirst(bars).filter((key) => !priority.includes(key));
+  // Then the rest of history, newest era first, one file at a time. A phone
+  // never gets here — its plan has nothing left after the priority pair.
+  const remaining = planList.filter((key) => !priority.includes(key));
   if (remaining.length === 0) {
     setStatus({ phase: 'ready' });
     return;
@@ -377,12 +485,13 @@ async function runBoot(): Promise<void> {
 
 /**
  * Downloads older eras sequentially. Called automatically on unmetered
- * links; call it explicitly (a "load full history" tap) on cellular.
+ * links; call it explicitly (a "load full history" tap) on cellular. On a
+ * phone this is a no-op: the plan is already complete by construction.
  */
 export async function prefetchOlder(): Promise<void> {
   const manifest = manifestCache;
   if (!manifest || status.phase === 'prefetch') return;
-  const remaining = newestFirst(barKeys(manifest.files)).filter(
+  const remaining = planKeys(manifest.files).filter(
     (key) => !status.loadedFiles.includes(key),
   );
   if (remaining.length === 0) {
@@ -427,6 +536,7 @@ async function prefetchKeys(manifest: Manifest, keys: string[]): Promise<void> {
 export function resetMarketSyncForTests(): void {
   bootPromise = null;
   manifestCache = null;
+  activePlan = null;
   counted.clear();
   inflight.clear();
   setStatus({ ...INITIAL });

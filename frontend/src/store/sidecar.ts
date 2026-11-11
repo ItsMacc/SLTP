@@ -1,4 +1,4 @@
-// tickerSidecar.ts — per-ticker binary cache derived from the era files.
+// sidecar.ts — per-ticker binary cache derived from the era files.
 //
 // Parquet decode is the slow step (seconds of JS decompress + decode per
 // file); reading typed arrays is the fast one (a memcpy). So after a
@@ -15,7 +15,7 @@
 // orphans the previous version's directory, which is wiped on next use.
 
 import type { Bar } from '../components/Chart';
-import { getFile, putFile, removeDir } from './opfsCache';
+import { getFile, putFile, removeDir } from './opfs';
 
 const MAGIC = 0x534c5450; // 'SLTP'
 const FORMAT = 1;

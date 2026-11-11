@@ -13,7 +13,7 @@
 import { supabase } from './supabase'
 import { readSession, sessionKeyFor, writeSession } from './sessionCache'
 
-export type ResearchTimeframe = '1y' | '2y' | '5y' | 'all'
+export type ResearchTimeframe = '1y' | '2y' | '5y' | '10y' | 'all'
 
 /** The preferences object stored on the user row. Free-form by design. */
 export type UserSettings = { theme?: string; [key: string]: any }

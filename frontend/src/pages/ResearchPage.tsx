@@ -23,18 +23,25 @@ import './ResearchPage.css'
 import { chartMaxBarsToNumber, readChartMaxBars, type ResearchTimeframe } from '../../lib/settings'
 import {
   getTickerDirectory,
+  isMobileDevice,
   queryMarketData,
   queryQuotes,
+  warmEngine,
   type Quote,
   type TickerInfo,
-} from '../market'
+} from '../store'
 
-const TIMEFRAMES: ResearchTimeframe[] = ['1y', '2y', '5y', 'all']
+// Phones hold the recent pair of chunks, not 28 years: their longest view
+// is the 10 years those files cover, and 'all history' is not offered.
+const MOBILE_VIEW = isMobileDevice()
+
+const TIMEFRAMES: ResearchTimeframe[] = MOBILE_VIEW ? ['1y', '2y', '5y', '10y'] : ['1y', '2y', '5y', 'all']
 
 const TIMEFRAME_LABEL: Record<ResearchTimeframe, string> = {
   '1y': '1Y',
   '2y': '2Y',
   '5y': '5Y',
+  '10y': '10Y',
   all: 'all history',
 }
 
@@ -92,7 +99,7 @@ const dateText = (iso: string) => {
 // chart always reaches the latest cached session.
 const timeframeStart = (timeframe: ResearchTimeframe): string | undefined => {
   if (timeframe === 'all') return undefined
-  const years = timeframe === '1y' ? 1 : timeframe === '2y' ? 2 : 5
+  const years = timeframe === '1y' ? 1 : timeframe === '2y' ? 2 : timeframe === '5y' ? 5 : 10
   const date = new Date()
   date.setFullYear(date.getFullYear() - years)
   return date.toISOString().slice(0, 10)
@@ -278,6 +285,14 @@ export default function ResearchPage({ initialSettings }: ResearchPageProps) {
   const [quotes, setQuotes] = useState<Record<string, Quote>>({})
   const [quoteLimit, setQuoteLimit] = useState(QUOTE_BATCH)
   const quotesRef = useRef<Record<string, Quote>>({})
+  // The engine warms only here (and the future Lab): never on page load, so
+  // a visit that never runs a strategy never downloads Python. Silent on
+  // purpose — stocks read parquet, not Pyodide, and must never wait on it.
+  // On a phone this resolves immediately with nothing fetched.
+  useEffect(() => {
+    void warmEngine()
+  }, [])
+
   // On phones the list is a sheet over the chart, opened from the search bar.
   const [listOpen, setListOpen] = useState(false)
   const searchRef = useRef<HTMLInputElement>(null)

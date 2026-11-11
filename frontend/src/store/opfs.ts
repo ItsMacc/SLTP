@@ -1,13 +1,12 @@
-// opfsCache.ts — the browser's ~/.sltp/cache.
+// opfs.ts — the browser's disk: market chunks, sidecars and engine wheels.
 //
-// The Origin Private File System keeps downloaded era files on the visitor's
-// own disk, so the second visit reads locally instead of re-downloading.
-// OPFS is per-origin and survives reloads; the browser may only evict it
-// under storage pressure (we ask for persistence in marketSync). Private
-// windows may keep it in memory and drop it on close — callers treat a miss
-// as "fetch again", never as an error.
+// The Origin Private File System survives reloads; the browser may only
+// evict it under storage pressure (sync asks for persistence). Private
+// windows may keep it in memory and drop it on close — callers treat a
+// miss as "fetch again", never as an error. One directory holds every
+// cached file so the whole cache can be reasoned about in one place.
 
-/** Top-level OPFS directory holding every cached market file. */
+/** Top-level OPFS directory holding every cached file. */
 const DIR_NAME = 'sltp-market';
 
 /** Records which dataset version the cached files were downloaded against. */
@@ -45,6 +44,13 @@ export async function hasFile(path: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/** Cached byte count, or null on a miss. The freshness check: a daily script
+rewrites files in place, so presence alone cannot tell a stale chunk. */
+export async function fileSize(path: string): Promise<number | null> {
+  const file = await getFile(path);
+  return file ? file.size : null;
 }
 
 /** The cached file, or null on a miss. The caller owns the File. */
