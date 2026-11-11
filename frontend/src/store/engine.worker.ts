@@ -7,8 +7,10 @@
 //
 // Reads need no bridge: the worker mounts the same `sltp-market` directory
 // the sync downloads into at sltp's own cache path (`~/.sltp/cache`), and
-// the bucket layout the sync mirrors is the layout sltp expects
-// (MARKET_DAILY/, SYMBOL_DATA/). A run over a range the sync never fetched
+// the bucket layout the sync mirrors is almost the layout sltp expects:
+// bars and actions sit in MARKET_DAILY/ where sltp looks, and boot mirrors
+// the uppercase SYMBOL_DATA/ catalog to the lowercase symbol_data/ dir the
+// readers open. A run over a range the sync never fetched
 // still resolves — sltp's own fetch hook downloads the gap through the
 // browser stack (synchronous XHR, which is why this worker exists: the
 // main thread cannot do it), landing in the same mounted files.
@@ -73,6 +75,45 @@ def run_strategy(key, start, end):
 
     cls = _STRATEGIES[key]
     return json.dumps(to_jsonable(run(cls(), start, end or None, chart=False)))
+
+
+def prime_remote_cache():
+    # The bucket layout is uppercase (SYMBOL_DATA) while the readers open
+    # the lowercase symbol_data directory beside the market dir, so mirror
+    # the small metadata files to the names sltp actually opens. Bars and
+    # actions already sit where sltp looks (MARKET_DAILY/). Runs at every
+    # boot, so a half-written file heals itself on the next visit.
+    import shutil
+    from pathlib import Path
+    from sltp.data import market_data_service as _mds
+    from sltp.data import remote as _remote
+
+    # Self-heal: anything cached without the parquet magic is dropped so
+    # the sync below downloads it again.
+    for directory in (Path(_remote.CACHE_ROOT) / "MARKET_DAILY", Path(_mds.SYMBOL_DATA_DIR)):
+        if directory.is_dir():
+            for cached in directory.glob("*.parquet"):
+                with open(cached, "rb") as handle:
+                    if handle.read(4) != b"PAR1":
+                        cached.unlink()
+    _remote.sync_catalog()
+    _remote.sync_actions()
+    src = Path(_remote.CACHE_ROOT) / "SYMBOL_DATA"
+    dest = Path(_mds.SYMBOL_DATA_DIR)
+    if src.is_dir():
+        dest.mkdir(parents=True, exist_ok=True)
+        try:
+            same = src.resolve() == dest.resolve()
+        except OSError:
+            same = False
+        if not same:
+            for child in src.iterdir():
+                if child.is_file():
+                    try:
+                        shutil.copy2(child, dest / child.name)
+                    except shutil.SameFileError:
+                        # Case-insensitive checkout: src and dest are one dir.
+                        pass
 `;
 
 /** Exact wheel URL for a pinned pure-Python release, via the PyPI API. */
@@ -191,6 +232,10 @@ async function boot(strategies: StrategyInit[]): Promise<boolean> {
   await instance.runPythonAsync(BOOTSTRAP + FETCH_BRIDGE);
   const enableFetch = instance.globals.get('enable_browser_fetch');
   enableFetch();
+  // Mirror the uppercase bucket layout to the lowercase paths sltp opens
+  // (SYMBOL_DATA/ -> symbol_data/), fetching anything still missing.
+  const prime = instance.globals.get('prime_remote_cache');
+  await prime();
   const register = instance.globals.get('register_strategy');
   for (const entry of strategies) {
     register(entry.key, entry.className, entry.source);
