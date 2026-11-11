@@ -25,6 +25,6 @@ check-docs` lints the in-app docs prose (banned wording, sentence length).
 - `lib/` — API helpers, the Supabase auth client, session, settings.
 - `src/index.css` — design tokens; `scripts/check-docs.mjs` — docs checker.
 
-Backend endpoints live in `../backend/README.md`. The Lab's code
+Backend endpoints are listed in the root README. The Lab's code
 workspaces stay disabled (`LAB_CODE_ENABLED` in `src/pages/LabPage.tsx`)
 until the server file APIs exist.

@@ -3,8 +3,10 @@
 # Two halves:
 #   market  no engine code lives here; bars and backtests come from the
 #           published sltp package mapped onto JSON the webpage reads.
-#   users   Supabase-only accounts: JWT auth, profile settings, portfolios,
-#           API keys, login devices, full erasure. One store, no mirror.
+#   users   accounts split across two stores by size (see app/config.py):
+#           Supabase owns auth, the small profile row and the churn log;
+#           Turso holds everything bulky keyed by the Supabase uid.
+#           Every query is scoped by the id from the verified JWT.
 #
 # Run it with:  uvicorn app.main:app --reload   (from backend/)
 # Then open http://127.0.0.1:8000/docs to try every endpoint.

@@ -1,108 +1,67 @@
 """Daily R2 upsert: newest Yahoo sessions straight into the tail file.
 
+USAGE (from backend/):
+  ../.venv/bin/python scripts/daily_r2_update.py   # cron/launchd runs this nightly
+
 Reads manifest + catalog + MARKET_DAILY/market_data_recent.parquet, downloads
 only the missing window (plus a 2-session buffer) for active/lagging tickers,
-merges with dedup keep-last, and makes exactly three writes:
+merges with dedup keep-last, tops up the actions sidecar with the window's
+dividends/splits when the window held any, and makes three writes plus the
+sidecar when it changed:
 
   1. MARKET_DAILY/market_data_recent.parquet (snappy, same schema)
-  2. META/manifest.json (entry bytes/rows/last_session + version)
-  3. META/version.txt (same version string)
+  2. MARKET_DAILY/market_actions.parquet (only when payouts occurred)
+  3. META/manifest.json (entry bytes/rows/last_session + version)
+  4. META/version.txt (same version string)
 
 Stdlib SigV4 for R2; yfinance + pandas + pyarrow for data. Idempotent.
 """
 
-import hashlib
-import hmac
+import io
 import json
-import os
 import sys
-import time
-import urllib.error
-from datetime import date, datetime, timedelta, timezone
+import traceback
+from datetime import date, timedelta
 from pathlib import Path
-from urllib.request import Request, urlopen
 
 import numpy as np
 import pandas as pd
 import yfinance as yf
 from sltp.utils.Dates import EPOCH_ORDINAL, register
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # sibling r2.py
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # app.notify
+
+from app.notify.mailer import admin_recipient, ops_failure_email
+from r2 import s3 as _s3
+
 TAIL_KEY = "MARKET_DAILY/market_data_recent.parquet"
+ACTIONS_KEY = "MARKET_DAILY/market_actions.parquet"
 CATALOG_KEY = "SYMBOL_DATA/symbol_catalog.parquet"
 MANIFEST_KEY = "META/manifest.json"
 VERSION_KEY = "META/version.txt"
 BATCH = 400  # server peak-RAM rule: never one call with >500 tickers
 
 
-def _load_dotenv() -> None:
-    dotenv = Path(__file__).resolve().parent.parent.parent / ".env"
-    if dotenv.is_file():
-        for line in dotenv.read_text(encoding="utf-8").splitlines():
-            line = line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            key, _, value = line.partition("=")
-            key, value = key.strip(), value.strip().strip("'\"")
-            if key and key not in os.environ:
-                os.environ[key] = value
-
-
-_load_dotenv()
-for _mine, _alts in (("R2_ACCESS_KEY_ID", ("CLOUDFLARE_ACCESS_KEY_ID",)),
-                     ("R2_SECRET_ACCESS_KEY", ("CLOUDFLARE_SECRET_ACCESS_KEY",))):
-    if _mine not in os.environ:
-        for _alt in _alts:
-            if os.environ.get(_alt):
-                os.environ[_mine] = os.environ[_alt]
-                break
-_ENDPOINT = os.environ.get("CLOUDFLARE_URL", "").rstrip("/") or \
-    f"https://{os.environ['CLOUDFLARE_ACCOUNT_ID']}.r2.cloudflarestorage.com"
-_BUCKET = os.environ.get("R2_BUCKET", "sltp-market-data")
-_HOST = _ENDPOINT.split("://", 1)[-1]
-
-
-def _s3(method: str, key: str, body: bytes | None = None) -> bytes:
-    key_id, secret = os.environ["R2_ACCESS_KEY_ID"], os.environ["R2_SECRET_ACCESS_KEY"]
-    now = datetime.now(timezone.utc)
-    stamp, datestamp = now.strftime("%Y%m%dT%H%M%SZ"), now.strftime("%Y%m%d")
-    payload_hash = "UNSIGNED-PAYLOAD" if body is not None else hashlib.sha256(b"").hexdigest()
-    headers = {"host": _HOST, "x-amz-content-sha256": payload_hash, "x-amz-date": stamp}
-    if body is not None:
-        headers["content-type"] = "application/octet-stream"
-        headers["content-length"] = str(len(body))
-    signed = ";".join(sorted(headers))
-    canonical = "\n".join([method, f"/{_BUCKET}/{key}", "",
-                            "\n".join(f"{k}:{headers[k]}" for k in sorted(headers)),
-                            "", signed, payload_hash])
-    scope = f"{datestamp}/auto/s3/aws4_request"
-    to_sign = f"AWS4-HMAC-SHA256\n{stamp}\n{scope}\n{hashlib.sha256(canonical.encode()).hexdigest()}"
-
-    def _sign(k: bytes, msg: str) -> bytes:
-        return hmac.new(k, msg.encode(), hashlib.sha256).digest()
-
-    sk = _sign(_sign(_sign(_sign(b"AWS4" + secret.encode(), datestamp), "auto"), "s3"), "aws4_request")
-    headers["Authorization"] = (
-        f"AWS4-HMAC-SHA256 Credential={key_id}/{scope}, "
-        f"SignedHeaders={signed}, "
-        f"Signature={hmac.new(sk, to_sign.encode(), hashlib.sha256).hexdigest()}")
-    req = Request(f"https://{_HOST}/{_BUCKET}/{key}", data=body, headers=headers, method=method)
-    last: BaseException | None = None
-    for attempt in range(4):
-        try:
-            with urlopen(req, timeout=300) as resp:
-                return resp.read()
-        except urllib.error.HTTPError as e:
-            if e.code is not None and 400 <= e.code < 500 and e.code != 429:
-                raise
-            last = e
-        except Exception as e:
-            last = e
-        time.sleep(2 ** attempt)
-    raise last  # type: ignore[misc]
+# R2 transport lives in sibling r2.py (imported above as _s3, so older
+# callers keep working). It carries the XML error body on 4xx, which is
+# what proved the last 403 was the secret, not the signing code.
 
 
 def _code_to_date(code: int) -> str:
     return date.fromordinal(int(code) + EPOCH_ORDINAL).isoformat()
+
+
+def _yahoo_symbol(symbol: str) -> str:
+    """Download spelling for one catalog symbol.
+
+    Yahoo wants US class shares hyphenated (BRK-A) but Canadian listings
+    keep the dot suffix (XEQT.TO). Storage always uses the catalog
+    spelling — this mapping lives at the download boundary only, because
+    renaming stored tickers would fork twenty years of bars."""
+    if symbol.endswith(".TO"):
+        return symbol
+    return symbol.replace(".", "-")
 
 
 def main() -> int:
@@ -112,7 +71,7 @@ def main() -> int:
     print(f"tail on R2: {entry['first_session']} -> {old_last}, {entry['rows']} rows", flush=True)
 
     catalog = pd.read_parquet("/tmp/catalog.parquet") if Path("/tmp/catalog.parquet").is_file() \
-        else pd.read_parquet(__import__("io").BytesIO(_s3("GET", CATALOG_KEY)))
+        else pd.read_parquet(io.BytesIO(_s3("GET", CATALOG_KEY)))
     tradable = catalog[catalog["Status"].isin(("active", "lagging"))]
     symbols: list[str] = tradable["Symbol"].tolist()
     names = dict(zip(tradable["Symbol"], tradable["Name"]))
@@ -124,31 +83,60 @@ def main() -> int:
     print(f"window: {start} -> {end}", flush=True)
 
     frames: list[pd.DataFrame] = []
+    action_frames: list[pd.DataFrame] = []
     for i in range(0, len(symbols), BATCH):
         chunk = symbols[i:i + BATCH]
-        df = yf.download(chunk, start=start, end=end, group_by="column",
+        # Several catalog spellings can share one Yahoo download (the catalog
+        # holds both BRK.B and BRK-B): fetch each spelling once, fan the bars
+        # out to every catalog symbol that maps to it. Storage keeps the
+        # catalog spelling, so no series ever forks or merges.
+        want: dict[str, list[str]] = {}
+        for s in chunk:
+            want.setdefault(_yahoo_symbol(s), []).append(s)
+        dl = list(want)
+        df = yf.download(dl, start=start, end=end, group_by="column",
                          auto_adjust=False, actions=True, progress=False, threads=True)
         if df is None or df.empty:
             continue
-        for ticker in chunk:
+        for dl_sym in dl:
             try:
-                sub = df.xs(ticker, axis=1, level=1)
+                sub = df.xs(dl_sym, axis=1, level=1)
             except KeyError:
                 continue
             sub = sub[sub["Close"].notna()]
             if sub.empty:
                 continue
             idx = sub.index.tz_localize(None) if sub.index.tz is not None else sub.index
-            frames.append(pd.DataFrame({
-                "Symbol": ticker,
-                "Name": names.get(ticker, ticker),
+            bars = pd.DataFrame({
                 "Date": register(idx.strftime("%Y-%m-%d").to_numpy()),
                 "Open": sub["Open"].to_numpy(dtype="float32"),
                 "High": sub["High"].to_numpy(dtype="float32"),
                 "Low": sub["Low"].to_numpy(dtype="float32"),
                 "Close": sub["Close"].to_numpy(dtype="float32"),
                 "Volume": sub["Volume"].to_numpy(dtype="float32"),
-            }))
+            })
+            for ticker in want[dl_sym]:
+                frame = bars.copy()
+                frame["Symbol"] = ticker
+                frame["Name"] = names.get(ticker, ticker)
+                frames.append(frame[["Symbol", "Name", "Date", "Open",
+                                      "High", "Low", "Close", "Volume"]])
+            # Payouts ride in the same download (actions=True above): ex-date
+            # cash (Kind 1) and split ratios (Kind 0), stored under the
+            # catalog spelling like the bars.
+            adates = register(idx.strftime("%Y-%m-%d").to_numpy())
+            for kind, col in ((1, "Dividends"), (0, "Stock Splits")):
+                nz = sub[col].fillna(0).to_numpy() != 0
+                if not nz.any():
+                    continue
+                amounts = sub[col].to_numpy(dtype="float64")[nz]
+                for ticker in want[dl_sym]:
+                    action_frames.append(pd.DataFrame({
+                        "Symbol": ticker,
+                        "Date": adates[nz],
+                        "Kind": kind,
+                        "Amount": amounts,
+                    }))
         print(f"  batch {i // BATCH + 1}/{(len(symbols) + BATCH - 1) // BATCH}: {len(frames)} blocks", flush=True)
 
     if not frames:
@@ -162,7 +150,7 @@ def main() -> int:
         return 0
     print(f"downloaded sessions through {new_max}", flush=True)
 
-    old = pd.read_parquet(__import__("io").BytesIO(_s3("GET", TAIL_KEY)))
+    old = pd.read_parquet(io.BytesIO(_s3("GET", TAIL_KEY)))
     merged = (pd.concat([old, new], ignore_index=True)
               .drop_duplicates(subset=["Symbol", "Date"], keep="last")
               .sort_values(["Symbol", "Date"])
@@ -174,7 +162,6 @@ def main() -> int:
     print(f"tail {len(old)} -> {len(merged)} rows; new sessions: {added}", flush=True)
     print("spot check:\n" + merged[merged["Symbol"] == "AAPL"].tail(3).to_string(), flush=True)
 
-    import io
     buf = io.BytesIO()
     merged.to_parquet(buf, engine="pyarrow", compression="snappy", index=False)
     blob = buf.getvalue()
@@ -194,6 +181,28 @@ def main() -> int:
     entry["rows"] = len(merged)
     entry["first_session"] = _code_to_date(int(merged["Date"].min()))
     entry["last_session"] = new_max
+    entry["row_groups"] = check.num_row_groups
+    if action_frames:
+        anew = pd.concat(action_frames, ignore_index=True)
+        anew["Date"] = anew["Date"].astype("int32")
+        aold = pd.read_parquet(io.BytesIO(_s3("GET", ACTIONS_KEY)))
+        for col in ("Kind", "Amount"):
+            anew[col] = anew[col].astype(aold[col].dtype)
+        amerged = (pd.concat([aold, anew], ignore_index=True)
+                   .drop_duplicates(subset=["Symbol", "Date", "Kind"], keep="last")
+                   .sort_values(["Symbol", "Date", "Kind"])
+                   .reset_index(drop=True))
+        abuf = io.BytesIO()
+        amerged.to_parquet(abuf, engine="pyarrow", compression="snappy", index=False)
+        ablob = abuf.getvalue()
+        _s3("PUT", ACTIONS_KEY, ablob)  # write 2: the sidecar, when changed
+        aentry = next(e for e in manifest["files"] if e["key"] == ACTIONS_KEY)
+        aentry["bytes"] = len(ablob)
+        aentry["rows"] = len(amerged)
+        aentry["first_session"] = _code_to_date(int(amerged["Date"].min()))
+        aentry["last_session"] = _code_to_date(int(amerged["Date"].max()))
+        aentry["row_groups"] = pq.ParquetFile(io.BytesIO(ablob)).num_row_groups
+        print(f"actions: {len(aold)} -> {len(amerged)} rows", flush=True)
     manifest["version"] = new_max
     _s3("PUT", MANIFEST_KEY, json.dumps(manifest, indent=1).encode())  # write 2: manifest
     _s3("PUT", VERSION_KEY, f"{new_max}\n".encode())  # write 3: version
@@ -208,5 +217,24 @@ def main() -> int:
     return 0
 
 
+# A nightly cron job fails unseen, so a crash mails the operator through
+# mailer (the only module that sends mail). Best-effort: the alert never
+# masks the original traceback or exit code.
+def _alert_admin() -> None:
+    try:
+        to = admin_recipient()
+        if not to:
+            print("no admin address (set ADMIN_EMAIL or SENDER_EMAIL) — no alert sent.")
+            return
+        ok, err = ops_failure_email(to, "daily_r2_update", traceback.format_exc(limit=8))
+        print(f"alert mailed to {to}" if ok else f"alert FAILED: {err}")
+    except Exception as exc:  # alerting must not raise
+        print(f"alert FAILED: {exc}")
+
+
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except Exception:
+        _alert_admin()
+        raise

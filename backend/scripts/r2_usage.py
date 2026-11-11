@@ -2,9 +2,10 @@
 
 Same numbers as the dashboard's bucket Metrics tab. Stdlib only.
 
-Setup: set these two env vars before running (PyCharm: Run ->
-Edit Configurations -> Environment variables), and put your
-bucket name in BUCKET below.
+USAGE (from backend/):
+    ../.venv/bin/python scripts/r2_usage.py
+
+Setup: set these two env vars in the repo-root .env first:
 
     CLOUDFLARE_API_TOKEN=<token with analytics read on the account>
     CLOUDFLARE_ACCOUNT_ID=<account id>
@@ -13,9 +14,14 @@ bucket name in BUCKET below.
 # -------- Imports --------
 import json
 import os
+import sys
 import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # sibling r2.py
+
+from r2 import load_dotenv
 
 BUCKET = "sltp-market-data"
 BILLING_RESET_DAY = 6  # SLTP monthly billing cycle reset day
@@ -54,26 +60,8 @@ query ($accountTag: String!, $startDate: Time, $endDate: Time, $bucketName: Stri
 """
 
 
-def _load_dotenv() -> None:
-    # Fill missing env vars from the repo-root .env file.
-    dotenv = Path(__file__).resolve().parent.parent / ".env"
-    if not dotenv.is_file():
-        return
-    for line in dotenv.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, _, value = line.partition("=")
-        key = key.strip()
-        value = value.strip()
-        if len(value) >= 2 and value[0] == value[-1] and value[0] in "'\"":
-            value = value[1:-1]
-        if key and key not in os.environ:
-            os.environ[key] = value
-
-
 def get_r2_usage(bucket: str = BUCKET) -> dict[str, int]:
-    _load_dotenv()
+    load_dotenv()
 
     token = os.environ.get("CLOUDFLARE_API_TOKEN")
     account_id = os.environ.get("CLOUDFLARE_ACCOUNT_ID")

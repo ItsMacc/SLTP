@@ -368,6 +368,20 @@ def ops_report_email(receiver: str, report: dict[str, Any]) -> tuple[bool, str |
     ))
 
 
+# -------- Job Failure Alert --------
+def ops_failure_email(receiver: str, job: str, detail: str) -> tuple[bool, str | None]:
+    # A nightly job (daily_r2_update) crashed unseen. The traceback goes to
+    # the operator only; the caller decides when, mailer decides how.
+    subject = f"{BRAND} ALERT: {job} failed"
+    inner = f"""<p style="margin:0 0 20px;">The <strong>{job}</strong> job raised an exception and wrote nothing. The last good dataset is still live; fix and rerun.</p>
+{_panel("Failure", [("Job", job, C_TEXT)])}
+<p style="margin:20px 0 0;font-family:monospace;font-size:12px;white-space:pre-wrap;background:{C_PANEL};border:1px solid {C_BORDER};border-radius:10px;padding:12px 16px;">{detail.strip()[-2000:]}</p>"""
+    return send_email(receiver, subject, _shell(
+        f"{job} failed", "Job failed", C_RED, inner,
+        footer_html=OPS_FOOTER_HTML,
+    ))
+
+
 # -------- Manual Sends --------
 # python -m app.notify.mailer <to> <kind> [user_name]
 if __name__ == "__main__":
