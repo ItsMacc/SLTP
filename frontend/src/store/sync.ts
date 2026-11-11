@@ -1,10 +1,11 @@
 // sync.ts — the background download sequence plus where files come from.
 //
-// First visit (or a new dataset version): check the manifest, fetch the
-// plan's files (desktop: all six era chunks; phone: the two newest), then
-// on desktop keep going backwards one era at a time. Later visits only
-// re-check the version and top up what changed (usually just the `recent`
-// tail). Progress is published to subscribers, so any page can show
+// First visit: check the manifest and fetch the plan (desktop: all six era
+// chunks; phone: the two newest), then on desktop keep going backwards one
+// era at a time. Every later boot reconciles the plan against the manifest
+// by byte count and fetches only what's missing or changed — usually just
+// the `recent` tail after a daily update, never a wholesale re-download.
+// Progress is published to subscribers, so any page can show
 // "downloading…" while charts already paint what has landed.
 //
 // The plan is why "N of M files" always reads true: totalFiles counts the
@@ -382,37 +383,32 @@ async function runBoot(): Promise<void> {
 
   const stored = await readVersion();
   counted.clear();
-  if (stored !== manifest.version) {
-    // A new dataset version replaces history wholesale, so stale chunks go
-    // before the fresh ones land. Best-effort: a half-cleaned cache still
-    // self-heals, because queries fetch any chunk they cannot find.
-    await Promise.all(barKeys(manifest.files).map((key) => deleteFile(key)));
-    setStatus({ loadedFiles: [], bytesLoaded: 0 });
-  } else {
-    // Same version: keep what matches, refresh what changed. A daily script
-    // rewrites files in place, so presence is not freshness — the manifest's
-    // byte count is. Mismatches are deleted up front so the passes below
-    // fetch them like any other miss. Only plan files count as loaded: a
-    // desktop-sized cache opened in a phone emulator keeps its extra files
-    // on disk but out of the count.
-    const expectedBytes = new Map(manifest.files.map((f) => [f.key, f.bytes]));
-    const present: string[] = [];
-    for (const key of planList) {
-      const actual = await fileSize(key);
-      if (actual === null) continue;
-      const expected = expectedBytes.get(key);
-      if (expected !== undefined && actual !== expected) {
-        await deleteFile(key);
-        continue;
-      }
-      present.push(key);
+  // One reconciliation path for every boot, version bump or not. Era chunks
+  // are effectively immutable — a daily update rewrites only the tail (and
+  // sometimes the actions sidecar) — so a new version usually refreshes one
+  // small file instead of the whole plan. A backfill that rewrote every era
+  // still heals, because every changed byte count re-downloads. Presence is
+  // not freshness (files are rewritten in place), so the manifest's byte
+  // count decides. Only plan files count as loaded: a desktop-sized cache
+  // opened in a phone emulator keeps its extra files on disk but out of
+  // the count.
+  const expectedBytes = new Map(manifest.files.map((f) => [f.key, f.bytes]));
+  const present: string[] = [];
+  for (const key of planList) {
+    const actual = await fileSize(key);
+    if (actual === null) continue;
+    const expected = expectedBytes.get(key);
+    if (expected !== undefined && actual !== expected) {
+      await deleteFile(key);
+      continue;
     }
-    const presentBytes = manifest.files
-      .filter((f) => present.includes(f.key))
-      .reduce((sum, f) => sum + f.bytes, 0);
-    for (const key of present) counted.add(key);
-    setStatus({ loadedFiles: newestFirst(present), bytesLoaded: presentBytes });
+    present.push(key);
   }
+  const presentBytes = manifest.files
+    .filter((f) => present.includes(f.key))
+    .reduce((sum, f) => sum + f.bytes, 0);
+  for (const key of present) counted.add(key);
+  setStatus({ loadedFiles: newestFirst(present), bytesLoaded: presentBytes });
 
   // The pair every chart needs: the daily tail plus the current era.
   const priority = priorityKeys(planList);
