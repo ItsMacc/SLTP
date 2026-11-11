@@ -71,6 +71,8 @@ export interface EngineStrategy {
   id: string;
   /** Class name defined inside `source`. */
   className: string;
+  /** Display name, as the strategy list shows it. */
+  name: string;
   /** One line on what it does. */
   description: string;
   /** The .py source, exec'd in the worker. */
@@ -84,30 +86,35 @@ export const ENGINE_STRATEGIES: EngineStrategy[] = [
   {
     id: 'buy-and-hold',
     className: 'Benchmark',
+    name: 'Buy and Hold',
     description: 'Owns the S&P 500 through one fund for the whole run. The benchmark.',
     source: benchmarkSource,
   },
   {
     id: 'adaptive-momentum',
     className: 'AdaptiveMomentum',
+    name: 'Adaptive Momentum',
     description: 'Holds the 20 strongest liquid US stocks while SPY is above its 200-day average.',
     source: adaptiveMomentumSource,
   },
   {
     id: 'global-trend-allocation',
     className: 'GlobalTrendAllocation',
+    name: 'Global Trend Allocation',
     description: 'Five-ETF book from trend, correlation and momentum. Exits a sleeve when its trend breaks.',
     source: gtaSource,
   },
   {
     id: 'minimum-volatility',
     className: 'MinimumVolatility',
+    name: 'Minimum Volatility',
     description: 'Equal-weighted 30 least volatile liquid US stocks, rebuilt quarterly.',
     source: minVolSource,
   },
   {
     id: 'statistical-mean-reversion',
     className: 'StatisticalMeanReversionStrategy',
+    name: 'Statistical Mean Reversion',
     description: 'Buys stocks that fell further than their volatility explains, then waits for the snap back.',
     source: smrSource,
   },
@@ -115,6 +122,8 @@ export const ENGINE_STRATEGIES: EngineStrategy[] = [
 
 /** One run's payload, straight from sltp.web.run. */
 export interface EngineRun {
+  key: string;
+  name: string;
   stats: Record<string, number>;
   equity: { date: string; value: number }[];
   trades: Record<string, unknown>[];
@@ -241,9 +250,12 @@ export async function runStrategy(
   if (warmed.phase !== 'ready') {
     throw new Error(warmed.detail || 'Strategy runs need a desktop browser');
   }
+  const entry = ENGINE_STRATEGIES.find((strategy) => strategy.id === id);
+  if (!entry) throw new Error(`Unknown strategy: ${id}`);
   const { text } = await callWorker('run', { key: id, start, end: end ?? null });
   try {
-    return JSON.parse(text) as EngineRun;
+    const parsed = JSON.parse(text) as EngineRun;
+    return { ...parsed, key: id, name: entry.name };
   } catch {
     throw new Error('engine returned unreadable data');
   }

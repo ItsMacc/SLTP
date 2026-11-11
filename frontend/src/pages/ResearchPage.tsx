@@ -16,7 +16,7 @@ import {
 import { Search, X } from 'lucide-react'
 import CandlestickGuide from '../components/CandlestickGuide'
 import Chart, { type Bar } from '../components/Chart'
-import { StrategiesView } from './StrategiesPage'
+import StrategyChart from '../components/StrategyChart'
 import { LoaderRow, LoaderScreen } from '../ui/Loader'
 import { GlossaryText } from '../components/GlossaryText'
 import { STRATEGY_GLOSSARY } from '../../lib/glossary'
@@ -782,7 +782,7 @@ export default function ResearchPage({ initialSettings }: ResearchPageProps) {
             </>
           )}
 
-          {mode === 'strategies' && <StrategiesView />}
+          {mode === 'strategies' && <StrategyChart />}
         </div>
 
         {mode === 'stocks' && <CandlestickGuide />}
