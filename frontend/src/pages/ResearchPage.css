@@ -883,6 +883,16 @@
     padding-left: 0;
     border-left: 0;
   }
+
+  /* One fact per line on a phone: the date owns its row, then Open/High,
+     Low/Close, and Volume pair up instead of wrapping mid-pair. */
+  .quote-date {
+    flex-basis: 100%;
+  }
+
+  .quote-ohlc > span:not(.quote-date) {
+    flex: 1 1 40%;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

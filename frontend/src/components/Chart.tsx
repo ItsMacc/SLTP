@@ -360,10 +360,12 @@ export default function Chart({
 
           {dateTicks.map((tick) => (
             // The first and last ticks sit half off the plot, so their labels are held
-            // inside the frame instead of being cut in half at the edge.
+            // inside the frame instead of being cut in half at the edge. The margin
+            // is half a label (11px mono ≈ 3.6px per char); a fixed 24px was a few
+            // pixels short of an 8-char date, which clipped the leftmost digit.
             <text
               key={tick.index}
-              x={clamp(tick.index * slot + slot / 2, 24, plotWidth - 24)}
+              x={clamp(tick.index * slot + slot / 2, tick.label.length * 3.6, plotWidth - tick.label.length * 3.6)}
               y={height - 6}
               textAnchor="middle"
               className="chart-axis-label"
