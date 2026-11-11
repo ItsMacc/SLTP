@@ -71,10 +71,30 @@ def register_strategy(key, classname, source):
 
 
 def run_strategy(key, start, end):
-    from sltp.web import run, to_jsonable
+    from sltp.backtesting import Backtester
+    from sltp.web import to_jsonable
 
     cls = _STRATEGIES[key]
-    return json.dumps(to_jsonable(run(cls(), start, end or None, chart=False)))
+    result = Backtester(cls(), start, end or None).run()
+    # sltp's curve points carry portfolio_value; accept a bare value too so
+    # a point never dies inside to_jsonable with a bare KeyError. Anything
+    # else fails loud, naming the keys, the range and the engine version.
+    stamp = result.get("stamp") or {}
+    equity = []
+    for point in result.get("equity") or []:
+        if "portfolio_value" in point:
+            value = point["portfolio_value"]
+        elif "value" in point:
+            value = point["value"]
+        else:
+            raise ValueError(
+                f"equity point has keys {sorted(point.keys())} "
+                f"for {key} {start}..{end} (sltp {stamp.get('sltp_version')})"
+            )
+        equity.append({"date": str(point["date"]), "value": float(value)})
+    payload = to_jsonable(result)
+    payload["equity"] = equity
+    return json.dumps(payload)
 
 
 def prime_remote_cache():
