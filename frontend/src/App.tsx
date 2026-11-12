@@ -14,6 +14,7 @@ import LegalPage, { type LegalPageKind } from './pages/LegalPage';
 import DocsPage from './pages/DocsPage';
 import ResearchPage from './pages/ResearchPage';
 import StrategiesPage from './pages/StrategiesPage';
+import LabPage from './pages/LabPage';
 import Sltp404Page from './pages/Sltp404Page';
 import WatchlistPage from './pages/WatchlistPage';
 import ErrorToast from './ui/ErrorToast';
@@ -358,9 +359,12 @@ export default function App() {
                   handleTabChange('research');
                 }}
               />
-            ) : activeTab === 'lab' || activeTab === 'learn' ? (
-              // Pages with an address but no content yet: the cards on Home
-              // link here, and each one carries its own title and hash.
+            ) : activeTab === 'lab' ? (
+              // The Lab runs its own Python in a worker; no server involved.
+              <LabPage />
+            ) : activeTab === 'learn' ? (
+              // A page with an address but no content yet: the cards on Home
+              // link here, and it carries its own title and hash.
               <Sltp404Page page={activeTab[0].toUpperCase() + activeTab.slice(1)} onNavigate={handleTabChange} />
             ) : (
               // Home and the guide both land here; an unknown address falls

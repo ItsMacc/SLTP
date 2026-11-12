@@ -58,7 +58,7 @@ const TOOLS: ToolData[] = [
     nav: 'lab',
     title: 'Lab',
     description:
-      'A Python-based environment for building and testing your own strategies, with the same data and backtest engine that runs the site.',
+      'A Python scratchpad that runs in your browser. Start with a list or a loop, and build up to your own strategies as the authoring tools land.',
     cta: 'Open the Lab',
     icon: FlaskConical,
   },

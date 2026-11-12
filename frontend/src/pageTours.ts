@@ -1,5 +1,5 @@
-// pageTours.ts — the interactive tours behind "Take the tour" on the Research and
-// Strategies slides of the site guide.
+// pageTours.ts — the interactive tours behind "Take the tour" on the Research,
+// Strategies and Lab slides of the site guide.
 //
 // Each tour spotlights the real page: driver.js dims everything, then walks the
 // page section by section with a small popover. No copies of the UI, no mock
@@ -11,7 +11,7 @@
 
 import { driver, type DriveStep, type Driver } from 'driver.js';
 
-export type TourTab = 'strategies' | 'research';
+export type TourTab = 'strategies' | 'research' | 'lab';
 
 /* ---------- Waiting ---------- */
 
@@ -193,11 +193,57 @@ const RESEARCH_STEPS = (): DriveStep[] => [
   },
 ];
 
+/* ---------- Lab ---------- */
+
+const LAB_STEPS = (): DriveStep[] => [
+  {
+    element: '.lab-head',
+    popover: {
+      title: 'A scratchpad that runs Python',
+      description:
+        'No install and no account: the interpreter is downloaded into this tab and runs here. It is a place to check a list, a loop or a small function before any of it becomes a strategy.',
+    },
+  },
+  {
+    element: '.lab-editor',
+    popover: {
+      title: 'Write, and get help as you go',
+      description:
+        'Python is highlighted, names complete as you type, and mistakes are underlined before you run anything. The snippet is kept on this device, so closing the tab does not lose it.',
+    },
+  },
+  {
+    element: '.lab-toolbar',
+    popover: {
+      title: 'Ready when the chip says so',
+      description:
+        'Python starts loading as soon as the page opens. The chip on the left turns green when it is ready, and Run stays off until then. Cmd or Ctrl and Enter runs from inside the editor too.',
+    },
+  },
+  {
+    element: '.lab-console',
+    popover: {
+      title: 'What the code printed',
+      description:
+        'Prints appear as they happen, a traceback appears in red with the line that failed, and a bare expression prints its value the way a REPL does. Forget variables clears the names you defined without reloading Python.',
+    },
+  },
+  {
+    element: '.lab-workbench',
+    popover: {
+      title: 'One session, many runs',
+      description:
+        'Variables stay alive between runs, so a list built in one run is still there in the next. Market data and the strategy hooks join the Lab once the authoring flow lands.',
+    },
+  },
+];
+
 /* ---------- Running ---------- */
 
 const STEPS: Record<TourTab, () => DriveStep[]> = {
   strategies: STRATEGY_STEPS,
   research: RESEARCH_STEPS,
+  lab: LAB_STEPS,
 };
 
 /**

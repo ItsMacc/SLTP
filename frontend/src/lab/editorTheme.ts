@@ -1,5 +1,5 @@
 // editorTheme.ts — Monaco editor theme, tuned to the light and dark palettes.
-import type { Monaco } from './pyright';
+import type { Monaco } from '@monaco-editor/react';
 
 const lightRules = [
   { token: '', foreground: '292633' },

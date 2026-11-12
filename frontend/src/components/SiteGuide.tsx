@@ -62,8 +62,8 @@ interface SlidePageProps {
 }
 
 /* One slide per page: an icon, what the page does, and a small tour action.
-   The Research and Strategies buttons open their page; the Lab button stays
-   disabled until the Lab (and its tour) is ready. */
+   The Research, Strategies and Lab buttons open their page; the Watchlist
+   button stays disabled until that page (and its tour) is ready. */
 function SlidePage({ icon: Icon, title, body, ctaLabel, onCta, disabled, disabledNote }: SlidePageProps) {
   return (
     <div className="tsg-slide-inner">
@@ -91,8 +91,9 @@ function SlideFinal() {
       <h1 className="tsg-title">If you ever need help</h1>
       <span className="tsg-final-icon"><LifeBuoy size={26} strokeWidth={1.75} /></span>
       <p className="tsg-lede">
-        Each page has a written guide at the bottom. The Research page explains
-        candlesticks, and the Strategies page explains how to read a backtest.
+        The Research and Strategies pages each have a written guide at the
+        bottom. Research explains candlesticks, and Strategies explains how to
+        read a backtest.
       </p>
       <p className="tsg-body">
         If something is unfamiliar, scroll down. It is usually explained there.
@@ -216,10 +217,9 @@ export default function SiteGuide({ open, onClose, onNavigate }: SiteGuideProps)
           <SlidePage
             icon={FlaskConical}
             title="Lab"
-            body="When you're ready to stop borrowing other people's rules, the Lab is where you write your own. It's a Python environment running on the same data and the same backtesting engine as the rest of the site, so an idea you test here is measured with the exact same ruler as everything in the library."
+            body="The Lab is a Python scratchpad in the browser: make a list, write a loop, run it, and the output appears straight away. There is nothing to install. Strategy authoring, on the same data and the same engine as the rest of the site, is the next thing to land here."
             ctaLabel="Take the tour"
-            disabled
-            disabledNote="The Lab tour opens when the Lab launches."
+            onCta={() => takeTour('lab')}
           />
         )}
         {index === 4 && (

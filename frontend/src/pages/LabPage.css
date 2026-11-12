@@ -1,0 +1,296 @@
+/* ============================================================
+   LabPage.css: the Python scratchpad. A workbench with a
+   toolbar, a Monaco editor and an output console beside it.
+
+   Width conventions: % / vw for layout widths; rem for fixed
+   UI atoms. Breakpoints in rem. Colours and spacing come from
+   tokens only.
+   ============================================================ */
+
+.lab-page {
+  width: min(78rem, 100%);
+  margin: 0 auto;
+  padding: var(--space-xl) 0 calc(var(--space-2xl) * 1.25);
+  box-sizing: border-box;
+  font-family: var(--font-ui);
+  color: var(--text-strong);
+}
+
+/* ---------- Page head ---------- */
+
+.lab-head {
+  margin-bottom: calc(var(--space-md) * 1.75);
+}
+
+.lab-eyebrow {
+  margin: 0 0 var(--space-xs);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.lab-title {
+  margin: 0;
+  max-width: 24ch;
+  font-family: var(--font-heading);
+  font-size: clamp(2rem, 4.4vw, 3rem);
+  font-weight: 400;
+  letter-spacing: -0.025em;
+  line-height: 1.05;
+  color: var(--text-strong);
+}
+
+.lab-lede {
+  max-width: 64ch;
+  margin: var(--space-sm) 0 0;
+  color: var(--text-secondary);
+  font-size: var(--text-base);
+  line-height: 1.65;
+}
+
+/* ---------- Workbench ---------- */
+
+.lab-workbench {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.lab-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+}
+
+/* ---------- Runtime status ---------- */
+
+.lab-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.lab-status-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  flex: none;
+  border-radius: var(--radius-full);
+  background: var(--border-strong);
+}
+
+.lab-status.is-loading .lab-status-dot {
+  background: var(--accent);
+  animation: lab-pulse 1.4s ease-in-out infinite;
+}
+
+.lab-status.is-ready .lab-status-dot {
+  background: var(--success);
+}
+
+.lab-status.is-error {
+  color: var(--error);
+}
+
+.lab-status.is-error .lab-status-dot {
+  background: var(--error);
+}
+
+@keyframes lab-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.75);
+  }
+}
+
+/* ---------- Toolbar actions ---------- */
+
+.lab-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-left: auto;
+}
+
+.lab-kbd {
+  margin-left: var(--space-2xs);
+  padding: 0 var(--space-2xs);
+  border: 1px solid currentColor;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 0.7em;
+  line-height: 1.5;
+  opacity: 0.75;
+}
+
+/* ---------- Editor and console ---------- */
+
+.lab-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  height: 34rem;
+}
+
+.lab-editor {
+  min-width: 0;
+  height: 100%;
+  border-right: 1px solid var(--border-subtle);
+}
+
+.lab-editor-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.lab-console {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--bg-canvas);
+}
+
+.lab-console-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-xs) var(--space-sm) var(--space-xs) var(--space-md);
+  border-bottom: 1px solid var(--border-subtle);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.lab-console-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2xs);
+}
+
+.lab-console-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  margin: 0;
+  padding: var(--space-3xs) var(--space-xs);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.04em;
+  text-transform: none;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .lab-console-btn:hover {
+    background: var(--bg-surface-hover);
+    color: var(--text-primary);
+  }
+}
+
+.lab-console-btn:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.lab-console-body {
+  flex: 1;
+  overflow: auto;
+  padding: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.6;
+  color: var(--text-primary);
+  overscroll-behavior: contain;
+}
+
+.lab-line {
+  display: block;
+  /* A print() with nothing in it still reads as an empty line. */
+  min-height: 1.6em;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.lab-line.is-err {
+  color: var(--error);
+}
+
+.lab-line.is-meta {
+  color: var(--text-muted);
+  margin-top: var(--space-2xs);
+}
+
+.lab-empty {
+  margin: 0;
+  max-width: 36ch;
+  color: var(--text-muted);
+  line-height: 1.65;
+}
+
+/* ---------- Small screens ---------- */
+
+@media (max-width: 60rem) {
+  .lab-split {
+    grid-template-columns: minmax(0, 1fr);
+    height: auto;
+  }
+
+  .lab-editor {
+    height: 26rem;
+    border-right: 0;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .lab-console {
+    height: 18rem;
+  }
+}
+
+@media (max-width: 34rem) {
+  .lab-toolbar {
+    align-items: flex-start;
+  }
+
+  .lab-actions {
+    width: 100%;
+    margin-left: 0;
+    justify-content: flex-end;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lab-status.is-loading .lab-status-dot {
+    animation: none;
+  }
+}
