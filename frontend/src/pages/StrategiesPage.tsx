@@ -18,6 +18,7 @@ import { ChevronRight } from 'lucide-react';
 import { GlossaryText } from '../components/GlossaryText';
 import { STRATEGIES, type StrategyProfile } from '../data/strategies';
 import { BACKTESTS, type BacktestMetrics, type BacktestRow } from '../data/backtestResults';
+import { OUTLOOK } from '../data/strategyOutlook';
 import './StrategiesPage.css';
 
 interface StrategiesPageProps {
@@ -184,16 +185,36 @@ function Mechanics({ profile }: { profile: StrategyProfile }) {
 function Backtests({ profile }: { profile: StrategyProfile }) {
   const rows = BACKTESTS[profile.id] ?? [];
   const isBenchmark = profile.id === 'buy-and-hold';
+  const outlook = OUTLOOK[profile.id];
 
   return (
     <>
+      {outlook && (
+        <>
+          <section className="strat-section">
+            <h3 className="strat-section-title">What we can expect</h3>
+            <p className="strat-prose strat-prose-lead">{outlook.expectation}</p>
+          </section>
+
+          <section className="strat-section">
+            <h3 className="strat-section-title">What the windows showed</h3>
+            {outlook.windows.map((paragraph) => (
+              <p className="strat-prose" key={paragraph.slice(0, 40)}>
+                {paragraph}
+              </p>
+            ))}
+            <p className="strat-prose-note">
+              In every chart both lines start at 100 on the first session, so the two paths are
+              read on one scale. Where a window shows two sides, the better figure in each pair is
+              green. All figures are after fees and slippage and cover the window itself, not the
+              years around it.
+            </p>
+          </section>
+        </>
+      )}
+
       <section className="strat-section">
-        <h3 className="strat-section-title">{rows.length} market windows</h3>
-        <p className="strat-prose">
-          {isBenchmark
-            ? 'One line per window, on an index that starts at 100 on the first session. The last reading is the multiple the account finished on, so 145.2 means 45.2% more money than the start. The four figures under each chart describe the whole window.'
-            : 'Both lines start at 100 on the first session, so the strategy and the market are read on the same scale. Every figure is shown for both sides and the better one in each pair is green. Winning one figure is not a verdict: a strategy can lead on return and still carry the deeper fall.'}
-        </p>
+        <h3 className="strat-section-title">The {rows.length} windows, chart by chart</h3>
       </section>
 
       <div className="strat-window-cards">
@@ -272,14 +293,23 @@ export const StrategiesPage: React.FC<StrategiesPageProps> = ({ onNavigate }) =>
   const [activeId, setActiveId] = useState(STRATEGIES[0].id);
   const [tab, setTab] = useState<TabKey>('overview');
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const detailRef = useRef<HTMLElement | null>(null);
 
   const profile = STRATEGIES.find((strategy) => strategy.id === activeId) ?? STRATEGIES[0];
 
   // A new strategy always opens on Overview: the idea is where a reader starts,
-  // and carrying the old tab across would drop them mid-argument.
+  // and carrying the old tab across would drop them mid-argument. The detail card
+  // is scrolled back to its own top, because the rail sits alongside a card that
+  // can be several screens tall and the reader should not land in the middle of
+  // the previous strategy's argument.
   const selectStrategy = (id: string) => {
     setActiveId(id);
     setTab('overview');
+
+    const card = detailRef.current;
+    if (!card) return;
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    card.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
   };
 
   const onTabKey = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
@@ -333,7 +363,7 @@ export const StrategiesPage: React.FC<StrategiesPageProps> = ({ onNavigate }) =>
           })}
         </nav>
 
-        <article className="strat-detail">
+        <article className="strat-detail" ref={detailRef}>
           <header className="strat-detail-head">
             <p className="strat-detail-kicker">{profile.category} strategy</p>
             <h2 className="strat-detail-name">{profile.name}</h2>
