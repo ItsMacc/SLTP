@@ -24,7 +24,7 @@ import { getFile, hasFile, putFile } from './opfs';
 /** Pinned runtime: the full build serves loadPyodide plus every wheel. */
 const PYODIDE_INDEX_URL = 'https://cdn.jsdelivr.net/pyodide/v314.0.7/full/';
 /** Engine pin: matches backend/requirements.txt. */
-const SLTP_VERSION = '0.1.30';
+const SLTP_VERSION = '0.1.32';
 /** Pure-Python date library the strategy base imports. */
 const DATEUTIL_VERSION = '2.9.0';
 
