@@ -66,6 +66,8 @@ interface StockHistory {
 interface ResearchPageProps {
   userId?: string
   initialSettings?: { defaultTimeframe?: string; [key: string]: any }
+  /** Opens straight into strategy mode with this strategy picked. */
+  initialStrategyId?: string
 }
 
 // Prices sit on today's share basis, so an old bar in a fund that reverse-split reads as
@@ -253,8 +255,10 @@ const TIMEFRAME_OPTIONS: SegmentedOption<ResearchTimeframe>[] = TIMEFRAMES.map((
   label: tf.toUpperCase(),
 }))
 
-export default function ResearchPage({ initialSettings }: ResearchPageProps) {
-  const [mode, setMode] = useState<Mode>('stocks')
+export default function ResearchPage({ initialSettings, initialStrategyId }: ResearchPageProps) {
+  // A run handed over from the strategy library skips the stock chart entirely:
+  // the reader asked for one strategy over a date range, not a ticker.
+  const [mode, setMode] = useState<Mode>(initialStrategyId ? 'strategies' : 'stocks')
   // Which side the view slides in from after a switch. Empty on first paint, so
   // opening the page does not animate.
   const [swap, setSwap] = useState<'' | 'forward' | 'back'>('')
@@ -782,7 +786,7 @@ export default function ResearchPage({ initialSettings }: ResearchPageProps) {
             </>
           )}
 
-          {mode === 'strategies' && <StrategyChart />}
+          {mode === 'strategies' && <StrategyChart initialStrategyId={initialStrategyId} />}
         </div>
 
         {mode === 'stocks' && <CandlestickGuide />}

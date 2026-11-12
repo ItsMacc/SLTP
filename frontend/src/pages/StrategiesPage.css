@@ -315,19 +315,12 @@
   margin-top: var(--space-sm);
 }
 
-/* The small print under the commentary: how to read a chart, not what it says. */
-.strat-prose-note {
-  max-width: 70ch;
-  margin: 0;
-  padding-top: var(--space-sm);
-  border-top: 1px solid var(--border-subtle);
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-  line-height: 1.65;
-}
-
-.strat-prose + .strat-prose-note {
-  margin-top: var(--space-md);
+/* The commentary sits under the comparison cards, so it needs to clear the
+   last card rather than follow it on the same rhythm. */
+.strat-outlook {
+  display: grid;
+  gap: calc(var(--space-md) * 1.5);
+  margin-top: calc(var(--space-md) * 1.5);
 }
 
 /* The idea runs a size larger than the notes under it: it is the section a

@@ -59,6 +59,9 @@ export default function App() {
   const [legalPage, setLegalPage] = useState<LegalPageKind | null>(initialRoute.legal);
   const [authNotice, setAuthNotice] = useState<string | null>(null);
   const [user, setUser] = useState<UserProfile | null>(null);
+  // A strategy handed to Research from the library. It only chooses the opening
+  // selection there, so a later visit keeps whatever the reader last picked.
+  const [researchStrategy, setResearchStrategy] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [signingOut, setSigningOut] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
@@ -199,6 +202,11 @@ export default function App() {
       the change — including the sign-in gate — so Back/Forward take that same
       path rather than a second, divergent one. */
   const handleTabChange = (tab: string) => {
+    // The library's handover is for the trip it starts. Leaving Research clears
+    // it, so a later visit from the nav opens on the stock chart as it always
+    // did instead of resuming a strategy nobody asked for this time.
+    if (tab !== 'research') setResearchStrategy(null);
+
     // Docs keeps its current page in the hash; asking for "docs" must not drop
     // it back to the introduction.
     if (tab === 'docs' && window.location.hash.startsWith(DOCS_PREFIX)) {
@@ -335,11 +343,21 @@ export default function App() {
             ) : activeTab === 'research' ? (
               // Price history reads the browser's OPFS market cache, so no
               // server round-trip stands between a tap and the chart.
-              <ResearchPage userId={user?.id} initialSettings={user?.settings} />
+              <ResearchPage
+                userId={user?.id}
+                initialSettings={user?.settings}
+                initialStrategyId={researchStrategy ?? undefined}
+              />
             ) : activeTab === 'strategies' ? (
               // The library reads data/strategies.ts, so it needs no request
               // of its own; the run-it buttons hand the visitor to Research.
-              <StrategiesPage onNavigate={handleTabChange} />
+              <StrategiesPage
+                onNavigate={handleTabChange}
+                onRunStrategy={(strategyId) => {
+                  setResearchStrategy(strategyId);
+                  handleTabChange('research');
+                }}
+              />
             ) : activeTab === 'lab' || activeTab === 'learn' ? (
               // Pages with an address but no content yet: the cards on Home
               // link here, and each one carries its own title and hash.

@@ -23,6 +23,8 @@ import './StrategiesPage.css';
 
 interface StrategiesPageProps {
   onNavigate?: (tab: string) => void;
+  /** Hands the strategy to Research, which opens in strategy mode on it. */
+  onRunStrategy?: (strategyId: string) => void;
 }
 
 const TABS = [
@@ -189,32 +191,8 @@ function Backtests({ profile }: { profile: StrategyProfile }) {
 
   return (
     <>
-      {outlook && (
-        <>
-          <section className="strat-section">
-            <h3 className="strat-section-title">What we can expect</h3>
-            <p className="strat-prose strat-prose-lead">{outlook.expectation}</p>
-          </section>
-
-          <section className="strat-section">
-            <h3 className="strat-section-title">What the windows showed</h3>
-            {outlook.windows.map((paragraph) => (
-              <p className="strat-prose" key={paragraph.slice(0, 40)}>
-                {paragraph}
-              </p>
-            ))}
-            <p className="strat-prose-note">
-              In every chart both lines start at 100 on the first session, so the two paths are
-              read on one scale. Where a window shows two sides, the better figure in each pair is
-              green. All figures are after fees and slippage and cover the window itself, not the
-              years around it.
-            </p>
-          </section>
-        </>
-      )}
-
       <section className="strat-section">
-        <h3 className="strat-section-title">The {rows.length} windows, chart by chart</h3>
+        <h3 className="strat-section-title">Backtest Comparisons</h3>
       </section>
 
       <div className="strat-window-cards">
@@ -283,13 +261,31 @@ function Backtests({ profile }: { profile: StrategyProfile }) {
           );
         })}
       </div>
+
+      {outlook && (
+        <div className="strat-outlook">
+          <section className="strat-section">
+            <h3 className="strat-section-title">What we can expect</h3>
+            <p className="strat-prose strat-prose-lead">{outlook.expectation}</p>
+          </section>
+
+          <section className="strat-section">
+            <h3 className="strat-section-title">What the windows showed</h3>
+            {outlook.windows.map((paragraph) => (
+              <p className="strat-prose" key={paragraph.slice(0, 40)}>
+                {paragraph}
+              </p>
+            ))}
+          </section>
+        </div>
+      )}
     </>
   );
 }
 
 /* ---------- Page ---------- */
 
-export const StrategiesPage: React.FC<StrategiesPageProps> = ({ onNavigate }) => {
+export const StrategiesPage: React.FC<StrategiesPageProps> = ({ onNavigate, onRunStrategy }) => {
   const [activeId, setActiveId] = useState(STRATEGIES[0].id);
   const [tab, setTab] = useState<TabKey>('overview');
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -421,9 +417,15 @@ export const StrategiesPage: React.FC<StrategiesPageProps> = ({ onNavigate }) =>
             {tab === 'backtests' && <Backtests profile={profile} />}
           </div>
 
-          {onNavigate && (
+          {(onRunStrategy || onNavigate) && (
             <footer className="strat-detail-foot">
-              <button type="button" className="strat-run" onClick={() => onNavigate('research')}>
+              <button
+                type="button"
+                className="strat-run"
+                onClick={() =>
+                  onRunStrategy ? onRunStrategy(profile.id) : onNavigate?.('research')
+                }
+              >
                 Run {profile.name} on real dates
               </button>
             </footer>

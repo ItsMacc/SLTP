@@ -75,7 +75,11 @@ const formatMetricValue = (val: any, key = ''): string => {
   return String(val)
 }
 
-export default function StrategyChart() {
+export default function StrategyChart({
+  initialStrategyId,
+}: {
+  initialStrategyId?: string
+} = {}) {
   const engine = useEngineStatus()
   const engineUnsupported = engine.phase === 'unsupported'
   const [strategies, setStrategies] = useState<StrategyOption[]>([])
@@ -112,8 +116,12 @@ export default function StrategyChart() {
       .then((data: StrategyOption[]) => {
         if (!cancelled && Array.isArray(data) && data.length > 0) {
           setStrategies(data)
-          // Open on the first published strategy so a run is one click away.
-          setSelectedStrategy((current) => current || data[0]!.id)
+          // Open on the strategy the library handed over, then on the first
+          // published one, so a run is one click away either way.
+          setSelectedStrategy(
+            (current) =>
+              current || data.find((entry) => entry.id === initialStrategyId)?.id || data[0]!.id
+          )
         }
       })
       .catch(() => {
@@ -132,7 +140,7 @@ export default function StrategyChart() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [initialStrategyId])
 
   useLayoutEffect(() => {
     const element = containerRef.current
