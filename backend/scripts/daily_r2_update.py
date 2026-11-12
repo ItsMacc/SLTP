@@ -14,6 +14,14 @@ sidecar when it changed:
   3. META/manifest.json (entry bytes/rows/last_session + version)
   4. META/version.txt (same version string)
 
+Yearly chore (run each January after the year settles):
+  ../.venv/bin/python scripts/daily_r2_update.py --fold-year 2026
+moves the tail's rows from that completed calendar year into
+MARKET_DAILY/market_data_2026.parquet (same schema, exactly one row
+group), rewrites the tail with only the remaining rows, and updates both
+manifest entries plus the version. Without the fold the tail grows a full
+year of overlap; with it the tail stays small.
+
 Stdlib SigV4 for R2; yfinance + pandas + pyarrow for data. Idempotent.
 """
 
@@ -232,7 +240,125 @@ def _alert_admin() -> None:
         print(f"alert FAILED: {exc}")
 
 
+def fold_year(year: int) -> int:
+    """Move the tail's rows from one completed year into its year file.
+
+    Refuses when the manifest has no market_data_<year>.parquet entry (the
+    bucket has not flipped to year files yet). Enforces the year-file
+    contract on the way out: column order, snappy, exactly one row group,
+    rows sorted by (Symbol, Date) verified with a vectorized lexsort check.
+    Four writes: year file, tail, manifest, version. Idempotent — a second
+    run finds nothing to move and writes nothing.
+    """
+    import pyarrow.parquet as pq
+
+    manifest = json.loads(_s3("GET", MANIFEST_KEY).decode())
+    year_key = f"MARKET_DAILY/market_data_{year}.parquet"
+    yentry = next((e for e in manifest["files"] if e["key"] == year_key), None)
+    if yentry is None:
+        print(f"no {year_key} in the manifest — the bucket has not flipped to year files yet.")
+        return 2
+    tentry = next(e for e in manifest["files"] if e["key"] == TAIL_KEY)
+
+    ydf = pd.read_parquet(io.BytesIO(_s3("GET", year_key)))
+    tdf = pd.read_parquet(io.BytesIO(_s3("GET", TAIL_KEY)))
+    print(f"year file: {len(ydf)} rows; tail: {len(tdf)} rows", flush=True)
+
+    start_code = int(register(np.array([f"{year}-01-01"]))[0])
+    end_code = int(register(np.array([f"{year + 1}-01-01"]))[0])
+    mask = (tdf["Date"] >= start_code) & (tdf["Date"] < end_code)
+    moving, stay = tdf[mask], tdf[~mask]
+    print(f"moving {len(moving)} rows from {year} out of the tail; {len(stay)} stay", flush=True)
+    if moving.empty:
+        print("nothing to fold.")
+        return 0
+
+    cols = ["Symbol", "Name", "Date", "Open", "High", "Low", "Close", "Volume"]
+    merged = (pd.concat([ydf, moving], ignore_index=True)
+              .drop_duplicates(subset=["Symbol", "Date"], keep="last")
+              .sort_values(["Symbol", "Date"])
+              .reset_index(drop=True))
+    merged = merged[cols]
+    merged["Date"] = merged["Date"].astype("int32")
+    for col in ("Open", "High", "Low", "Close", "Volume"):
+        merged[col] = merged[col].astype("float32")
+    sym_codes = pd.factorize(merged["Symbol"])[0]
+    order = np.lexsort((merged["Date"].to_numpy(), sym_codes))
+    assert (order == np.arange(len(merged))).all(), "fold output is not sorted by (Symbol, Date)"
+
+    ybuf = io.BytesIO()
+    merged.to_parquet(ybuf, engine="pyarrow", compression="snappy", index=False,
+                      row_group_size=len(merged))
+    yblob = ybuf.getvalue()
+    ycheck = pq.ParquetFile(io.BytesIO(yblob))
+    yschema = ycheck.schema_arrow
+    assert [f.name for f in yschema] == cols, "year file column order changed"
+    assert str(yschema.field("Date").type) == "int32"
+    # pandas writes object columns as large_string; both are Arrow strings.
+    assert [str(yschema.field(c).type) for c in ("Symbol", "Name")] == ["large_string"] * 2
+    assert [str(yschema.field(c).type) for c in ("Open", "Close", "Volume")] == ["float"] * 3
+    ycomps = {ycheck.metadata.row_group(r).column(c).compression
+              for r in range(ycheck.metadata.num_row_groups)
+              for c in range(ycheck.metadata.row_group(r).num_columns)}
+    assert ycomps == {"SNAPPY"}, f"unexpected compression: {ycomps}"
+    assert ycheck.num_row_groups == 1, f"year file has {ycheck.num_row_groups} row groups, want 1"
+    yfirst = _code_to_date(int(merged["Date"].min()))
+    ylast = _code_to_date(int(merged["Date"].max()))
+    assert yfirst[:4] == str(year) and ylast[:4] == str(year), (yfirst, ylast)
+    print(f"year file {len(ydf)} -> {len(merged)} rows, {len(yblob)} bytes, 1 row group, "
+          f"{yfirst} -> {ylast}", flush=True)
+
+    stay = stay[cols].reset_index(drop=True)
+    stay["Date"] = stay["Date"].astype("int32")
+    for col in ("Open", "High", "Low", "Close", "Volume"):
+        stay[col] = stay[col].astype("float32")
+    tbuf = io.BytesIO()
+    stay.to_parquet(tbuf, engine="pyarrow", compression="snappy", index=False)
+    tblob = tbuf.getvalue()
+    tgroups = pq.ParquetFile(io.BytesIO(tblob)).num_row_groups
+
+    _s3("PUT", year_key, yblob)  # write 1: the year file
+    _s3("PUT", TAIL_KEY, tblob)  # write 2: the tail
+    yentry["bytes"] = len(yblob)
+    yentry["rows"] = len(merged)
+    yentry["first_session"] = yfirst
+    yentry["last_session"] = ylast
+    yentry["row_groups"] = 1
+    tentry["bytes"] = len(tblob)
+    tentry["rows"] = len(stay)
+    tentry["first_session"] = _code_to_date(int(stay["Date"].min())) if len(stay) else None
+    tentry["last_session"] = _code_to_date(int(stay["Date"].max())) if len(stay) else None
+    tentry["row_groups"] = tgroups
+    today = date.today().isoformat()
+    manifest["version"] = today
+    _s3("PUT", MANIFEST_KEY, json.dumps(manifest, indent=1).encode())  # write 3: manifest
+    _s3("PUT", VERSION_KEY, f"{today}\n".encode())  # write 4: version
+
+    verify = json.loads(_s3("GET", MANIFEST_KEY).decode())
+    vyentry = next(e for e in verify["files"] if e["key"] == year_key)
+    ventry = next(e for e in verify["files"] if e["key"] == TAIL_KEY)
+    vtext = _s3("GET", VERSION_KEY).decode().strip()
+    assert verify["version"] == today == vtext, (verify["version"], vtext)
+    assert vyentry["bytes"] == len(yblob) and vyentry["last_session"] == ylast
+    assert ventry["bytes"] == len(tblob)
+    print(f"Done: version {vtext}, {year_key} {len(merged)} rows, "
+          f"tail {len(stay)} rows. 4 writes total.", flush=True)
+    return 0
+
+
 if __name__ == "__main__":
+    if "--fold-year" in sys.argv:
+        pos = sys.argv.index("--fold-year")
+        try:
+            fold_target = int(sys.argv[pos + 1])
+        except (IndexError, ValueError):
+            print("usage: daily_r2_update.py [--fold-year YYYY]")
+            sys.exit(2)
+        try:
+            sys.exit(fold_year(fold_target))
+        except Exception:
+            _alert_admin()
+            raise
     try:
         sys.exit(main())
     except Exception:

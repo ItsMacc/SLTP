@@ -1,8 +1,8 @@
 // sync.ts — the background download sequence plus where files come from.
 //
-// First visit: check the manifest and fetch the plan (desktop: all six era
-// chunks; phone: the two newest), then on desktop keep going backwards one
-// era at a time. Every later boot reconciles the plan against the manifest
+// First visit: check the manifest and fetch the plan (desktop: all 29 year
+// files; phone: the ten newest), then on desktop keep going backwards one
+// year at a time. Every later boot reconciles the plan against the manifest
 // by byte count and fetches only what's missing or changed — usually just
 // the `recent` tail after a daily update, never a wholesale re-download.
 // Progress is published to subscribers, so any page can show
@@ -10,11 +10,13 @@
 //
 // The plan is why "N of M files" always reads true: totalFiles counts the
 // plan's bars, and loadedFiles can only ever hold plan keys (plus nothing
-// else — sidecars ride along but are never counted). A phone shows 2 of 2,
-// a desktop 6 of 6, and neither can drift apart again.
+// else — sidecars ride along but are never counted). A phone shows 10 of 10,
+// a desktop 30 of 30 (29 years plus the tail), and neither can drift apart
+// again.
 //
-// Cost model, measured Nov 2026: the desktop priority pair is ~140MB (~4s
-// on a fast link) and the full set ~445MB; the phone plan is ~147MB. Reads
+// Cost model, measured Nov 2026: the desktop priority pair (tail + current
+// year) is ~28MB (~a couple of seconds on a fast link) and the full set
+// ~389MB; the phone plan (tail + 2018-2026) is ~196MB. Reads
 // stay inside the bucket's free Class B allowance because every file
 // downloads once per version and is read from disk afterwards. The R2
 // bucket is public today, so files download with a plain GET and no
@@ -56,11 +58,11 @@ export interface SyncStatus {
   plan: SyncPlan;
   /** Chunk keys on disk, newest first — always a subset of the plan. */
   loadedFiles: string[];
-  /** Planned era chunks in the current manifest (what "of M" counts). */
+  /** Planned bar files in the current manifest (what "of M" counts). */
   totalFiles: number;
   bytesLoaded: number;
   bytesTotal: number;
-  /** Metered link: priority fetched, older eras wait for prefetchOlder(). */
+  /** Metered link: priority fetched, older years wait for prefetchOlder(). */
   olderDeferred: boolean;
   error: string | null;
 }
@@ -143,14 +145,22 @@ export async function resolveFileUrl(key: string): Promise<string> {
   return `${R2_BASE_URL}/${key}`;
 }
 
-/** "market_data_1998_2003.parquet" -> [1998, 2003]; else null. */
+/**
+ * "market_data_2019.parquet" -> [2019, 2019]; the retired six-year shape
+ * "market_data_1998_2003.parquet" -> [1998, 2003]; anything else null
+ * (the `recent` tail, the actions sidecar). Both shapes flow through the
+ * same logic, so a manifest of either vintage plans and queries correctly.
+ */
 export function chunkRange(key: string): [number, number] | null {
-  const match = /market_data_(\d{4})_(\d{4})\.parquet$/.exec(key);
-  if (!match) return null;
-  return [Number(match[1]), Number(match[2])];
+  const single = /market_data_(\d{4})\.parquet$/.exec(key);
+  if (single) return [Number(single[1]), Number(single[1])];
+  const range = /market_data_(\d{4})_(\d{4})\.parquet$/.exec(key);
+  if (!range) return null;
+  return [Number(range[1]), Number(range[2])];
 }
 
-/** Era bar chunks only: MARKET_DAILY bars, no actions sidecar, no catalog. */
+/** Bar files only: MARKET_DAILY bars (year files plus the tail), no actions
+    sidecar, no catalog. */
 function barKeys(files: ManifestFile[]): string[] {
   return files
     .map((f) => f.key)
@@ -167,7 +177,7 @@ const CATALOG_KEY = 'SYMBOL_DATA/symbol_catalog.parquet';
 
 /**
  * The chunk keys this browser plans to hold, newest first. Phones keep the
- * two newest (tail + current era, ~10 years of sessions); desktops everything.
+ * ten newest (tail + nine years, ~2018 on); desktops everything.
  * Sidecars are outside the plan — they always download with the priority pair.
  */
 export function planKeys(files: ManifestFile[]): string[] {
@@ -273,7 +283,7 @@ export function getManifest(): Manifest | null {
   return manifestCache;
 }
 
-/** The files a chart needs first: the tail plus the current era chunk.
+/** The files a chart needs first: the tail plus the current year file.
     Always inside the plan — on a phone that pair IS the whole plan. */
 function priorityKeys(plan: string[]): string[] {
   const recent = plan.filter((key) => key.includes('recent'));
@@ -405,10 +415,10 @@ async function runBoot(): Promise<void> {
         .map((key) => deleteFile(key)),
     );
   }
-  // One reconciliation path for every boot, version bump or not. Era chunks
+  // One reconciliation path for every boot, version bump or not. Year files
   // are effectively immutable — a daily update rewrites only the tail (and
   // sometimes the actions sidecar) — so a new version usually refreshes one
-  // small file instead of the whole plan. A backfill that rewrote every era
+  // small file instead of the whole plan. A backfill that rewrote every year
   // still heals, because every changed byte count re-downloads. Presence is
   // not freshness (files are rewritten in place), so the manifest's byte
   // count decides. Only plan files count as loaded: a desktop-sized cache

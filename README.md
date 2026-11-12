@@ -22,7 +22,7 @@ source .venv/bin/activate
 pip install sltp
 ```
 
-The first data call downloads the needed chunks from R2 into `~/.sltp/cache`. Later calls are local.
+The first data call downloads the needed year files from R2 into `~/.sltp/cache`. Later calls are local.
 
 ### Run a backtest
 
@@ -128,7 +128,7 @@ The front end talks to `http://localhost:8000` by default; set `VITE_API_BASE_UR
 | GET/POST/DELETE | `/api/lab/strategies...` | Cloud copies of Lab code |
 | GET/POST/DELETE | `/api/backtest/results...` | Cached runs, reopen without rerunning |
 
-First data call downloads the needed chunks from R2 into `~/.sltp/cache`. Later calls are local. Open http://127.0.0.1:8000/docs to try every endpoint.
+First data call downloads the needed year files from R2 into `~/.sltp/cache`. Later calls are local. Open http://127.0.0.1:8000/docs to try every endpoint.
 
 ### Backend scripts (all run from `backend/`)
 
@@ -136,6 +136,7 @@ First data call downloads the needed chunks from R2 into `~/.sltp/cache`. Later 
 ../.venv/bin/python scripts/operator_report.py              # print today's brief
 ../.venv/bin/python scripts/operator_report.py --send       # mail it to the operator
 ../.venv/bin/python scripts/daily_r2_update.py              # nightly R2 tail top-up (cron)
+../.venv/bin/python scripts/daily_r2_update.py --fold-year 2026  # yearly: fold the tail's old year into its year file
 ../.venv/bin/python scripts/r2_usage.py                     # this month's Class A/B op counts
 ```
 
@@ -155,7 +156,7 @@ First data call downloads the needed chunks from R2 into `~/.sltp/cache`. Later 
 
 A `Strategy` overrides `initialize_universe`, `on_signal`, `on_rebalance`, `should_exit` and `run_daily`, and exposes `_sma`, `_ema`, `_rsi`, `_macd`, `_atr`, `_adx` and the rest of the indicator set, plus exit helpers such as `_time_stop_days`, `_trailing_stop` and `_atr_stop`. Constraints are class attributes: `MAX_POSITIONS`, `MAX_LOTS_PER_TICKER`, `MAX_ALLOCATION_PER_TICKER`, `REBALANCE_FREQUENCY`, `MIN_BARS_REQUIRED`, `LIQUIDATE_ON_END`. Because a strategy's warmup can push its start date past the one you asked for, the engine probes forward up to 1,826 calendar days before it gives up.
 
-**Market data.** The `sltp` package serves daily bars from 1998 over US listings, fetched in chunks from R2 into `~/.sltp/cache` and reloaded when the files change, so a long-running API picks up fresh bars without a restart. The tradable directory keeps symbols that later stopped trading, so a backtest does not quietly pick today's survivors.
+**Market data.** The `sltp` package serves daily bars from 1998 over US listings, fetched one file per calendar year from R2 into `~/.sltp/cache` (plus a small recent tail) and reloaded when the files change, so a long-running API picks up fresh bars without a restart. The tradable directory keeps symbols that later stopped trading, so a backtest does not quietly pick today's survivors.
 
 **API and auth.** FastAPI with routers for users, portfolios, the Lab, API keys and account deletion. Protected routes depend on `get_current_user`, which verifies the Supabase session token against the project's JWKS endpoint (ES256) and falls back to the legacy HS256 secret. Every query is scoped by the user id from that token, never the request body.
 
@@ -163,7 +164,7 @@ A `Strategy` overrides `initialize_universe`, `on_signal`, `on_rebalance`, `shou
 
 **Front end.** React 19 and TypeScript on Vite 8, with plain CSS built on the design tokens in `frontend/src/index.css`. Pages use plain `fetch` through `frontend/lib/api.ts` against the API base URL; Supabase in the browser is only the auth client. TanStack Query backs the Lab editor's cached reads. The Lab runs Monaco with a Pyright language server (`monaco-pyright-lsp`), so the editor reports type errors without a Python process — the workspace panels are live, but opening code stays disabled until the server file APIs land. The interactive tours use driver.js against the live pages.
 
-**Scheduled jobs.** `backend/scripts/operator_report.py` prints (or with `--send`, mails) a daily brief of signups and usage, recording what it sent under `~/.sltp` so a rerun stays quiet. `backend/scripts/daily_r2_update.py` tops up the R2 tail file nightly and mails the operator if it crashes. `backend/app/notify/mailer.py` is the only module that sends mail: the operator brief and crash alerts plus the account mail (login security notices and notifications).
+**Scheduled jobs.** `backend/scripts/operator_report.py` prints (or with `--send`, mails) a daily brief of signups and usage, recording what it sent under `~/.sltp` so a rerun stays quiet. `backend/scripts/daily_r2_update.py` tops up the R2 tail file nightly (plus a `--fold-year` run each January to fold the old year into its year file) and mails the operator if it crashes. `backend/app/notify/mailer.py` is the only module that sends mail: the operator brief and crash alerts plus the account mail (login security notices and notifications).
 
 ## Repository layout
 

@@ -293,7 +293,7 @@ if rsi < 30 and float(data.close_price[-1]) < float(lower[-1]):
           title: 'The head of every array is NaN',
           text: <>An indicator needs its window before it has a value. With 10 bars and a 20-day average, <C>sma[-1]</C> is NaN and every comparison with NaN is False. Set <C>MIN_BARS_REQUIRED</C> to your longest window plus one, or check <C>np.isnan</C>.</>,
         },
-        { kind: 'h2', id: 'streaming', text: 'Streaming engine (0.1.27)' },
+        { kind: 'h2', id: 'streaming', text: 'Streaming engine (0.1.30)' },
         {
           kind: 'p',
           text: <>The five busiest indicators — <C>_ema</C>, <C>_rsi</C>, <C>_atr</C>, <C>_adx</C>, and <C>_macd</C> — carry one small recurrence state per ticker forward bar by bar instead of recomputing over the full history on every call. Per-call cost drops from O(history) to O(1) amortized: roughly 25–35x end to end on an indicator-heavy backtest, with memory flat and no new dependencies.</>,

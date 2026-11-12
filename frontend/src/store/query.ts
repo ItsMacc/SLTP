@@ -2,8 +2,8 @@
 //
 // Chunk choice mirrors the engine's bar_files_for (filename year overlap, so
 // a 5-year chart never touches the 1998 file), then intersects the active
-// sync plan — a phone only ever holds its two newest chunks, so a wide
-// range resolves from what is on disk instead of fetching 28 years.
+// sync plan — a phone only ever holds its ten newest files, so a wide
+// range resolves from what is on disk instead of fetching the archive.
 // Every missing chunk is fetched on demand: a chart with a cold cache still
 // resolves, it just takes the download first. All of the range's chunks
 // decode at once through the two-worker pool; each file prunes to its
@@ -374,14 +374,14 @@ export async function queryMarketData(
   const symbol = ticker.trim().toUpperCase();
   const seen = new Set<string>();
   const out: Bar[] = [];
-  // Every chunk decodes in the pool at once (bounded by its two workers);
+  // Every file decodes in the pool at once (bounded by its two workers);
   // Promise.all preserves key order, so the newest file still wins overlap
   // dates exactly as in the old sequential walk.
   const perFile = await Promise.all(
     chunkKeysForRange(start, end).map((key) => queryFile(key, symbol, start, end)),
   );
   for (const rows of perFile) {
-    // Era files and the `recent` tail overlap by a few sessions.
+    // Year files and the `recent` tail overlap by a few sessions.
     for (const row of rows) {
       if (!seen.has(row.date)) {
         seen.add(row.date);

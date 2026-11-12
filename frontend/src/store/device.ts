@@ -1,12 +1,12 @@
 // device.ts — what kind of browser this is, decided once per session.
 //
-// Phones get a smaller market plan (the two newest chunks, not 28 years)
+// Phones get a smaller market plan (the ten newest files, not 29 years)
 // and no Pyodide engine: strategy runs stay a desktop feature. Detection is
 // UA plus a small touch screen; tablets keep the desktop plan. A device
 // does not change class mid-visit, so callers can read the module consts.
 
-/** How many of the newest bar chunks a phone keeps: the tail + current era. */
-export const MOBILE_PLAN_CHUNKS = 2;
+/** How many of the newest bar files a phone keeps: the tail + nine years. */
+export const MOBILE_PLAN_CHUNKS = 10;
 
 /** Earliest day a phone will ever query (ten years back). The future date
     picker uses this as its min date; queries clamp to the cached chunks. */
