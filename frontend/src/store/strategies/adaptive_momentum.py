@@ -131,54 +131,67 @@ class AdaptiveMomentum(Strategy):
     # -------- Ranking --------
     # Score every liquid stock, then keep the top names for entries and the wider
     # buffer for names that are already held.
+    #
+    # Vectorized across the cross-section: one pass stacks every candidate's
+    # closes/volumes into two matrices then momentum, volatility and the
+    # liquidity screen are a handful of array ops instead of ~5 numpy calls
+    # per ticker per monthly rank. The formulas mirror the scalar versions
+    # exactly — same slices, same reductions, same skip conditions — so the
+    # picks are unchanged; only the per-ticker Python overhead is gone.
     def _rank(self, histories: dict[str, StockData]) -> list[str]:
         self.market_on = self._market_is_on(histories)
-        scored: list[tuple[str, float]] = []
 
+        names: list[str] = []
+        close_rows: list[np.ndarray] = []
+        volume_rows: list[np.ndarray] = []
         for ticker, history in histories.items():
             if ticker not in self._stocks:
                 continue
-            if not self._is_liquid(history):
-                continue
-
             closes = history.close_price
-            momentum: float = float(closes[-self.SKIP_BARS] / closes[-self.LOOKBACK_BARS] - 1.0)
-            if momentum <= 0.0:
+            volumes = history.volume
+            if len(closes) < self.LOOKBACK_BARS or len(volumes) < self.LIQUIDITY_BARS:
                 continue
-
-            volatility: float = self._volatility(closes)
-            if volatility <= 0.0 or volatility > self.MAX_VOLATILITY:
+            if closes[-1] < self.MIN_PRICE or closes[-1] <= 0:
                 continue
+            names.append(ticker)
+            close_rows.append(closes[-self.LOOKBACK_BARS:])
+            volume_rows.append(volumes[-self.LIQUIDITY_BARS:])
 
-            scored.append((ticker, momentum / volatility))
+        if not names:
+            self.keep = set()
+            self.targets = set()
+            return []
 
-        scored.sort(key=lambda pair: pair[1], reverse=True)
-        buffer: list[str] = [ticker for ticker, _ in scored[: self.BUFFER_N]]
+        close_mat = np.stack(close_rows)
+        volume_mat = np.stack(volume_rows)
+        # 12-month return skipping the latest month, per row.
+        momentum = close_mat[:, -self.SKIP_BARS] / close_mat[:, -self.LOOKBACK_BARS] - 1.0
+        # Annualized close-to-close volatility over the trailing window. The
+        # ceiling is deliberately above a normal large-cap's volatility, so it
+        # filters the parabolic names rather than turning this into a
+        # low-volatility strategy.
+        log_window = np.log(close_mat[:, -self.VOLATILITY_BARS:])
+        returns = log_window[:, 1:] - log_window[:, :-1]
+        volatility = np.std(returns, axis=1, ddof=1) * np.sqrt(252.0)
+        # Average daily dollar volume over the liquidity window.
+        dollar_volume = np.mean(close_mat[:, -self.LIQUIDITY_BARS:] * volume_mat, axis=1)
+
+        # Same skips as the scalar version: the negated comparisons keep NaN
+        # exactly the way `<=` / `>` tests let it through.
+        liquid = dollar_volume >= self.MIN_DOLLAR_VOLUME
+        rising = ~(momentum <= 0.0)
+        calm = ~((volatility <= 0.0) | (volatility > self.MAX_VOLATILITY))
+        passed = liquid & rising & calm
+
+        score = np.empty(len(names))
+        score[passed] = momentum[passed] / volatility[passed]
+        # Negation is exact, so ascending on -score with a stable sort is the
+        # same order as a stable descending sort, ties included.
+        order = np.flatnonzero(passed)[np.argsort(-score[passed], kind="stable")]
+        buffer: list[str] = [names[i] for i in order[: self.BUFFER_N]]
         self.keep = set(buffer)
         self.targets = set(buffer[: self.TOP_N]) if self.market_on else set()
         return buffer
-
-    # A stock needs price, volume and enough history to carry the ranking window.
-    def _is_liquid(self, history: StockData) -> bool:
-        if len(history.close_price) < self.LOOKBACK_BARS or len(history.volume) < self.LIQUIDITY_BARS:
-            return False
-        close: float = float(history.close_price[-1])
-        if close < self.MIN_PRICE or close <= 0:
-            return False
-        closes = history.close_price[-self.LIQUIDITY_BARS:]
-        volumes = history.volume[-self.LIQUIDITY_BARS:]
-        dollar_volume: float = float(np.mean(closes * volumes))
-        return dollar_volume >= self.MIN_DOLLAR_VOLUME
-
-    # Annualized close-to-close volatility. The ceiling is deliberately above a
-    # normal large-cap's volatility, so it filters the parabolic names rather than
-    # turning this into a low-volatility strategy.
-    def _volatility(self, closes: np.ndarray) -> float:
-        window = closes[-self.VOLATILITY_BARS:]
-        if len(window) < 3:
-            return 0.0
-        returns = np.diff(np.log(window))
-        return float(np.std(returns, ddof=1) * np.sqrt(252.0))
 
     # The market filter: SPY above its long moving average.
     def _market_is_on(self, histories: dict[str, StockData]) -> bool:
