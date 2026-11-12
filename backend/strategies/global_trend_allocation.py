@@ -15,8 +15,7 @@ from sltp import StockData
 from sltp import Trade
 from sltp import PositionType
 from sltp import RebalanceFrequency
-from sltp.data.market_data_service import get_stock_histories
-
+from sltp.utils.Dates import to_code
 
 # -------- Global Trend Allocation Strategy --------
 class GlobalTrendAllocation(Strategy):
@@ -59,17 +58,31 @@ class GlobalTrendAllocation(Strategy):
 
     # -------- Universe Management --------
     # Fixed ETF list, so there is nothing to rank in the full cross-section.
-    # Declaring histories=None tells the engine to skip the full-universe load;
-    # the matrix loads its own ETFs selectively.
-    def initialize_universe(self, current_date: str, histories=None) -> bool:
+    # The engine bulk-loads exactly this universe once per run and hands every
+    # rebalance its window as in-memory views. The hooks below declare histories
+    # WITHOUT the None default, which is what asks the engine to pass them;
+    # a histories=None default would promise the hook ignores them and the
+    # engine would skip the load. Strategies must never read the data service
+    # directly (no get_stock_histories): the hook histories are the only input.
+    @property
+    def available_universe(self) -> list[str]:
+        return self._matrix_universe()
+
+    def _matrix_universe(self) -> list[str]:
+        etf_universe = set(self.available_etfs)
+        if self.ETF_UNIVERSE is not None:
+            etf_universe &= set(self.ETF_UNIVERSE)
+        return sorted(etf_universe)
+
+    def initialize_universe(self, current_date: str, histories: dict[str, StockData]) -> bool:
         self.tickers.clear()
-        active_targets = self._execute_selection_matrix(current_date)
+        active_targets = self._execute_selection_matrix(current_date, histories)
         self.tickers = active_targets
 
         return bool(self.tickers)
 
-    def on_rebalance(self, current_date: str, histories=None) -> None:
-        active_targets = self._execute_selection_matrix(current_date)
+    def on_rebalance(self, current_date: str, histories: dict[str, StockData]) -> None:
+        active_targets = self._execute_selection_matrix(current_date, histories)
         self.tickers = active_targets
 
     def run_daily(self, current_date: str) -> None:
@@ -140,18 +153,45 @@ class GlobalTrendAllocation(Strategy):
             return None
         return self._sma_sums.get(ticker, 0.0) / self.TEN_MONTHS
 
-    def _execute_selection_matrix(self, current_date: str) -> list[str]:
+    def _cut_matrix_window(self, histories: dict[str, StockData], lookback_start: str) -> dict[str, StockData]:
+        # Mirror the service's [start, end] cut on the engine-provided window, whose
+        # far edge is already this rebalance date. Tickers with no bar inside the
+        # matrix window are left out, exactly as a direct read left them out.
+        # Iterating the sorted universe keeps the dict order a direct read had.
+        cutoff = to_code(lookback_start)
+        window: dict[str, StockData] = {}
+        for symbol in self._matrix_universe():
+            history = histories.get(symbol)
+            if history is None:
+                continue
+            codes = history.date_codes
+            lo = int(np.searchsorted(codes, cutoff, side="left"))
+            if lo >= len(codes):
+                continue
+            if lo == 0:
+                window[symbol] = history
+            else:
+                window[symbol] = StockData.view(
+                    symbol,
+                    codes[lo:],
+                    history.open_price[lo:],
+                    history.high[lo:],
+                    history.low[lo:],
+                    history.close_price[lo:],
+                    history.volume[lo:],
+                )
+        return window
+
+    def _execute_selection_matrix(self, current_date: str, histories: dict[str, StockData]) -> list[str]:
         # Calculates all 5 structural allocations sequentially using historic data snapshots.
         # This is a global ETF book: rank the ETF universe, not every listed company.
-        etf_universe = set(self.available_etfs)
-        if self.ETF_UNIVERSE is not None:
-            etf_universe &= set(self.ETF_UNIVERSE)
         # The matrix never looks back more than a year (momentum, correlation)
         # plus a 210-session SMA, so ~400 sessions is plenty; 600 calendar days
-        # guarantees that many even across long holiday stretches. Loading full
-        # history here re-reads every era chunk on each monthly rebalance.
+        # guarantees that many even across long holiday stretches. The engine hands
+        # us a wider window (about 5 years back); cut it to the matrix window here
+        # with zero-copy views, exactly as a direct service read would have cut it.
         lookback_start = (datetime.strptime(current_date, "%Y-%m-%d") - timedelta(days=600)).strftime("%Y-%m-%d")
-        histories = get_stock_histories(sorted(etf_universe), lookback_start, current_date)
+        histories = self._cut_matrix_window(histories, lookback_start)
         sorted_etfs = self._sort_universe(histories)
         if not sorted_etfs:
             return []
