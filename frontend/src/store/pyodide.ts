@@ -129,6 +129,33 @@ export interface EngineRun {
   trades: Record<string, unknown>[];
 }
 
+/**
+ * One engine trade as the record the Research page reads. This mirrors
+ * `_trade_to_record` in backend/app/main.py on purpose: the browser and the
+ * API must hand the table the same fields, or a run over the worker renders
+ * dashes where the API shows numbers. sltp names the size `allocation` and
+ * nests the exit, so both are flattened here.
+ */
+function toTradeRecord(trade: Record<string, any>, index: number): Record<string, unknown> {
+  const exit = (trade.exit ?? {}) as { date?: string; price?: number; type?: string }
+  return {
+    id: trade.id ?? index + 1,
+    ticker: trade.ticker,
+    action: trade.position_type === 'short' ? 'SHORT' : 'BUY',
+    position_type: trade.position_type,
+    entry_date: trade.entry_date,
+    signal_date: trade.entry_date,
+    entry_price: trade.entry_price,
+    allocation_size: trade.allocation,
+    stop_loss: trade.stop_loss,
+    take_profit: trade.take_profit,
+    exit_date: exit.date ?? null,
+    exit_price: exit.price ?? null,
+    exit_type: exit.type ?? null,
+    transaction_cost: trade.fees,
+  }
+}
+
 interface PendingRun {
   kind: 'init' | 'run';
   resolve: (reply: { text: string; wheelsCached: boolean }) => void;
@@ -255,7 +282,8 @@ export async function runStrategy(
   const { text } = await callWorker('run', { key: id, start, end: end ?? null });
   try {
     const parsed = JSON.parse(text) as EngineRun;
-    return { ...parsed, key: id, name: entry.name };
+    const trades = (parsed.trades ?? []).map(toTradeRecord);
+    return { ...parsed, trades, key: id, name: entry.name };
   } catch {
     throw new Error('engine returned unreadable data');
   }
