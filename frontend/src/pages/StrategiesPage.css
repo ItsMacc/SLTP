@@ -315,12 +315,13 @@
   margin-top: var(--space-sm);
 }
 
-/* The commentary sits under the comparison cards, so it needs to clear the
-   last card rather than follow it on the same rhythm. */
-.strat-outlook {
-  display: grid;
-  gap: calc(var(--space-md) * 1.5);
+/* The result commentary follows the chart grid, so it takes the same divider a
+   section after another section would get. The adjacent-sibling rule only
+   covers two sections in a row, not a grid between them. */
+.strat-window-cards + .strat-section {
   margin-top: calc(var(--space-md) * 1.5);
+  padding-top: calc(var(--space-md) * 1.5);
+  border-top: 1px solid var(--border-subtle);
 }
 
 /* The idea runs a size larger than the notes under it: it is the section a
