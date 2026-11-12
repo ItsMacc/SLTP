@@ -217,7 +217,7 @@ export default function SiteGuide({ open, onClose, onNavigate }: SiteGuideProps)
           <SlidePage
             icon={FlaskConical}
             title="Lab"
-            body="The Lab is a Python scratchpad in the browser: make a list, write a loop, run it, and the output appears straight away. There is nothing to install. Strategy authoring, on the same data and the same engine as the rest of the site, is the next thing to land here."
+            body="The Lab is where your own code lives: projects grouped into workspaces, a file explorer, an editor checked as you type, and a terminal beside it. Python runs in the browser, so Run works without a server; the strategy engine joins next."
             ctaLabel="Take the tour"
             onCta={() => takeTour('lab')}
           />

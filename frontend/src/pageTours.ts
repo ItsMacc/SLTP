@@ -195,45 +195,111 @@ const RESEARCH_STEPS = (): DriveStep[] => [
 
 /* ---------- Lab ---------- */
 
+/** Opens the first workspace row, so its projects are on screen. */
+function expandFirstWorkspace(): boolean {
+  const row = document.querySelector<HTMLElement>('.lab-ws-row-main');
+  if (!row) return false;
+  if (row.getAttribute('aria-expanded') === 'false') row.click();
+  return true;
+}
+
+/** Opens the first project in the expanded workspace. */
+function openFirstProject(): boolean {
+  const project = document.querySelector<HTMLElement>('.lab-ws-project-open');
+  if (!project) return false;
+  project.click();
+  return true;
+}
+
 const LAB_STEPS = (): DriveStep[] => [
   {
-    element: '.lab-head',
+    element: '.lab-hero',
     popover: {
-      title: 'A scratchpad that runs Python',
+      title: 'The Lab',
       description:
-        'No install and no account: the interpreter is downloaded into this tab and runs here. It is a place to check a list, a loop or a small function before any of it becomes a strategy.',
+        'A project workspace for Python. Every project keeps its files, an editor and a terminal together, and the code runs in this browser rather than on a server.',
     },
   },
   {
-    element: '.lab-editor',
+    element: '.lab-ws-panel',
     popover: {
-      title: 'Write, and get help as you go',
+      title: 'Workspaces and projects',
       description:
-        'Python is highlighted, names complete as you type, and mistakes are underlined before you run anything. The snippet is kept on this device, so closing the tab does not lose it.',
+        'A workspace groups related projects. Every project keeps its own files, so two ideas never share a folder unless you want them to.',
     },
   },
   {
-    element: '.lab-toolbar',
+    element: '.lab-ws-toolbar',
     popover: {
-      title: 'Ready when the chip says so',
+      title: 'Find one, or start another',
       description:
-        'Python starts loading as soon as the page opens. The chip on the left turns green when it is ready, and Run stays off until then. Cmd or Ctrl and Enter runs from inside the editor too.',
+        'Search workspaces and projects by name, press the slash key from anywhere on the page to jump here, or change the sort. New workspace creates one and starts its first project in the same step.',
     },
   },
   {
-    element: '.lab-console',
+    element: '.lab-hero-new',
     popover: {
-      title: 'What the code printed',
+      title: 'Start from a template',
       description:
-        'Prints appear as they happen, a traceback appears in red with the line that failed, and a bare expression prints its value the way a REPL does. Forget variables clears the names you defined without reloading Python.',
+        'New project asks where it should live, what it is called, and what code to start from. The templates are small Python files: a list, a loop, a function, or an empty file.',
     },
   },
   {
-    element: '.lab-workbench',
+    element: '.lab-ws-row-main',
     popover: {
-      title: 'One session, many runs',
+      title: 'Open a workspace',
       description:
-        'Variables stay alive between runs, so a list built in one run is still there in the next. Market data and the strategy hooks join the Lab once the authoring flow lands.',
+        'Clicking a workspace shows its projects. They open in the editor, in this tab, and come back here when you press Projects.',
+      onNextClick: (_element, _step, { driver: instance }) => {
+        const expanded = expandFirstWorkspace();
+        if (!expanded) {
+          instance.moveNext();
+          return;
+        }
+        // The fold animates open, so the project row is settled before it is
+        // pointed at; otherwise driver measures a half-height row.
+        window.setTimeout(() => instance.moveNext(), 400);
+      },
+    },
+  },
+  {
+    element: '.lab-ws-project-open',
+    popover: {
+      title: 'Open a project',
+      description:
+        'A project is one workspace on disk: a read-only core package, the files you write, and the editor that ties them together. We will open the first one.',
+      onNextClick: (_element, _step, { driver: instance }) => {
+        const opened = openFirstProject();
+        if (!opened) {
+          instance.destroy();
+          return;
+        }
+        void waitForElement('.lab-explorer', 6000).then(() => instance.moveNext());
+      },
+    },
+  },
+  {
+    element: '.lab-explorer',
+    popover: {
+      title: 'The project files',
+      description:
+        'Folders are built from the files themselves, so the tree never shows an empty folder. core is read-only engine code to read; workspace is where your files live. The icons at the top import a folder from this computer or create a file.',
+    },
+  },
+  {
+    element: '.lab-editor-surface',
+    popover: {
+      title: 'An editor that checks as you type',
+      description:
+        'Pyright runs in the browser: names complete, hovers explain types, and mistakes are underlined before the file is run. Cmd or Ctrl and S saves; unsaved files show a dot on the tab.',
+    },
+  },
+  {
+    element: '.lab-terminal',
+    popover: {
+      title: 'Run it here',
+      description:
+        'Run executes the open file in the browser and prints into this terminal, with the interpreter status beside the tab. Cmd or Ctrl and Enter runs from inside the editor as well.',
     },
   },
 ];

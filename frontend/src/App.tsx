@@ -360,8 +360,9 @@ export default function App() {
                 }}
               />
             ) : activeTab === 'lab' ? (
-              // The Lab runs its own Python in a worker; no server involved.
-              <LabPage />
+              // The Lab keeps its projects on this device and runs Python in a
+              // worker, so the page needs no account and no server.
+              <LabPage onNavigate={handleTabChange} />
             ) : activeTab === 'learn' ? (
               // A page with an address but no content yet: the cards on Home
               // link here, and it carries its own title and hash.
