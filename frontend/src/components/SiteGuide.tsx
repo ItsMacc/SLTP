@@ -14,6 +14,7 @@ import {
   LifeBuoy,
 } from 'lucide-react';
 import Button from '../ui/Button';
+import { startPageTour, type TourTab } from '../pageTours';
 import './SiteGuide.css';
 
 export interface SiteGuideProps {
@@ -124,6 +125,22 @@ export default function SiteGuide({ open, onClose, onNavigate }: SiteGuideProps)
 
   const close = useCallback(() => dismiss('home'), [dismiss]);
 
+  /* A page tour needs the page on screen, so the slideshow closes first and the
+     tour takes over once the page has mounted. */
+  const takeTour = useCallback(
+    (tab: TourTab) => {
+      setLeaving(true);
+      window.setTimeout(() => {
+        setLeaving(false);
+        setIndex(0);
+        onClose();
+        onNavigate(tab);
+        startPageTour(tab);
+      }, 200);
+    },
+    [onClose, onNavigate],
+  );
+
   /* Reset to the first slide each time it opens */
   useEffect(() => {
     if (open) {
@@ -183,7 +200,7 @@ export default function SiteGuide({ open, onClose, onNavigate }: SiteGuideProps)
             title="Research"
             body="Start with any company you're curious about and pull up decades of its market history. Every chart on SLTP is drawn from the same deep dataset: over 11,500 symbols going back 28 years. Choose whatever window matters to you, from a single earnings season to the full history, and when you're ready, run any of our premade strategies across those exact dates to see how it would have handled the markets you actually lived through."
             ctaLabel="Take the tour"
-            onCta={() => dismiss('research')}
+            onCta={() => takeTour('research')}
           />
         )}
         {index === 2 && (
@@ -192,7 +209,7 @@ export default function SiteGuide({ open, onClose, onNavigate }: SiteGuideProps)
             title="Strategies"
             body="This is the library: every strategy SLTP publishes, with nothing hidden. Each one lays out its rules in plain language, shows you how it performed against its benchmark, and breaks its results across eight different market periods. Read them the way you'd interview a partner, and decide whether a strategy's style fits yours before you trust a single one of its signals."
             ctaLabel="Take the tour"
-            onCta={() => dismiss('strategies')}
+            onCta={() => takeTour('strategies')}
           />
         )}
         {index === 3 && (
