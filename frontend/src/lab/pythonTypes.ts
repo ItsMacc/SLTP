@@ -7,4 +7,6 @@ export interface RunResult {
   ok: boolean;
   error?: string;
   durationMs: number;
+  /** A normalized backtest payload when the file produced a strategy result. */
+  result?: unknown;
 }

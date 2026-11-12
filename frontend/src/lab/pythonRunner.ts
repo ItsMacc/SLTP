@@ -18,16 +18,26 @@ export interface PythonState {
   /** The interpreter version Pyodide reports, once it is up. */
   version: string | null;
   error: string | null;
+  /** What the boot is doing right now, shown while the engine installs. */
+  detail: string | null;
+  /** Whether the pinned sltp wheel installed at boot. */
+  engine: boolean | null;
+  /** Whether the OPFS market cache and its metadata are ready. */
+  market: boolean | null;
+  /** Why the engine is missing, when it is. */
+  warning: string | null;
 }
 
-/** How long one snippet may run before the worker is replaced. */
-const RUN_TIMEOUT_MS = 10_000;
+/** How long one file may run before the worker is replaced. A backtest can
+    warm its cache on the first run, so this is minutes rather than seconds. */
+const RUN_TIMEOUT_MS = 300_000;
 
 type OutMessage =
-  | { type: 'ready'; version: string }
+  | { type: 'ready'; version: string; engine: boolean; market: boolean; warning: string | null }
+  | { type: 'status'; text: string }
   | { type: 'stdout'; id: number; text: string }
   | { type: 'stderr'; id: number; text: string }
-  | { type: 'done'; id: number; ok: boolean; message?: string; durationMs: number }
+  | { type: 'done'; id: number; ok: boolean; message?: string; result?: unknown; durationMs: number }
   | { type: 'boot-error'; message: string }
   | { type: 'reset-ok' };
 
@@ -39,7 +49,7 @@ interface ActiveRun {
   timer: number;
 }
 
-let state: PythonState = { status: 'idle', version: null, error: null };
+let state: PythonState = { status: 'idle', version: null, error: null, detail: null, engine: null, market: null, warning: null };
 const listeners = new Set<() => void>();
 
 let worker: Worker | null = null;
@@ -81,13 +91,26 @@ function onMessage(event: MessageEvent<OutMessage>): void {
   const message = event.data;
 
   if (message.type === 'ready') {
-    publish({ status: 'ready', version: message.version || null, error: null });
+    publish({
+      status: 'ready',
+      version: message.version || null,
+      error: null,
+      detail: null,
+      engine: message.engine,
+      market: message.market,
+      warning: message.warning,
+    });
+    return;
+  }
+
+  if (message.type === 'status') {
+    publish({ detail: message.text });
     return;
   }
 
   if (message.type === 'boot-error') {
     disposeWorker();
-    publish({ status: 'error', error: message.message || 'Python could not start' });
+    publish({ status: 'error', error: message.message || 'Python could not start', detail: null });
     return;
   }
 
@@ -104,12 +127,13 @@ function onMessage(event: MessageEvent<OutMessage>): void {
       ok: message.ok,
       error: message.ok ? undefined : message.message ?? 'The snippet failed',
       durationMs: message.durationMs,
+      result: message.result,
     });
   }
 }
 
 function startWorker(): void {
-  publish({ status: 'loading', error: null });
+  publish({ status: 'loading', error: null, detail: 'Loading Python…', engine: null, market: null, warning: null });
   const created = new Worker(new URL('./python.worker.ts', import.meta.url), { type: 'module' });
   worker = created;
   created.onmessage = onMessage;
@@ -131,7 +155,7 @@ export function loadPython(): void {
 /** Retries after a failed boot. */
 export function restartPython(): void {
   disposeWorker();
-  publish({ status: 'idle', error: null, version: null });
+  publish({ status: 'idle', error: null, version: null, detail: null, engine: null, market: null, warning: null });
   startWorker();
 }
 
@@ -140,7 +164,9 @@ export function restartPython(): void {
  * resolves for a Python error as well, since the error is output, not a crash.
  */
 export function runPython(
+  filename: string,
   code: string,
+  files: { name: string; content: string }[],
   handlers: { onOutput?: (text: string) => void; onOutputError?: (text: string) => void } = {},
 ): Promise<RunResult> {
   if (!worker || state.status !== 'ready') {
@@ -153,7 +179,7 @@ export function runPython(
 
   // One run at a time: the worker's stdout has no way to tell two apart.
   if (activeRun) {
-    return Promise.resolve({ ok: false, error: 'A snippet is already running', durationMs: 0 });
+    return Promise.resolve({ ok: false, error: 'A file is already running', durationMs: 0 });
   }
 
   const id = nextId++;
@@ -161,7 +187,7 @@ export function runPython(
     const timer = window.setTimeout(() => {
       settle({
         ok: false,
-        error: `Stopped after ${Math.round(RUN_TIMEOUT_MS / 1000)} seconds. Python restarted and the variables from this session were cleared.`,
+        error: `Stopped after ${Math.round(RUN_TIMEOUT_MS / 1000)} seconds. Python restarted and the files from this session were cleared.`,
         durationMs: RUN_TIMEOUT_MS,
       });
       disposeWorker();
@@ -170,11 +196,11 @@ export function runPython(
     }, RUN_TIMEOUT_MS);
 
     activeRun = { id, onOutput: handlers.onOutput, onOutputError: handlers.onOutputError, resolve, timer };
-    worker?.postMessage({ id, kind: 'run', code });
+    worker?.postMessage({ id, kind: 'run', filename, code, files });
   });
 }
 
-/** Clears every name the reader defined, keeping the interpreter warm. */
-export function resetPythonNamespace(): void {
+/** Clears the files and modules of the last run, keeping Python warm. */
+export function resetProjectFiles(): void {
   worker?.postMessage({ id: nextId++, kind: 'reset' });
 }

@@ -7,8 +7,8 @@
 //   workspace/  the strategy files the student writes
 //
 // The tree is built from the files themselves, so a folder is only shown when
-// a real file lives in it. Nothing is executed in the browser: the project runs
-// in a container on the server, so Run is a placeholder for now.
+// a real file lives in it. Python runs in a browser worker (python.worker.ts),
+// with the project's files written to its own in-memory disk before each run.
 import {
   memo,
   useCallback,
@@ -52,8 +52,10 @@ import {
   renameLabFile,
   saveLabFile,
   type LabProject,
-} from '../lab/localStore';
+} from '../lab/store';
 import { getPythonState, loadPython, runPython, subscribePython } from '../lab/pythonRunner';
+import LabResultsWindow from '../lab/LabResultsWindow';
+import { isLabBacktestPayload, type LabBacktestPayload } from '../lab/backtestTypes';
 import { loadProject, setDiagnosticsTarget, syncDocument, type Monaco } from '../lab/pyright';
 import { applyLabEditorTheme } from '../lab/editorTheme';
 import { pickLocalFolder, type FolderFileMap } from '../lab/fileReader';
@@ -221,6 +223,8 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
   const [savingFile, setSavingFile] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const dismissToast = useCallback(() => setToast(null), []);
+  // Set when a run produced a Backtester result; opens the report window.
+  const [backtest, setBacktest] = useState<{ payload: LabBacktestPayload; fileName: string } | null>(null);
 
   const [pyright, setPyright] = useState<PyrightState>('starting');
   const [editorReady, setEditorReady] = useState(false);
@@ -300,9 +304,16 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
   const dirtyCount = files.filter(isDirty).length;
   const activeFile = files.find((f) => f.name === active) ?? null;
   const runnerLabel = python.status === 'ready'
-    ? (python.version ? `Python ${python.version} ready` : 'Python ready')
+    ? [
+        python.version ? `Python ${python.version}` : 'Python',
+        python.engine
+          ? python.market === false
+            ? 'sltp ready · market unavailable'
+            : 'sltp ready'
+          : 'sltp unavailable',
+      ].join(' · ')
     : python.status === 'loading'
-      ? 'Starting Python…'
+      ? (python.detail ?? 'Starting Python…')
       : python.status === 'error'
         ? 'Python could not start'
         : 'Python is not running';
@@ -465,14 +476,27 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
 
     setRunning(true);
     appendLine('command', `$ python ${activeFile.name}`);
-    const result = await runPython(activeFile.draft, {
-      // Chunks arrive on line boundaries with their newline still attached.
-      onOutput: (text) => appendLine('stdout', text.replace(/\n$/, '')),
-      onOutputError: (text) => appendLine('stderr', text.replace(/\n$/, '')),
-    });
+    const result = await runPython(
+      activeFile.name,
+      activeFile.draft,
+      // Every file's draft goes in, so a helper edited but not saved is still
+      // what the entry file imports.
+      files.map((file) => ({ name: file.name, content: file.draft })),
+      {
+        // Chunks arrive on line boundaries with their newline still attached.
+        onOutput: (text) => appendLine('stdout', text.replace(/\n$/, '')),
+        onOutputError: (text) => appendLine('stderr', text.replace(/\n$/, '')),
+      },
+    );
 
     if (result.ok) {
       appendLine('info', `Finished in ${Math.max(1, Math.round(result.durationMs))} ms`);
+      // A strategy run returns the engine's full result as well as its
+      // printed output. Open the report over the editor; plain scripts have
+      // no result and stay in the terminal.
+      if (isLabBacktestPayload(result.result)) {
+        setBacktest({ payload: result.result, fileName: activeFile.name });
+      }
     } else {
       appendLine('stderr', result.error ?? 'The run failed.');
     }
@@ -1099,6 +1123,20 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
                   }
                   options={{
                     readOnly: activeFile.locked,
+                    // The VSCode feel: completions open as you type, after a
+                    // dot or quote, and while a call's arguments are typed.
+                    quickSuggestions: { other: 'on', comments: 'off', strings: 'on' },
+                    suggestOnTriggerCharacters: true,
+                    acceptSuggestionOnEnter: 'on',
+                    tabCompletion: 'on',
+                    parameterHints: { enabled: true },
+                    snippetSuggestions: 'inline',
+                    wordBasedSuggestions: 'currentDocument',
+                    suggest: {
+                      showStatusBar: true,
+                      preview: true,
+                      snippetsPreventQuickSuggestions: false,
+                    },
                     minimap: { enabled: editorSettings.minimap },
                     fontSize: editorSettings.fontSize,
                     fontFamily: "'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace",
@@ -1120,6 +1158,7 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
               <TerminalPanel
                 lines={output}
                 status={runnerLabel}
+                runnerTitle={python.warning ?? undefined}
                 onClear={clearOutput}
                 onClose={closeTerminal}
               />
@@ -1163,6 +1202,15 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
         />
       )}
 
+      {backtest && (
+        <LabResultsWindow
+          result={backtest.payload}
+          fileName={backtest.fileName}
+          projectName={project.name}
+          onClose={() => setBacktest(null)}
+        />
+      )}
+
       {toast && <SuccessToast message={toast} onClose={dismissToast} />}
 
       {writeBusy && (
@@ -1195,6 +1243,8 @@ interface TerminalPanelProps {
   lines: OutputLine[];
   /** The interpreter's state, shown beside the terminal tab. */
   status: string;
+  /** The reason the engine is missing, when it is. */
+  runnerTitle?: string;
   onClear: () => void;
   onClose: () => void;
 }
@@ -1203,7 +1253,7 @@ interface TerminalPanelProps {
 // Memoized, so typing in the editor does not re-render a long output log.
 const TerminalPanel = memo(TerminalPanelView);
 
-function TerminalPanelView({ lines, status, onClear, onClose }: TerminalPanelProps) {
+function TerminalPanelView({ lines, status, runnerTitle, onClear, onClose }: TerminalPanelProps) {
   const bodyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -1217,7 +1267,7 @@ function TerminalPanelView({ lines, status, onClear, onClose }: TerminalPanelPro
         <span className="lab-terminal-tab">
           <TerminalIcon size={12} aria-hidden="true" /> Terminal
         </span>
-        <span className="lab-terminal-status">{status}</span>
+        <span className="lab-terminal-status" title={runnerTitle}>{status}</span>
         <span className="lab-terminal-spacer" />
         <Button variant="ghost" size="sm" onClick={onClear}>Clear</Button>
         <Button variant="ghost" size="icon" className="lab-icon-button" aria-label="Close terminal" title="Close" onClick={onClose}>

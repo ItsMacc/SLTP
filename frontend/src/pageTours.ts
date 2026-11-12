@@ -211,7 +211,12 @@ function openFirstProject(): boolean {
   return true;
 }
 
-const LAB_STEPS = (): DriveStep[] => [
+const LAB_STEPS = (): DriveStep[] => {
+  // A new account has no projects, so the editor steps have nothing to point
+  // at. The home steps still make sense, and the first project the reader
+  // creates has its own guide in the editor itself.
+  const hasProjects = document.querySelector('.lab-ws-row[data-projects]:not([data-projects="0"])') !== null;
+  const steps: DriveStep[] = [
   {
     element: '.lab-hero',
     popover: {
@@ -244,6 +249,11 @@ const LAB_STEPS = (): DriveStep[] => [
         'New project asks where it should live, what it is called, and what code to start from. The templates are small Python files: a list, a loop, a function, or an empty file.',
     },
   },
+  ];
+
+  if (!hasProjects) return steps;
+
+  steps.push(
   {
     element: '.lab-ws-row-main',
     popover: {
@@ -302,7 +312,10 @@ const LAB_STEPS = (): DriveStep[] => [
         'Run executes the open file in the browser and prints into this terminal, with the interpreter status beside the tab. Cmd or Ctrl and Enter runs from inside the editor as well.',
     },
   },
-];
+  );
+
+  return steps;
+};
 
 /* ---------- Running ---------- */
 
@@ -322,14 +335,21 @@ const STEPS: Record<TourTab, () => DriveStep[]> = {
 let activeTour: Driver | null = null;
 
 export function startPageTour(tab: TourTab): void {
-  const steps = STEPS[tab]();
-  const anchor = typeof steps[0]?.element === 'string' ? steps[0].element : null;
+  const anchor = (() => {
+    const first = STEPS[tab]()[0]?.element;
+    return typeof first === 'string' ? first : null;
+  })();
 
   activeTour?.destroy();
   activeTour = null;
 
   void (async () => {
-    if (anchor) await waitForElement(anchor, 6000);
+    // A gated page (the sign-in card stands where the Lab would be) has no
+    // anchor, so there is nothing to point at and no tour to start.
+    if (anchor && !(await waitForElement(anchor, 6000))) return;
+    // Built after the page is on screen: the Lab's steps depend on whether
+    // the account already has a project to open.
+    const steps = STEPS[tab]();
     const instance = driver({
       showProgress: true,
       progressText: '{{current}} of {{total}}',

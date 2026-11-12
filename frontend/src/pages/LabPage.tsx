@@ -10,7 +10,7 @@ import {
   listLabWorkspaces,
   type LabProject,
   type LabWorkspace,
-} from '../lab/localStore';
+} from '../lab/store';
 import type { LabTemplateId } from '../lab/templates';
 import type { NewProjectInput } from './LabNewProject';
 import Button from '../ui/Button';
@@ -238,7 +238,7 @@ export default function LabPage({ onNavigate }: LabPageProps) {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  // Reads this device's workspaces and their projects.
+  // Reads the signed-in account's workspaces and their projects.
   const loadWorkspaces = useCallback(async () => {
     setLoading(true);
     try {
@@ -303,7 +303,7 @@ export default function LabPage({ onNavigate }: LabPageProps) {
   };
 
   // The wizard reports the target workspace: an existing one (by id) or a brand
-  // new one (by name). Either way the project is written to this device.
+  // new one (by name). Either way the project is written to the account.
   const handleCreateFromWizard = async (input: NewProjectInput) => {
     let project: LabProject;
     if (input.workspaceId) {

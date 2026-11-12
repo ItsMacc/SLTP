@@ -43,7 +43,135 @@ let active: MonacoPyrightProvider | null = null;
 let providersRegistered = false;
 let queue: Promise<void> = Promise.resolve();
 
-const NO_SUGGESTIONS = { suggestions: [] };
+// The engine's public names, so the editor can still complete them while
+// Pyright is starting, after it fails, or where its import analysis returns
+// nothing yet (an import line with no prefix typed). Kept in step with the
+// re-exports in stubs/sltp/__init__.pyi.
+const SLTP_EXPORTS: { label: string; kind: 'class' | 'function' | 'constant'; detail: string }[] = [
+  { label: 'Backtester', kind: 'class', detail: 'Runs a strategy over a date range' },
+  { label: 'CALENDAR', kind: 'constant', detail: 'The trading calendar' },
+  { label: 'DateLabels', kind: 'class', detail: 'Date label container' },
+  { label: 'Event', kind: 'class', detail: 'A dated market event' },
+  { label: 'EventType', kind: 'class', detail: 'Kind of market event' },
+  { label: 'Order', kind: 'class', detail: 'An order returned by on_signal' },
+  { label: 'OrderSizing', kind: 'class', detail: 'How an order is sized' },
+  { label: 'PortfolioManager', kind: 'class', detail: 'Tracks positions and equity' },
+  { label: 'PositionType', kind: 'class', detail: 'Long or short' },
+  { label: 'RebalanceFrequency', kind: 'class', detail: 'How often a book rebalances' },
+  { label: 'StockData', kind: 'class', detail: 'One ticker, up to the current bar' },
+  { label: 'Strategy', kind: 'class', detail: 'Base class for a strategy' },
+  { label: 'Trade', kind: 'class', detail: 'A closed trade' },
+  { label: 'label', kind: 'function', detail: 'Label one value' },
+  { label: 'label_array', kind: 'function', detail: 'Label an array of values' },
+  { label: 'labels_from_codes', kind: 'function', detail: 'Read labels from codes' },
+  { label: 'register', kind: 'function', detail: 'Register a strategy' },
+  { label: 'to_code', kind: 'function', detail: 'Code for a label' },
+];
+
+const PYTHON_BUILTINS = [
+  'print', 'len', 'range', 'sum', 'min', 'max', 'abs', 'round', 'sorted', 'reversed',
+  'enumerate', 'zip', 'any', 'all', 'open', 'dict', 'list', 'set', 'tuple', 'str',
+  'int', 'float', 'bool', 'type', 'isinstance', 'repr',
+];
+
+/** Keywords and snippets that are useful even with no analysis behind them. */
+const PYTHON_SNIPPETS: { label: string; detail: string; insertText: string }[] = [
+  { label: 'def', detail: 'Define a function', insertText: 'def ${1:function_name}(${2:args}):\n    ${3:pass}' },
+  { label: 'for', detail: 'Loop over an iterable', insertText: 'for ${1:item} in ${2:items}:\n    ${3:pass}' },
+  { label: 'if', detail: 'Conditional block', insertText: 'if ${1:condition}:\n    ${2:pass}' },
+  { label: 'ifmain', detail: 'Run only as a script', insertText: 'if __name__ == "__main__":\n    ${1:main()}' },
+  { label: 'class', detail: 'Define a class', insertText: 'class ${1:Name}:\n    def __init__(self):\n        ${2:pass}' },
+  { label: 'try', detail: 'Handle an error', insertText: 'try:\n    ${1:pass}\nexcept ${2:Exception} as error:\n    ${3:raise}' },
+  { label: 'while', detail: 'Loop while true', insertText: 'while ${1:condition}:\n    ${2:pass}' },
+  { label: 'with', detail: 'Use a context manager', insertText: 'with ${1:expr} as ${2:name}:\n    ${3:pass}' },
+];
+
+function completionRange(monaco: Monaco, model: TextModel, position: MonacoNs.Position) {
+  const word = model.getWordUntilPosition(position);
+  return new monaco.Range(position.lineNumber, word.startColumn, position.lineNumber, word.endColumn);
+}
+
+/** Suggestions that do not need Pyright: the engine's names, builtins, snippets. */
+function fallbackSuggestions(
+  monaco: Monaco,
+  model: TextModel,
+  position: MonacoNs.Position,
+): MonacoNs.languages.CompletionList {
+  const range = completionRange(monaco, model, position);
+  const line = model.getLineContent(position.lineNumber).slice(0, position.column - 1);
+  const engineContext = /\bfrom\s+sltp\s+import\b|\bimport\s+sltp\b|\bsltp\s*\.$/.test(line);
+  const suggestions: MonacoNs.languages.CompletionItem[] = [];
+  const kinds = monaco.languages.CompletionItemKind;
+
+  if (engineContext) {
+    for (const name of SLTP_EXPORTS) {
+      suggestions.push({
+        label: name.label,
+        kind: name.kind === 'class' ? kinds.Class : name.kind === 'function' ? kinds.Function : kinds.Constant,
+        detail: name.detail,
+        documentation: `sltp · ${name.detail}`,
+        insertText: name.label,
+        sortText: `0${name.label}`,
+        range,
+      });
+    }
+  }
+
+  for (const name of PYTHON_BUILTINS) {
+    suggestions.push({
+      label: name,
+      kind: kinds.Function,
+      detail: 'Python builtin',
+      insertText: name,
+      sortText: `1${name}`,
+      range,
+    });
+  }
+
+  for (const snippet of PYTHON_SNIPPETS) {
+    suggestions.push({
+      label: snippet.label,
+      kind: kinds.Snippet,
+      detail: snippet.detail,
+      insertText: snippet.insertText,
+      insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+      sortText: `2${snippet.label}`,
+      range,
+    });
+  }
+
+  return { suggestions };
+}
+
+/** Snippets, plus the engine's names on an import line, without repeating labels. */
+function withSnippets(
+  monaco: Monaco,
+  model: TextModel,
+  position: MonacoNs.Position,
+  list: MonacoNs.languages.CompletionList,
+): MonacoNs.languages.CompletionList {
+  const range = completionRange(monaco, model, position);
+  const seen = new Set(list.suggestions.map((item) => (typeof item.label === 'string' ? item.label : item.label.label)));
+
+  // Pyright can return a list with nothing in it at all for `from sltp
+  // import ` (no prefix typed yet), so the engine names are merged in here
+  // rather than only being offered when the request comes back empty.
+  const engine = fallbackSuggestions(monaco, model, position).suggestions.filter(
+    (item) => String(item.sortText ?? '').startsWith('0') && !seen.has(String(item.label)),
+  );
+  for (const item of engine) seen.add(String(item.label));
+
+  const extra = PYTHON_SNIPPETS.filter((snippet) => !seen.has(snippet.label)).map((snippet) => ({
+    label: snippet.label,
+    kind: monaco.languages.CompletionItemKind.Snippet,
+    detail: snippet.detail,
+    insertText: snippet.insertText,
+    insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+    sortText: `2${snippet.label}`,
+    range,
+  }));
+  return { ...list, suggestions: [...list.suggestions, ...engine, ...extra] };
+}
 
 // Registers the editor features once. Each one forwards to the current worker, and falls back
 // to "nothing" if Pyright is still starting or a request fails.
@@ -54,11 +182,15 @@ function registerLanguageProviders(monaco: Monaco): void {
   monaco.languages.registerCompletionItemProvider('python', {
     triggerCharacters: ['.', '[', '"', "'"],
     provideCompletionItems: async (model, position) => {
-      if (!active) return NO_SUGGESTIONS;
+      if (!active) return fallbackSuggestions(monaco, model, position);
       try {
-        return await active.onCompletionRequest(model, position);
+        const list = await active.onCompletionRequest(model, position);
+        // An import line with no prefix yet comes back empty; the fallback
+        // still knows the engine's names, so the popup is never blank.
+        if (!list.suggestions.length) return fallbackSuggestions(monaco, model, position);
+        return withSnippets(monaco, model, position, list);
       } catch {
-        return NO_SUGGESTIONS;
+        return fallbackSuggestions(monaco, model, position);
       }
     },
     resolveCompletionItem: async (item) => {
@@ -112,6 +244,10 @@ function registerLanguageProviders(monaco: Monaco): void {
 // checking meanwhile.
 export function loadProject(monaco: Monaco, stubs: Record<string, string>): Promise<void> {
   const run = async () => {
+    // Providers go in before the worker starts: if Pyright cannot boot at all,
+    // the fallback completions still keep the editor useful.
+    registerLanguageProviders(monaco);
+
     // Static libraries first: the engine every strategy imports, plus numpy
     // when the project uses it. Project files are layered on afterwards.
     const typeStubs: PyrightFileTree = { sltp: sltpStubTree() };
@@ -185,7 +321,6 @@ export function loadProject(monaco: Monaco, stubs: Record<string, string>): Prom
       );
     });
 
-    registerLanguageProviders(monaco);
     const previous = active;
     active = next;
     previous?.lspClient.worker.terminate();

@@ -1,7 +1,7 @@
 // LabNewProject.tsx — Onboarding for a new Lab project: workspace, name, starting code, review.
 import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
-import type { LabWorkspace } from '../lab/localStore';
+import type { LabWorkspace } from '../lab/store';
 import { LAB_TEMPLATES, getTemplate, type LabTemplateId } from '../lab/templates';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
@@ -57,7 +57,7 @@ export default function LabNewProject({ workspaces, initialTemplate, initialTarg
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose, submitting]);
 
-  // The workspace list loads from this device, so the selection follows it:
+  // The workspace list loads from your account, so the selection follows it:
   // the chosen workspace when it still exists, otherwise the first one.
   const existingId =
     existingChoice && workspaces.some((w) => w.id === existingChoice)

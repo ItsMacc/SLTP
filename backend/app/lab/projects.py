@@ -29,7 +29,7 @@ def _lab_error(err: userdata.LabError) -> HTTPException:
 class WorkspaceCreateIn(BaseModel):
     workspace_name: str = Field(description="New workspace name, or the new-workspace branch of the wizard.")
     project_name: str = Field(description="First project inside the workspace.")
-    template: str = Field(default="blank", description="Starter file set: blank, ema-crossover, rsi-pullback, parabolic-sar.")
+    template: str = Field(default="blank", description="Starter file set: blank, moving-average, loops, functions.")
 
 
 class ProjectCreateIn(BaseModel):

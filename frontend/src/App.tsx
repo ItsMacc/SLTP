@@ -95,13 +95,22 @@ export default function App() {
     }
 
     setLegalPage(null);
-    // Settings is the only page behind a sign-in now.
-    const gated = route.tab === 'settings' && !userRef.current?.id;
+    // The Lab, Watchlist and Settings all hold data that belongs to an
+    // account, so a signed-out visitor gets the sign-up card instead of the
+    // page, whatever the address bar says.
+    const needsAccount = route.tab === 'settings' || route.tab === 'lab' || route.tab === 'watchlist';
+    const gated = needsAccount && !userRef.current?.id;
 
     setActiveTab(route.tab);
     if (gated) {
       setAuthMode('signup');
-      setAuthNotice('You must be logged in to use these features');
+      setAuthNotice(
+        route.tab === 'lab'
+          ? 'Create an account to open the Lab. Your projects are saved to it.'
+          : route.tab === 'watchlist'
+            ? 'Create an account to keep a watchlist of your own.'
+            : 'You must be logged in to use these features',
+      );
       return;
     }
     setAuthMode(null);
@@ -360,8 +369,8 @@ export default function App() {
                 }}
               />
             ) : activeTab === 'lab' ? (
-              // The Lab keeps its projects on this device and runs Python in a
-              // worker, so the page needs no account and no server.
+              // Projects are read from Turso for the signed-in account; Python
+              // itself runs in the browser worker.
               <LabPage onNavigate={handleTabChange} />
             ) : activeTab === 'learn' ? (
               // A page with an address but no content yet: the cards on Home

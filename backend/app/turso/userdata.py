@@ -647,201 +647,58 @@ def delete_user_lab_projects(user_id: str) -> None:
 # The starter file each project template creates. Ids match the Lab wizard's
 # template list, so the preview it shows is the file the project opens with.
 _BLANK_SEED = '''\
-# custom_strategy.py — your strategy lives here. The engine calls run_daily
-# once per day and on_signal for each ticker, and fills the Orders you return.
-from sltp import Order, OrderSizing, PositionType, StockData, Strategy
+# A blank file to start from.
+# Run it, or edit it into anything you like.
 
-
-class CustomStrategy(Strategy):
-    def __init__(self):
-        super().__init__()
-        self.name = "Custom strategy"
-        self.description = "Describe what this strategy does."
-        self.MAX_POSITIONS = 10
-        self.ALLOCATION = 0.10
-        self.MIN_BARS_REQUIRED = 60
-
-    def run_daily(self, current_date: str) -> None:
-        # Runs once per day, before any ticker is read. Use it for
-        # market-wide work like rankings; it cannot see today's close.
-        pass
-
-    def on_signal(self, ticker: str, data: StockData) -> Order | None:
-        # Runs once per ticker. Return an Order to trade, None to sit out.
-        return None
+print("Hello from the Lab")
 '''
 
-_EMA_SEED = '''\
-# ema_crossover_strategy.py — buy when the 12-day EMA crosses above the
-# 26-day EMA. A stop 8% below and a target 16% above frame every position.
-import numpy as np
+_MOVING_AVERAGE_SEED = '''\
+# The average of a list of closes, and how far each one sits from it.
 
-from sltp import Order, OrderSizing, PositionType, StockData, Strategy
+prices = [101.5, 99.2, 103.8, 98.4, 105.1]
+average = sum(prices) / len(prices)
 
+print(f"{len(prices)} closes, average {average:.2f}")
+print()
 
-def _ema(closes: np.ndarray, bars: int) -> np.ndarray:
-    weight = 2.0 / (bars + 1.0)
-    out = np.empty_like(closes, dtype=float)
-    out[0] = closes[0]
-    for i in range(1, len(closes)):
-        out[i] = closes[i] * weight + out[i - 1] * (1.0 - weight)
-    return out
-
-
-class EmaCrossover(Strategy):
-    def __init__(self):
-        super().__init__()
-        self.name = "EMA crossover"
-        self.description = "Buy when the 12-day EMA crosses above the 26-day EMA."
-        self.MAX_POSITIONS = 10
-        self.ALLOCATION = 0.10
-        self.MIN_BARS_REQUIRED = 60
-
-    def on_signal(self, ticker: str, data: StockData) -> Order | None:
-        if ticker in self.open_tickers:
-            return None
-        closes = data.close_price
-        if len(closes) < 27:
-            return None
-        fast = _ema(closes, 12)
-        slow = _ema(closes, 26)
-        if not (fast[-2] <= slow[-2] and fast[-1] > slow[-1]):
-            return None
-        close = float(closes[-1])
-        return Order(
-            ticker=ticker,
-            position_type=PositionType.LONG,
-            allocation=self.ALLOCATION,
-            sizing=OrderSizing.EQUITY,
-            order_date=str(data.dates[-1]),
-            stop_loss=round(close * 0.92, 2),
-            take_profit=round(close * 1.16, 2),
-        )
+for price in prices:
+    change = (price - average) / average * 100
+    print(f"{price:>6.1f}   {change:+5.1f}% from the average")
 '''
 
-_RSI_SEED = '''\
-# rsi_pullback_strategy.py — buy an oversold dip while the close is still
-# above its 50-day average. A stop 6% below and a target 12% above frame it.
-import numpy as np
+_LOOPS_SEED = '''\
+# A loop that builds a list, then reads it back.
 
-from sltp import Order, OrderSizing, PositionType, StockData, Strategy
+trades = [12.4, -3.8, 7.1, -1.2, 9.6]
+results = []
 
+for trade in trades:
+    results.append(round(trade * 2, 2))
 
-def _rsi(closes: np.ndarray, bars: int = 14) -> np.ndarray:
-    deltas = np.diff(closes, prepend=closes[0])
-    gains = np.clip(deltas, 0.0, None)
-    losses = np.clip(-deltas, 0.0, None)
-    avg_gain = np.convolve(gains, np.ones(bars) / bars, mode="same")
-    avg_loss = np.convolve(losses, np.ones(bars) / bars, mode="same")
-    denom = np.where(avg_loss == 0.0, 1e-9, avg_loss)
-    return 100.0 - 100.0 / (1.0 + avg_gain / denom)
-
-
-class RsiPullback(Strategy):
-    def __init__(self):
-        super().__init__()
-        self.name = "RSI pullback"
-        self.description = "Buy an oversold dip while the close holds above its 50-day average."
-        self.MAX_POSITIONS = 10
-        self.ALLOCATION = 0.10
-        self.MIN_BARS_REQUIRED = 60
-
-    def on_signal(self, ticker: str, data: StockData) -> Order | None:
-        if ticker in self.open_tickers:
-            return None
-        closes = data.close_price
-        if len(closes) < 51:
-            return None
-        if float(closes[-1]) <= float(np.mean(closes[-50:])):
-            return None
-        if float(_rsi(closes)[-1]) >= 30.0:
-            return None
-        close = float(closes[-1])
-        return Order(
-            ticker=ticker,
-            position_type=PositionType.LONG,
-            allocation=self.ALLOCATION,
-            sizing=OrderSizing.EQUITY,
-            order_date=str(data.dates[-1]),
-            stop_loss=round(close * 0.94, 2),
-            take_profit=round(close * 1.12, 2),
-        )
+print("doubled:", results)
+print("wins:", [value for value in results if value > 0])
+print("total:", round(sum(results), 2))
 '''
 
-_SAR_SEED = '''\
-# parabolic_sar_strategy.py — enter when price flips above the Parabolic SAR
-# and use the SAR as the stop. The target sits 25% above the entry.
-import numpy as np
-
-from sltp import Order, OrderSizing, PositionType, StockData, Strategy
+_FUNCTIONS_SEED = '''\
+# A small function with a docstring, called a few times.
 
 
-def _sar(high: np.ndarray, low: np.ndarray) -> np.ndarray:
-    out = np.empty_like(high, dtype=float)
-    out[0] = low[0]
-    trend_up = True
-    extreme = high[0]
-    accel = 0.02
-    for i in range(1, len(high)):
-        prior = out[i - 1]
-        out[i] = prior + accel * (extreme - prior)
-        if trend_up:
-            if low[i] < out[i]:
-                trend_up = False
-                out[i] = extreme
-                extreme = low[i]
-                accel = 0.02
-            else:
-                if high[i] > extreme:
-                    extreme = high[i]
-                    accel = min(0.20, accel + 0.02)
-        else:
-            if high[i] > out[i]:
-                trend_up = True
-                out[i] = extreme
-                extreme = high[i]
-                accel = 0.02
-            else:
-                if low[i] < extreme:
-                    extreme = low[i]
-                    accel = min(0.20, accel + 0.02)
-    return out
+def percent_change(value, base):
+    """How far value sits from base, as a percentage."""
+    return (value - base) / base * 100
 
 
-class ParabolicSarTrend(Strategy):
-    def __init__(self):
-        super().__init__()
-        self.name = "Parabolic SAR trend"
-        self.description = "Enter when price flips above the SAR; the SAR is the stop."
-        self.MAX_POSITIONS = 10
-        self.ALLOCATION = 0.10
-        self.MIN_BARS_REQUIRED = 60
-
-    def on_signal(self, ticker: str, data: StockData) -> Order | None:
-        if ticker in self.open_tickers:
-            return None
-        if len(data.close_price) < 10:
-            return None
-        sar = _sar(data.high, data.low)
-        if not (data.low[-2] <= sar[-2] and data.close_price[-1] > sar[-1]):
-            return None
-        close = float(data.close_price[-1])
-        return Order(
-            ticker=ticker,
-            position_type=PositionType.LONG,
-            allocation=self.ALLOCATION,
-            sizing=OrderSizing.EQUITY,
-            order_date=str(data.dates[-1]),
-            stop_loss=round(float(sar[-1]), 2),
-            take_profit=round(close * 1.25, 2),
-        )
+for close in (99.2, 104.8, 97.5):
+    print(close, f"{percent_change(close, 100):+.1f}%")
 '''
 
 TEMPLATE_SEEDS: dict[str, list[tuple[str, str]]] = {
-    "blank": [("workspace/custom_strategy.py", _BLANK_SEED)],
-    "ema-crossover": [("workspace/ema_crossover_strategy.py", _EMA_SEED)],
-    "rsi-pullback": [("workspace/rsi_pullback_strategy.py", _RSI_SEED)],
-    "parabolic-sar": [("workspace/parabolic_sar_strategy.py", _SAR_SEED)],
+    "blank": [("workspace/main.py", _BLANK_SEED)],
+    "moving-average": [("workspace/main.py", _MOVING_AVERAGE_SEED)],
+    "loops": [("workspace/main.py", _LOOPS_SEED)],
+    "functions": [("workspace/main.py", _FUNCTIONS_SEED)],
 }
 
 # -------- Operator counts --------
