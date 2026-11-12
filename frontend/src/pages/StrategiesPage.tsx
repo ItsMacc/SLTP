@@ -1,18 +1,23 @@
 // StrategiesPage.tsx — the strategy library: an index on the left, one detail
-// card on the right, two tabs.
+// card on the right, three tabs.
 //
-// All copy comes from data/strategies.ts, so the page adds no prose of its own
-// beyond its header. The Overview tab carries the idea, the case for it and the
-// case against it, plus the notes behind the rules. The Mechanics tab carries
-// what the strategy holds, the settings the engine runs, and the notes on how a
-// day actually executes. Glossary terms are marked inline by GlossaryText and
-// shown in a tooltip, with no glossary tab on the page.
+// All copy comes from data/strategies.ts and every number from
+// data/backtestResults.ts, which backend/scripts/regime_report.py writes. The
+// charts are SVGs committed under assets/strategies, so the page renders the
+// same output the report script produced without a backend call.
+//
+// Overview carries the idea, the case for it and the case against it, plus the
+// notes behind the rules. Mechanics carries what the strategy holds, the
+// settings the engine runs, and the execution notes. Backtests replays each
+// strategy over eight fixed windows and marks the better figure in every metric
+// pair. Glossary terms are marked inline by GlossaryText, with no glossary tab.
 
-import { useRef, useState } from 'react';
+import { Fragment, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { GlossaryText } from '../components/GlossaryText';
 import { STRATEGIES, type StrategyProfile } from '../data/strategies';
+import { BACKTESTS, type BacktestMetrics, type BacktestRow } from '../data/backtestResults';
 import './StrategiesPage.css';
 
 interface StrategiesPageProps {
@@ -22,9 +27,57 @@ interface StrategiesPageProps {
 const TABS = [
   { key: 'overview', label: 'Overview' },
   { key: 'mechanics', label: 'Mechanics' },
+  { key: 'backtests', label: 'Backtests' },
 ] as const;
 
 type TabKey = (typeof TABS)[number]['key'];
+
+/* Every window chart, bundled as a URL at build time. Buy and hold is drawn on
+   its own (curve_), every other strategy against it (graph_). */
+const CHART_URLS = import.meta.glob<string>('../assets/strategies/*/*.svg', {
+  query: '?url',
+  import: 'default',
+  eager: true,
+});
+
+const chartFor = (strategyId: string, key: string, single: boolean) =>
+  CHART_URLS[`../assets/strategies/${strategyId}/${single ? 'curve' : 'graph'}_${key}.svg`];
+
+/* ---------- Formatting ---------- */
+
+const month = (iso: string) =>
+  new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-GB', {
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+
+const windowDates = (row: BacktestRow) => `${month(row.start)} to ${month(row.end)}`;
+
+const indexValue = (value: number) => value.toFixed(1);
+const percent = (value: number) => `${value.toFixed(1)}%`;
+const ratio = (value: number) => value.toFixed(2);
+/* Max drawdown is stored as a positive magnitude, so the minus is added here. */
+const drawdown = (value: number) => `-${value.toFixed(1)}%`;
+
+const METRICS: Array<{
+  key: keyof BacktestMetrics;
+  label: string;
+  format: (value: number) => string;
+  higherIsBetter: boolean;
+}> = [
+  { key: 'ending_value', label: 'Ending value', format: indexValue, higherIsBetter: true },
+  { key: 'cagr', label: 'CAGR', format: percent, higherIsBetter: true },
+  { key: 'sharpe', label: 'Sharpe', format: ratio, higherIsBetter: true },
+  { key: 'max_drawdown', label: 'Max drawdown', format: drawdown, higherIsBetter: false },
+];
+
+/* Which side of a pair wins, given whether the larger number is the better one. */
+const compare = (mine: number, theirs: number, higherIsBetter: boolean): [boolean, boolean] => {
+  if (mine === theirs) return [false, false];
+  const mineWins = higherIsBetter ? mine > theirs : mine < theirs;
+  return [mineWins, !mineWins];
+};
 
 /* ---------- Tabs ---------- */
 
@@ -128,6 +181,91 @@ function Mechanics({ profile }: { profile: StrategyProfile }) {
   );
 }
 
+function Backtests({ profile }: { profile: StrategyProfile }) {
+  const rows = BACKTESTS[profile.id] ?? [];
+  const isBenchmark = profile.id === 'buy-and-hold';
+
+  return (
+    <>
+      <section className="strat-section">
+        <h3 className="strat-section-title">{rows.length} market windows</h3>
+        <p className="strat-prose">
+          {isBenchmark
+            ? 'One line per window, on an index that starts at 100 on the first session. The last reading is the multiple the account finished on, so 145.2 means 45.2% more money than the start. The four figures under each chart describe the whole window.'
+            : 'Both lines start at 100 on the first session, so the strategy and the market are read on the same scale. Every figure is shown for both sides and the better one in each pair is green. Winning one figure is not a verdict: a strategy can lead on return and still carry the deeper fall.'}
+        </p>
+      </section>
+
+      <div className="strat-window-cards">
+        {rows.map((row) => {
+          const chart = chartFor(profile.id, row.key, isBenchmark);
+          const benchmark = row.benchmark;
+          return (
+            <figure className="strat-window-card" key={row.key}>
+              <figcaption className="strat-window-head">
+                <span className="strat-window-title">{row.label}</span>
+                <span className="strat-window-meta">
+                  <span>{windowDates(row)}</span>
+                  <span className={`strat-window-kind is-${row.kind}`}>
+                    {row.kind === 'bear' ? 'Bear' : 'Bull'}
+                  </span>
+                </span>
+              </figcaption>
+
+              {chart && (
+                <img
+                  src={chart}
+                  alt={
+                    isBenchmark
+                      ? `Buy and hold equity curve, ${row.label}, ${windowDates(row)}`
+                      : `${profile.name} against buy and hold, ${row.label}, ${windowDates(row)}`
+                  }
+                  loading="lazy"
+                  decoding="async"
+                />
+              )}
+
+              {benchmark ? (
+                <div className="strat-window-metrics">
+                  <span aria-hidden="true" />
+                  <span className="strat-window-side">Strategy</span>
+                  <span className="strat-window-side">Buy &amp; hold</span>
+
+                  {METRICS.map((metric) => {
+                    const mine = row.strategy[metric.key];
+                    const theirs = benchmark[metric.key];
+                    const [mineBetter, theirsBetter] = compare(mine, theirs, metric.higherIsBetter);
+                    return (
+                      <Fragment key={metric.key}>
+                        <span className="strat-window-label">{metric.label}</span>
+                        <span className={`strat-window-value${mineBetter ? ' is-better' : ''}`}>
+                          {metric.format(mine)}
+                        </span>
+                        <span className={`strat-window-value${theirsBetter ? ' is-better' : ''}`}>
+                          {metric.format(theirs)}
+                        </span>
+                      </Fragment>
+                    );
+                  })}
+                </div>
+              ) : (
+                <dl className="strat-window-facts">
+                  {METRICS.map((metric) => (
+                    <div key={metric.key} className="strat-window-fact">
+                      <dt>{metric.label}</dt>
+                      <dd>{metric.format(row.strategy[metric.key])}</dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
+            </figure>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
 /* ---------- Page ---------- */
 
 export const StrategiesPage: React.FC<StrategiesPageProps> = ({ onNavigate }) => {
@@ -163,9 +301,9 @@ export const StrategiesPage: React.FC<StrategiesPageProps> = ({ onNavigate }) =>
         <p className="strat-eyebrow">Strategy library</p>
         <h1 className="strat-title">How each strategy thinks</h1>
         <p className="strat-lede">
-          {STRATEGIES.length} rule sets, each written out in the same order: the idea behind it, the
-          case for and against it, what it actually buys, and every setting the engine runs.
-          Underlined words carry a plain-language definition on hover or tap.
+          {STRATEGIES.length} rule sets, each documented the same way: the idea, the case for and
+          against it, the settings the engine runs, and what those rules did over eight fixed market
+          windows. Underlined words carry a plain-language definition on hover or tap.
         </p>
       </header>
 
@@ -203,8 +341,8 @@ export const StrategiesPage: React.FC<StrategiesPageProps> = ({ onNavigate }) =>
               <GlossaryText text={profile.summary} glossary={profile.glossary} />
             </p>
             <p className="strat-detail-record">
-              Rules, not results: every parameter below is one the engine runs. The Research page
-              replays them over any dates you pick.
+              Overview and Mechanics hold the rules the engine runs. Backtests replays those rules
+              over eight fixed windows, four declines and four recoveries.
             </p>
             <dl className="strat-facts">
               {profile.facts.map((fact) => (
@@ -250,6 +388,7 @@ export const StrategiesPage: React.FC<StrategiesPageProps> = ({ onNavigate }) =>
           >
             {tab === 'overview' && <Overview profile={profile} />}
             {tab === 'mechanics' && <Mechanics profile={profile} />}
+            {tab === 'backtests' && <Backtests profile={profile} />}
           </div>
 
           {onNavigate && (

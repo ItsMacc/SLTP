@@ -28,3 +28,6 @@ dist/
 
 # Freebuff local workspace state
 .freebuff/
+
+# Regenerated report curves (backend/scripts/regime_report.py)
+backend/scripts/artifacts/
