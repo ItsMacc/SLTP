@@ -13,6 +13,7 @@ import { applyAndStoreUserSettings, readSessionUserSettings, readStoredUserSetti
 import LegalPage, { type LegalPageKind } from './pages/LegalPage';
 import DocsPage from './pages/DocsPage';
 import ResearchPage from './pages/ResearchPage';
+import StrategiesPage from './pages/StrategiesPage';
 import Sltp404Page from './pages/Sltp404Page';
 import WatchlistPage from './pages/WatchlistPage';
 import ErrorToast from './ui/ErrorToast';
@@ -335,7 +336,11 @@ export default function App() {
               // Price history reads the browser's OPFS market cache, so no
               // server round-trip stands between a tap and the chart.
               <ResearchPage userId={user?.id} initialSettings={user?.settings} />
-            ) : activeTab === 'strategies' || activeTab === 'lab' || activeTab === 'learn' ? (
+            ) : activeTab === 'strategies' ? (
+              // The library reads data/strategies.ts, so it needs no request
+              // of its own; the run-it buttons hand the visitor to Research.
+              <StrategiesPage onNavigate={handleTabChange} />
+            ) : activeTab === 'lab' || activeTab === 'learn' ? (
               // Pages with an address but no content yet: the cards on Home
               // link here, and each one carries its own title and hash.
               <Sltp404Page page={activeTab[0].toUpperCase() + activeTab.slice(1)} onNavigate={handleTabChange} />
