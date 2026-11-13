@@ -1,0 +1,140 @@
+/* ============================================================
+   LabRunProgress.css — the run window: stage, elapsed seconds and
+   an indeterminate bar until the report is ready.
+   ============================================================ */
+
+.lab-run-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1085;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-md);
+  background: rgba(6, 9, 14, 0.68);
+  backdrop-filter: blur(7px);
+}
+
+.lab-run-window {
+  width: min(32rem, 100%);
+  overflow: hidden;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 1rem;
+  box-shadow: 0 1.5rem 5rem rgba(0, 0, 0, 0.55);
+}
+
+.lab-run-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.lab-run-kicker {
+  margin: 0 0 var(--space-2xs);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.lab-run-title {
+  margin: 0;
+  color: var(--text-primary);
+  font-family: var(--font-heading);
+  font-size: var(--text-2xl);
+  font-weight: 400;
+  line-height: 1.15;
+}
+
+.lab-run-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+}
+
+.lab-run-stage {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  color: var(--text-primary);
+  font-size: var(--text-base);
+}
+
+.lab-run-spinner {
+  flex: 0 0 auto;
+  color: var(--accent);
+  animation: lab-run-spin 0.9s linear infinite;
+}
+
+.lab-run-track {
+  width: 100%;
+  height: 0.375rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--bg-surface-hover);
+}
+
+.lab-run-bar {
+  display: block;
+  width: 38%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  animation: lab-run-slide 1.4s ease-in-out infinite;
+}
+
+.lab-run-time {
+  margin: 0;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+.lab-run-time strong {
+  color: var(--text-primary);
+  font-size: var(--text-lg);
+  font-weight: 500;
+}
+
+.lab-run-note {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+}
+
+.lab-run-error {
+  margin: 0;
+  color: var(--error);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+@keyframes lab-run-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes lab-run-slide {
+  0% { transform: translateX(-110%); }
+  100% { transform: translateX(300%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lab-run-spinner,
+  .lab-run-bar {
+    animation: none;
+  }
+
+  .lab-run-bar {
+    width: 100%;
+  }
+}

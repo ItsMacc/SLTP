@@ -33,28 +33,44 @@ import {
   FileCode,
   Folder,
   FolderInput,
+  History,
+  Laptop,
   Lock,
   Pencil,
   Play,
   Plus,
   Save,
+  Settings2,
   Terminal as TerminalIcon,
   Trash2,
   X,
 } from 'lucide-react';
 import * as Collapsible from '@radix-ui/react-collapsible';
 import {
+  createLabBacktest,
   createLabFile,
   deleteLabFile,
   deleteLabFolder,
   getLabProjectFiles,
   importLabFiles,
+  renameLabBacktest,
   renameLabFile,
   saveLabFile,
+  type LabBacktestSummary,
   type LabProject,
 } from '../lab/store';
 import { getPythonState, loadPython, runPython, subscribePython } from '../lab/pythonRunner';
 import LabResultsWindow from '../lab/LabResultsWindow';
+import LabBacktestsWindow from '../lab/LabBacktestsWindow';
+import LabRunProgress from '../lab/LabRunProgress';
+import LabRunSettingsDialog from '../lab/LabRunSettings';
+import {
+  readLabRunSettings,
+  saveLabRunSettings,
+  toEngineSettings,
+  type LabRunSettings,
+} from '../lab/runSettings';
+import { isMobileDevice } from '../store/device';
 import { isLabBacktestPayload, type LabBacktestPayload } from '../lab/backtestTypes';
 import { loadProject, setDiagnosticsTarget, syncDocument, type Monaco } from '../lab/pyright';
 import { applyLabEditorTheme } from '../lab/editorTheme';
@@ -67,6 +83,10 @@ import { modShortcut } from '../shortcuts';
 import './LabEditorPage.css';
 
 const FILE_NAME_RE = /^(?:[A-Za-z0-9_-]{1,50}\/)*[A-Za-z0-9_-]{1,50}\.py$/;
+// A class that extends Strategy. A run only opens the backtest window when the
+// file being run actually defines one (or still calls Backtester directly).
+const STRATEGY_CLASS_RE = /^\s*class\s+[A-Za-z_]\w*\s*\([^)\n]*\bStrategy\b[^)\n]*\)\s*:/m;
+const BACKTESTER_RE = /\bBacktester\s*\(/;
 // The two packages every project is built from.
 const CORE_FOLDER = 'core';
 const WORKSPACE_FOLDER = 'workspace';
@@ -203,7 +223,7 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
   const [actionError, setActionError] = useState<string | null>(null);
   const error = actionError ?? (projectFilesQuery.error instanceof Error
     ? projectFilesQuery.error.message
-    : projectFilesQuery.error ? 'Could not load the project files.' : null);
+    : projectFilesQuery.error ? 'Could not load the workspace files.' : null);
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT);
   const [newFileOpen, setNewFileOpen] = useState(false);
   const [newName, setNewName] = useState('');
@@ -221,10 +241,24 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
   const [fileBusy, setFileBusy] = useState(false);
   // The file currently being written to the project store, if any.
   const [savingFile, setSavingFile] = useState<string | null>(null);
+  const [closing, setClosing] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const dismissToast = useCallback(() => setToast(null), []);
-  // Set when a run produced a Backtester result; opens the report window.
-  const [backtest, setBacktest] = useState<{ payload: LabBacktestPayload; fileName: string } | null>(null);
+  // The run window, then the report it hands over to. A saved report keeps
+  // its Turso summary so the title can be renamed and the date shown.
+  const [run, setRun] = useState<{ startedAt: number; stage: string; error?: string } | null>(null);
+  const [backtest, setBacktest] = useState<{
+    payload: LabBacktestPayload;
+    fileName: string;
+    saved: LabBacktestSummary | null;
+    saveError: string | null;
+  } | null>(null);
+  const [backtestsOpen, setBacktestsOpen] = useState(false);
+  // The dates and costs the next run uses. The dialog starts at the engine
+  // defaults, so a first run needs no setup.
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [runSettings, setRunSettings] = useState<LabRunSettings>(readLabRunSettings);
+  const mobileDevice = isMobileDevice();
 
   const [pyright, setPyright] = useState<PyrightState>('starting');
   const [editorReady, setEditorReady] = useState(false);
@@ -241,8 +275,10 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
   // Python boots as the project opens, so Run is usually live by the time the
   // reader has looked around the explorer.
   useEffect(() => {
+    // A phone never reaches the editor, so it should not pay for a Python boot.
+    if (mobileDevice) return;
     loadPython();
-  }, []);
+  }, [mobileDevice]);
 
   const [terminalOpen, setTerminalOpen] = useState(true);
   const [output, setOutput] = useState<OutputLine[]>([]);
@@ -269,7 +305,7 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
     return () => observer.disconnect();
   }, []);
 
-  // Opening a project should start at the top of the page, not at wherever the list was scrolled.
+  // Opening a workspace should start at the top of the page, not at wherever the list was scrolled.
   useLayoutEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, []);
@@ -286,12 +322,17 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
       const previous = latestFilesRef.current.find((item) => item.name === file.name);
       return { name: file.name, locked: file.locked, saved: file.content, draft: previous?.draft ?? file.content };
     });
-    // The first editable file opens; the read-only core is there to read, not to edit.
-    const first = list.find((file) => !file.locked)?.name ?? list[0]?.name ?? null;
+    // Every written file opens as a tab, so the whole workspace is visible at
+    // once. The read-only core is there to read, not to edit.
+    const editable = list.filter((file) => !file.locked).map((file) => file.name);
+    const first = editable[0] ?? list[0]?.name ?? null;
     setFiles(list);
     // The two packages start open; deeper folders stay as the user left them.
     setExpandedFolders((previous) => new Set([...previous, ...TOP_FOLDERS]));
-    setTabs((previous) => previous.length ? previous.filter((name) => list.some((file) => file.name === name)) : first ? [first] : []);
+    setTabs((previous) => {
+      if (previous.length) return previous.filter((name) => list.some((file) => file.name === name));
+      return editable.length ? editable : first ? [first] : [];
+    });
     setActive((previous) => previous && list.some((file) => file.name === previous) ? previous : first);
   // Keep unsaved drafts local; reconcile only when the cache snapshot changes.
   }, [projectFilesQuery.data]);
@@ -473,9 +514,20 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
       appendLine('info', 'Python is still starting. Run turns on when it is ready.');
       return;
     }
+    if (!getPythonState().engine) {
+      appendLine('info', 'The trading engine is still installing. Run turns on when it is ready.');
+      return;
+    }
 
     setRunning(true);
-    appendLine('command', `$ python ${activeFile.name}`);
+    setOutput([]);
+    const startedAt = Date.now();
+    // A plain script (print(10), a helper import) is still a useful run, but it
+    // is not a backtest: no progress window, no report, just LOGS.
+    const showsBacktest = !activeFile.locked
+      && (STRATEGY_CLASS_RE.test(activeFile.draft) || BACKTESTER_RE.test(activeFile.draft));
+    setRun(showsBacktest ? { startedAt, stage: 'Preparing the workspace…' } : null);
+    appendLine('command', `$ run ${activeFile.name}`);
     const result = await runPython(
       activeFile.name,
       activeFile.draft,
@@ -483,22 +535,49 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
       // what the entry file imports.
       files.map((file) => ({ name: file.name, content: file.draft })),
       {
+        onProgress: (text) => {
+          if (showsBacktest) setRun((current) => (current ? { ...current, stage: text } : current));
+        },
         // Chunks arrive on line boundaries with their newline still attached.
         onOutput: (text) => appendLine('stdout', text.replace(/\n$/, '')),
         onOutputError: (text) => appendLine('stderr', text.replace(/\n$/, '')),
       },
+      toEngineSettings(runSettings),
     );
 
     if (result.ok) {
       appendLine('info', `Finished in ${Math.max(1, Math.round(result.durationMs))} ms`);
-      // A strategy run returns the engine's full result as well as its
-      // printed output. Open the report over the editor; plain scripts have
-      // no result and stay in the terminal.
       if (isLabBacktestPayload(result.result)) {
-        setBacktest({ payload: result.result, fileName: activeFile.name });
+        const payload: LabBacktestPayload = {
+          ...result.result,
+          logs: result.logs ?? [],
+          file_name: activeFile.name,
+        };
+          if (showsBacktest) {
+            setRun((current) => (current ? { ...current, stage: 'Saving the backtest…' } : current));
+          }
+        let saved: LabBacktestSummary | null = null;
+        let saveError: string | null = null;
+        try {
+          saved = await createLabBacktest(project.id, payload);
+        } catch (err) {
+          saveError = err instanceof Error ? err.message : 'Could not save the backtest.';
+        }
+        setRun(null);
+        setBacktest({ payload, fileName: activeFile.name, saved, saveError });
+      } else {
+        if (result.notice) appendLine('info', result.notice);
+        setRun(null);
       }
     } else {
       appendLine('stderr', result.error ?? 'The run failed.');
+      if (showsBacktest) {
+        setRun((current) =>
+          current
+            ? { ...current, error: result.error ?? 'The strategy stopped before a result was produced.' }
+            : current,
+        );
+      }
     }
     setRunning(false);
   };
@@ -601,7 +680,12 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
     try {
       const file = await createLabFile(project.id, name);
       setFiles((previous) => previous.map((item) => item.name === name ? { ...item, name: file.name } : item));
-      updateProjectCache((current) => ({ ...current, files: current.files.map((item) => item.name === name ? file : item) }));
+      updateProjectCache((current) => ({
+        ...current,
+        files: current.files.some((item) => item.name === name)
+          ? current.files.map((item) => item.name === name ? file : item)
+          : [...current.files, file],
+      }));
       closeNewFile();
     } catch (err) {
       setFiles((previous) => previous.filter((item) => item.name !== name));
@@ -736,7 +820,7 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
       const nextTabs = tabs.filter((t) => t !== name);
       setTabs(nextTabs);
       if (active === name) setActive(nextTabs[Math.max(0, idx - 1)] ?? null);
-      setToast(`Deleted ${name} from the project`);
+      setToast(`Deleted ${name} from the workspace`);
     } catch (err) {
       setFiles(beforeFiles);
       updateProjectCache((current) => ({
@@ -750,9 +834,43 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
     }
   };
 
-  const handleBack = () => {
-    if (dirtyCount > 0 && !window.confirm('You have unsaved changes. Leave without saving?')) return;
-    onBack();
+  // Closing the project writes every dirty file before leaving. If a write
+  // fails the page stays put with the error, so no work disappears quietly.
+  const handleCloseProject = async () => {
+    if (closing) return;
+    setActionError(null);
+    const dirty = files.filter(isDirty);
+    if (dirty.length === 0) {
+      onBack();
+      return;
+    }
+    setClosing(true);
+    try {
+      for (const file of dirty) {
+        const draft = file.draft;
+        await saveLabFile(project.id, file.name, draft);
+        setFiles((previous) =>
+          previous.map((current) =>
+            current.name === file.name ? { ...current, saved: draft } : current,
+          ),
+        );
+        updateProjectCache((current) => ({
+          ...current,
+          files: current.files.map((saved) =>
+            saved.name === file.name ? { ...saved, content: draft } : saved,
+          ),
+        }));
+      }
+      onBack();
+    } catch (err) {
+      setActionError(
+        err instanceof Error
+          ? `Could not save your changes, so the project stayed open. ${err.message}`
+          : 'Could not save your changes, so the project stayed open.',
+      );
+    } finally {
+      setClosing(false);
+    }
   };
 
   // -------- Explorer tree --------
@@ -774,10 +892,10 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
       ? 'Renaming your file…'
       : 'Importing your files…';
   const writeSub = creating
-    ? 'Adding the file to your project.'
+    ? 'Adding the file to your workspace.'
     : fileBusy
-      ? 'Updating the name in the project store.'
-      : 'Copying the folder into your project.';
+      ? 'Updating the name in the workspace store.'
+      : 'Copying the folder into your workspace.';
 
   const toggleFolder = (path: string, open: boolean) => {
     setExpandedFolders((previous) => {
@@ -910,81 +1028,44 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
   const bodyStyle = { '--sidebar-width': `${sidebarWidth}px` } as CSSProperties;
 
   return (
-    <div className="lab-editor">
-      <header className="lab-editor-bar">
-        <Button variant="ghost" size="sm" className="lab-editor-back" onClick={handleBack}>
-          <ArrowLeft size={14} aria-hidden="true" /> Projects
-        </Button>
-        <div className="lab-editor-title">
-          <span className="lab-editor-workspace">{workspaceName}</span>
-          <h1 className="lab-editor-project">{project.name}</h1>
-        </div>
-        <div className="lab-editor-actions">
-          <span
-            className={`lab-editor-status lab-desktop-only ${dirtyCount > 0 ? 'is-dirty' : ''} ${savingFile || deletingTarget ? 'is-busy' : ''}`}
-            aria-live="polite"
-          >
-            {savingFile ? (
-              <>
-                <LoaderInline size={14} />
-                Saving…
-              </>
-            ) : deletingTarget ? (
-              <>
-                <LoaderInline size={14} />
-                Deleting…
-              </>
-            ) : dirtyCount > 0 ? (
-              `${dirtyCount} unsaved ${dirtyCount === 1 ? 'change' : 'changes'}`
-            ) : (
-              'All changes saved'
-            )}
-          </span>
-          <Button
-            variant="secondary"
-            size="sm"
-            className="lab-editor-btn lab-desktop-only"
-            disabled={!activeFile || !isDirty(activeFile)}
-            onClick={() => active && void saveFile(active)}
-            title={`Save (${modShortcut('S')})`}
-          >
-            {savingFile ? (
-              <>
-                <LoaderInline tone="inherit" />
-                Saving…
-              </>
-            ) : (
-              <>
-                <Save size={14} aria-hidden="true" /> Save
-              </>
-            )}
-          </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            className="lab-editor-btn lab-desktop-only"
-            disabled={!activeFile || loading || running || python.status !== 'ready'}
-            onClick={() => { void runActive(); }}
-            title={`Run the open file (${modShortcut('Enter')})`}
-          >
-            <Play size={12} aria-hidden="true" /> {running ? 'Running…' : 'Run'}
-          </Button>
-        </div>
-      </header>
-
+    <div className={`lab-editor ${mobileDevice ? 'is-mobile-device' : ''}`}>
       {error && <p className="lab-status is-error lab-editor-error">{error}</p>}
 
-      <p className="lab-mobile-note">
-        Editing and running are desktop-only. On a phone, review the project files here.
-      </p>
+      <div className="lab-mobile-gate">
+        <section className="lab-mobile-card" aria-labelledby="lab-mobile-title">
+          <span className="lab-mobile-eyebrow">
+            <Laptop size={14} aria-hidden="true" /> Desktop only
+          </span>
+          <p className="lab-mobile-workspace">{workspaceName}</p>
+          <h1 className="lab-mobile-title" id="lab-mobile-title">
+            Running backtests on mobile isn’t supported yet.
+          </h1>
+          <p className="lab-mobile-copy">
+            Feel free to check out the results from your previous runs. Open this workspace on a
+            computer to edit the code and start a new backtest.
+          </p>
+          <div className="lab-mobile-actions">
+            <Button variant="primary" size="md" onClick={() => setBacktestsOpen(true)}>
+              <History size={16} aria-hidden="true" /> View backtest results
+            </Button>
+            <Button variant="ghost" size="md" onClick={onBack}>
+              <ArrowLeft size={15} aria-hidden="true" /> Back to workspaces
+            </Button>
+          </div>
+        </section>
+      </div>
 
+      {!mobileDevice && (
       <div className="lab-ide" style={bodyStyle}>
         <div className="lab-ide-body">
-          <aside className="lab-explorer" aria-label="Project files">
+          <aside className="lab-explorer" aria-label="Workspace files">
             <div className="lab-explorer-header">
               <div className="lab-explorer-heading">
                 <p className="lab-explorer-title">Explorer</p>
-                <span className="lab-explorer-count">{files.length} files · {tree.size} folders</span>
+                <span className="lab-explorer-count">
+                  {files.length} {files.length === 1 ? 'file' : 'files'} · {tree.size}{' '}
+                  {tree.size === 1 ? 'folder' : 'folders'}
+                </span>
               </div>
               <div className="lab-explorer-tools lab-desktop-only">
                 <Button
@@ -1039,7 +1120,7 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
 
             {rootFiles.length > 0 && (
               <ul className="lab-file-tree">
-                <li className="lab-explorer-section-label">Project root</li>
+                <li className="lab-explorer-section-label">Workspace root</li>
                 {rootFiles.map(renderFile)}
               </ul>
             )}
@@ -1059,33 +1140,104 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
           />
 
           <section className="lab-ide-main">
-            <div className="lab-tabs" role="tablist">
-              {tabs.map((name) => {
-                const file = files.find((f) => f.name === name);
-                return (
-                  <div key={name} className={`lab-tab ${name === active ? 'is-active' : ''}`}>
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected={name === active}
-                      className="lab-tab-label"
-                      onClick={() => setActive(name)}
-                    >
-                      {file?.locked && <Lock size={11} aria-hidden="true" />}
-                      {basename(name)}
-                      {file && isDirty(file) && <span className="lab-dirty-dot" aria-hidden="true" />}
-                    </button>
-                    <button
-                      type="button"
-                      className="lab-tab-close"
-                      aria-label={`Close ${name}`}
-                      onClick={() => closeTab(name)}
-                    >
-                      <X size={12} aria-hidden="true" />
-                    </button>
-                  </div>
-                );
-              })}
+            <div className="lab-tabs">
+              <div className="lab-tabs-strip" role="tablist" aria-label="Open files">
+                {tabs.map((name) => {
+                  const file = files.find((f) => f.name === name);
+                  return (
+                    <div key={name} className={`lab-tab ${name === active ? 'is-active' : ''}`}>
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={name === active}
+                        className="lab-tab-label"
+                        onClick={() => setActive(name)}
+                      >
+                        {file?.locked && <Lock size={11} aria-hidden="true" />}
+                        {basename(name)}
+                        {file && isDirty(file) && <span className="lab-dirty-dot" aria-hidden="true" />}
+                      </button>
+                      <button
+                        type="button"
+                        className="lab-tab-close"
+                        aria-label={`Close ${name}`}
+                        onClick={() => closeTab(name)}
+                      >
+                        <X size={12} aria-hidden="true" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="lab-tab-actions">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="lab-tab-action"
+                  aria-label="Save the open file"
+                  title={`Save (${modShortcut('S')})`}
+                  disabled={!activeFile || !isDirty(activeFile)}
+                  onClick={() => active && void saveFile(active)}
+                >
+                  {savingFile ? <LoaderInline size={14} tone="inherit" /> : <Save size={14} aria-hidden="true" />}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="lab-tab-action"
+                  aria-label="Backtest settings"
+                  title="Backtest settings: dates and trading costs"
+                  onClick={() => setSettingsOpen(true)}
+                >
+                  <Settings2 size={15} aria-hidden="true" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="lab-tab-action is-run"
+                  aria-label="Run the open strategy"
+                  title={
+                    python.status === 'ready' && python.engine
+                      ? `Run the strategy (${modShortcut('Enter')})`
+                      : 'Run turns on when Python and sltp finish loading'
+                  }
+                  disabled={!activeFile || loading || running || python.status !== 'ready' || python.engine !== true}
+                  onClick={() => { void runActive(); }}
+                >
+                  {running ? <LoaderInline size={14} tone="inherit" /> : <Play size={14} aria-hidden="true" />}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="lab-tab-action"
+                  aria-label="Open saved backtests"
+                  title="Backtest results"
+                  onClick={() => setBacktestsOpen(true)}
+                >
+                  <History size={15} aria-hidden="true" />
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  className="lab-close-project"
+                  onClick={() => void handleCloseProject()}
+                  disabled={closing}
+                  title={
+                    dirtyCount > 0
+                      ? `Save ${dirtyCount} unsaved ${dirtyCount === 1 ? 'change' : 'changes'} and close`
+                      : 'Close the project and return to workspaces'
+                  }
+                >
+                  {closing ? (
+                    <>
+                      <LoaderInline size={13} tone="inherit" /> Saving…
+                    </>
+                  ) : (
+                    'Close project'
+                  )}
+                </Button>
+              </div>
             </div>
 
             <div className="lab-editor-surface">
@@ -1093,7 +1245,7 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
                 <div className="lab-editor-placeholder lab-editor-loading">
                   <LoaderScreen
                     label="Loading files…"
-                    sub="Reading the project files from the account store."
+                    sub="Reading the workspace files from the account store."
                   />
                 </div>
               )}
@@ -1184,13 +1336,14 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
               className="lab-statusbar-item lab-statusbar-button"
               onClick={() => setTerminalOpen((open) => !open)}
             >
-              <TerminalIcon size={11} aria-hidden="true" /> {terminalOpen ? 'Hide terminal' : 'Show terminal'}
+              <TerminalIcon size={11} aria-hidden="true" /> {terminalOpen ? 'Hide logs' : 'Show logs'}
             </button>
             <CursorStatus listenerRef={cursorListenerRef} />
             <span className="lab-statusbar-item">Python</span>
           </div>
         </footer>
       </div>
+      )}
 
       {pendingImport && (
         <ImportFolderDialog
@@ -1202,12 +1355,56 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
         />
       )}
 
+      {run && (
+        <LabRunProgress
+          stage={run.stage}
+          startedAt={run.startedAt}
+          error={run.error}
+          onClose={() => setRun(null)}
+        />
+      )}
+
+      {backtestsOpen && (
+        <LabBacktestsWindow
+          projectId={project.id}
+          workspaceName={workspaceName}
+          onClose={() => setBacktestsOpen(false)}
+        />
+      )}
+
       {backtest && (
         <LabResultsWindow
           result={backtest.payload}
           fileName={backtest.fileName}
-          projectName={project.name}
+          workspaceName={workspaceName}
+          backtestName={backtest.saved?.name}
+          backtestId={backtest.saved?.id}
+          createdAt={backtest.saved?.created_at}
+          saveError={backtest.saveError}
+          onRename={
+            backtest.saved
+              ? async (name) => {
+                  const updated = await renameLabBacktest(backtest.saved!.id, name);
+                  setBacktest((current) =>
+                    current && current.saved
+                      ? { ...current, saved: { ...current.saved, name: updated.name } }
+                      : current,
+                  );
+                }
+              : undefined
+          }
           onClose={() => setBacktest(null)}
+        />
+      )}
+
+      {settingsOpen && (
+        <LabRunSettingsDialog
+          value={runSettings}
+          onApply={(next) => {
+            saveLabRunSettings(next);
+            setRunSettings(next);
+          }}
+          onClose={() => setSettingsOpen(false)}
         />
       )}
 
@@ -1262,23 +1459,23 @@ function TerminalPanelView({ lines, status, runnerTitle, onClear, onClose }: Ter
   }, [lines]);
 
   return (
-    <section className="lab-terminal" aria-label="Terminal">
+    <section className="lab-terminal" aria-label="Logs">
       <header className="lab-terminal-bar">
         <span className="lab-terminal-tab">
-          <TerminalIcon size={12} aria-hidden="true" /> Terminal
+          <TerminalIcon size={12} aria-hidden="true" /> Logs
         </span>
         <span className="lab-terminal-status" title={runnerTitle}>{status}</span>
         <span className="lab-terminal-spacer" />
         <Button variant="ghost" size="sm" onClick={onClear}>Clear</Button>
-        <Button variant="ghost" size="icon" className="lab-icon-button" aria-label="Close terminal" title="Close" onClick={onClose}>
+        <Button variant="ghost" size="icon" className="lab-icon-button" aria-label="Close logs" title="Close" onClick={onClose}>
           <X size={13} aria-hidden="true" />
         </Button>
       </header>
       <div className="lab-terminal-body" ref={bodyRef} role="log" aria-live="polite">
         {lines.length === 0 ? (
           <p className="lab-terminal-empty">
-            Press Run (or {modShortcut('Enter')}) to run the open file. Python runs in this browser,
-            and the output appears here.
+            Press Run (or {modShortcut('Enter')}) to run your strategy. Anything your code prints
+            appears here; the backtest report opens in its own window.
           </p>
         ) : (
           lines.map((line) => (

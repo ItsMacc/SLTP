@@ -66,6 +66,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [signingOut, setSigningOut] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
+  const [guideIndex, setGuideIndex] = useState(0);
 
   // One account sync per user at a time. The sign-in card and the auth
   // listener both ask for it, and the Turso write must only happen once.
@@ -211,6 +212,13 @@ export default function App() {
   /** Navigates to a page. The address bar leads and the hash listener applies
       the change — including the sign-in gate — so Back/Forward take that same
       path rather than a second, divergent one. */
+  /** Opens the site guide. Home always starts at the welcome; a page tour
+      passes the slide it came from. */
+  const openGuide = useCallback((index = 0) => {
+    setGuideIndex(index);
+    setGuideOpen(true);
+  }, []);
+
   const handleTabChange = (tab: string) => {
     // The library's handover is for the trip it starts. Leaving Research clears
     // it, so a later visit from the nav opens on the stock chart as it always
@@ -312,6 +320,9 @@ export default function App() {
         open={guideOpen}
         onClose={() => setGuideOpen(false)}
         onNavigate={handleTabChange}
+        index={guideIndex}
+        onIndexChange={setGuideIndex}
+        onOpenGuideAt={openGuide}
       />
 
       <main className="app-main">
@@ -379,7 +390,7 @@ export default function App() {
             ) : (
               // Home and the guide both land here; an unknown address falls
               // back to Home too, so a stale link never strands the visitor.
-              <HomePage onNavigate={handleTabChange} onOpenGuide={() => setGuideOpen(true)} />
+              <HomePage onNavigate={handleTabChange} onOpenGuide={() => openGuide()} />
             )}
           </div>
         )}

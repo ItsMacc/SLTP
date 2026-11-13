@@ -5,6 +5,35 @@
    UI atoms. Breakpoints in rem.
    ============================================================ */
 
+/* ---------- Lab backtest defaults ---------- */
+.st-settings-lab-dates {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-sm);
+}
+
+.st-settings-lab-dates .custom-datepicker-wrapper {
+  flex: 1;
+  min-width: 0;
+}
+
+.st-settings-lab-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-md);
+}
+
+@media (max-width: 48rem) {
+  .st-settings-lab-dates {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .st-settings-lab-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 /* ---------- Settings page ---------- */
 .st-settings-layout {
   padding: 3rem 2rem;

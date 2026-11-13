@@ -1,12 +1,26 @@
-// templates.ts — the starting files the New project wizard offers.
+// templates.ts — the starting strategies the New project wizard offers.
 //
-// Each template is plain Python that runs in the browser today: a list, a loop,
-// a function. The strategy shapes (EMA crossover, RSI pullback, SAR) return
-// once the engine hooks land in the Lab; until then a project should open on
-// code that prints something the first time it is run.
-import { Activity, Crosshair, FileCode, TrendingUp, type LucideIcon } from 'lucide-react';
+// Every template is a Strategy class, not a script that builds a Backtester.
+// Run finds the class, instantiates it and runs it over the default window,
+// so a new project is one click from a real report.
+//
+// The four named templates are the prebuilt strategies the browser engine
+// runs, imported straight from their sources so the wizard always shows the
+// code that ships with the engine.
 
-export type LabTemplateId = 'blank' | 'moving-average' | 'loops' | 'functions';
+import { Crosshair, FileCode, Globe, Shield, TrendingUp, type LucideIcon } from 'lucide-react';
+
+import adaptiveMomentumSource from '../store/strategies/adaptive_momentum.py?raw';
+import gtaSource from '../store/strategies/global_trend_allocation.py?raw';
+import minVolSource from '../store/strategies/minimum_volatility.py?raw';
+import smrSource from '../store/strategies/statistical_mean_reversion.py?raw';
+
+export type LabTemplateId =
+  | 'blank'
+  | 'adaptive-momentum'
+  | 'global-trend-allocation'
+  | 'minimum-volatility'
+  | 'statistical-mean-reversion';
 
 export interface LabTemplate {
   id: LabTemplateId;
@@ -21,85 +35,161 @@ export interface LabTemplate {
   icon: LucideIcon;
 }
 
-const BLANK = `# A blank file to start from.
-# Run it, or edit it into anything you like.
+/** Drop the "browser copy" note: it explains the bundling, not the strategy. */
+function starter(source: string): string {
+  return source
+    .split('\n')
+    .filter((line) => !line.startsWith('# BROWSER COPY') && !line.startsWith('# inside the engine worker'))
+    .join('\n');
+}
 
-print("Hello from the Lab")
+const BLANK = `from sltp import Order, RebalanceFrequency, StockData, Strategy
+
+
+class MyStrategy(Strategy):
+    """Every hook a Strategy can implement, in the order the engine calls them."""
+
+
+    def __init__(self):
+        super().__init__()
+
+        # Identity. Both are shown by the API and the strategy registry.
+        self.name: str = "My strategy"
+        self.description: str = "One line on what this strategy does."
+
+        # Book policy: the limits the engine enforces on your positions.
+        self.MAX_POSITIONS: int = 10  # Most tickers held at once. None means no cap.
+        self.MAX_ALLOCATION_PER_TICKER: float = 0.15  # Ceiling on one ticker's share of equity. None means no ceiling.
+        self.MAX_LOTS_PER_TICKER: int = 1  # Separate entries one ticker may hold at once.
+        self.REBALANCE_FREQUENCY: RebalanceFrequency = RebalanceFrequency.MONTHLY  # NEVER, MONTHLY, QUARTERLY or YEARLY. Sets how often on_rebalance runs.
+        self.MIN_BARS_REQUIRED: int = 60  # Sessions of history a ticker needs before the hooks run for it.
+        self.LIQUIDATE_ON_END: bool = False  # True closes every open lot at the final close.
+        self.STREAMING_INDICATORS: bool = False  # True keeps indicators in a rolling cache instead of recomputing them.
+
+        # Your own parameters. Anything the hooks below read belongs here.
+        self.ALLOCATION: float = 0.10  # Share of equity one entry uses.
+        self.STOP_LOSS_PCT: float = 0.08
+        self.TAKE_PROFIT_PCT: float = 0.16
+
+
+    # -------- Required --------
+
+    def on_signal(self, ticker: str, data: StockData) -> Order | None:
+        """Runs for each eligible ticker after fills. Return an Order to queue an
+        entry for the next open, or None to leave the ticker alone."""
+        if ticker in self.open_tickers:  # Already held: do not stack entries.
+            return None
+
+        closes = data.close_price
+        if len(closes) < self.MIN_BARS_REQUIRED:
+            return None
+
+        # No setup yet. Replace this with your entry rule and return an Order:
+        #
+        #   close = float(closes[-1])
+        #   return Order(
+        #       ticker=ticker,
+        #       position_type=PositionType.LONG,
+        #       allocation=self.ALLOCATION,
+        #       sizing=OrderSizing.EQUITY,
+        #       order_date=str(data.dates[-1]),
+        #       stop_loss=round(close * (1.0 - self.STOP_LOSS_PCT), 2),
+        #       take_profit=round(close * (1.0 + self.TAKE_PROFIT_PCT), 2),
+        #   )
+        return None
+
+
+    # -------- Optional --------
+
+    def run_daily(self, current_date: str) -> None:
+        """Optional. Runs once per session, before any fill or signal. Use it for
+        per-day state that does not belong to a single ticker."""
+        pass
+
+    def initialize_universe(self, current_date: str, histories: dict[str, StockData]) -> bool:
+        """Builds the names this strategy may trade. Runs before the loop, and again
+        during warmup until it returns True. Returning True with no tickers raises."""
+        self.add_tickers(["AAPL", "MSFT", "NVDA", "SPY"])
+        return True
+
+    def on_rebalance(self, current_date: str, histories: dict[str, StockData]) -> None:
+        """Optional. Runs after fills and before signals, only when
+        REBALANCE_FREQUENCY is due. Use it to re-rank the universe."""
+        pass
 `;
 
-const MOVING_AVERAGE = `# The average of a list of closes, and how far each one sits from it.
-
-prices = [101.5, 99.2, 103.8, 98.4, 105.1]
-average = sum(prices) / len(prices)
-
-print(f"{len(prices)} closes, average {average:.2f}")
-print()
-
-for price in prices:
-    change = (price - average) / average * 100
-    print(f"{price:>6.1f}   {change:+5.1f}% from the average")
-`;
-
-const LOOPS = `# A loop that builds a list, then reads it back.
-
-trades = [12.4, -3.8, 7.1, -1.2, 9.6]
-results = []
-
-for trade in trades:
-    results.append(round(trade * 2, 2))
-
-print("doubled:", results)
-print("wins:", [value for value in results if value > 0])
-print("total:", round(sum(results), 2))
-`;
-
-const FUNCTIONS = `# A small function with a docstring, called a few times.
-
-
-def percent_change(value, base):
-    """How far value sits from base, as a percentage."""
-    return (value - base) / base * 100
-
-
-for close in (99.2, 104.8, 97.5):
-    print(close, f"{percent_change(close, 100):+.1f}%")
-`;
+const ADAPTIVE_MOMENTUM = starter(adaptiveMomentumSource);
+const GLOBAL_TREND_ALLOCATION = starter(gtaSource);
+const MINIMUM_VOLATILITY = starter(minVolSource);
+const STATISTICAL_MEAN_REVERSION = starter(smrSource);
 
 export const LAB_TEMPLATES: LabTemplate[] = [
   {
     id: 'blank',
-    name: 'Blank file',
-    summary: 'One file with a greeting, and room for whatever comes next.',
+    name: 'Strategy skeleton',
+    summary: 'Every Strategy hook in call order, with the variables you can set.',
     rule: 'Starts in workspace/main.py',
-    preview: ['# A blank file to start from.', 'print("Hello from the Lab")'],
+    preview: [
+      'class MyStrategy(Strategy):',
+      '    def __init__(self):',
+      '    def on_signal(self, ticker, data):',
+      '    def run_daily(self, current_date):',
+      '    def initialize_universe(self, current_date, histories):',
+      '    def on_rebalance(self, current_date, histories):',
+    ],
     code: BLANK,
     icon: FileCode,
   },
   {
-    id: 'moving-average',
-    name: 'Moving average',
-    summary: 'Average a list of closes and print how far each one sits from it.',
+    id: 'adaptive-momentum',
+    name: 'Adaptive Momentum',
+    summary: 'Holds the 20 strongest liquid US stocks while SPY is above its 200-day average.',
     rule: 'Starts in workspace/main.py',
-    preview: ['prices = [101.5, 99.2, 103.8]', 'average = sum(prices) / len(prices)'],
-    code: MOVING_AVERAGE,
+    preview: [
+      'class AdaptiveMomentum(Strategy):',
+      'score = momentum / volatility',
+      'if self._market_is_on(histories):',
+    ],
+    code: ADAPTIVE_MOMENTUM,
     icon: TrendingUp,
   },
   {
-    id: 'loops',
-    name: 'Loops and lists',
-    summary: 'Build a list in a loop, then filter and total it.',
+    id: 'global-trend-allocation',
+    name: 'Global Trend Allocation',
+    summary: 'Five-ETF book from trend, correlation and momentum. Exits a sleeve when its trend breaks.',
     rule: 'Starts in workspace/main.py',
-    preview: ['for trade in trades:', '    results.append(trade * 2)'],
-    code: LOOPS,
-    icon: Activity,
+    preview: [
+      'class GlobalTrendAllocation(Strategy):',
+      'self.MAX_POSITIONS: int = 5',
+      'picks = self._execute_selection_matrix(...)',
+    ],
+    code: GLOBAL_TREND_ALLOCATION,
+    icon: Globe,
   },
   {
-    id: 'functions',
-    name: 'Functions',
-    summary: 'A function with a docstring, called with a few values.',
+    id: 'minimum-volatility',
+    name: 'Minimum Volatility',
+    summary: 'Equal-weighted 30 least volatile liquid US stocks, rebuilt quarterly.',
     rule: 'Starts in workspace/main.py',
-    preview: ['def percent_change(value, base):', '    return (value - base) / base * 100'],
-    code: FUNCTIONS,
+    preview: [
+      'class MinimumVolatility(Strategy):',
+      'self.REBALANCE_FREQUENCY = RebalanceFrequency.QUARTERLY',
+      'self._rank(histories)',
+    ],
+    code: MINIMUM_VOLATILITY,
+    icon: Shield,
+  },
+  {
+    id: 'statistical-mean-reversion',
+    name: 'Statistical Mean Reversion',
+    summary: 'Buys stocks that fell further than their volatility explains, then waits for the snap back.',
+    rule: 'Starts in workspace/main.py',
+    preview: [
+      'class StatisticalMeanReversionStrategy(Strategy):',
+      'if rsi < self.RSI_THRESHOLD and z_score < -self.Z_SCORE_THRESHOLD:',
+      'stop and target at 3 standard deviations',
+    ],
+    code: STATISTICAL_MEAN_REVERSION,
     icon: Crosshair,
   },
 ];

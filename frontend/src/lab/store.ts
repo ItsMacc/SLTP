@@ -11,24 +11,32 @@
 
 import { supabase } from '../../lib/supabase';
 import {
+  createLabBacktest as apiCreateLabBacktest,
   createLabFile as apiCreateLabFile,
   createLabProject as apiCreateLabProject,
+  createLabStrategy as apiCreateLabStrategy,
   createLabWorkspace as apiCreateLabWorkspace,
+  deleteLabBacktest as apiDeleteLabBacktest,
   deleteLabFile as apiDeleteLabFile,
   deleteLabFolder as apiDeleteLabFolder,
   deleteLabProject as apiDeleteLabProject,
   deleteLabWorkspace as apiDeleteLabWorkspace,
+  getLabBacktest as apiGetLabBacktest,
   getLabProjectFiles as apiGetLabProjectFiles,
   importLabFiles as apiImportLabFiles,
+  listLabBacktests as apiListLabBacktests,
   listLabWorkspaces as apiListLabWorkspaces,
+  renameLabBacktest as apiRenameLabBacktest,
   renameLabFile as apiRenameLabFile,
   saveLabFile as apiSaveLabFile,
+  type LabBacktestRecord,
+  type LabBacktestSummary,
   type LabFile,
   type LabProject,
   type LabWorkspace,
 } from '../../lib/api';
 
-export type { LabFile, LabProject, LabWorkspace };
+export type { LabBacktestRecord, LabBacktestSummary, LabFile, LabProject, LabWorkspace };
 
 export interface LabProjectFiles {
   project: { id: string; name: string };
@@ -50,10 +58,20 @@ export async function listLabWorkspaces(): Promise<LabWorkspace[]> {
 
 export async function createLabWorkspace(input: {
   workspace_name: string;
-  project_name: string;
+  strategy_name: string;
   template?: string;
+  code?: string;
 }): Promise<LabWorkspace> {
   return apiCreateLabWorkspace(await token(), input);
+}
+
+export async function createLabStrategy(
+  workspaceId: string,
+  name: string,
+  template?: string,
+  code?: string,
+): Promise<LabWorkspace> {
+  return apiCreateLabStrategy(await token(), workspaceId, name, template, code);
 }
 
 export async function createLabProject(
@@ -106,4 +124,31 @@ export async function importLabFiles(
   folders: string[] = [],
 ): Promise<{ imported: string[]; skipped: { path: string; reason: string }[] }> {
   return apiImportLabFiles(await token(), projectId, files, folders);
+}
+
+export async function listLabBacktests(projectId: string): Promise<LabBacktestSummary[]> {
+  return apiListLabBacktests(await token(), projectId);
+}
+
+export async function createLabBacktest(
+  projectId: string,
+  payload: unknown,
+  name?: string,
+): Promise<LabBacktestSummary> {
+  return apiCreateLabBacktest(await token(), projectId, payload, name);
+}
+
+export async function getLabBacktest(backtestId: string): Promise<LabBacktestRecord> {
+  return apiGetLabBacktest(await token(), backtestId);
+}
+
+export async function renameLabBacktest(
+  backtestId: string,
+  name: string,
+): Promise<LabBacktestSummary> {
+  return apiRenameLabBacktest(await token(), backtestId, name);
+}
+
+export async function deleteLabBacktest(backtestId: string): Promise<void> {
+  await apiDeleteLabBacktest(await token(), backtestId);
 }

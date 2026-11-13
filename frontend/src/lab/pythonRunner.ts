@@ -9,6 +9,8 @@
 // a hard limit: the worker is terminated, the reader is told, and a fresh one
 // starts in the background. That costs a restart instead of a hung tab.
 
+import type { LabLogEntry } from './backtestTypes';
+import type { EngineRunSettings } from './runSettings';
 import type { RunResult } from './pythonTypes';
 
 export type PythonStatus = 'idle' | 'loading' | 'ready' | 'error';
@@ -35,9 +37,19 @@ const RUN_TIMEOUT_MS = 300_000;
 type OutMessage =
   | { type: 'ready'; version: string; engine: boolean; market: boolean; warning: string | null }
   | { type: 'status'; text: string }
+  | { type: 'run-status'; id: number; text: string }
   | { type: 'stdout'; id: number; text: string }
   | { type: 'stderr'; id: number; text: string }
-  | { type: 'done'; id: number; ok: boolean; message?: string; result?: unknown; durationMs: number }
+  | {
+      type: 'done';
+      id: number;
+      ok: boolean;
+      message?: string;
+      notice?: string;
+      result?: unknown;
+      logs?: LabLogEntry[];
+      durationMs: number;
+    }
   | { type: 'boot-error'; message: string }
   | { type: 'reset-ok' };
 
@@ -45,6 +57,7 @@ interface ActiveRun {
   id: number;
   onOutput?: (text: string) => void;
   onOutputError?: (text: string) => void;
+  onProgress?: (text: string) => void;
   resolve: (result: RunResult) => void;
   timer: number;
 }
@@ -114,6 +127,12 @@ function onMessage(event: MessageEvent<OutMessage>): void {
     return;
   }
 
+  if (message.type === 'run-status') {
+    if (!activeRun || message.id !== activeRun.id) return;
+    activeRun.onProgress?.(message.text);
+    return;
+  }
+
   if (message.type === 'stdout' || message.type === 'stderr') {
     if (!activeRun || message.id !== activeRun.id) return;
     const deliver = message.type === 'stdout' ? activeRun.onOutput : activeRun.onOutputError;
@@ -128,6 +147,8 @@ function onMessage(event: MessageEvent<OutMessage>): void {
       error: message.ok ? undefined : message.message ?? 'The snippet failed',
       durationMs: message.durationMs,
       result: message.result,
+      logs: message.logs,
+      notice: message.notice,
     });
   }
 }
@@ -167,7 +188,12 @@ export function runPython(
   filename: string,
   code: string,
   files: { name: string; content: string }[],
-  handlers: { onOutput?: (text: string) => void; onOutputError?: (text: string) => void } = {},
+  handlers: {
+    onOutput?: (text: string) => void;
+    onOutputError?: (text: string) => void;
+    onProgress?: (text: string) => void;
+  } = {},
+  settings?: EngineRunSettings,
 ): Promise<RunResult> {
   if (!worker || state.status !== 'ready') {
     return Promise.resolve({
@@ -195,8 +221,15 @@ export function runPython(
       startWorker();
     }, RUN_TIMEOUT_MS);
 
-    activeRun = { id, onOutput: handlers.onOutput, onOutputError: handlers.onOutputError, resolve, timer };
-    worker?.postMessage({ id, kind: 'run', filename, code, files });
+    activeRun = {
+      id,
+      onOutput: handlers.onOutput,
+      onOutputError: handlers.onOutputError,
+      onProgress: handlers.onProgress,
+      resolve,
+      timer,
+    };
+    worker?.postMessage({ id, kind: 'run', filename, code, files, settings });
   });
 }
 

@@ -1,4 +1,5 @@
-// LabNewProject.tsx — Onboarding for a new Lab project: workspace, name, starting code, review.
+// LabNewProject.tsx — Set up a strategy or a new Lab workspace: where it lives,
+// what it is called, and the code it starts from.
 import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import type { LabWorkspace } from '../lab/store';
@@ -11,31 +12,49 @@ import './LabNewProject.css';
 
 const NAME_MAX = 60;
 
-export interface NewProjectInput {
+export type LabCreateMode = 'strategy' | 'workspace';
+
+export interface NewWorkspaceInput {
+  mode: LabCreateMode;
   workspaceId: string | null;
   workspaceName: string;
-  projectName: string;
+  strategyName: string;
   template: LabTemplateId;
 }
 
 interface LabNewProjectProps {
   workspaces: LabWorkspace[];
+  mode: LabCreateMode;
   initialTemplate: LabTemplateId;
   /** Which branch of the workspace step opens first. */
   initialTarget?: 'existing' | 'new';
   onClose: () => void;
-  onCreate: (input: NewProjectInput) => Promise<void>;
+  onCreate: (input: NewWorkspaceInput) => Promise<void>;
 }
 
-type Step = 'workspace' | 'project' | 'template' | 'review';
-const STEPS: { id: Step; label: string }[] = [
-  { id: 'workspace', label: 'Workspace' },
-  { id: 'project', label: 'Project' },
-  { id: 'template', label: 'Starting code' },
-  { id: 'review', label: 'Review' },
-];
+type Step = 'workspace' | 'strategy' | 'template' | 'review';
 
-export default function LabNewProject({ workspaces, initialTemplate, initialTarget, onClose, onCreate }: LabNewProjectProps) {
+export default function LabNewProject({
+  workspaces,
+  mode,
+  initialTemplate,
+  initialTarget,
+  onClose,
+  onCreate,
+}: LabNewProjectProps) {
+  const steps: { id: Step; label: string }[] = mode === 'workspace'
+    ? [
+        { id: 'workspace', label: 'Workspace' },
+        { id: 'template', label: 'Starting code' },
+        { id: 'review', label: 'Review' },
+      ]
+    : [
+        { id: 'workspace', label: 'Workspace' },
+        { id: 'strategy', label: 'Strategy' },
+        { id: 'template', label: 'Starting code' },
+        { id: 'review', label: 'Review' },
+      ];
+
   const [step, setStep] = useState<Step>('workspace');
   // Set once the user picks a branch, so an async workspace list cannot undo their choice.
   const [targetChoice, setTargetChoice] = useState<'existing' | 'new' | null>(null);
@@ -43,7 +62,7 @@ export default function LabNewProject({ workspaces, initialTemplate, initialTarg
   // the list shows until a choice is made.
   const [existingChoice, setExistingChoice] = useState<string | null>(null);
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
-  const [projectName, setProjectName] = useState('');
+  const [strategyName, setStrategyName] = useState('');
   const [template, setTemplate] = useState<LabTemplateId>(initialTemplate);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -65,27 +84,32 @@ export default function LabNewProject({ workspaces, initialTemplate, initialTarg
       : (workspaces[0]?.id ?? '');
 
   // Until the user picks a branch, follow the requested default as workspaces load.
-  const target =
-    targetChoice ?? (workspaces.length > 0 ? (initialTarget ?? 'existing') : 'new');
+  const target = mode === 'workspace'
+    ? 'new'
+    : targetChoice ?? (workspaces.length > 0 ? (initialTarget ?? 'existing') : 'new');
 
   const chooseTarget = (next: 'existing' | 'new') => setTargetChoice(next);
 
   const workspaceOptions = workspaces.map((w) => ({
-    label: `${w.name} (${w.projects.length} ${w.projects.length === 1 ? 'project' : 'projects'})`,
+    label: `${w.name} (${w.file_count} ${w.file_count === 1 ? 'file' : 'files'})`,
     value: w.id,
   }));
 
   const selectedWorkspace = workspaces.find((w) => w.id === existingId) ?? null;
   const workspaceLabel = target === 'existing' ? selectedWorkspace?.name ?? '' : newWorkspaceName.trim();
-  const stepIndex = STEPS.findIndex((s) => s.id === step);
+  const stepIndex = steps.findIndex((s) => s.id === step);
 
   // Returns an error message for the current step, or null when it can continue.
   const validate = (): string | null => {
     if (step === 'workspace') {
-      if (target === 'existing' && !selectedWorkspace) return 'Choose a workspace.';
-      if (target === 'new' && !newWorkspaceName.trim()) return 'Name the new workspace.';
+      if (mode === 'strategy' && target === 'existing' && !selectedWorkspace) {
+        return 'Choose a workspace.';
+      }
+      if ((mode === 'workspace' || target === 'new') && !newWorkspaceName.trim()) {
+        return 'Name the new workspace.';
+      }
     }
-    if (step === 'project' && !projectName.trim()) return 'Name the project.';
+    if (step === 'strategy' && !strategyName.trim()) return 'Name the strategy.';
     return null;
   };
 
@@ -93,12 +117,12 @@ export default function LabNewProject({ workspaces, initialTemplate, initialTarg
     const problem = validate();
     setError(problem);
     if (problem) return;
-    if (stepIndex < STEPS.length - 1) setStep(STEPS[stepIndex + 1].id);
+    if (stepIndex < steps.length - 1) setStep(steps[stepIndex + 1].id);
   };
 
   const back = () => {
     setError(null);
-    if (stepIndex > 0) setStep(STEPS[stepIndex - 1].id);
+    if (stepIndex > 0) setStep(steps[stepIndex - 1].id);
   };
 
   const submit = async () => {
@@ -106,19 +130,22 @@ export default function LabNewProject({ workspaces, initialTemplate, initialTarg
     setSubmitting(true);
     try {
       await onCreate({
-        workspaceId: target === 'existing' ? existingId : null,
+        mode,
+        workspaceId: mode === 'strategy' && target === 'existing' ? existingId : null,
         workspaceName: workspaceLabel,
-        projectName: projectName.trim(),
+        strategyName: mode === 'workspace' ? 'main' : strategyName.trim(),
         template,
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not create the project.');
+      setError(err instanceof Error ? err.message : 'Could not create that.');
       setSubmitting(false);
     }
   };
 
   const chosen = getTemplate(template);
   const isLast = step === 'review';
+  const noun = mode === 'workspace' ? 'workspace' : 'strategy';
+  const title = mode === 'workspace' ? 'Set up your workspace' : 'Set up your strategy';
 
   return (
     <div
@@ -130,8 +157,8 @@ export default function LabNewProject({ workspaces, initialTemplate, initialTarg
       <div className="lab-wiz" role="dialog" aria-modal="true" aria-labelledby="lab-wiz-title">
         <header className="lab-wiz-head">
           <div className="lab-wiz-heading">
-            <p className="lab-wiz-kicker">New project</p>
-            <h2 id="lab-wiz-title" className="lab-wiz-title">Set up your project</h2>
+            <p className="lab-wiz-kicker">New {noun}</p>
+            <h2 id="lab-wiz-title" className="lab-wiz-title">{title}</h2>
           </div>
           <Button variant="ghost" size="icon" aria-label="Close" onClick={onClose} disabled={submitting}>
             <X size={16} aria-hidden="true" />
@@ -139,7 +166,7 @@ export default function LabNewProject({ workspaces, initialTemplate, initialTarg
         </header>
 
         <ol className="lab-wiz-steps" aria-label="Setup progress">
-          {STEPS.map((s, i) => (
+          {steps.map((s, i) => (
             <li
               key={s.id}
               className={`lab-wiz-stepdot ${i === stepIndex ? 'is-current' : ''} ${i < stepIndex ? 'is-done' : ''}`}
@@ -153,67 +180,84 @@ export default function LabNewProject({ workspaces, initialTemplate, initialTarg
 
         <div className="lab-wiz-body">
           {step === 'workspace' && (
-            <fieldset className="lab-wiz-fieldset">
-              <legend className="lab-wiz-question">Where should the project go?</legend>
-              {workspaces.length > 0 && (
-                <label className={`lab-wiz-option ${target === 'existing' ? 'is-selected' : ''}`}>
-                  <input
-                    type="radio"
-                    name="target"
-                    checked={target === 'existing'}
-                    onChange={() => chooseTarget('existing')}
-                  />
+            mode === 'workspace' ? (
+              <div className="lab-wiz-stack">
+                <p className="lab-wiz-question">Name this workspace.</p>
+                <Input
+                  label="Workspace name"
+                  placeholder="e.g. Momentum research"
+                  value={newWorkspaceName}
+                  maxLength={NAME_MAX}
+                  autoFocus
+                  onChange={(e) => setNewWorkspaceName(e.target.value)}
+                />
+                <p className="lab-wiz-hint">
+                  A workspace is the folder that holds all your strategy and helper files.
+                </p>
+              </div>
+            ) : (
+              <fieldset className="lab-wiz-fieldset">
+                <legend className="lab-wiz-question">Where should the strategy go?</legend>
+                {workspaces.length > 0 && (
+                  <label className={`lab-wiz-option ${target === 'existing' ? 'is-selected' : ''}`}>
+                    <input
+                      type="radio"
+                      name="target"
+                      checked={target === 'existing'}
+                      onChange={() => chooseTarget('existing')}
+                    />
+                    <span className="lab-wiz-option-text">
+                      <span className="lab-wiz-option-title">Add to an existing workspace</span>
+                      <span className="lab-wiz-option-sub">Keep it with the rest of your strategy code.</span>
+                    </span>
+                  </label>
+                )}
+                {target === 'existing' && workspaces.length > 0 && (
+                  <div className="lab-wiz-indent">
+                    <Select
+                      label="Workspace"
+                      options={workspaceOptions}
+                      value={existingId}
+                      onChange={(value) => setExistingChoice(String(value))}
+                    />
+                  </div>
+                )}
+                <label className={`lab-wiz-option ${target === 'new' ? 'is-selected' : ''}`}>
+                  <input type="radio" name="target" checked={target === 'new'} onChange={() => chooseTarget('new')} />
                   <span className="lab-wiz-option-text">
-                    <span className="lab-wiz-option-title">Add to an existing workspace</span>
-                    <span className="lab-wiz-option-sub">Keep it with related strategies.</span>
+                    <span className="lab-wiz-option-title">Create a new workspace</span>
+                    <span className="lab-wiz-option-sub">A fresh folder for a new line of research.</span>
                   </span>
                 </label>
-              )}
-              {target === 'existing' && workspaces.length > 0 && (
-                <div className="lab-wiz-indent">
-                  <Select
-                    label="Workspace"
-                    options={workspaceOptions}
-                    value={existingId}
-                    onChange={(value) => setExistingChoice(String(value))}
-                  />
-                </div>
-              )}
-              <label className={`lab-wiz-option ${target === 'new' ? 'is-selected' : ''}`}>
-                <input type="radio" name="target" checked={target === 'new'} onChange={() => chooseTarget('new')} />
-                <span className="lab-wiz-option-text">
-                  <span className="lab-wiz-option-title">Create a new workspace</span>
-                  <span className="lab-wiz-option-sub">A fresh folder for a new line of research.</span>
-                </span>
-              </label>
-              {target === 'new' && (
-                <div className="lab-wiz-indent">
-                  <Input
-                    label="Workspace name"
-                    placeholder="e.g. Momentum research"
-                    value={newWorkspaceName}
-                    maxLength={NAME_MAX}
-                    autoFocus
-                    onChange={(e) => setNewWorkspaceName(e.target.value)}
-                  />
-                </div>
-              )}
-            </fieldset>
+                {target === 'new' && (
+                  <div className="lab-wiz-indent">
+                    <Input
+                      label="Workspace name"
+                      placeholder="e.g. Momentum research"
+                      value={newWorkspaceName}
+                      maxLength={NAME_MAX}
+                      autoFocus
+                      onChange={(e) => setNewWorkspaceName(e.target.value)}
+                    />
+                  </div>
+                )}
+              </fieldset>
+            )
           )}
 
-          {step === 'project' && (
+          {step === 'strategy' && (
             <div className="lab-wiz-stack">
               <p className="lab-wiz-question">What is this strategy called?</p>
               <Input
-                label="Project name"
+                label="Strategy name"
                 placeholder="e.g. RSI pullback v1"
-                value={projectName}
+                value={strategyName}
                 maxLength={NAME_MAX}
                 autoFocus
-                onChange={(e) => setProjectName(e.target.value)}
+                onChange={(e) => setStrategyName(e.target.value)}
               />
               <p className="lab-wiz-hint">
-                Each project is one strategy file with its own editor. You can add helper files later.
+                This names the strategy file. You can add helper files beside it later.
               </p>
             </div>
           )}
@@ -249,19 +293,21 @@ export default function LabNewProject({ workspaces, initialTemplate, initialTarg
 
           {step === 'review' && (
             <div className="lab-wiz-stack">
-              <p className="lab-wiz-question">Check the setup, then create the project.</p>
+              <p className="lab-wiz-question">Check the setup, then create it.</p>
               <dl className="lab-wiz-review">
                 <div>
                   <dt>Workspace</dt>
                   <dd>
                     {workspaceLabel}
-                    <span className="lab-wiz-tag">{target === 'existing' ? 'existing' : 'new'}</span>
+                    <span className="lab-wiz-tag">{mode === 'workspace' || target === 'new' ? 'new' : 'existing'}</span>
                   </dd>
                 </div>
-                <div>
-                  <dt>Project</dt>
-                  <dd>{projectName.trim()}</dd>
-                </div>
+                {mode === 'strategy' && (
+                  <div>
+                    <dt>Strategy</dt>
+                    <dd>{strategyName.trim()}</dd>
+                  </div>
+                )}
                 <div>
                   <dt>Starting code</dt>
                   <dd>{chosen.name}</dd>
@@ -287,7 +333,7 @@ export default function LabNewProject({ workspaces, initialTemplate, initialTarg
                   <LoaderInline tone="inherit" />
                   Creating…
                 </>
-              ) : 'Create project'}
+              ) : `Create ${noun}`}
             </Button>
           ) : (
             <Button variant="primary" size="md" onClick={next}>
@@ -297,11 +343,11 @@ export default function LabNewProject({ workspaces, initialTemplate, initialTarg
         </footer>
       </div>
 
-      {/* Creating a project writes a workspace, its first file and the
-          starting code, so the wizard waits behind the loader until that
-          lands. */}
       {submitting && (
-        <LoaderOverlay label="Creating your project…" sub="Saving your files to the project store." />
+        <LoaderOverlay
+          label={`Creating your ${noun}…`}
+          sub="Saving your files to the workspace store."
+        />
       )}
     </div>
   );

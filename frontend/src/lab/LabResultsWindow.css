@@ -59,6 +59,13 @@
   text-transform: uppercase;
 }
 
+.lab-results-title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  min-width: 0;
+}
+
 .lab-results-title {
   margin: 0;
   color: var(--text-primary);
@@ -66,6 +73,42 @@
   font-size: clamp(1.5rem, 1.1rem + 1.4vw, 2.1rem);
   font-weight: 400;
   line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+.lab-results-name-form {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  min-width: 0;
+}
+
+.lab-results-name-input {
+  width: min(28rem, 70vw);
+  padding: var(--space-2xs) var(--space-sm);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-family: var(--font-heading);
+  font-size: clamp(1.25rem, 1rem + 1vw, 1.75rem);
+  line-height: 1.15;
+}
+
+.lab-results-name-input:focus {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.lab-results-name-error,
+.lab-results-save-error {
+  margin: var(--space-2xs) 0 0;
+  color: var(--error);
+  font-size: var(--text-xs);
+}
+
+.lab-results-save-error {
+  color: var(--warning, var(--text-muted));
 }
 
 .lab-results-subtitle {
@@ -80,6 +123,12 @@
   align-items: center;
   gap: var(--space-sm);
   margin-left: auto;
+}
+
+/* Download icons carry a label, so the icon needs its own breathing room. */
+.lab-results-head-actions .btn,
+.lab-results-card-head .btn {
+  gap: var(--space-sm);
 }
 
 .lab-results-body {
@@ -196,6 +245,28 @@
 
 .lab-results-legend-swatch.is-benchmark {
   background: #9aa3b2;
+}
+
+.lab-results-card-head h3 {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2xs);
+}
+
+.lab-results-logs {
+  max-height: 15rem;
+  margin: 0;
+  padding: var(--space-md);
+  overflow: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.5rem;
+  background: var(--bg-surface-hover);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.65;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .lab-results-chart-axis-note {
@@ -496,5 +567,135 @@
 
   .lab-results-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .lab-results-summary-card {
+    padding: var(--space-sm);
+  }
+
+  .lab-results-subtitle {
+    font-size: 0.6875rem;
+  }
+
+  .lab-results-head-actions .btn-secondary {
+    flex: 1;
+    justify-content: center;
+  }
+
+  /* The chart scales with the screen, so its labels are given a larger size
+     in viewBox units; at phone widths they land near 10px again. */
+  .lab-results-axis-label {
+    font-size: 28px;
+  }
+
+  .lab-results-strategy-line {
+    stroke-width: 5;
+  }
+
+  .lab-results-benchmark-line {
+    stroke-width: 3.5;
+    stroke-dasharray: 8 7;
+  }
+
+  .lab-results-grid-line {
+    stroke-width: 1.5;
+    stroke-dasharray: 4 10;
+  }
+
+  .lab-results-chart-legend {
+    gap: var(--space-sm);
+  }
+
+  .lab-results-chart-axis-note {
+    display: none;
+  }
+
+  /* A ten-column blotter does not fit a phone, so each trade becomes a card
+     and every cell keeps its column name above the value. */
+  .lab-results-table-wrap {
+    max-height: none;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .lab-results-table {
+    display: block;
+    min-width: 0;
+  }
+
+  .lab-results-table thead {
+    display: none;
+  }
+
+  .lab-results-table tbody {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+  }
+
+  .lab-results-table tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-sm);
+    padding: var(--space-md);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    background: var(--bg-surface-hover);
+  }
+
+  .lab-results-table tr.is-win {
+    border-left: 3px solid var(--success);
+  }
+
+  .lab-results-table tr.is-loss {
+    border-left: 3px solid var(--error);
+  }
+
+  .lab-results-table tr.is-open {
+    border-left: 3px solid var(--accent);
+  }
+
+  .lab-results-table td {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3xs);
+    padding: 0;
+    border: 0;
+    white-space: normal;
+  }
+
+  .lab-results-table tr.is-win td,
+  .lab-results-table tr.is-loss td {
+    background: transparent;
+  }
+
+  .lab-results-table td::before {
+    content: attr(data-label);
+    color: var(--text-muted);
+    font-family: var(--font-sans);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .lab-results-table td.lab-results-ticker {
+    font-size: var(--text-sm);
+  }
+
+  .lab-results-table tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .lab-results-pagination {
+    justify-content: space-between;
+  }
+}
+
+@media (max-width: 26rem) {
+  .lab-results-summary,
+  .lab-results-metrics {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

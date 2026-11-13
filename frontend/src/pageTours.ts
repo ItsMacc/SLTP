@@ -195,42 +195,34 @@ const RESEARCH_STEPS = (): DriveStep[] => [
 
 /* ---------- Lab ---------- */
 
-/** Opens the first workspace row, so its projects are on screen. */
-function expandFirstWorkspace(): boolean {
-  const row = document.querySelector<HTMLElement>('.lab-ws-row-main');
-  if (!row) return false;
-  if (row.getAttribute('aria-expanded') === 'false') row.click();
-  return true;
-}
-
-/** Opens the first project in the expanded workspace. */
-function openFirstProject(): boolean {
-  const project = document.querySelector<HTMLElement>('.lab-ws-project-open');
-  if (!project) return false;
-  project.click();
+/** Opens the first workspace. Files are never the open control. */
+function openFirstWorkspace(): boolean {
+  const workspace = document.querySelector<HTMLElement>('.lab-ws-open');
+  if (!workspace) return false;
+  workspace.click();
   return true;
 }
 
 const LAB_STEPS = (): DriveStep[] => {
-  // A new account has no projects, so the editor steps have nothing to point
-  // at. The home steps still make sense, and the first project the reader
+  // A new account has no workspaces, so the editor steps have nothing to point
+  // at. The home steps still make sense, and the first workspace the reader
   // creates has its own guide in the editor itself.
-  const hasProjects = document.querySelector('.lab-ws-row[data-projects]:not([data-projects="0"])') !== null;
+  const hasWorkspaces = document.querySelector('.lab-ws-card:not(.is-skeleton)') !== null;
   const steps: DriveStep[] = [
   {
     element: '.lab-hero',
     popover: {
       title: 'The Lab',
       description:
-        'A project workspace for Python. Every project keeps its files, an editor and a terminal together, and the code runs in this browser rather than on a server.',
+        'A Python workspace for your strategies. Every workspace keeps its files, an editor and logs together, and the code runs in this browser rather than on a server.',
     },
   },
   {
     element: '.lab-ws-panel',
     popover: {
-      title: 'Workspaces and projects',
+      title: 'Workspaces',
       description:
-        'A workspace groups related projects. Every project keeps its own files, so two ideas never share a folder unless you want them to.',
+        'A workspace is the folder that holds your strategy and helper files. Expand one to see its files; open the workspace when you want to edit them.',
     },
   },
   {
@@ -238,48 +230,38 @@ const LAB_STEPS = (): DriveStep[] => {
     popover: {
       title: 'Find one, or start another',
       description:
-        'Search workspaces and projects by name, press the slash key from anywhere on the page to jump here, or change the sort. New workspace creates one and starts its first project in the same step.',
+        'Search workspaces and files by name, press the slash key from anywhere on the page to jump here, or change the sort. New workspace sets up an empty workspace for your next idea.',
     },
   },
   {
     element: '.lab-hero-new',
     popover: {
-      title: 'Start from a template',
+      title: 'Start a strategy',
       description:
-        'New project asks where it should live, what it is called, and what code to start from. The templates are small Python files: a list, a loop, a function, or an empty file.',
+        'New strategy asks which workspace it belongs to, what the file is called, and what code to start from. The templates are small Python strategies: a moving average, a breakout, a function, or an empty file.',
     },
   },
   ];
 
-  if (!hasProjects) return steps;
+  if (!hasWorkspaces) return steps;
 
   steps.push(
   {
-    element: '.lab-ws-row-main',
+    element: '.lab-ws-card',
     popover: {
-      title: 'Open a workspace',
+      title: 'One workspace',
       description:
-        'Clicking a workspace shows its projects. They open in the editor, in this tab, and come back here when you press Projects.',
-      onNextClick: (_element, _step, { driver: instance }) => {
-        const expanded = expandFirstWorkspace();
-        if (!expanded) {
-          instance.moveNext();
-          return;
-        }
-        // The fold animates open, so the project row is settled before it is
-        // pointed at; otherwise driver measures a half-height row.
-        window.setTimeout(() => instance.moveNext(), 400);
-      },
+        'A workspace holds every file for one line of research. It shows how many files it has, and expanding it lists them without opening anything.',
     },
   },
   {
-    element: '.lab-ws-project-open',
+    element: '.lab-ws-open',
     popover: {
-      title: 'Open a project',
+      title: 'Open a workspace',
       description:
-        'A project is one workspace on disk: a read-only core package, the files you write, and the editor that ties them together. We will open the first one.',
+        'Open workspace is the only way in; clicking a file in the list does not open it. We will open the first workspace.',
       onNextClick: (_element, _step, { driver: instance }) => {
-        const opened = openFirstProject();
+        const opened = openFirstWorkspace();
         if (!opened) {
           instance.destroy();
           return;
@@ -291,7 +273,7 @@ const LAB_STEPS = (): DriveStep[] => {
   {
     element: '.lab-explorer',
     popover: {
-      title: 'The project files',
+      title: 'The workspace files',
       description:
         'Folders are built from the files themselves, so the tree never shows an empty folder. core is read-only engine code to read; workspace is where your files live. The icons at the top import a folder from this computer or create a file.',
     },
@@ -307,9 +289,9 @@ const LAB_STEPS = (): DriveStep[] => {
   {
     element: '.lab-terminal',
     popover: {
-      title: 'Run it here',
+      title: 'Logs and runs',
       description:
-        'Run executes the open file in the browser and prints into this terminal, with the interpreter status beside the tab. Cmd or Ctrl and Enter runs from inside the editor as well.',
+        'Run executes the open file and prints into Logs, with the interpreter status beside the tab. A Strategy opens a backtest report; a plain script just prints here. Cmd or Ctrl and Enter runs from inside the editor as well.',
     },
   },
   );
@@ -327,28 +309,37 @@ const STEPS: Record<TourTab, () => DriveStep[]> = {
 
 /**
  * Opens the tour for one page. The caller navigates first; this waits for the
- * page's opening anchor, then hands control to driver.js.
+ * page's opening anchor, then hands control to driver.js. `onExit` runs when
+ * the tour ends — Done, the close button, Escape or an overlay click — so the
+ * caller can bring the reader back to where the tour started.
  */
 /* One tour at a time. A second driver would draw its own overlay on top of the
    first and both would answer the same clicks, so the running one is torn down
    before another starts. */
 let activeTour: Driver | null = null;
 
-export function startPageTour(tab: TourTab): void {
+export function startPageTour(tab: TourTab, onExit?: () => void): void {
   const anchor = (() => {
     const first = STEPS[tab]()[0]?.element;
     return typeof first === 'string' ? first : null;
   })();
 
-  activeTour?.destroy();
+  // Clear first so replacing a tour does not look like the reader finished it.
+  const previous = activeTour;
   activeTour = null;
+  previous?.destroy();
 
   void (async () => {
     // A gated page (the sign-in card stands where the Lab would be) has no
     // anchor, so there is nothing to point at and no tour to start.
-    if (anchor && !(await waitForElement(anchor, 6000))) return;
+    if (anchor && !(await waitForElement(anchor, 6000))) {
+      // The page never offered the tour its first anchor. Put the reader back
+      // in the guide rather than leaving them on a stop that did nothing.
+      onExit?.();
+      return;
+    }
     // Built after the page is on screen: the Lab's steps depend on whether
-    // the account already has a project to open.
+    // the account already has a workspace to open.
     const steps = STEPS[tab]();
     const instance = driver({
       showProgress: true,
@@ -362,7 +353,9 @@ export function startPageTour(tab: TourTab): void {
          smooth version can leave the tour stuck with its popover hidden. */
       smoothScroll: false,
       onDestroyed: () => {
-        if (activeTour === instance) activeTour = null;
+        if (activeTour !== instance) return;
+        activeTour = null;
+        onExit?.();
       },
       steps,
     });

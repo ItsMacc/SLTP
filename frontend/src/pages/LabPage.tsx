@@ -1,23 +1,24 @@
 // LabPage.tsx — Lab home: a hero in the Home page's voice, the workspace
-// panel, and the notes that explain what a run returns.
+// panel, and the notes that explain what a run returns. Workspaces are the
+// only thing the reader sees; their files sit inside and open together.
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowRight, ChevronRight, FileCode, Folder, Search, Trash2 } from 'lucide-react';
+import { ArrowRight, ChevronDown, FileCode, Folder, Search, Trash2 } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
-  createLabProject,
+  createLabStrategy,
   createLabWorkspace,
-  deleteLabProject,
   deleteLabWorkspace,
   listLabWorkspaces,
-  type LabProject,
   type LabWorkspace,
 } from '../lab/store';
-import type { LabTemplateId } from '../lab/templates';
-import type { NewProjectInput } from './LabNewProject';
+import { getTemplate, type LabTemplateId } from '../lab/templates';
+import type { LabCreateMode, NewWorkspaceInput } from './LabNewProject';
 import Button from '../ui/Button';
 import Select from '../ui/Select';
 import ConfirmDeleteDialog from '../ui/ConfirmDeleteDialog';
 import SuccessToast from '../ui/SuccessToast';
 import { LoaderScreen } from '../ui/Loader';
+import { hashForLabWorkspace, labWorkspaceIdFromHash } from '../routing';
 import './LabPage.css';
 
 const LabEditorPage = lazy(() => import('./LabEditorPage'));
@@ -55,23 +56,14 @@ function formatDate(iso: string): string {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-/** "1 project" / "3 projects". */
+/** "1 file" / "3 files". */
 function plural(count: number, word: string): string {
   return `${count} ${word}${count === 1 ? '' : 's'}`;
 }
 
-/** The workspace's own date, or its newest project's when that is later. */
-function lastTouched(workspace: LabWorkspace): number {
-  const times = [
-    new Date(workspace.created_at).getTime(),
-    ...workspace.projects.map((project) => new Date(project.created_at).getTime()),
-  ].filter((time) => !Number.isNaN(time));
-  return times.length ? Math.max(...times) : 0;
-}
-
-/** Every file in the workspace's projects. */
-function filesIn(workspace: LabWorkspace): number {
-  return workspace.projects.reduce((total, project) => total + (project.file_count ?? 0), 0);
+/** The reader-facing name of a file inside its workspace folder. */
+function fileLabel(path: string): string {
+  return path.replace(/^workspace\//, '');
 }
 
 /* ---------- Rules the engine applies for you ---------- */
@@ -190,7 +182,6 @@ const SORT_OPTIONS: { label: string; value: SortOrder }[] = [
 
 /** What a pending delete will remove. */
 type DeleteTarget = {
-  kind: 'workspace' | 'project';
   id: string;
   name: string;
 };
@@ -200,12 +191,22 @@ interface LabPageProps {
 }
 
 export default function LabPage({ onNavigate }: LabPageProps) {
-  const [openProject, setOpenProject] = useState<{ project: LabProject; workspaceName: string } | null>(null);
-  const [wizard, setWizard] = useState<{ open: boolean; template: LabTemplateId; target: 'existing' | 'new' }>({
+  const queryClient = useQueryClient();
+  // The address owns which workspace is open: #/lab/<workspace-id> opens it
+  // directly, and Back returns to the workspace list instead of leaving Lab.
+  const [urlWorkspaceId, setUrlWorkspaceId] = useState<string | null>(() => labWorkspaceIdFromHash());
+  const [wizard, setWizard] = useState<{
+    open: boolean;
+    mode: LabCreateMode;
+    template: LabTemplateId;
+    target: 'existing' | 'new';
+  }>({
     open: false,
+    mode: 'strategy',
     template: 'blank',
     target: 'existing',
   });
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const [toast, setToast] = useState<string | null>(null);
   const dismissToast = useCallback(() => setToast(null), []);
   const closeWizard = useCallback(() => setWizard((w) => ({ ...w, open: false })), []);
@@ -216,13 +217,18 @@ export default function LabPage({ onNavigate }: LabPageProps) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<SortOrder>('newest');
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const searchRef = useRef<HTMLInputElement>(null);
 
   // Delete confirmation state
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const onHash = () => setUrlWorkspaceId(labWorkspaceIdFromHash());
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
 
   // Press "/" anywhere (outside inputs) to focus search.
   useEffect(() => {
@@ -238,7 +244,7 @@ export default function LabPage({ onNavigate }: LabPageProps) {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  // Reads the signed-in account's workspaces and their projects.
+  // Reads the signed-in account's workspaces and their files.
   const loadWorkspaces = useCallback(async () => {
     setLoading(true);
     try {
@@ -253,15 +259,19 @@ export default function LabPage({ onNavigate }: LabPageProps) {
   }, []);
 
   useEffect(() => {
-    void loadWorkspaces();
-  }, [loadWorkspaces]);
+    // Fetch on the landing page, on a cold direct workspace link, and again
+    // when the reader comes back with possibly newer file counts.
+    if (!urlWorkspaceId || workspaces.length === 0) void loadWorkspaces();
+  }, [urlWorkspaceId, loadWorkspaces, workspaces.length]);
 
   const q = query.trim().toLowerCase();
 
   const orderedWorkspaces = useMemo(() => {
     const next = [...workspaces];
     next.sort((a, b) =>
-      sort === 'name' ? a.name.localeCompare(b.name) : lastTouched(b) - lastTouched(a),
+      sort === 'name'
+        ? a.name.localeCompare(b.name)
+        : new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
     );
     return next;
   }, [workspaces, sort]);
@@ -271,28 +281,42 @@ export default function LabPage({ onNavigate }: LabPageProps) {
     return orderedWorkspaces.filter(
       (w) =>
         w.name.toLowerCase().includes(q) ||
-        w.projects.some((p) => p.name.toLowerCase().includes(q)),
+        w.files.some((file) => fileLabel(file.path).toLowerCase().includes(q)),
     );
   }, [orderedWorkspaces, q]);
 
-  const projectCount = workspaces.reduce((n, w) => n + w.projects.length, 0);
-  const fileCount = workspaces.reduce((n, w) => n + filesIn(w), 0);
+  const fileCount = workspaces.reduce((n, w) => n + w.file_count, 0);
   const panelState = loading ? 'loading' : loadError ? 'error' : 'ready';
 
-  const toggleWorkspace = (id: string) =>
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-
-  const openInEditor = (project: LabProject, workspaceName: string) => {
-    setOpenProject({ project, workspaceName });
+  const openWorkspace = (workspace: LabWorkspace) => {
+    if (!workspace.project_id) return;
+    window.location.hash = hashForLabWorkspace(workspace.id).slice(1);
+    setUrlWorkspaceId(workspace.id);
   };
 
-  const startWizard = (template: LabTemplateId = 'blank', target: 'existing' | 'new' = 'existing') => {
-    setWizard({ open: true, template, target });
+  const openTarget = useMemo(() => {
+    if (!urlWorkspaceId) return null;
+    return workspaces.find((workspace) => workspace.id === urlWorkspaceId)
+      // Old shared links used the hidden project id; still open the workspace.
+      ?? workspaces.find((workspace) => workspace.project_id === urlWorkspaceId)
+      ?? null;
+  }, [urlWorkspaceId, workspaces]);
+
+  const startWizard = (
+    mode: LabCreateMode = 'strategy',
+    template: LabTemplateId = 'blank',
+    target: 'existing' | 'new' = mode === 'workspace' ? 'new' : 'existing',
+  ) => {
+    setWizard({ open: true, mode, template, target });
+  };
+
+  const toggleExpanded = (workspaceId: string) => {
+    setExpanded((current) => {
+      const next = new Set(current);
+      if (next.has(workspaceId)) next.delete(workspaceId);
+      else next.add(workspaceId);
+      return next;
+    });
   };
 
   /* Docs keeps its current page in the hash, so setting it before switching
@@ -302,26 +326,32 @@ export default function LabPage({ onNavigate }: LabPageProps) {
     onNavigate?.('docs');
   };
 
-  // The wizard reports the target workspace: an existing one (by id) or a brand
-  // new one (by name). Either way the project is written to the account.
-  const handleCreateFromWizard = async (input: NewProjectInput) => {
-    let project: LabProject;
-    if (input.workspaceId) {
-      project = await createLabProject(input.workspaceId, input.projectName, input.template);
-    } else {
-      const workspace = await createLabWorkspace({
-        workspace_name: input.workspaceName,
-        project_name: input.projectName,
-        template: input.template,
-      });
-      const created = workspace.projects[0];
-      if (!created) throw new Error('The workspace was created but no project came back.');
-      project = created;
-    }
-
+  // The wizard adds a strategy file to an existing workspace, or creates a
+  // workspace and its first file. The workspace is the only thing we open.
+  const handleCreateFromWizard = async (input: NewWorkspaceInput) => {
+    // Send the code the wizard showed, so the file the user opens is exactly
+    // the template they picked.
+    const code = getTemplate(input.template).code;
+    const workspace = input.workspaceId
+      ? await createLabStrategy(input.workspaceId, input.strategyName, input.template, code)
+      : await createLabWorkspace({
+          workspace_name: input.workspaceName,
+          strategy_name: input.strategyName,
+          template: input.template,
+          code,
+        });
     setWizard((w) => ({ ...w, open: false }));
+    setWorkspaces((current) => {
+      const rest = current.filter((item) => item.id !== workspace.id);
+      return [...rest, workspace];
+    });
+    if (workspace.project_id) {
+      await queryClient.invalidateQueries({
+        queryKey: ['lab', 'project-files', workspace.project_id],
+      });
+    }
+    openWorkspace(workspace);
     await loadWorkspaces();
-    openInEditor(project, input.workspaceName);
   };
 
   const askDelete = (target: DeleteTarget) => {
@@ -341,23 +371,10 @@ export default function LabPage({ onNavigate }: LabPageProps) {
     setDeleting(true);
     setDeleteError(null);
     try {
-      if (deleteTarget.kind === 'workspace') {
-        await deleteLabWorkspace(deleteTarget.id);
-      } else {
-        await deleteLabProject(deleteTarget.id);
-      }
+      await deleteLabWorkspace(deleteTarget.id);
       setDeleteTarget(null);
-      setExpanded((prev) => {
-        const next = new Set(prev);
-        if (deleteTarget.kind === 'workspace') next.delete(deleteTarget.id);
-        return next;
-      });
       await loadWorkspaces();
-      setToast(
-        deleteTarget.kind === 'workspace'
-          ? `Workspace “${deleteTarget.name}” deleted`
-          : `Project “${deleteTarget.name}” deleted`,
-      );
+      setToast(`Workspace “${deleteTarget.name}” deleted`);
     } catch (err) {
       setDeleteError(err instanceof Error ? err.message : 'Could not delete.');
     } finally {
@@ -365,20 +382,42 @@ export default function LabPage({ onNavigate }: LabPageProps) {
     }
   };
 
-  if (openProject) {
+  if (urlWorkspaceId && loading) {
+    return (
+      <div className="lab-opening">
+        <LoaderScreen label="Opening workspace…" sub="Finding it in your account." />
+      </div>
+    );
+  }
+
+  if (urlWorkspaceId && !loading && (!openTarget || !openTarget.project_id)) {
+    return (
+      <div className="lab-opening lab-opening-missing">
+        <p className="lab-ws-state-title">That workspace is not in this account.</p>
+        <p>It may have been deleted, or the link belongs to someone else.</p>
+        <Button variant="secondary" size="sm" onClick={() => { window.location.hash = '#/lab'; }}>
+          Back to workspaces
+        </Button>
+      </div>
+    );
+  }
+
+  if (openTarget && openTarget.project_id) {
     return (
       <Suspense
         fallback={
           <div className="lab-opening">
-            <LoaderScreen label="Opening project…" sub="Loading the editor." />
+            <LoaderScreen label="Opening workspace…" sub="Loading the editor." />
           </div>
         }
       >
         <LabEditorPage
-          project={openProject.project}
-          workspaceName={openProject.workspaceName}
+          key={openTarget.id}
+          project={{ id: openTarget.project_id, name: openTarget.name, created_at: openTarget.created_at }}
+          workspaceName={openTarget.name}
           onBack={() => {
-            setOpenProject(null);
+            window.location.hash = '#/lab';
+            setUrlWorkspaceId(null);
             void loadWorkspaces();
           }}
         />
@@ -399,12 +438,12 @@ export default function LabPage({ onNavigate }: LabPageProps) {
           </h1>
 
           <p className="lab-hero-lede">
-            The Lab gives you projects, files and an editor, and Python runs right here in the browser. Start with a list or a loop; the backtest engine joins once its hooks land.
+            The Lab gives you a workspace, its files and an editor, and Python runs right here in the browser. Write a Strategy, hit Run, and the engine backtests it and saves the report for you.
           </p>
 
           <div className="lab-hero-actions">
             <Button variant="primary" size="lg" className="lab-hero-new" onClick={() => startWizard()}>
-              New project
+              New strategy
               <ArrowRight size={18} className="lab-btn-icon" />
             </Button>
             <Button variant="link" size="sm" className="lab-hero-link" onClick={() => goToDocs()}>
@@ -423,10 +462,23 @@ export default function LabPage({ onNavigate }: LabPageProps) {
 
         <section className="lab-ws" aria-labelledby="workspace-title">
           <div className="lab-ws-header">
-            <h2 id="workspace-title" className="lab-ws-title">Workspaces</h2>
+            <div>
+              <h2 id="workspace-title" className="lab-ws-title">Workspaces</h2>
+            </div>
             <span className="lab-ws-count">
-              {plural(workspaces.length, 'workspace')}, {plural(projectCount, 'project')}
+              {plural(workspaces.length, 'workspace')}, {plural(fileCount, 'file')}
             </span>
+          </div>
+
+          <div className="lab-ws-stats" aria-label="Your Lab totals">
+            <div className="lab-ws-stat">
+              <strong>{workspaces.length}</strong>
+              <span>{workspaces.length === 1 ? 'Workspace' : 'Workspaces'}</span>
+            </div>
+            <div className="lab-ws-stat">
+              <strong>{fileCount}</strong>
+              <span>{fileCount === 1 ? 'File' : 'Files'}</span>
+            </div>
           </div>
 
           <div className="lab-ws-panel">
@@ -438,8 +490,8 @@ export default function LabPage({ onNavigate }: LabPageProps) {
                   type="text"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search workspaces and projects"
-                  aria-label="Search workspaces and projects"
+                  placeholder="Search workspaces and files"
+                  aria-label="Search workspaces and files"
                 />
                 <kbd className="lab-ws-kbd" aria-hidden="true">/</kbd>
               </label>
@@ -456,7 +508,7 @@ export default function LabPage({ onNavigate }: LabPageProps) {
                   variant="secondary"
                   size="sm"
                   className="lab-ws-new"
-                  onClick={() => startWizard('blank', 'new')}
+                  onClick={() => startWizard('workspace', 'blank', 'new')}
                 >
                   New workspace
                 </Button>
@@ -464,22 +516,15 @@ export default function LabPage({ onNavigate }: LabPageProps) {
             </div>
 
             <div className="lab-ws-scroll">
-              <div className="lab-ws-columns" aria-hidden="true">
-                <span className="is-name">Name</span>
-                <span className="is-projects">Projects</span>
-                <span className="is-files">Files</span>
-                <span className="is-created">Created</span>
-                <span />
-              </div>
-
-              <ul className="lab-ws-list" data-lab-state={panelState} aria-busy={loading}>
+              <ul className="lab-ws-cards" data-lab-state={panelState} aria-busy={loading}>
                 {loading &&
-                  [0, 1, 2].map((row) => (
-                    <li key={row} className="lab-ws-skeleton" aria-hidden="true">
-                      <span className="lab-skel is-name" />
-                      <span className="lab-skel is-projects" />
-                      <span className="lab-skel is-files" />
-                      <span className="lab-skel is-created" />
+                  [0, 1].map((row) => (
+                    <li key={row} className="lab-ws-card is-skeleton" aria-hidden="true">
+                      <span className="lab-skel is-icon" />
+                      <div className="lab-ws-card-skeleton-copy">
+                        <span className="lab-skel is-name" />
+                        <span className="lab-skel is-line" />
+                      </div>
                     </li>
                   ))}
 
@@ -503,14 +548,14 @@ export default function LabPage({ onNavigate }: LabPageProps) {
                 {!loading && !loadError && workspaces.length === 0 && (
                   <li className="lab-ws-state">
                     <span className="lab-ws-state-title">No workspaces yet</span>
-                    <span>Create a project and it will appear here.</span>
+                    <span>Create a strategy, or start an empty workspace.</span>
                     <Button
                       variant="primary"
                       size="sm"
                       className="lab-ws-state-action"
                       onClick={() => startWizard()}
                     >
-                      New project
+                      New strategy
                     </Button>
                   </li>
                 )}
@@ -527,93 +572,72 @@ export default function LabPage({ onNavigate }: LabPageProps) {
                 {!loading &&
                   !loadError &&
                   visibleWorkspaces.map((ws) => {
-                    const isOpen =
-                      expanded.has(ws.id) ||
-                      (q !== '' && ws.projects.some((p) => p.name.toLowerCase().includes(q)));
+                    const fileMatches = Boolean(
+                      q && ws.files.some((file) => fileLabel(file.path).toLowerCase().includes(q)),
+                    );
+                    const isExpanded = expanded.has(ws.id) || fileMatches;
                     return (
-                      <li key={ws.id} className={`lab-ws-group${isOpen ? ' is-expanded' : ''}`}>
-                        <div className="lab-ws-row" data-projects={ws.projects.length}>
-                          <button
-                            type="button"
-                            className="lab-ws-row-main"
-                            onClick={() => toggleWorkspace(ws.id)}
-                            aria-expanded={isOpen}
-                          >
-                            <ChevronRight size={14} aria-hidden="true" className="lab-ws-caret" />
-                            <span className="lab-ws-folder" aria-hidden="true">
-                              <Folder size={14} />
-                            </span>
-                            <span className="lab-ws-name-wrap">
-                              <span className="lab-ws-name"><Highlight text={ws.name} query={q} /></span>
-                              <span className="lab-ws-badge">{plural(ws.projects.length, 'project')}</span>
-                            </span>
-                          </button>
-
-                          <span className="lab-ws-cell is-projects">{ws.projects.length}</span>
-                          <span className="lab-ws-cell is-files">{filesIn(ws)}</span>
-                          <span className="lab-ws-cell is-created">{formatDate(ws.created_at)}</span>
-
-                          <span className="lab-ws-actions">
+                      <li key={ws.id} className={`lab-ws-card ${isExpanded ? 'is-expanded' : ''}`}>
+                        <header className="lab-ws-card-head">
+                          <span className="lab-ws-card-icon" aria-hidden="true">
+                            <Folder size={18} />
+                          </span>
+                          <div className="lab-ws-card-copy">
+                            <h3 className="lab-ws-card-name">
+                              <Highlight text={ws.name} query={q} />
+                            </h3>
+                            <p className="lab-ws-card-meta">
+                              Created {formatDate(ws.created_at)} · {plural(ws.file_count, 'file')}
+                            </p>
+                          </div>
+                          <div className="lab-ws-card-side">
+                            <button
+                              type="button"
+                              className="lab-ws-expand"
+                              aria-expanded={isExpanded}
+                              aria-controls={`workspace-files-${ws.id}`}
+                              onClick={() => toggleExpanded(ws.id)}
+                            >
+                              <ChevronDown className={isExpanded ? 'is-expanded' : ''} size={14} aria-hidden="true" />
+                              {ws.file_count} {ws.file_count === 1 ? 'file' : 'files'}
+                            </button>
                             <Button
                               variant="danger"
                               size="icon"
                               className="lab-icon-button lab-icon-button-danger"
                               aria-label={`Delete workspace ${ws.name}`}
-                              onClick={() => askDelete({ kind: 'workspace', id: ws.id, name: ws.name })}
+                              title={`Delete workspace ${ws.name}`}
+                              onClick={() => askDelete({ id: ws.id, name: ws.name })}
                             >
                               <Trash2 size={14} aria-hidden="true" />
                             </Button>
-                          </span>
-                        </div>
-
-                        {/* Always mounted so closing animates too. Visibility
-                            removes a closed list from the tab order. */}
-                        <div className={`lab-ws-fold${isOpen ? ' is-open' : ''}`}>
-                          <div className="lab-ws-fold-inner">
-                            <ul className="lab-ws-projects">
-                              {ws.projects.length === 0 && (
-                                <li className="lab-ws-state is-inline">
-                                  No projects in this workspace yet.
-                                </li>
-                              )}
-                              {ws.projects.map((p) => (
-                                <li key={p.id}>
-                                  <div className="lab-ws-project">
-                                    <button
-                                      type="button"
-                                      className="lab-ws-project-open"
-                                      onClick={() => openInEditor(p, ws.name)}
-                                    >
-                                      <FileCode size={14} aria-hidden="true" />
-                                      <span><Highlight text={p.name} query={q} /></span>
-                                    </button>
-                                    <span className="lab-ws-cell is-projects" />
-                                    <span className="lab-ws-cell is-files">{p.file_count ?? 0}</span>
-                                    <span className="lab-ws-cell is-created">{formatDate(p.created_at)}</span>
-                                    <span className="lab-ws-actions">
-                                      <button
-                                        type="button"
-                                        className="lab-ws-open"
-                                        onClick={() => openInEditor(p, ws.name)}
-                                      >
-                                        Open
-                                      </button>
-                                      <Button
-                                        variant="danger"
-                                        size="icon"
-                                        className="lab-icon-button lab-icon-button-danger"
-                                        aria-label={`Delete project ${p.name}`}
-                                        onClick={() => askDelete({ kind: 'project', id: p.id, name: p.name })}
-                                      >
-                                        <Trash2 size={14} aria-hidden="true" />
-                                      </Button>
-                                    </span>
-                                  </div>
-                                </li>
-                              ))}
-                            </ul>
+                            <button
+                              type="button"
+                              className="lab-ws-open"
+                              disabled={!ws.project_id}
+                              onClick={() => openWorkspace(ws)}
+                            >
+                              Open workspace
+                              <ArrowRight size={13} aria-hidden="true" />
+                            </button>
                           </div>
-                        </div>
+                        </header>
+
+                        {isExpanded && (
+                          <ul className="lab-ws-files" id={`workspace-files-${ws.id}`}>
+                            {ws.files.length === 0 && (
+                              <li className="lab-ws-state is-inline">No files in this workspace yet.</li>
+                            )}
+                            {ws.files.map((file) => (
+                              <li key={file.path} className="lab-ws-file">
+                                <FileCode size={14} aria-hidden="true" />
+                                <span className="lab-ws-file-name">
+                                  <Highlight text={fileLabel(file.path)} query={q} />
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
                       </li>
                     );
                   })}
@@ -623,7 +647,7 @@ export default function LabPage({ onNavigate }: LabPageProps) {
             <div className="lab-ws-footer">
               {q
                 ? `Showing ${visibleWorkspaces.length} of ${plural(workspaces.length, 'workspace')}`
-                : `${plural(workspaces.length, 'workspace')} · ${plural(projectCount, 'project')} · ${plural(fileCount, 'file')}`}
+                : `${plural(workspaces.length, 'workspace')} · ${plural(fileCount, 'file')}`}
             </div>
           </div>
         </section>
@@ -702,6 +726,7 @@ export default function LabPage({ onNavigate }: LabPageProps) {
         <Suspense fallback={null}>
           <LabNewProject
             workspaces={workspaces}
+            mode={wizard.mode}
             initialTemplate={wizard.template}
             initialTarget={wizard.target}
             onClose={closeWizard}
@@ -712,21 +737,14 @@ export default function LabPage({ onNavigate }: LabPageProps) {
 
       {deleteTarget && (
         <ConfirmDeleteDialog
-          title={deleteTarget.kind === 'workspace' ? 'Delete workspace' : 'Delete project'}
+          title="Delete workspace"
           description={
-            deleteTarget.kind === 'workspace' ? (
-              <>
-                This deletes the workspace <strong>{deleteTarget.name}</strong> and every project inside it.
-                This cannot be undone.
-              </>
-            ) : (
-              <>
-                This deletes the project <strong>{deleteTarget.name}</strong> and all of its files.
-                This cannot be undone.
-              </>
-            )
+            <>
+              This deletes the workspace <strong>{deleteTarget.name}</strong> and every file inside it.
+              This cannot be undone.
+            </>
           }
-          confirmLabel={deleteTarget.kind === 'workspace' ? 'Delete workspace' : 'Delete project'}
+          confirmLabel="Delete workspace"
           busy={deleting}
           error={deleteError}
           onConfirm={() => void confirmDelete()}

@@ -600,10 +600,10 @@
 }
 
 .lab-mark {
-  background-color: var(--accent-muted);
+  background: transparent;
   color: var(--accent);
-  border-radius: 2px;
-  padding: 0 var(--space-3xs);
+  padding: 0;
+  font-weight: inherit;
 }
 
 /* ---------- States ----------
@@ -1098,5 +1098,413 @@
 
   .lab-ws-badge {
     display: block;
+  }
+}
+
+/* ---------- Workspace cards ----------
+   The workspace is the only list item; its projects sit inside the card as
+   their own rows. The three totals above keep the account's size visible
+   without making the reader expand anything. */
+
+.lab-ws-lede {
+  margin: var(--space-2xs) 0 0;
+  max-width: 38rem;
+  color: var(--text-muted);
+  font-size: var(--text-base);
+  line-height: 1.6;
+}
+
+.lab-ws-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+}
+
+.lab-ws-stat {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg);
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.625rem;
+  background: var(--bg-surface);
+}
+
+.lab-ws-stat strong {
+  color: var(--text-primary);
+  font-family: var(--font-heading);
+  font-size: var(--text-2xl);
+  font-weight: 400;
+  line-height: 1;
+}
+
+.lab-ws-stat span {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.lab-ws-cards {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  max-height: 48rem;
+  overflow-y: auto;
+}
+
+.lab-ws-card {
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.75rem;
+  background: var(--bg-surface);
+  overflow: hidden;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.lab-ws-card:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-sm);
+}
+
+.lab-ws-card-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+/* The hover uses the faint accent wash for the active theme. */
+.lab-ws-card:hover .lab-ws-card-head {
+  background: var(--accent-faint);
+}
+
+.lab-ws-card:hover .lab-ws-card-icon {
+  background: var(--bg-surface);
+}
+
+.lab-ws-card-icon,
+.lab-ws-project-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.5rem;
+  background: var(--accent-muted);
+  color: var(--accent);
+}
+
+.lab-ws-card-copy {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.lab-ws-card-name {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.lab-ws-card-meta {
+  margin: var(--space-3xs) 0 0;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.lab-ws-card-side {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+  flex: 0 0 auto;
+}
+
+.lab-ws-card-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-3xs);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+.lab-ws-card-stat strong {
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
+  font-weight: 600;
+  line-height: 1;
+}
+
+.lab-ws-expand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  padding: var(--space-3xs) var(--space-2xs);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--text-xs);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.lab-ws-expand:hover {
+  color: var(--text-strong);
+  background: transparent;
+}
+
+.lab-ws-expand:focus-visible,
+.lab-ws-open:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.lab-ws-expand svg {
+  transition: transform 0.15s ease;
+}
+
+.lab-ws-expand svg.is-expanded {
+  transform: rotate(180deg);
+}
+
+.lab-ws-open {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  flex: 0 0 auto;
+  height: 2rem;
+  padding: 0 var(--space-sm);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: var(--text-inverse);
+  font: inherit;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.lab-ws-open:hover:not(:disabled) {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.lab-ws-open:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.lab-ws-files {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-2xs) var(--space-lg) var(--space-sm);
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-canvas);
+}
+
+.lab-ws-file {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-2xs);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.lab-ws-file + .lab-ws-file {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.lab-ws-file svg {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+}
+
+.lab-ws-file-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lab-ws-project-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.lab-ws-project-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-sm) var(--space-lg);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.lab-ws-project-card:last-child {
+  border-bottom: 0;
+}
+
+.lab-ws-project-card:hover {
+  background: var(--bg-surface-hover);
+}
+
+.lab-ws-project-icon {
+  width: 1.875rem;
+  height: 1.875rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+}
+
+.lab-ws-project-copy {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3xs);
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.lab-ws-project-open {
+  align-self: flex-start;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lab-ws-project-open:hover {
+  color: var(--accent);
+}
+
+.lab-ws-project-open:focus-visible,
+.lab-ws-project-cta:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.lab-ws-project-meta {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.lab-ws-project-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  flex: 0 0 auto;
+  height: 2rem;
+  padding: 0 var(--space-sm);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.lab-ws-project-cta:hover {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--text-inverse);
+}
+
+.lab-ws-card.is-skeleton {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+}
+
+.lab-ws-card-skeleton-copy {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  width: min(22rem, 70%);
+}
+
+.lab-skel.is-icon {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.5rem;
+}
+
+.lab-skel.is-line {
+  width: 60%;
+  height: 0.625rem;
+}
+
+.lab-ws-cards > .lab-ws-state,
+.lab-ws-cards > .lab-ws-nomatch {
+  width: 100%;
+}
+
+@media (max-width: 47.9375rem) {
+  .lab-ws-stats {
+    gap: var(--space-xs);
+  }
+
+  .lab-ws-stat {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-3xs);
+    padding: var(--space-sm) var(--space-md);
+  }
+
+  .lab-ws-stat strong {
+    font-size: var(--text-xl);
+  }
+
+  .lab-ws-card-head {
+    flex-wrap: wrap;
+    padding: var(--space-md);
+  }
+
+  .lab-ws-card-side {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .lab-ws-project-card {
+    flex-wrap: wrap;
+    padding: var(--space-sm) var(--space-md);
+  }
+
+  .lab-ws-project-cta {
+    margin-left: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lab-ws-card,
+  .lab-ws-project-cta {
+    transition: none;
   }
 }

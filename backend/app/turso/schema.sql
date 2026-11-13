@@ -84,6 +84,23 @@ CREATE TABLE IF NOT EXISTS lab_folders (
 );
 CREATE INDEX IF NOT EXISTS idx_lab_folders_project ON lab_folders(project_id);
 
+-- Lab backtests: one JSON payload per run, owned through the project's
+-- workspace. The id is the display name until the reader renames it.
+CREATE TABLE IF NOT EXISTS lab_backtests (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  project_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  strategy_name TEXT NOT NULL DEFAULT '',
+  total_return REAL NOT NULL DEFAULT 0,
+  cagr REAL,
+  payload TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_lab_backtests_project ON lab_backtests(project_id);
+CREATE INDEX IF NOT EXISTS idx_lab_backtests_user ON lab_backtests(user_id);
+
 CREATE TABLE IF NOT EXISTS backtest_results (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,

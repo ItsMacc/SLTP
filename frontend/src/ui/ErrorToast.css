@@ -51,13 +51,18 @@
 
 .error-toast-close {
   flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
   background: transparent;
   border: none;
   color: var(--text-muted);
-  font-size: var(--text-lg);
+  font-size: 1.25rem;
   line-height: 1;
   cursor: pointer;
-  padding: 0.125rem; /* ≈2px — keeps the close icon glyph-aligned */
   transition: color 0.15s ease;
 }
 

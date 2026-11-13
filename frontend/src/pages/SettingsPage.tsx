@@ -6,6 +6,7 @@ import { getSessionToken } from '../../lib/session';
 import { clearLocalUserData } from '../../lib/api';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
+import DatePicker from '../ui/DatePicker';
 import Select from '../ui/Select';
 import Checkbox from '../ui/Checkbox';
 import RadioGroup from '../ui/RadioGroup';
@@ -14,6 +15,12 @@ import SuccessToast from '../ui/SuccessToast';
 import ConfirmDeleteDialog from '../ui/ConfirmDeleteDialog';
 import { Check, Copy } from 'lucide-react';
 import { listApiKeys, createApiKey, revokeApiKey, type ApiKeySummary } from '../../lib/api';
+import {
+  readLabRunSettings,
+  saveLabRunSettings,
+  validateLabRunSettings,
+  type LabRunSettings,
+} from '../lab/runSettings';
 import {
   applyTheme,
   applyAndStoreUserSettings,
@@ -40,7 +47,7 @@ interface SettingsPageProps {
 
 
 export default function SettingsPage({ userId, userEmail, initialName, onProfileUpdated, onAccountDeleted }: SettingsPageProps) {
-  const [activeSubTab, setActiveSubTab] = useState<'profile' | 'preferences' | 'notifications' | 'editor' | 'api'>('profile');
+  const [activeSubTab, setActiveSubTab] = useState<'profile' | 'preferences' | 'notifications' | 'editor' | 'lab' | 'api'>('profile');
 
   // API keys State
   const [apiKeys, setApiKeys] = useState<ApiKeySummary[]>([]);
@@ -83,6 +90,9 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
   const [editorMinimap, setEditorMinimap] = useState(false);
   const [editorLineNumbers, setEditorLineNumbers] = useState(true);
   const [editorFontLigatures, setEditorFontLigatures] = useState(true);
+
+  // Lab backtest defaults (dates and trading costs).
+  const [labRunSettings, setLabRunSettings] = useState<LabRunSettings>(readLabRunSettings);
 
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -144,6 +154,13 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
           if (currentSettings.editorMinimap !== undefined) setEditorMinimap(currentSettings.editorMinimap);
           if (currentSettings.editorLineNumbers !== undefined) setEditorLineNumbers(currentSettings.editorLineNumbers);
           if (currentSettings.editorFontLigatures !== undefined) setEditorFontLigatures(currentSettings.editorFontLigatures);
+
+          // The account's Lab defaults win over this device's last run.
+          if (currentSettings.labRunSettings && typeof currentSettings.labRunSettings === 'object') {
+            const stored = { ...readLabRunSettings(), ...currentSettings.labRunSettings } as LabRunSettings;
+            setLabRunSettings(stored);
+            saveLabRunSettings(stored);
+          }
 
           applyAndStoreUserSettings(currentSettings, currentName, userId);
         }
@@ -295,6 +312,12 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
     setMessage(null);
 
     try {
+      const labProblem = validateLabRunSettings(labRunSettings);
+      if (labProblem) {
+        setMessage({ type: 'error', text: labProblem });
+        return;
+      }
+
       const updatedName = fullName.trim();
       const updatedSettings = {
         theme,
@@ -313,6 +336,7 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
         editorMinimap,
         editorLineNumbers,
         editorFontLigatures,
+        labRunSettings,
       };
 
       // Apply right away so the page reflects the click, then persist. The
@@ -320,6 +344,7 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
       // preferences from the app-level user object: without this, Research
       // keeps drawing the previous chart style until the page is reloaded.
       applyAndStoreUserSettings(updatedSettings, updatedName, userId);
+      saveLabRunSettings(labRunSettings);
       onProfileUpdated(updatedName, updatedSettings);
 
       const { error } = await supabase
@@ -393,6 +418,15 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
             >
               <div className="st-settings-nav-title">Code editor</div>
               <div className="st-settings-nav-desc">Lab editor appearance</div>
+            </button>
+
+            <button
+              type="button"
+              className={`st-settings-nav-item ${activeSubTab === 'lab' ? 'is-active' : ''}`}
+              onClick={() => { setActiveSubTab('lab'); setMessage(null); }}
+            >
+              <div className="st-settings-nav-title">Lab backtests</div>
+              <div className="st-settings-nav-desc">Run dates and trading costs</div>
             </button>
 
             <button
@@ -565,7 +599,7 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
             {activeSubTab === 'notifications' && (
               <div className="st-settings-section">
                 <div className="st-settings-section-heading">
-                  <span className="st-settings-step">04</span>
+                  <span className="st-settings-step">05</span>
                   <h2>Notifications & Alerts</h2>
                 </div>
                 <div className="st-settings-divider" />
@@ -707,11 +741,123 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
               </div>
             )}
 
+            {/* --- 4. Lab backtests Section --- */}
+            {activeSubTab === 'lab' && (
+              <div className="st-settings-section">
+                <div className="st-settings-section-heading">
+                  <span className="st-settings-step">04</span>
+                  <h2>Lab backtests</h2>
+                </div>
+                <div className="st-settings-divider" />
+
+                <div className="st-settings-field">
+                  <label className="st-settings-label">Start date</label>
+                  <DatePicker
+                    id="settings-lab-start"
+                    value={labRunSettings.start}
+                    onChange={(next) => setLabRunSettings((current) => ({ ...current, start: next }))}
+                  />
+                  <span className="st-settings-hint">Where a Lab backtest starts.</span>
+                </div>
+
+                <div className="st-settings-field">
+                  <label className="st-settings-label">End date</label>
+                  <div className="st-settings-lab-dates">
+                    <DatePicker
+                      id="settings-lab-end"
+                      value={labRunSettings.end}
+                      onChange={(next) => setLabRunSettings((current) => ({ ...current, end: next }))}
+                    />
+                    {labRunSettings.end && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setLabRunSettings((current) => ({ ...current, end: '' }))}
+                      >
+                        Latest data
+                      </Button>
+                    )}
+                  </div>
+                  <span className="st-settings-hint">Leave it empty to run to the latest bar.</span>
+                </div>
+
+                <div className="st-settings-lab-grid">
+                  <div className="st-settings-field">
+                    <label className="st-settings-label">Fee per trade (%)</label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={labRunSettings.feePct}
+                      onChange={(e) => setLabRunSettings((current) => ({ ...current, feePct: e.target.value }))}
+                    />
+                  </div>
+                  <div className="st-settings-field">
+                    <label className="st-settings-label">Slippage (%)</label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={labRunSettings.slippagePct}
+                      onChange={(e) => setLabRunSettings((current) => ({ ...current, slippagePct: e.target.value }))}
+                    />
+                  </div>
+                  <div className="st-settings-field">
+                    <label className="st-settings-label">Spread (%)</label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={labRunSettings.spreadPct}
+                      onChange={(e) => setLabRunSettings((current) => ({ ...current, spreadPct: e.target.value }))}
+                    />
+                  </div>
+                  <div className="st-settings-field">
+                    <label className="st-settings-label">Max participation (%)</label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="1"
+                      placeholder="No cap"
+                      value={labRunSettings.participationPct}
+                      onChange={(e) => setLabRunSettings((current) => ({ ...current, participationPct: e.target.value }))}
+                    />
+                  </div>
+                  <div className="st-settings-field">
+                    <label className="st-settings-label">Borrow rate (% a year)</label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      value={labRunSettings.borrowPct}
+                      onChange={(e) => setLabRunSettings((current) => ({ ...current, borrowPct: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                <div className="st-settings-field">
+                  <Checkbox
+                    checked={labRunSettings.dividends}
+                    onChange={(e) => setLabRunSettings((current) => ({ ...current, dividends: e.target.checked }))}
+                    label="Include dividends"
+                  />
+                  <span className="st-settings-hint is-indented">
+                    Pay dividends to lots held from the previous close.
+                  </span>
+                </div>
+
+                <span className="st-settings-hint">
+                  These are the defaults for the Lab&apos;s Backtest settings dialog. Changes apply after Save changes.
+                </span>
+              </div>
+            )}
+
             {/* --- API keys Section --- */}
             {activeSubTab === 'api' && (
               <div className="st-settings-section">
                 <div className="st-settings-section-heading">
-                  <span className="st-settings-step">05</span>
+                  <span className="st-settings-step">06</span>
                   <h2>API keys</h2>
                 </div>
                 <div className="st-settings-divider" />

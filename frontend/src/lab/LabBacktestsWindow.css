@@ -1,0 +1,310 @@
+/* ============================================================
+   LabBacktestsWindow.css — saved Lab backtests: a 10-per-page
+   list with the two numbers worth scanning, opening the same
+   report a live run uses. Theme tokens only.
+   ============================================================ */
+
+.lab-history-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1090;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(0.5rem, 2vw, 2rem);
+  background: rgba(6, 9, 14, 0.68);
+  backdrop-filter: blur(7px);
+}
+
+.lab-history-window {
+  width: min(58rem, 100%);
+  height: min(90vh, 48rem);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 1rem;
+  box-shadow: 0 1.5rem 5rem rgba(0, 0, 0, 0.55);
+}
+
+.lab-history-head {
+  position: relative;
+  z-index: 2;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.lab-history-kicker {
+  margin: 0 0 var(--space-2xs);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.lab-history-title {
+  margin: 0;
+  color: var(--text-primary);
+  font-family: var(--font-heading);
+  font-size: clamp(1.5rem, 1.1rem + 1.4vw, 2.1rem);
+  font-weight: 400;
+  line-height: 1.1;
+}
+
+.lab-history-subtitle {
+  margin: var(--space-xs) 0 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.lab-history-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--space-md);
+  min-height: 0;
+  padding: var(--space-lg);
+}
+
+.lab-history-search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex: 0 0 auto;
+  height: 2.5rem;
+  padding: 0 var(--space-md);
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.625rem;
+  background: var(--bg-surface);
+  color: var(--text-muted);
+}
+
+.lab-history-search:focus-within {
+  border-color: var(--accent-muted);
+  box-shadow: 0 0 0 3px var(--accent-faint);
+}
+
+.lab-history-search input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--text-sm);
+}
+
+.lab-history-search input::placeholder {
+  color: var(--text-muted);
+}
+
+.lab-history-search input:focus {
+  outline: none;
+}
+
+.lab-history-list-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.lab-history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.625rem;
+  overflow: hidden;
+}
+
+.lab-history-list li + li {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.lab-history-row-wrap {
+  display: flex;
+  align-items: stretch;
+  transition: background-color 0.15s ease;
+}
+
+.lab-history-row {
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-columns: minmax(0, 1fr) 7rem 7rem 2rem;
+  align-items: center;
+  gap: var(--space-md);
+  min-width: 0;
+  padding: var(--space-md);
+  border: 0;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+/* A selected line gets the faint accent wash for the active theme. */
+.lab-history-row-wrap:hover,
+.lab-history-row-wrap:focus-within {
+  background: var(--accent-faint);
+}
+
+.lab-history-row:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.lab-history-row:disabled {
+  cursor: progress;
+}
+
+.lab-history-delete {
+  flex: 0 0 auto;
+  align-self: center;
+  margin: 0 var(--space-xs);
+  color: var(--error);
+}
+
+.lab-history-clear {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+
+.lab-history-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  min-width: 0;
+}
+
+.lab-history-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.lab-history-meta {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.lab-history-mark {
+  background: transparent;
+  color: var(--accent);
+  font-weight: inherit;
+}
+
+.lab-history-metric {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3xs);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.lab-history-metric strong {
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.lab-history-metric strong.is-positive {
+  color: var(--success);
+}
+
+.lab-history-metric strong.is-negative {
+  color: var(--error);
+}
+
+.lab-history-open {
+  display: flex;
+  justify-content: flex-end;
+  color: var(--text-muted);
+}
+
+.lab-history-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  min-height: 100%;
+  padding: var(--space-2xl) var(--space-lg);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+.lab-history-state strong {
+  color: var(--text-primary);
+  font-size: var(--text-base);
+}
+
+.lab-history-error {
+  margin: 0 0 var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--error);
+  border-radius: var(--radius-sm);
+  background: var(--error-muted);
+  color: var(--error);
+  font-size: var(--text-sm);
+}
+
+.lab-history-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  gap: var(--space-md);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.lab-history-spinner {
+  animation: lab-history-spin 0.9s linear infinite;
+}
+
+@keyframes lab-history-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 40rem) {
+  .lab-history-row {
+    grid-template-columns: minmax(0, 1fr) 1.5rem;
+    gap: var(--space-sm);
+  }
+
+  .lab-history-metric {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lab-history-spinner {
+    animation: none;
+  }
+
+  .lab-history-row {
+    transition: none;
+  }
+}

@@ -31,7 +31,14 @@ export interface LabTrade {
   exit: LabTradeExit | null;
 }
 
+export interface LabLogEntry {
+  stream: 'stdout' | 'stderr';
+  text: string;
+}
+
 export interface LabBacktestPayload {
+  /** The static SVG chart the engine drew, first in the download. */
+  svg?: string | null;
   stats: Record<string, number | string | boolean | null>;
   equity: LabEquityPoint[];
   trades: LabTrade[];
@@ -41,6 +48,12 @@ export interface LabBacktestPayload {
   stamp: Record<string, unknown>;
   /** Orders the engine refused, keyed by reason. Present in the download. */
   rejections?: Record<string, number>;
+  /** Everything the reader's code printed during this run. */
+  logs?: LabLogEntry[];
+  /** How the run was started, kept with the saved payload. */
+  run?: { auto: boolean; start: string };
+  /** The entry file that was run, so a saved result can show it. */
+  file_name?: string;
 }
 
 export function isLabBacktestPayload(value: unknown): value is LabBacktestPayload {

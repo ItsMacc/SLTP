@@ -21,6 +21,11 @@ export interface SiteGuideProps {
   open: boolean;
   onClose: () => void;
   onNavigate: (tab: string) => void;
+  /** The slide on screen. Held here so a page tour can return to it. */
+  index: number;
+  onIndexChange: (index: number) => void;
+  /** Reopens the guide on a slide after its page tour ends. */
+  onOpenGuideAt: (index: number) => void;
 }
 
 /* ============================================================
@@ -108,8 +113,7 @@ function SlideFinal() {
 
 const CONTENT_SLIDES = 6; // welcome, research, strategies, lab, watchlist, final
 
-export default function SiteGuide({ open, onClose, onNavigate }: SiteGuideProps) {
-  const [index, setIndex] = useState(0);
+export default function SiteGuide({ open, onClose, onNavigate, index, onIndexChange, onOpenGuideAt }: SiteGuideProps) {
   const [leaving, setLeaving] = useState(false);
 
   /* The slideshow fades out first, then hands over: closing lands on Home,
@@ -118,7 +122,6 @@ export default function SiteGuide({ open, onClose, onNavigate }: SiteGuideProps)
     setLeaving(true);
     window.setTimeout(() => {
       setLeaving(false);
-      setIndex(0);
       onClose();
       onNavigate(tab);
     }, 200);
@@ -127,27 +130,25 @@ export default function SiteGuide({ open, onClose, onNavigate }: SiteGuideProps)
   const close = useCallback(() => dismiss('home'), [dismiss]);
 
   /* A page tour needs the page on screen, so the slideshow closes first and the
-     tour takes over once the page has mounted. */
+     tour takes over once the page has mounted. The slide it was on is carried
+     into the callback: however the tour ends, the reader lands back on that
+     slide rather than at the welcome. */
   const takeTour = useCallback(
     (tab: TourTab) => {
+      const returnIndex = index;
       setLeaving(true);
       window.setTimeout(() => {
         setLeaving(false);
-        setIndex(0);
         onClose();
         onNavigate(tab);
-        startPageTour(tab);
+        startPageTour(tab, () => {
+          onNavigate('home');
+          onOpenGuideAt(returnIndex);
+        });
       }, 200);
     },
-    [onClose, onNavigate],
+    [index, onClose, onNavigate, onOpenGuideAt],
   );
-
-  /* Reset to the first slide each time it opens */
-  useEffect(() => {
-    if (open) {
-      setIndex(0);
-    }
-  }, [open]);
 
   /* Escape closes the slideshow. Body scroll stays locked while it is open. */
   useEffect(() => {
@@ -188,7 +189,7 @@ export default function SiteGuide({ open, onClose, onNavigate }: SiteGuideProps)
             type="button"
             tabIndex={-1}
             className={`tsg-dot ${i === index ? 'is-active' : ''}`}
-            onClick={() => setIndex(i)}
+            onClick={() => onIndexChange(i)}
           />
         ))}
       </div>
@@ -236,7 +237,7 @@ export default function SiteGuide({ open, onClose, onNavigate }: SiteGuideProps)
       </div>
 
       <div className="tsg-footer">
-        <Button variant="secondary" size="md" onClick={() => setIndex((i) => Math.max(0, i - 1))} disabled={isFirst}>
+        <Button variant="secondary" size="md" onClick={() => onIndexChange(Math.max(0, index - 1))} disabled={isFirst}>
           Back
         </Button>
         <span className="tsg-counter">{index + 1} / {CONTENT_SLIDES}</span>
@@ -252,7 +253,7 @@ export default function SiteGuide({ open, onClose, onNavigate }: SiteGuideProps)
             Back to Home
           </Button>
         ) : (
-          <Button variant="primary" size="md" onClick={() => setIndex((i) => i + 1)}>
+          <Button variant="primary" size="md" onClick={() => onIndexChange(index + 1)}>
             Next
           </Button>
         )}

@@ -7,7 +7,7 @@
 // from, so a result can leave the browser intact.
 
 import { useEffect, useMemo, useState, type PointerEvent as ReactPointerEvent } from 'react';
-import { Download, X } from 'lucide-react';
+import { Check, Download, Pencil, ScrollText, X } from 'lucide-react';
 import Button from '../ui/Button';
 import { backtestRange, type LabBacktestPayload, type LabTrade } from './backtestTypes';
 import './LabResultsWindow.css';
@@ -15,7 +15,15 @@ import './LabResultsWindow.css';
 interface LabResultsWindowProps {
   result: LabBacktestPayload;
   fileName: string;
-  projectName: string;
+  workspaceName: string;
+  /** The saved backtest this report belongs to, when it has one. */
+  backtestName?: string;
+  backtestId?: string;
+  createdAt?: string;
+  /** Persists a renamed backtest; omitted for a result that was not saved. */
+  onRename?: (name: string) => Promise<void>;
+  /** Why the result is not in the account store, when saving failed. */
+  saveError?: string | null;
   onClose: () => void;
 }
 
@@ -121,6 +129,19 @@ const formatDate = (iso: string) => {
   const date = new Date(`${iso}T00:00:00`);
   if (Number.isNaN(date.getTime())) return iso;
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+};
+
+const formatSavedAt = (iso?: string) => {
+  if (!iso) return null;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
 };
 
 const formatAxisDate = (iso: string) => {
@@ -344,16 +365,16 @@ function TradeRow({ trade }: { trade: LabTrade }) {
 
   return (
     <tr className={closed ? (won ? 'is-win' : 'is-loss') : 'is-open'}>
-      <td>{formatDate(trade.entry_date)}</td>
-      <td className="lab-results-ticker">{trade.ticker}</td>
-      <td>
+      <td data-label="Entry">{formatDate(trade.entry_date)}</td>
+      <td className="lab-results-ticker" data-label="Symbol">{trade.ticker}</td>
+      <td data-label="Side">
         <span className={`lab-results-side is-${trade.position_type === 'short' ? 'short' : 'long'}`}>
           {trade.position_type === 'short' ? 'SHORT' : 'LONG'}
         </span>
       </td>
-      <td>{(trade.allocation * 100).toFixed(2)}%</td>
-      <td>${formatMoney(trade.entry_price)}</td>
-      <td>
+      <td data-label="Allocation">{(trade.allocation * 100).toFixed(2)}%</td>
+      <td data-label="Entry price">${formatMoney(trade.entry_price)}</td>
+      <td data-label="Exit">
         {trade.exit ? (
           <>
             {formatDate(trade.exit.date)}
@@ -363,12 +384,12 @@ function TradeRow({ trade }: { trade: LabTrade }) {
           'Open'
         )}
       </td>
-      <td>{trade.exit ? `$${formatMoney(trade.exit.price)}` : '—'}</td>
-      <td className="lab-results-fees">${formatMoney(trade.fees || 0)}</td>
-      <td className={won === null ? '' : won ? 'is-positive' : 'is-negative'}>
+      <td data-label="Exit price">{trade.exit ? `$${formatMoney(trade.exit.price)}` : '—'}</td>
+      <td className="lab-results-fees" data-label="Fees">${formatMoney(trade.fees || 0)}</td>
+      <td className={won === null ? '' : won ? 'is-positive' : 'is-negative'} data-label="P&L">
         {outcome ? `${outcome.pnl >= 0 ? '+' : '−'}$${formatMoney(Math.abs(outcome.pnl))}` : '—'}
       </td>
-      <td className={won === null ? '' : won ? 'is-positive' : 'is-negative'}>
+      <td className={won === null ? '' : won ? 'is-positive' : 'is-negative'} data-label="Return">
         {outcome ? formatPercent(outcome.returnPct) : '—'}
       </td>
     </tr>
@@ -380,10 +401,21 @@ function TradeRow({ trade }: { trade: LabTrade }) {
 export default function LabResultsWindow({
   result,
   fileName,
-  projectName,
+  workspaceName,
+  backtestName,
+  backtestId,
+  createdAt,
+  onRename,
+  saveError,
   onClose,
 }: LabResultsWindowProps) {
   const [page, setPage] = useState(1);
+  const fallbackName = result.strategy_name || fileName.replace(/\.py$/, '') || 'Backtest';
+  const [displayName, setDisplayName] = useState(backtestName ?? fallbackName);
+  const [editingName, setEditingName] = useState(false);
+  const [draftName, setDraftName] = useState(displayName);
+  const [savingName, setSavingName] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -429,9 +461,48 @@ export default function LabResultsWindow({
   const hasBenchmark = result.benchmark.length > 1;
   const excess = hasBenchmark ? strategyReturn - benchmarkReturn : null;
 
+  const commitName = async () => {
+    const next = draftName.trim();
+    if (!next || next === displayName) {
+      setEditingName(false);
+      setDraftName(displayName);
+      return;
+    }
+    setSavingName(true);
+    setNameError(null);
+    try {
+      if (onRename) await onRename(next);
+      setDisplayName(next);
+      setEditingName(false);
+    } catch (err) {
+      setNameError(err instanceof Error ? err.message : 'Could not rename this backtest.');
+    } finally {
+      setSavingName(false);
+    }
+  };
+
+  const logs = result.logs ?? [];
+  const logText = logs.map((entry) => entry.text).join('');
+  const savedAt = formatSavedAt(createdAt);
+
+  const downloadLogs = () => {
+    const slug =
+      displayName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'backtest';
+    const text = logText.trimEnd();
+    const blob = new Blob([text ? `${text}\n` : ''], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `${slug}-logs.txt`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
   const download = () => {
     const slug =
-      `${projectName}-${fileName.replace(/\.py$/, '')}`
+      `${workspaceName}-${displayName}`
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-|-$/g, '') || 'lab-backtest';
@@ -458,13 +529,75 @@ export default function LabResultsWindow({
       <section className="lab-results-window" role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <header className="lab-results-head">
           <div className="lab-results-heading">
-            <p className="lab-results-kicker">Backtest result</p>
-            <h2 className="lab-results-title" id={titleId}>
-              {result.strategy_name || fileName.replace(/\.py$/, '')}
-            </h2>
-            <p className="lab-results-subtitle">
-              {backtestRange(result)} · {fileName}
+            <p className="lab-results-kicker">
+              Backtest result{backtestId ? ` · ${backtestId}` : ''}
             </p>
+            {editingName ? (
+              <form
+                className="lab-results-name-form"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void commitName();
+                }}
+              >
+                <input
+                  className="lab-results-name-input"
+                  aria-label="Backtest name"
+                  value={draftName}
+                  maxLength={80}
+                  autoFocus
+                  disabled={savingName}
+                  onChange={(event) => setDraftName(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Escape') {
+                      setDraftName(displayName);
+                      setEditingName(false);
+                      setNameError(null);
+                    }
+                  }}
+                />
+                <Button
+                  variant="primary"
+                  size="icon"
+                  aria-label="Save backtest name"
+                  title="Save name"
+                  disabled={savingName}
+                  type="submit"
+                >
+                  <Check size={15} aria-hidden="true" />
+                </Button>
+              </form>
+            ) : (
+              <div className="lab-results-title-row">
+                <h2 className="lab-results-title" id={titleId}>{displayName}</h2>
+                {onRename && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Rename backtest"
+                    title="Rename backtest"
+                    onClick={() => {
+                      setDraftName(displayName);
+                      setNameError(null);
+                      setEditingName(true);
+                    }}
+                  >
+                    <Pencil size={15} aria-hidden="true" />
+                  </Button>
+                )}
+              </div>
+            )}
+            {nameError && <p className="lab-results-name-error">{nameError}</p>}
+            <p className="lab-results-subtitle">
+              {result.strategy_name ? `${result.strategy_name} · ` : ''}
+              {backtestRange(result)} · {fileName}
+              {savedAt ? ` · saved ${savedAt}` : ''}
+            </p>
+            {saveError && (
+              <p className="lab-results-save-error">
+                This run was not saved: {saveError}
+              </p>
+            )}
           </div>
           <div className="lab-results-head-actions">
             <Button variant="secondary" size="sm" onClick={download}>
@@ -622,6 +755,21 @@ export default function LabResultsWindow({
                 )}
               </>
             )}
+          </section>
+
+          <section className="lab-results-card">
+            <div className="lab-results-card-head">
+              <h3>
+                <ScrollText size={15} aria-hidden="true" /> Logs
+              </h3>
+              <Button variant="secondary" size="sm" onClick={downloadLogs}>
+                <Download size={14} aria-hidden="true" />
+                Download logs (.txt)
+              </Button>
+            </div>
+            <pre className="lab-results-logs" aria-label="Backtest logs">
+              {logText || 'Nothing was printed during this run.'}
+            </pre>
           </section>
 
           <p className="lab-results-footnote">

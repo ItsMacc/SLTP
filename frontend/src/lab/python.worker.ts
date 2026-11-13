@@ -14,6 +14,7 @@
 // in the status bar.
 
 import { getFile, hasFile, putFile } from '../store/opfs';
+import type { EngineRunSettings } from './runSettings';
 
 /** Pinned Pyodide build: the same distribution the engine worker uses. */
 const PYODIDE_INDEX_URL = 'https://cdn.jsdelivr.net/pyodide/v314.0.7/full/';
@@ -29,12 +30,20 @@ interface PyodideApi {
   setStderr: (options: { batched?: (text: string) => void }) => void;
   loadPackage: (names: string | string[]) => Promise<void>;
   pyimport: (name: string) => { install: (requirement: string) => Promise<unknown> };
-  globals: { get: (name: string) => (...args: unknown[]) => unknown };
+  globals: {
+    get: (name: string) => (...args: unknown[]) => unknown;
+    set: (name: string, value: unknown) => void;
+  };
   FS: {
     writeFile: (path: string, data: Uint8Array) => void;
     mkdirTree: (path: string) => void;
   };
   mountNativeFS: (mountpoint: string, handle: FileSystemDirectoryHandle) => Promise<unknown>;
+}
+
+interface LabLogEntry {
+  stream: 'stdout' | 'stderr';
+  text: string;
 }
 
 type Incoming =
@@ -45,12 +54,15 @@ type Incoming =
       filename: string;
       code: string;
       files: { name: string; content: string }[];
+      settings?: EngineRunSettings;
     }
   | { id: number; kind: 'reset' };
 
 let pyodide: PyodideApi | null = null;
 /** The run whose stdout is arriving right now, so chunks find their way home. */
 let currentRun = 0;
+/** Everything this run printed, kept separately from the report. */
+let currentLogs: LabLogEntry[] = [];
 
 function post(message: unknown): void {
   self.postMessage(message);
@@ -64,6 +76,7 @@ import builtins
 import json
 import linecache
 import platform
+import inspect
 import shutil
 import sys
 import traceback
@@ -110,11 +123,59 @@ def _find_result(namespace):
 
 
 def _strategy_name(namespace):
-    for value in namespace.values():
+    for value in reversed(list(namespace.values())):
         name = getattr(value, "name", None)
         if isinstance(name, str) and callable(getattr(value, "on_signal", None)):
             return name
+        if isinstance(value, type) and callable(getattr(value, "on_signal", None)):
+            return value.__name__
     return None
+
+
+def _is_project_class(value):
+    """True for classes defined by files the reader wrote, not by sltp."""
+    if not isinstance(value, type):
+        return False
+    # The entry file runs in a plain exec namespace, not a module registered
+    # as __main__, so inspect.getsourcefile cannot see its path. Any class in
+    # that namespace is the reader's own.
+    if value.__module__ == "__main__":
+        return True
+    module = sys.modules.get(value.__module__)
+    filename = getattr(module, "__file__", None) or inspect.getsourcefile(value) or ""
+    return str(filename).startswith(str(PROJECT_ROOT))
+
+
+def _find_strategy(namespace):
+    """The reader's Strategy class, preferring one defined in the open file."""
+    from sltp import Strategy
+
+    found = [
+        value
+        for value in namespace.values()
+        if _is_project_class(value)
+        and value is not Strategy
+        and issubclass(value, Strategy)
+    ]
+    for value in reversed(found):
+        if value.__module__ == "__main__":
+            return value
+    return found[-1] if found else None
+
+
+def _default_start():
+    from datetime import date, timedelta
+
+    return (date.today() - timedelta(days=730)).isoformat()
+
+
+def _status(text):
+    try:
+        from js import lab_status
+
+        lab_status(text)
+    except Exception:
+        pass
 
 
 def _benchmark_series(start, end):
@@ -131,6 +192,37 @@ def _benchmark_series(start, end):
         return []
 
 
+def _chart_svg(result, payload):
+    # The same static SVG the CLI writes, built from the equity already in the
+    # payload so the benchmark is not run a second time.
+    try:
+        from sltp.graphs import ChartSeries, equity_chart
+
+        equity = payload.get("equity") or []
+        if not equity:
+            return None
+        name = payload.get("strategy_name") or "Strategy"
+        series = [ChartSeries.from_equity(name, result.get("equity") or [])]
+        benchmark = [
+            {"date": point["date"], "portfolio_value": point["value"]}
+            for point in payload.get("benchmark") or []
+        ]
+        if benchmark:
+            series.append(
+                ChartSeries.from_equity("Buy & Hold (SPY)", benchmark, color="#9aa3b2")
+            )
+        first = str(equity[0]["date"])
+        last = str(equity[-1]["date"])
+        return equity_chart(
+            series,
+            title=name,
+            subtitle=f"{first} → {last} · {len(equity)} sessions · index starts at 100",
+            start_value=100.0,
+        )
+    except Exception:
+        return None
+
+
 def _payload(result, namespace):
     from sltp.web import to_jsonable
 
@@ -144,10 +236,15 @@ def _payload(result, namespace):
     # Rejections are part of the raw run and useful in the download even
     # though they are not a headline metric.
     payload["rejections"] = result.get("rejections") or {}
-    return payload
+    # The chart source leads the object, so the download opens on it and the
+    # rest of the result follows unchanged.
+    return {"svg": _chart_svg(result, payload), **payload}
 
 
-def run_project(filename, files):
+def run_project(filename, files, settings_json="{}"):
+    # Settings arrive as a JSON string so null/true mean the same thing here
+    # as they do in the message from the page.
+    settings = json.loads(settings_json) if settings_json else {}
     if PROJECT_ROOT.exists():
         shutil.rmtree(PROJECT_ROOT)
     PROJECT_ROOT.mkdir(parents=True, exist_ok=True)
@@ -180,20 +277,68 @@ def run_project(filename, files):
         "__package__": None,
         "__builtins__": builtins,
     }
+    _status("Running your code…")
     try:
         exec(compile(source, absolute, "exec"), namespace)
     except Exception as exc:
         return json.dumps({"ok": False, "error": _format_error(exc)})
 
+    # A script may still carry the old explicit Backtester call. Use that if
+    # it exists; otherwise the reader only wrote a Strategy and the engine
+    # supplies the Backtester, dates and run for them.
     result = _find_result(namespace)
+    auto_run = result is None
+    run_start = None
+    run_end = None
     if result is None:
-        return json.dumps({"ok": True, "result": None})
+        strategy_class = _find_strategy(namespace)
+        if strategy_class is None:
+            return json.dumps({
+                "ok": True,
+                "result": None,
+                "notice": "No Strategy subclass was found. Define a class that inherits from sltp.Strategy, then run again.",
+            })
+        run_start = str(settings.get("start") or _default_start())
+        run_end = settings.get("end") or None
+        _status("Running the strategy…")
+        try:
+            from sltp import Backtester
+
+            participation = settings.get("max_participation")
+            backtester = Backtester(
+                strategy_class(),
+                run_start,
+                run_end,
+                bool(settings.get("dividends", True)),
+                spread_pct=float(settings.get("spread_pct") or 0.0),
+                max_participation=None if participation is None else float(participation),
+                borrow_rate=float(settings.get("borrow_rate") or 0.0),
+            )
+            # Fees and slippage live on the book, not the Backtester signature.
+            if settings.get("fee_rate") is not None:
+                backtester.manager.FEE_RATE = float(settings["fee_rate"])
+            if settings.get("slippage_pct") is not None:
+                backtester.manager.SLIPPAGE_PCT = float(settings["slippage_pct"])
+            result = backtester.run()
+        except Exception as exc:
+            return json.dumps({"ok": False, "error": _format_error(exc)})
+
+    _status("Building the report…")
     try:
-        return json.dumps({"ok": True, "result": _payload(result, namespace)})
+        payload = _payload(result, namespace)
+        payload["run"] = {
+            "auto": auto_run,
+            "start": run_start or _default_start(),
+            "end": run_end,
+        }
+        return json.dumps({"ok": True, "result": payload})
     except Exception:
         # The backtest ran; only the rich result could not be serialized.
-        # Keep the terminal useful instead of turning a success into an error.
-        return json.dumps({"ok": True, "result": None})
+        # Keep the log useful instead of turning a success into an error.
+        return json.dumps({
+            "ok": False,
+            "error": "The strategy ran but its result could not be prepared for the report.",
+        })
 
 
 def reset_project():
@@ -336,12 +481,16 @@ async function boot(): Promise<void> {
   // and a runaway loop cannot flood the page with single characters.
   instance.setStdout({
     batched: (text: string) => {
-      if (currentRun) post({ type: 'stdout', id: currentRun, text });
+      if (!currentRun) return;
+      currentLogs.push({ stream: 'stdout', text });
+      post({ type: 'stdout', id: currentRun, text });
     },
   });
   instance.setStderr({
     batched: (text: string) => {
-      if (currentRun) post({ type: 'stderr', id: currentRun, text });
+      if (!currentRun) return;
+      currentLogs.push({ stream: 'stderr', text });
+      post({ type: 'stderr', id: currentRun, text });
     },
   });
   instance.runPython(BOOTSTRAP);
@@ -422,6 +571,12 @@ self.onmessage = async (event: MessageEvent<Incoming>) => {
 
     if (message.kind === 'run') {
       currentRun = message.id;
+      currentLogs = [];
+      // Python calls this between stages, so the progress window says what is
+      // happening during a run that can take a minute on a cold cache.
+      pyodide.globals.set('lab_status', (text: unknown) => {
+        post({ type: 'run-status', id: message.id, text: String(text) });
+      });
       const started = performance.now();
       const files: Record<string, string> = {};
       for (const file of message.files) {
@@ -431,14 +586,19 @@ self.onmessage = async (event: MessageEvent<Incoming>) => {
       try {
         const outcome = String(
           await pyodide.runPythonAsync(
-            `run_project(${JSON.stringify(message.filename)}, ${JSON.stringify(files)})`,
+            `run_project(${JSON.stringify(message.filename)}, ${JSON.stringify(files)}, ${JSON.stringify(JSON.stringify(message.settings ?? {}))})`,
           ),
         );
         // run_project answers with one JSON object: ok, plus either the
         // reader's traceback or the normalized backtest payload.
-        let parsed: { ok?: boolean; result?: unknown; error?: string };
+        let parsed: { ok?: boolean; result?: unknown; error?: string; notice?: string };
         try {
-          parsed = JSON.parse(outcome) as { ok?: boolean; result?: unknown; error?: string };
+          parsed = JSON.parse(outcome) as {
+            ok?: boolean;
+            result?: unknown;
+            error?: string;
+            notice?: string;
+          };
         } catch {
           parsed = { ok: false, error: outcome };
         }
@@ -447,7 +607,9 @@ self.onmessage = async (event: MessageEvent<Incoming>) => {
           id: message.id,
           ok: parsed.ok === true,
           message: parsed.error,
+          notice: parsed.notice,
           result: parsed.result ?? null,
+          logs: currentLogs,
           durationMs: performance.now() - started,
         });
       } catch (error) {
@@ -456,6 +618,7 @@ self.onmessage = async (event: MessageEvent<Incoming>) => {
           id: message.id,
           ok: false,
           message: error instanceof Error ? error.message : String(error),
+          logs: currentLogs,
           durationMs: performance.now() - started,
         });
       } finally {

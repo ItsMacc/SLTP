@@ -45,6 +45,7 @@
   --accent: #4f46e5;
   --accent-hover: #4338ca;
   --accent-muted: rgba(79, 70, 229, 0.12);
+  --accent-faint: rgba(79, 70, 229, 0.06);
 
   --success: #059669;
   --error: #dc2626;
@@ -149,6 +150,7 @@
     --accent: #d97706;
     --accent-hover: #f59e0b;
     --accent-muted: rgba(217, 119, 6, 0.12);
+    --accent-faint: rgba(217, 119, 6, 0.08);
 
     --success: #059669;
     --error: #dc2626;
@@ -192,6 +194,7 @@
   --accent: #d97706;
   --accent-hover: #f59e0b;
   --accent-muted: rgba(217, 119, 6, 0.12);
+  --accent-faint: rgba(217, 119, 6, 0.08);
 
   --success: #059669;
   --error: #dc2626;

@@ -9,10 +9,10 @@
   width: 100%;
   max-width: min(96rem, 98vw);
   margin: 0 auto;
-  padding: var(--space-lg) 0 var(--space-xl);
+  padding: var(--space-sm) 0 var(--space-xl);
   display: flex;
   flex-direction: column;
-  gap: var(--space-md);
+  gap: var(--space-sm);
 }
 
 /* ---------- Page header ---------- */
@@ -169,8 +169,8 @@
 
   display: flex;
   flex-direction: column;
-  height: min(76vh, 52rem);
-  min-height: 30rem;
+  height: min(82vh, 58rem);
+  min-height: 34rem;
   background-color: var(--ide-bg);
   color: var(--ide-text);
   border: 1px solid var(--ide-border);
@@ -594,10 +594,71 @@
 
 .lab-tabs {
   display: flex;
-  overflow-x: auto;
+  align-items: stretch;
   background-color: var(--ide-tabs);
   min-height: 2.25rem;
+}
+
+.lab-tabs-strip {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
   scrollbar-width: thin;
+}
+
+.lab-tab-actions {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: var(--space-3xs);
+  padding: 0 var(--space-xs);
+  border-left: 1px solid var(--ide-border);
+  background-color: var(--ide-tabs);
+}
+
+.lab-tab-action {
+  width: 1.9rem;
+  height: 1.9rem;
+  color: var(--ide-muted);
+}
+
+.lab-tab-action:hover:not(:disabled) {
+  background-color: var(--ide-hover);
+  color: var(--ide-text);
+}
+
+.lab-tab-action.is-run {
+  color: var(--ide-ok);
+}
+
+.lab-tab-action:disabled {
+  color: var(--ide-muted);
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.lab-tab-action:focus-visible {
+  outline: 2px solid var(--ide-accent);
+  outline-offset: -2px;
+}
+
+/* The one loud control in the IDE chrome: save everything, then leave. */
+.lab-close-project.btn {
+  height: 1.9rem;
+  margin-left: var(--space-2xs);
+  padding: 0 var(--space-sm);
+  gap: var(--space-2xs);
+  border-radius: 4px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.lab-close-project .loader-inline {
+  margin-right: 0;
 }
 
 .lab-tab {
@@ -829,49 +890,153 @@
   font-weight: 600;
 }
 
-/* ---------- Mobile: read-only file list, no editor or terminal ---------- */
-.lab-mobile-note {
+/* ---------- Mobile: a soft results-only screen ---------- */
+.lab-mobile-gate {
   display: none;
-  margin: 0;
-  color: var(--text-muted);
-  font-size: var(--text-sm);
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  padding: clamp(1.5rem, 8vh, 4rem) 0;
 }
 
+.lab-mobile-card {
+  width: min(34rem, 100%);
+  margin: 0 auto;
+  padding: clamp(1.5rem, 6vw, 2.5rem);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.lab-mobile-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: var(--radius-full);
+  background: var(--bg-surface-hover);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.lab-mobile-workspace {
+  margin: var(--space-md) 0 0;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+.lab-mobile-title {
+  margin: var(--space-xs) 0 0;
+  color: var(--text-primary);
+  font-family: var(--font-heading);
+  font-size: clamp(1.6rem, 7vw, 2.25rem);
+  font-weight: 400;
+  line-height: 1.15;
+}
+
+.lab-mobile-copy {
+  margin: var(--space-sm) 0 0;
+  color: var(--text-muted);
+  font-size: var(--text-base);
+  line-height: 1.6;
+}
+
+.lab-mobile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-top: var(--space-lg);
+}
+
+.lab-mobile-actions .btn {
+  flex: 1 1 auto;
+  justify-content: center;
+}
+
+/* The gate follows the device, not the window. A desktop browser narrowed by
+   hand keeps the editor; a phone keeps the gate even in landscape. */
+.lab-editor.is-mobile-device .lab-mobile-gate {
+  display: flex;
+}
+
+.lab-editor.is-mobile-device .lab-ide {
+  display: none;
+}
+
+.lab-editor.is-mobile-device .lab-desktop-only {
+  display: none !important;
+}
+
+/* ---------- Narrow desktop: stack files over the editor ---------- */
+/* The editor is still the desktop editor, but the explorer moves to its own
+   band so the code and Run controls keep the full window width. */
 @media (max-width: 47.99rem) {
-  .lab-mobile-note {
-    display: block;
-  }
-
-  .lab-desktop-only {
-    display: none !important;
-  }
-
-  .lab-ide {
+  .lab-editor:not(.is-mobile-device) .lab-ide {
     height: auto;
     min-height: 0;
   }
 
-  .lab-ide-body {
+  .lab-editor:not(.is-mobile-device) .lab-ide-body {
     flex-direction: column;
   }
 
-  .lab-explorer {
+  .lab-editor:not(.is-mobile-device) .lab-explorer {
+    flex: 0 0 auto;
     width: 100%;
+    max-height: 13rem;
+    overflow: hidden;
+    border-bottom: 1px solid var(--ide-border);
   }
 
-  .lab-file-tree,
-  .lab-folder-tree {
-    max-height: 16rem;
+  .lab-editor:not(.is-mobile-device) .lab-folder-tree,
+  .lab-editor:not(.is-mobile-device) .lab-file-tree {
+    max-height: 9rem;
+    overflow-y: auto;
   }
 
-  .lab-ide-resizer,
-  .lab-ide-main,
-  .lab-statusbar {
-    display: none;
+  .lab-editor:not(.is-mobile-device) .lab-ide-main {
+    min-height: 34rem;
   }
 
-  .lab-file-item {
-    pointer-events: none;
+  .lab-editor:not(.is-mobile-device) .lab-tabs {
+    flex-wrap: wrap;
+  }
+
+  .lab-editor:not(.is-mobile-device) .lab-tabs-strip {
+    flex: 1 1 8rem;
+  }
+
+  .lab-editor:not(.is-mobile-device) .lab-tab-actions {
+    flex: 1 1 auto;
+    justify-content: flex-end;
+    border-left: 0;
+    border-top: 1px solid var(--ide-border);
+  }
+
+  .lab-editor:not(.is-mobile-device) .lab-statusbar {
+    height: auto;
+    min-height: 1.5rem;
+    flex-wrap: wrap;
+    gap: 0 var(--space-2xs);
+    padding-top: 0.15rem;
+    padding-bottom: 0.15rem;
+  }
+
+  .lab-editor:not(.is-mobile-device) .lab-statusbar-group {
+    flex-wrap: wrap;
+  }
+
+  .lab-editor:not(.is-mobile-device) .lab-statusbar-item {
+    padding: 0 0.3rem;
   }
 }
 

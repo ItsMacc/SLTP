@@ -223,7 +223,10 @@ export interface LabWorkspace {
   id: string;
   name: string;
   created_at: string;
-  projects: LabProject[];
+  /** The hidden storage row the editor reads and writes files against. */
+  project_id: string | null;
+  files: { path: string }[];
+  file_count: number;
 }
 
 export async function listLabWorkspaces(token: string): Promise<LabWorkspace[]> {
@@ -233,11 +236,24 @@ export async function listLabWorkspaces(token: string): Promise<LabWorkspace[]> 
 
 export async function createLabWorkspace(
   token: string,
-  input: { workspace_name: string; project_name: string; template?: string },
+  input: { workspace_name: string; strategy_name: string; template?: string; code?: string },
 ): Promise<LabWorkspace> {
   return authedFetch('/api/lab/workspaces', token, {
     method: 'POST',
     body: JSON.stringify(input),
+  });
+}
+
+export async function createLabStrategy(
+  token: string,
+  workspaceId: string,
+  name: string,
+  template?: string,
+  code?: string,
+): Promise<LabWorkspace> {
+  return authedFetch(`/api/lab/workspaces/${workspaceId}/strategies`, token, {
+    method: 'POST',
+    body: JSON.stringify({ name, template: template ?? 'blank', code }),
   });
 }
 
@@ -401,6 +417,64 @@ export async function renameLabProject(token: string, projectId: string, name: s
 
 export async function deleteLabProject(token: string, projectId: string): Promise<void> {
   await authedFetch(`/api/lab/projects/${projectId}`, token, { method: 'DELETE' });
+}
+
+// ---------- Lab backtests ----------
+
+export interface LabBacktestSummary {
+  id: string;
+  project_id: string;
+  name: string;
+  strategy_name: string;
+  total_return: number;
+  cagr: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LabBacktestRecord extends LabBacktestSummary {
+  payload: unknown;
+}
+
+export async function listLabBacktests(
+  token: string,
+  projectId: string,
+): Promise<LabBacktestSummary[]> {
+  const data = await authedFetch(`/api/lab/projects/${projectId}/backtests`, token);
+  return Array.isArray(data.backtests) ? data.backtests : [];
+}
+
+export async function createLabBacktest(
+  token: string,
+  projectId: string,
+  payload: unknown,
+  name?: string,
+): Promise<LabBacktestSummary> {
+  return authedFetch(`/api/lab/projects/${projectId}/backtests`, token, {
+    method: 'POST',
+    body: JSON.stringify({ payload, name }),
+  });
+}
+
+export async function getLabBacktest(token: string, backtestId: string): Promise<LabBacktestRecord> {
+  return authedFetch(`/api/lab/backtests/${encodeURIComponent(backtestId)}`, token);
+}
+
+export async function renameLabBacktest(
+  token: string,
+  backtestId: string,
+  name: string,
+): Promise<LabBacktestSummary> {
+  return authedFetch(`/api/lab/backtests/${encodeURIComponent(backtestId)}`, token, {
+    method: 'PATCH',
+    body: JSON.stringify({ name }),
+  });
+}
+
+export async function deleteLabBacktest(token: string, backtestId: string): Promise<void> {
+  await authedFetch(`/api/lab/backtests/${encodeURIComponent(backtestId)}`, token, {
+    method: 'DELETE',
+  });
 }
 
 export async function deleteLabWorkspace(token: string, workspaceId: string): Promise<void> {

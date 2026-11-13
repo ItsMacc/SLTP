@@ -1,0 +1,157 @@
+/* ============================================================
+   LabRunSettings.css — Dates and trading costs for one Lab run.
+   Mirrors ImportFolderDialog.css conventions.
+
+   Width conventions: % / vw for layout widths; rem for fixed
+   UI atoms. Breakpoints in rem.
+   ============================================================ */
+
+.lab-run-settings-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+  background: var(--overlay);
+}
+
+.lab-run-settings {
+  width: min(34rem, 100%);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  overflow-y: auto;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-lg);
+}
+
+.lab-run-settings-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+}
+
+.lab-run-settings-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--radius-sm);
+  background: var(--accent-muted);
+  color: var(--accent);
+}
+
+.lab-run-settings-title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-weight: 400;
+  font-size: var(--text-xl);
+  line-height: 1.2;
+  color: var(--text-primary);
+}
+
+.lab-run-settings-sub {
+  margin: var(--space-3xs) 0 0;
+  font-size: var(--text-sm);
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+.lab-run-settings-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.lab-run-settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.lab-run-settings-section:first-child {
+  padding-top: 0;
+  border-top: none;
+}
+
+.lab-run-settings-heading {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.lab-run-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-sm);
+}
+
+.lab-run-settings-end {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2xs);
+}
+
+.lab-run-settings-hint,
+.lab-run-settings-note {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+.lab-run-settings-error {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--error);
+}
+
+.lab-run-settings-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.lab-run-settings-foot-end {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.lab-run-settings-foot .btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+@media (max-width: 47.99rem) {
+  .lab-run-settings-overlay {
+    align-items: flex-start;
+    padding: var(--space-md);
+  }
+
+  .lab-run-settings-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .lab-run-settings-foot {
+    flex-wrap: wrap;
+  }
+}

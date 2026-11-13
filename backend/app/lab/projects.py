@@ -27,9 +27,17 @@ def _lab_error(err: userdata.LabError) -> HTTPException:
 
 # -------- Request Bodies --------
 class WorkspaceCreateIn(BaseModel):
-    workspace_name: str = Field(description="New workspace name, or the new-workspace branch of the wizard.")
-    project_name: str = Field(description="First project inside the workspace.")
-    template: str = Field(default="blank", description="Starter file set: blank, moving-average, loops, functions.")
+    workspace_name: str = Field(description="New workspace name.")
+    strategy_name: str | None = Field(default=None, description="First strategy file, used as its filename.")
+    project_name: str | None = Field(default=None, description="Deprecated alias for strategy_name.")
+    template: str = Field(default="blank", description="Starter template id. Used when code is not sent.")
+    code: str | None = Field(default=None, description="Exact starter code the wizard showed. Overrides the template seed.")
+
+
+class StrategyCreateIn(BaseModel):
+    name: str = Field(description="Strategy file name, without the folder.")
+    template: str = Field(default="blank", description="Starter template id. Used when code is not sent.")
+    code: str | None = Field(default=None, description="Exact starter code the wizard showed. Overrides the template seed.")
 
 
 class ProjectCreateIn(BaseModel):
@@ -71,6 +79,15 @@ class FolderCreateIn(BaseModel):
     name: str = Field(description="Folder path, folders separated by slashes.")
 
 
+class BacktestCreateIn(BaseModel):
+    payload: dict[str, Any] = Field(description="The normalized result the browser produced.")
+    name: str | None = Field(default=None, description="Optional first name; the id is used otherwise.")
+
+
+class BacktestRenameIn(BaseModel):
+    name: str = Field(description="New display name.")
+
+
 # -------- Workspaces --------
 # Frontend read: every workspace with its projects and their file counts.
 @router.get("/api/lab/workspaces")
@@ -78,8 +95,8 @@ async def list_workspaces(user: dict[str, Any] = Depends(get_current_user)) -> d
     return {"workspaces": userdata.list_workspaces(user["id"])}
 
 
-# Frontend write: the wizard's new-workspace branch — one workspace plus its
-# first seeded project, returned in the same nested shape as the list.
+# Frontend write: a new workspace with its first strategy file. Projects remain
+# a storage detail; the response is the workspace the editor opens.
 @router.post("/api/lab/workspaces")
 async def create_workspace(
     body: WorkspaceCreateIn,
@@ -87,11 +104,31 @@ async def create_workspace(
 ) -> dict[str, Any]:
     try:
         space = userdata.create_workspace(user["id"], body.workspace_name)
-        project = userdata.create_project(user["id"], space["id"], body.project_name, body.template)
+        strategy_name = (body.strategy_name or body.project_name or "main").strip()
+        userdata.create_project(
+            user["id"], space["id"], strategy_name, body.template, strategy_name,
+            code=body.code,
+        )
+        summary = userdata.get_workspace(user["id"], space["id"])
     except userdata.LabError as err:
         raise _lab_error(err)
-    space["projects"] = [project]
-    return space
+    if not summary:
+        raise HTTPException(status_code=500, detail="Could not read the workspace after creating it.")
+    return summary
+
+
+@router.post("/api/lab/workspaces/{workspace_id}/strategies")
+async def create_workspace_strategy(
+    workspace_id: str,
+    body: StrategyCreateIn,
+    user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    try:
+        return userdata.add_workspace_strategy(
+            user["id"], workspace_id, body.name, body.template, code=body.code,
+        )
+    except userdata.LabError as err:
+        raise _lab_error(err)
 
 
 # Frontend write: removes the workspace and everything inside it.
@@ -144,6 +181,69 @@ async def delete_project(
     if not userdata.delete_project(user["id"], project_id):
         raise HTTPException(status_code=404, detail="Project not found.")
     return {"id": project_id, "deleted": True}
+
+
+# -------- Backtests --------
+# The editor saves every completed run here, and the history window reads it
+# back. The payload is the same JSON the report and the download are built
+# from, so no result is ever recomputed to be reopened.
+@router.get("/api/lab/projects/{project_id}/backtests")
+async def list_project_backtests(
+    project_id: str,
+    user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    try:
+        return {"backtests": userdata.list_lab_backtests(user["id"], project_id)}
+    except userdata.LabError as err:
+        raise _lab_error(err)
+
+
+@router.post("/api/lab/projects/{project_id}/backtests")
+async def create_project_backtest(
+    project_id: str,
+    body: BacktestCreateIn,
+    user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    try:
+        return userdata.create_lab_backtest(user["id"], project_id, body.payload, body.name)
+    except userdata.LabError as err:
+        raise _lab_error(err)
+
+
+@router.get("/api/lab/backtests/{backtest_id}")
+async def get_project_backtest(
+    backtest_id: str,
+    user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    row = userdata.get_lab_backtest(user["id"], backtest_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Backtest not found.")
+    return row
+
+
+@router.patch("/api/lab/backtests/{backtest_id}")
+async def rename_project_backtest(
+    backtest_id: str,
+    body: BacktestRenameIn,
+    user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    try:
+        row = userdata.rename_lab_backtest(user["id"], backtest_id, body.name)
+    except userdata.LabError as err:
+        raise _lab_error(err)
+    if not row:
+        raise HTTPException(status_code=404, detail="Backtest not found.")
+    return row
+
+
+@router.delete("/api/lab/backtests/{backtest_id}")
+async def delete_project_backtest(
+    backtest_id: str,
+    user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    if not userdata.delete_lab_backtest(user["id"], backtest_id):
+        raise HTTPException(status_code=404, detail="Backtest not found.")
+    return {"id": backtest_id, "deleted": True}
 
 
 # -------- Files --------
