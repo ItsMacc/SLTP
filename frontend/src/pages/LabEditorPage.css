@@ -719,6 +719,15 @@
   position: relative;
 }
 
+/* Monaco's own wrapper asks for height: 100%, which resolves to nothing when
+   the parent is sized by flex: the editor collapsed to a sliver and the code
+   was invisible in a narrow window. An absolutely positioned holder gives it a
+   definite box to fill. */
+.lab-editor-fill {
+  position: absolute;
+  inset: 0;
+}
+
 /* ---------- Terminal panel ---------- */
 .lab-terminal {
   flex: 0 0 min(13rem, 34%);

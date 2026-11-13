@@ -266,6 +266,24 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
   const [runSettings, setRunSettings] = useState<LabRunSettings>(readLabRunSettings);
   const mobileDevice = isMobileDevice();
 
+  // Monaco sizes itself from its container, and in the stacked layout that box
+  // is still zero when it mounts. An explicit pixel height from React means it
+  // is right the first time, in every window shape.
+  const editorHostRef = useRef<HTMLDivElement | null>(null);
+  const [editorHeight, setEditorHeight] = useState<number | null>(null);
+  useEffect(() => {
+    const host = editorHostRef.current;
+    if (!host) return;
+    const measure = () => {
+      const height = Math.floor(host.getBoundingClientRect().height);
+      if (height > 0) setEditorHeight(height);
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(host);
+    measure();
+    return () => observer.disconnect();
+  }, []);
+
   const [analysis, setAnalysis] = useState<AnalysisState>('starting');
   const [analysisReason, setAnalysisReason] = useState<string | null>(null);
   // Until the interpreter answers, the wait is counted out rather than shown
@@ -456,6 +474,35 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
     return () => setJediStatusListener(null);
   }, []);
 
+  // The editor's own mount callback does not fire reliably when its box is
+  // still being sized by the stacked layout, which left it unthemed at five
+  // pixels. Once the editor exists, applying the theme and laying it out costs
+  // nothing and works whatever the callback did.
+  useEffect(() => {
+    const settle = () => {
+      const monaco = (window as unknown as { monaco?: Monaco }).monaco;
+      if (!monaco) return false;
+      applyLabEditorTheme(monaco, editorTheme);
+      const editor = monaco.editor.getEditors?.()[0];
+      if (!editor) return false;
+      const host = editor.getContainerDomNode().parentElement;
+      const box = host?.getBoundingClientRect();
+      if (box && box.width > 2 && box.height > 2) {
+        editor.layout({ width: Math.floor(box.width), height: Math.floor(box.height) });
+      }
+      return true;
+    };
+    settle();
+    const timer = window.setInterval(() => {
+      if (settle()) window.clearInterval(timer);
+    }, 250);
+    const giveUp = window.setTimeout(() => window.clearInterval(timer), 8000);
+    return () => {
+      window.clearInterval(timer);
+      window.clearTimeout(giveUp);
+    };
+  }, [editorTheme, active]);
+
   // A definition that lives in another project file opens that file and lands
   // the cursor on the line, which is the half of go-to-definition that cannot
   // happen inside a single editor.
@@ -492,6 +539,14 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
     return () => window.clearInterval(timer);
   }, [analysis]);
 
+  // The editor is created with theme="sltp-dark", so that theme has to exist
+  // before it mounts. Registering it in onMount is too late: the editor throws
+  // on the unknown theme and never calls back, which left it at five pixels
+  // with Monaco's default colours and no layout at all.
+  const handleBeforeMount = (monacoInstance: Parameters<OnMount>[1]) => {
+    applyLabEditorTheme(monacoInstance as Monaco, editorTheme);
+  };
+
   const handleMount: OnMount = (editor, monacoInstance) => {
     const monaco = monacoInstance as Monaco;
     applyLabEditorTheme(monaco, editorTheme);
@@ -508,8 +563,33 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
       const model = editor.getModel();
       if (model && uris.some((uri) => uri.toString() === model.uri.toString())) refreshMarkerCounts();
     });
+    // Monaco measures its container once. In the stacked layout the container
+    // is still being sized by flex at that moment, so it laid itself out at
+    // zero and stayed a sliver — invisible code in a narrow window. Watching
+    // the box covers that, a window resize and the terminal opening.
+    const host = editor.getContainerDomNode().parentElement ?? editor.getContainerDomNode();
+    let pending = 0;
+    const relayout = () => {
+      // Explicit numbers: left to measure for itself, Monaco kept the zero it
+      // found while flex was still settling.
+      const box = host.getBoundingClientRect();
+      if (box.width < 2 || box.height < 2) return;
+      editor.layout({ width: Math.floor(box.width), height: Math.floor(box.height) });
+    };
+    const observer = new ResizeObserver(() => {
+      if (pending) return;
+      pending = window.requestAnimationFrame(() => {
+        pending = 0;
+        relayout();
+      });
+    });
+    observer.observe(host);
+    window.requestAnimationFrame(relayout);
+
     editor.onDidDispose(() => {
       markerSub.dispose();
+      observer.disconnect();
+      if (pending) window.cancelAnimationFrame(pending);
       setJediTarget(null);
     });
 
@@ -1301,8 +1381,9 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
                 <p className="lab-editor-placeholder">Open a file from the explorer to start editing.</p>
               )}
               {!loading && activeFile && (
+                <div className="lab-editor-fill" ref={editorHostRef}>
                 <Editor
-                  height="100%"
+                  height={editorHeight ?? '100%'}
                   path={activeFile.name}
                   language="python"
                   value={activeFile.draft}
@@ -1311,6 +1392,7 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
                     setFiles((prev) => prev.map((f) => (f.name === activeFile.name ? { ...f, draft: next } : f)));
                   }}
                   theme={editorTheme === 'vs-dark' ? 'sltp-dark' : 'sltp-light'}
+                  beforeMount={handleBeforeMount}
                   onMount={handleMount}
                   loading={
                     <div className="lab-editor-monaco-loading">
@@ -1351,6 +1433,7 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
                     automaticLayout: true,
                   }}
                 />
+                </div>
               )}
             </div>
 
