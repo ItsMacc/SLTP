@@ -16,6 +16,12 @@ export const GETTING_STARTED: DocGroup = {
           kind: 'p',
           text: <>A strategy is a subclass of <C>Strategy</C>. It looks at price history and returns an <C>Order</C>, or nothing. It never touches cash or positions. The portfolio manager keeps the book: it fills orders, charges costs, and tracks what you hold.</>,
         },
+        {
+          kind: 'callout',
+          tone: 'note',
+          title: 'The engine is open source',
+          text: <>Every run on this site is the same code you can read yourself: <a className="docs-repo-link" href="https://github.com/ItsMacc/SLTP-Engine" target="_blank" rel="noreferrer">github.com/ItsMacc/SLTP-Engine</a>. Clone it, run a backtest locally, or open an issue when something looks wrong.</>,
+        },
         { kind: 'h2', id: 'what-it-does', text: 'What it does' },
         {
           kind: 'p',

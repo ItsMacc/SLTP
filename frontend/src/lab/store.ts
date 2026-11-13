@@ -8,6 +8,12 @@
 // Every call takes the Supabase access token from the live session. The Lab is
 // behind the sign-in gate, so a missing session means it expired mid-visit:
 // the caller gets a plain message it can show instead of a silent empty list.
+//
+// Reads come from a browser snapshot first. Turso charges a read for every
+// workspace list and every project tree, and the Lab re-reads both on each
+// visit even when nothing changed, so the last answer is kept per account and
+// served until it is a few minutes old. Every write drops the snapshots it
+// invalidates, which is what keeps the copy honest.
 
 import { supabase } from '../../lib/supabase';
 import {
@@ -29,6 +35,7 @@ import {
   renameLabBacktest as apiRenameLabBacktest,
   renameLabFile as apiRenameLabFile,
   saveLabFile as apiSaveLabFile,
+  saveLabFiles as apiSaveLabFiles,
   type LabBacktestRecord,
   type LabBacktestSummary,
   type LabFile,
@@ -44,16 +51,101 @@ export interface LabProjectFiles {
   folders: string[];
 }
 
-async function token(): Promise<string> {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session?.access_token) {
-    throw new Error('Your session has expired. Please sign in again.');
-  }
-  return session.access_token;
+// -------- Snapshot cache --------
+// Ten minutes is long enough to cover the reload-and-look-again loop the Lab
+// invites, and short enough that a second machine is never far behind.
+const CACHE_TTL_MS = 10 * 60 * 1000;
+// localStorage is a few megabytes in every browser. A project tree near that
+// size is not worth caching: it would evict everything else and could fail
+// the write anyway, so it is simply not stored.
+const MAX_ENTRY_BYTES = 1_500_000;
+const CACHE_PREFIX = 'st_lab_v1';
+
+interface CacheEntry<T> {
+  savedAt: number;
+  data: T;
 }
 
+function cacheKey(userId: string, part: string): string {
+  return `${CACHE_PREFIX}:${userId}:${part}`;
+}
+
+function readEntry<T>(key: string): CacheEntry<T> | null {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as CacheEntry<T>;
+    if (!parsed || typeof parsed.savedAt !== 'number') return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeEntry<T>(key: string, data: T): void {
+  try {
+    const encoded = JSON.stringify({ savedAt: Date.now(), data } satisfies CacheEntry<T>);
+    if (encoded.length > MAX_ENTRY_BYTES) return;
+    localStorage.setItem(key, encoded);
+  } catch {
+    // A full quota or a private window must never break a Lab read.
+  }
+}
+
+function dropEntry(key: string): void {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    // Nothing to do: the next read simply misses.
+  }
+}
+
+function isFresh(entry: CacheEntry<unknown> | null): boolean {
+  return Boolean(entry) && Date.now() - (entry as CacheEntry<unknown>).savedAt < CACHE_TTL_MS;
+}
+
+// Drops every Lab snapshot for the signed-in account, for a hard refresh.
+export async function clearLabCache(): Promise<void> {
+  const { userId } = await session();
+  try {
+    const prefix = `${CACHE_PREFIX}:${userId}:`;
+    for (const key of Object.keys(localStorage)) {
+      if (key.startsWith(prefix)) localStorage.removeItem(key);
+    }
+  } catch {
+    // Best-effort, like every other cache write here.
+  }
+}
+
+async function session(): Promise<{ token: string; userId: string }> {
+  const { data: { session: live } } = await supabase.auth.getSession();
+  if (!live?.access_token) {
+    throw new Error('Your session has expired. Please sign in again.');
+  }
+  return { token: live.access_token, userId: live.user.id };
+}
+
+async function dropWorkspaces(userId: string): Promise<void> {
+  dropEntry(cacheKey(userId, 'workspaces'));
+}
+
+// A project's tree changes whenever its files do, and its file count is part
+// of the workspace list, so both snapshots go together.
+async function dropProject(userId: string, projectId: string): Promise<void> {
+  dropEntry(cacheKey(userId, `project:${projectId}`));
+  dropEntry(cacheKey(userId, 'workspaces'));
+}
+
+// -------- Workspaces --------
 export async function listLabWorkspaces(): Promise<LabWorkspace[]> {
-  return apiListLabWorkspaces(await token());
+  const { token, userId } = await session();
+  const key = cacheKey(userId, 'workspaces');
+  const cached = readEntry<LabWorkspace[]>(key);
+  if (isFresh(cached)) return (cached as CacheEntry<LabWorkspace[]>).data;
+
+  const data = await apiListLabWorkspaces(token);
+  writeEntry(key, data);
+  return data;
 }
 
 export async function createLabWorkspace(input: {
@@ -62,7 +154,10 @@ export async function createLabWorkspace(input: {
   template?: string;
   code?: string;
 }): Promise<LabWorkspace> {
-  return apiCreateLabWorkspace(await token(), input);
+  const { token, userId } = await session();
+  const created = await apiCreateLabWorkspace(token, input);
+  await dropWorkspaces(userId);
+  return created;
 }
 
 export async function createLabStrategy(
@@ -71,7 +166,10 @@ export async function createLabStrategy(
   template?: string,
   code?: string,
 ): Promise<LabWorkspace> {
-  return apiCreateLabStrategy(await token(), workspaceId, name, template, code);
+  const { token, userId } = await session();
+  const created = await apiCreateLabStrategy(token, workspaceId, name, template, code);
+  await dropWorkspaces(userId);
+  return created;
 }
 
 export async function createLabProject(
@@ -79,27 +177,60 @@ export async function createLabProject(
   name: string,
   template?: string,
 ): Promise<LabProject> {
-  return apiCreateLabProject(await token(), workspaceId, name, template);
+  const { token, userId } = await session();
+  const created = await apiCreateLabProject(token, workspaceId, name, template);
+  await dropWorkspaces(userId);
+  return created;
 }
 
 export async function deleteLabWorkspace(workspaceId: string): Promise<void> {
-  await apiDeleteLabWorkspace(await token(), workspaceId);
+  const { token, userId } = await session();
+  await apiDeleteLabWorkspace(token, workspaceId);
+  await dropWorkspaces(userId);
 }
 
 export async function deleteLabProject(projectId: string): Promise<void> {
-  await apiDeleteLabProject(await token(), projectId);
+  const { token, userId } = await session();
+  await apiDeleteLabProject(token, projectId);
+  await dropProject(userId, projectId);
 }
 
+// -------- Files --------
 export async function getLabProjectFiles(projectId: string): Promise<LabProjectFiles> {
-  return apiGetLabProjectFiles(await token(), projectId);
+  const { token, userId } = await session();
+  const key = cacheKey(userId, `project:${projectId}`);
+  const cached = readEntry<LabProjectFiles>(key);
+  if (isFresh(cached)) return (cached as CacheEntry<LabProjectFiles>).data;
+
+  const data = await apiGetLabProjectFiles(token, projectId);
+  writeEntry(key, data);
+  return data;
 }
 
-export async function createLabFile(projectId: string, name: string): Promise<LabFile> {
-  return apiCreateLabFile(await token(), projectId, name);
+// The editor autosaves through this. The cached tree is dropped rather than
+// patched: a save can touch a dozen paths at once, and a stale tree is worse
+// than one extra read on the next open.
+export async function saveLabFiles(
+  projectId: string,
+  files: { path: string; content: string }[],
+): Promise<{ saved: string[]; locked_skipped: string[] }> {
+  const { token, userId } = await session();
+  const result = await apiSaveLabFiles(token, projectId, files);
+  await dropProject(userId, projectId);
+  return result;
 }
 
 export async function saveLabFile(projectId: string, name: string, content: string): Promise<void> {
-  await apiSaveLabFile(await token(), projectId, name, content);
+  const { token, userId } = await session();
+  await apiSaveLabFile(token, projectId, name, content);
+  await dropProject(userId, projectId);
+}
+
+export async function createLabFile(projectId: string, name: string): Promise<LabFile> {
+  const { token, userId } = await session();
+  const file = await apiCreateLabFile(token, projectId, name);
+  await dropProject(userId, projectId);
+  return file;
 }
 
 export async function renameLabFile(
@@ -107,15 +238,22 @@ export async function renameLabFile(
   name: string,
   newName: string,
 ): Promise<{ name: string; previous: string }> {
-  return apiRenameLabFile(await token(), projectId, name, newName);
+  const { token, userId } = await session();
+  const renamed = await apiRenameLabFile(token, projectId, name, newName);
+  await dropProject(userId, projectId);
+  return renamed;
 }
 
 export async function deleteLabFile(projectId: string, name: string): Promise<void> {
-  await apiDeleteLabFile(await token(), projectId, name);
+  const { token, userId } = await session();
+  await apiDeleteLabFile(token, projectId, name);
+  await dropProject(userId, projectId);
 }
 
 export async function deleteLabFolder(projectId: string, name: string): Promise<void> {
-  await apiDeleteLabFolder(await token(), projectId, name);
+  const { token, userId } = await session();
+  await apiDeleteLabFolder(token, projectId, name);
+  await dropProject(userId, projectId);
 }
 
 export async function importLabFiles(
@@ -123,9 +261,13 @@ export async function importLabFiles(
   files: { path: string; content: string }[],
   folders: string[] = [],
 ): Promise<{ imported: string[]; skipped: { path: string; reason: string }[] }> {
-  return apiImportLabFiles(await token(), projectId, files, folders);
+  const { token, userId } = await session();
+  const result = await apiImportLabFiles(token, projectId, files, folders);
+  await dropProject(userId, projectId);
+  return result;
 }
 
+// -------- Backtests --------
 export async function listLabBacktests(projectId: string): Promise<LabBacktestSummary[]> {
   return apiListLabBacktests(await token(), projectId);
 }
@@ -151,4 +293,11 @@ export async function renameLabBacktest(
 
 export async function deleteLabBacktest(backtestId: string): Promise<void> {
   await apiDeleteLabBacktest(await token(), backtestId);
+}
+
+// Backtests are read once and rendered from memory, so they keep the plain
+// token helper rather than paying for a user id they do not use.
+async function token(): Promise<string> {
+  const { token: live } = await session();
+  return live;
 }

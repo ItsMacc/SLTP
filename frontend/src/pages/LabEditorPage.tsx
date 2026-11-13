@@ -56,6 +56,7 @@ import {
   renameLabBacktest,
   renameLabFile,
   saveLabFile,
+  saveLabFiles,
   type LabBacktestSummary,
   type LabProject,
 } from '../lab/store';
@@ -846,21 +847,27 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
     }
     setClosing(true);
     try {
-      for (const file of dirty) {
-        const draft = file.draft;
-        await saveLabFile(project.id, file.name, draft);
-        setFiles((previous) =>
-          previous.map((current) =>
-            current.name === file.name ? { ...current, saved: draft } : current,
-          ),
-        );
-        updateProjectCache((current) => ({
-          ...current,
-          files: current.files.map((saved) =>
-            saved.name === file.name ? { ...saved, content: draft } : saved,
-          ),
-        }));
-      }
+      // One request for the whole close. Writing each dirty file in turn meant
+      // a round trip and a write transaction per file, so a project left with
+      // five unsaved files paid five times for one action.
+      const batch = dirty.map((file) => ({ path: file.name, content: file.draft }));
+      await saveLabFiles(project.id, batch);
+      const written = new Map(batch.map((file) => [file.path, file.content]));
+      setFiles((previous) =>
+        previous.map((current) =>
+          written.has(current.name)
+            ? { ...current, saved: written.get(current.name) as string }
+            : current,
+        ),
+      );
+      updateProjectCache((current) => ({
+        ...current,
+        files: current.files.map((saved) =>
+          written.has(saved.name)
+            ? { ...saved, content: written.get(saved.name) as string }
+            : saved,
+        ),
+      }));
       onBack();
     } catch (err) {
       setActionError(
