@@ -60,7 +60,7 @@ type Incoming =
   | {
       id: number;
       kind: 'analyze';
-      method: 'complete' | 'hover' | 'signature' | 'define' | 'diagnostics';
+      method: 'complete' | 'hover' | 'signature' | 'define' | 'diagnostics' | 'imports';
       code: string;
       path: string;
       line: number;
@@ -411,6 +411,88 @@ def _diagnose(code, path):
     return {"items": report.items}
 
 
+def write_export_stubs():
+    """Give static analysis the names sltp resolves through __getattr__.
+
+    The package deliberately binds nothing at import time, so an import of
+    Backtester looks like an unknown name to jedi, and members of an instance
+    of it can never be inferred. A stub file beside the package lists the same
+    re-exports in the form static analysis reads; Python ignores .pyi files, so
+    the runtime is untouched.
+    """
+    try:
+        import sltp
+        from pathlib import Path
+
+        lazy = getattr(sltp, "_LAZY_EXPORTS", None) or {}
+        exported = getattr(sltp, "__all__", None) or []
+        lines = [f"from {lazy[name]} import {name} as {name}" for name in exported if name in lazy]
+        if not lines:
+            return False
+        stub = Path(sltp.__file__).parent / "__init__.pyi"
+        # chr(10) rather than an escape: this Python lives inside a JS template
+        # literal, where a backslash-n would become a real newline.
+        stub.write_text(chr(10).join(lines) + chr(10), encoding="utf-8")
+        return True
+    except Exception:  # noqa: BLE001 - inference stays worse, nothing breaks
+        return False
+
+
+def _import_candidates(code, line, column, files_json):
+    """Names the reader has not imported yet, with the line that imports them."""
+    import ast
+    import re
+
+    lines = code.splitlines()
+    if line - 1 >= len(lines):
+        return []
+    word = re.search(r"[A-Za-z_][A-Za-z0-9_]*$", lines[line - 1][:column])
+    if not word:
+        return []
+    prefix = word.group(0)
+
+    found = {}
+    try:
+        import sltp
+
+        for name in getattr(sltp, "__all__", None) or []:
+            if name.startswith("_") or not name.startswith(prefix):
+                continue
+            value = getattr(sltp, name, None)
+            found[name] = {
+                "label": name,
+                "kind": "class" if isinstance(value, type) else "function" if callable(value) else "statement",
+                "detail": getattr(value, "__module__", None) or "sltp",
+                "statement": f"from sltp import {name}",
+            }
+    except Exception:  # noqa: BLE001
+        pass
+
+    for name, content in (json.loads(files_json) if files_json else {}).items():
+        stem = name.rsplit("/", 1)[-1].removesuffix(".py")
+        if stem == "sltp" or stem.startswith("_"):
+            continue
+        try:
+            tree = ast.parse(content)
+        except SyntaxError:
+            continue
+        for node in tree.body:
+            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                continue
+            if node.name.startswith("_") or not node.name.startswith(prefix):
+                continue
+            found.setdefault(
+                node.name,
+                {
+                    "label": node.name,
+                    "kind": "class" if isinstance(node, ast.ClassDef) else "function",
+                    "detail": name,
+                    "statement": f"from {stem} import {node.name}",
+                },
+            )
+    return list(found.values())
+
+
 def _module_members(code, line, column):
     """What a module exports, for "from x import" and "x.".
 
@@ -486,6 +568,9 @@ def analyze(method, code, path, line, column, files_json=""):
 
     if method == "diagnostics":
         return json.dumps({"ok": True, "data": _diagnose(code, str(current))})
+
+    if method == "imports":
+        return json.dumps({"ok": True, "data": {"items": _import_candidates(code, line, column, files_json)}})
 
     try:
         import jedi
@@ -766,6 +851,7 @@ async function boot(): Promise<void> {
       const analyzerPip = instance.pyimport('micropip');
       await analyzerPip.install('jedi');
       await analyzerPip.install('pyflakes');
+      instance.globals.get('write_export_stubs')();
     } catch {
       /* the editor falls back to plain suggestions */
     }

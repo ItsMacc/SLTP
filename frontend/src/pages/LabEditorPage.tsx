@@ -73,7 +73,13 @@ import {
 } from '../lab/runSettings';
 import { isMobileDevice } from '../store/device';
 import { isLabBacktestPayload, type LabBacktestPayload } from '../lab/backtestTypes';
-import { setJediProject, setJediStatusListener, setJediTarget, type Monaco } from '../lab/jedi';
+import {
+  setJediFileOpener,
+  setJediProject,
+  setJediStatusListener,
+  setJediTarget,
+  type Monaco,
+} from '../lab/jedi';
 import { applyLabEditorTheme } from '../lab/editorTheme';
 import { pickLocalFolder, type FolderFileMap } from '../lab/fileReader';
 import ImportFolderDialog from '../lab/ImportFolderDialog';
@@ -449,6 +455,33 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
     });
     return () => setJediStatusListener(null);
   }, []);
+
+  // A definition that lives in another project file opens that file and lands
+  // the cursor on the line, which is the half of go-to-definition that cannot
+  // happen inside a single editor.
+  const pendingCursorRef = useRef<{ path: string; line: number; column: number } | null>(null);
+  useEffect(() => {
+    setJediFileOpener((path, line, column) => {
+      pendingCursorRef.current = { path, line, column };
+      setActive(path);
+    });
+    return () => setJediFileOpener(null);
+  }, []);
+
+  useEffect(() => {
+    const pending = pendingCursorRef.current;
+    if (!pending || pending.path !== active) return;
+    pendingCursorRef.current = null;
+    const timer = window.setTimeout(() => {
+      const editor = editorRef.current;
+      if (!editor) return;
+      const position = { lineNumber: pending.line, column: pending.column };
+      editor.setPosition(position);
+      editor.revealPositionInCenter(position);
+      editor.focus();
+    }, 80);
+    return () => window.clearTimeout(timer);
+  }, [active]);
 
   useEffect(() => {
     if (analysis !== 'starting') return;

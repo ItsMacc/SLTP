@@ -45,6 +45,13 @@ export interface DefinitionInfo {
   name: string;
 }
 
+interface ImportCandidate {
+  label: string;
+  kind?: string;
+  detail?: string;
+  statement: string;
+}
+
 interface SignatureInfo {
   label: string;
   params: string[];
@@ -93,7 +100,10 @@ function filesForAnalysis(): { name: string; content: string }[] {
   }));
 }
 
-function ask(method: 'complete' | 'hover' | 'signature' | 'define' | 'diagnostics', position: MonacoNs.Position) {
+function ask(
+  method: 'complete' | 'hover' | 'signature' | 'define' | 'diagnostics' | 'imports',
+  position: MonacoNs.Position,
+) {
   if (!target) return null;
   return analyze({
     method,
@@ -107,6 +117,32 @@ function ask(method: 'complete' | 'hover' | 'signature' | 'define' | 'diagnostic
     else report('active');
     return reply;
   });
+}
+
+let fileOpener: ((path: string, line: number, column: number) => void) | null = null;
+
+/** Called when the definition lives in another project file. */
+export function setJediFileOpener(
+  opener: ((path: string, line: number, column: number) => void) | null,
+): void {
+  fileOpener = opener;
+}
+
+/** The edit that adds an import line, after the last existing one. */
+function importEdit(monaco: Monaco, model: TextModel, statement: string) {
+  let lastImport = 0;
+  const limit = Math.min(model.getLineCount(), 80);
+  for (let index = 1; index <= limit; index += 1) {
+    if (/^\s*(from|import)\s/.test(model.getLineContent(index))) lastImport = index;
+  }
+  if (lastImport) {
+    const column = model.getLineMaxColumn(lastImport);
+    return {
+      range: new monaco.Range(lastImport, column, lastImport, column),
+      text: `\n${statement}`,
+    };
+  }
+  return { range: new monaco.Range(1, 1, 1, 1), text: `${statement}\n` };
 }
 
 function wordRange(monaco: Monaco, model: TextModel, position: MonacoNs.Position) {
@@ -163,6 +199,33 @@ function register(monaco: Monaco): void {
           insertText: item.label,
           range,
         }));
+
+      // Names that exist but were never imported are offered too, with the
+      // line that imports them attached, the way an IDE does. Only for a word
+      // that is being typed: an empty prefix would offer the whole package.
+      if (typed.length >= 2) {
+        const known = new Set(suggestions.map((item) => String(item.label)));
+        const replyImports = await ask('imports', position);
+        const candidates = (replyImports?.data as { items?: ImportCandidate[] } | null)?.items ?? [];
+        for (const candidate of candidates) {
+          if (known.has(candidate.label)) continue;
+          const alreadyImported = new RegExp(`^\\s*(from\\s+\\S+\\s+)?import\\s.*\\b${candidate.label}\\b`).test(
+            model.getValue(),
+          );
+          if (alreadyImported) continue;
+          known.add(candidate.label);
+          suggestions.push({
+            label: candidate.label,
+            kind: completionKind(monaco, candidate.kind),
+            detail: `import from ${candidate.statement.replace(/^from\s+/, '').split(' import ')[0]}`,
+            insertText: candidate.label,
+            range,
+            additionalTextEdits: [importEdit(monaco, model, candidate.statement)],
+            sortText: `z${candidate.label}`,
+          });
+        }
+      }
+
       // Nothing from jedi means nothing useful to offer; Monaco's own
       // word-based suggestions still fill the gap.
       return { suggestions };
@@ -207,9 +270,13 @@ function register(monaco: Monaco): void {
       const reply = await ask('define', position);
       const definition = reply?.data as DefinitionInfo | null;
       if (!definition) return null;
-      // Only the file on screen can be revealed from here. A definition in
-      // another project file is reported by name instead of jumping nowhere.
-      if (definition.external || (definition.path && definition.path !== currentPath())) return null;
+      // A definition in another project file is handed to the page, which
+      // opens that file and puts the cursor on the line.
+      if (!definition.external && definition.path && definition.path !== currentPath()) {
+        fileOpener?.(definition.path, definition.line, definition.column);
+        return null;
+      }
+      if (definition.external) return null;
       return {
         uri: model.uri,
         range: {

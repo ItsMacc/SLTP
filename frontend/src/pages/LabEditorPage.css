@@ -1003,8 +1003,20 @@
     overflow-y: auto;
   }
 
+  .lab-editor:not(.is-mobile-device) .lab-ide {
+    /* The page itself scrolls here: a fixed height squeezed the code to
+       nothing once the window got short. */
+    overflow-y: auto;
+  }
+
   .lab-editor:not(.is-mobile-device) .lab-ide-main {
     min-height: 34rem;
+  }
+
+  .lab-editor:not(.is-mobile-device) .lab-editor-surface {
+    /* A percentage height resolved to nothing in a stacked layout, which is
+       why no code was visible in a narrow window. */
+    min-height: 22rem;
   }
 
   .lab-editor:not(.is-mobile-device) .lab-tabs {
