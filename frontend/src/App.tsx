@@ -15,7 +15,7 @@ import DocsPage from './pages/DocsPage';
 import ResearchPage from './pages/ResearchPage';
 import StrategiesPage from './pages/StrategiesPage';
 import LabPage from './pages/LabPage';
-import Sltp404Page from './pages/Sltp404Page';
+import LearnPage from './pages/LearnPage';
 import WatchlistPage from './pages/WatchlistPage';
 import ErrorToast from './ui/ErrorToast';
 import { Loader, LoaderOverlay } from './ui/Loader';
@@ -25,6 +25,8 @@ import { invalidatePortfolio, provisionAccount } from '../lib/api';
 import { pageTitleFor, usePageTitle } from './usePageTitle';
 import {
   DOCS_PREFIX,
+  LEARN_PREFIX,
+  LEARN_ROOT,
   hashForLegal,
   hashForTab,
   isKnownHash,
@@ -116,8 +118,9 @@ export default function App() {
     }
     setAuthMode(null);
     setAuthNotice(null);
-    // Docs scrolls itself: a section link has to land on its heading.
-    if (route.tab !== 'docs') window.scrollTo(0, 0);
+    // Docs and Learn scroll themselves: Docs lands on a section heading, and
+    // Learn owns its view scroll so the badge shelf and sticky bar stay put.
+    if (route.tab !== 'docs' && route.tab !== 'learn') window.scrollTo(0, 0);
   }, []);
 
   // A visit to "/" gets a real address (#/home), so history entries are never
@@ -228,6 +231,15 @@ export default function App() {
     // Docs keeps its current page in the hash; asking for "docs" must not drop
     // it back to the introduction.
     if (tab === 'docs' && window.location.hash.startsWith(DOCS_PREFIX)) {
+      syncFromLocation();
+      return;
+    }
+
+    // Learn keeps the current level, lesson or reference view in the hash.
+    if (
+      tab === 'learn' &&
+      (window.location.hash === LEARN_ROOT || window.location.hash.startsWith(LEARN_PREFIX))
+    ) {
       syncFromLocation();
       return;
     }
@@ -384,9 +396,7 @@ export default function App() {
               // itself runs in the browser worker.
               <LabPage onNavigate={handleTabChange} />
             ) : activeTab === 'learn' ? (
-              // A page with an address but no content yet: the cards on Home
-              // link here, and it carries its own title and hash.
-              <Sltp404Page page={activeTab[0].toUpperCase() + activeTab.slice(1)} onNavigate={handleTabChange} />
+              <LearnPage />
             ) : (
               // Home and the guide both land here; an unknown address falls
               // back to Home too, so a stale link never strands the visitor.

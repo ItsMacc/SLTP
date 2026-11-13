@@ -22,6 +22,8 @@ export interface DeepDiveSection {
 export interface GlossaryTerm {
   definition: string;
   example?: string;
+  /** Lesson id where the term is first taught, for the Learn tooltip. */
+  introducedIn?: string;
 }
 
 export interface BacktestMetricData {

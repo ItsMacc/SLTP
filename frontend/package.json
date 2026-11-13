@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
+    "lint:learn-copy": "node scripts/lint-learn-copy.mjs",
+    "test:learn-ledger": "node scripts/check-learn-ledger.mjs",
     "check-docs": "node scripts/check-docs.mjs",
     "preview": "vite preview"
   },

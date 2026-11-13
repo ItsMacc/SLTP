@@ -104,7 +104,7 @@ function Overview({ profile }: { profile: StrategyProfile }) {
                 <li key={point.title} className="strat-point">
                   <span className="strat-point-title">{point.title}</span>
                   <span className="strat-point-text">
-                    <GlossaryText text={point.description} glossary={profile.glossary} />
+                    <GlossaryText text={point.description ?? point.title} glossary={profile.glossary} />
                   </span>
                 </li>
               ))}
@@ -118,7 +118,7 @@ function Overview({ profile }: { profile: StrategyProfile }) {
                 <li key={point.title} className="strat-point">
                   <span className="strat-point-title">{point.title}</span>
                   <span className="strat-point-text">
-                    <GlossaryText text={point.description} glossary={profile.glossary} />
+                    <GlossaryText text={point.description ?? point.title} glossary={profile.glossary} />
                   </span>
                 </li>
               ))}

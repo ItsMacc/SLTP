@@ -2,6 +2,8 @@
 import React, { useMemo, useState } from 'react';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { type GlossaryTerm } from '../types/strategy';
+import { glossaryRegex, resolveGlossaryKey } from '../learn/termMatch';
+import { lessonTitleById } from '../learn/curriculum';
 import './GlossaryText.css';
 
 interface GlossaryTextProps {
@@ -14,35 +16,10 @@ export const GlossaryText: React.FC<GlossaryTextProps> = ({ text, glossary, clas
   const [openTermKey, setOpenTermKey] = useState<string | null>(null);
 
   const parsedContent = useMemo(() => {
-    if (!glossary || Object.keys(glossary).length === 0) {
-      return text;
-    }
+    if (!glossary || Object.keys(glossary).length === 0) return text;
 
-    // 1. Build a normalized lookup map (converts underscores and spaces to single spaces)
-    const termMap: Record<string, string> = {};
-    Object.keys(glossary).forEach((key) => {
-      const normalizedKey = key.replace(/[_ ]+/g, ' ').trim().toLowerCase();
-      termMap[normalizedKey] = key;
-    });
-
-    // 2. Sort terms by length descending so longer phrases match first (e.g. "bear market" before "market")
-    const sortedKeys = Object.keys(glossary).sort((a, b) => b.length - a.length);
-
-    // 3. Build Regex matching spaces and underscores flexibly, plus an
-    //    optional plural suffix so "shares" links the "share" entry.
-    //    Longest key first is preserved, so "stock market" still wins over
-    //    "stock".
-    const regexPattern = sortedKeys
-      .map((key) =>
-        `(?:${key
-          .replace(/[.*+?^${}()|[\]\\]/g, '\\$&') // Escape regex special chars
-          .replace(/[_ ]+/g, '[_ ]+')             // Match spaces or underscores
-        })(?:s|es)?`
-      )
-      .join('|');
-
-    const regex = new RegExp(`\\b(${regexPattern})\\b`, 'gi');
-
+    const keys = Object.keys(glossary);
+    const regex = glossaryRegex(keys);
     const parts: (string | React.ReactNode)[] = [];
     let lastIndex = 0;
     let match: RegExpExecArray | null;
@@ -51,40 +28,32 @@ export const GlossaryText: React.FC<GlossaryTextProps> = ({ text, glossary, clas
       const matchedText = match[0];
       const matchIndex = match.index;
 
-      if (matchIndex > lastIndex) {
-        parts.push(text.substring(lastIndex, matchIndex));
+      if (matchIndex > lastIndex) parts.push(text.substring(lastIndex, matchIndex));
+
+      const originalKey = resolveGlossaryKey(matchedText, keys);
+      const termData = originalKey ? glossary[originalKey] : undefined;
+      if (!originalKey || !termData) {
+        parts.push(matchedText);
+        lastIndex = matchIndex + matchedText.length;
+        continue;
       }
 
-      // Lookup original glossary key using normalized matched text. A plural
-      // match ("shares") resolves back to its singular entry ("share").
-      const normalizedMatched = matchedText.replace(/[_ ]+/g, ' ').trim().toLowerCase();
-      const originalKey =
-        termMap[normalizedMatched] ||
-        termMap[normalizedMatched.replace(/es$/, '')] ||
-        termMap[normalizedMatched.replace(/s$/, '')] ||
-        matchedText;
-      const termData = glossary[originalKey];
-
-      const definition = typeof termData === 'string' ? termData : termData?.definition;
-      const example = typeof termData === 'object' ? termData?.example : undefined;
+      const definition = typeof termData === 'string' ? termData : termData.definition;
+      const example = typeof termData === 'object' ? termData.example : undefined;
+      const introducedIn = typeof termData === 'object' ? termData.introducedIn : undefined;
       const itemKey = `${matchedText}-${matchIndex}`;
       const isOpen = openTermKey === itemKey;
-
-      // Clean header title for tooltip
       const displayTitle = originalKey.replace(/_/g, ' ').trim();
 
       parts.push(
         <Tooltip.Provider key={itemKey} delayDuration={150}>
-          <Tooltip.Root 
-            open={isOpen} 
-            onOpenChange={(open) => setOpenTermKey(open ? itemKey : null)}
-          >
+          <Tooltip.Root open={isOpen} onOpenChange={(open) => setOpenTermKey(open ? itemKey : null)}>
             <Tooltip.Trigger asChild>
-              <button 
-                className="trigger" 
+              <button
+                className="trigger"
                 type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
+                onClick={(event) => {
+                  event.stopPropagation();
                   setOpenTermKey(isOpen ? null : itemKey);
                 }}
               >
@@ -95,21 +64,21 @@ export const GlossaryText: React.FC<GlossaryTextProps> = ({ text, glossary, clas
               <Tooltip.Content className="tooltipContent" sideOffset={6} collisionPadding={12}>
                 <span className="termHeader">{displayTitle}</span>
                 <span className="termDefinition">{definition}</span>
-                {example && <span className="termExample">Ex: {example}</span>}
+                {example && <span className="termExample">Example: {example}</span>}
+                {introducedIn && (
+                  <span className="termExample">First taught in: {lessonTitleById(introducedIn)}</span>
+                )}
                 <Tooltip.Arrow className="tooltipArrow" />
               </Tooltip.Content>
             </Tooltip.Portal>
           </Tooltip.Root>
-        </Tooltip.Provider>
+        </Tooltip.Provider>,
       );
 
       lastIndex = matchIndex + matchedText.length;
     }
 
-    if (lastIndex < text.length) {
-      parts.push(text.substring(lastIndex));
-    }
-
+    if (lastIndex < text.length) parts.push(text.substring(lastIndex));
     return parts;
   }, [text, glossary, openTermKey]);
 

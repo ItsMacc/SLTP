@@ -1,77 +1,97 @@
-// progress.ts — Learning progress: completed sections, earned milestones,
-// tier certifications, and the ids of every badge/trophy actually earned.
+// progress.ts — Learning progress: completed lessons, certificates, earned
+// dates, first-try quiz scores and the last level viewed.
 //
-// Stored in Supabase (see migrations/supabase_learn.sql):
-//   learn_progress - sections / milestones / certifications
-//   user_awards    - one row per badge & trophy, stamped with earned_at
-//                    when it is won
-// Turso stays out of learning state.
-//
-// Not signed in, or Supabase unreachable (or the migration not yet run)?
-// Progress falls back to localStorage so the course still remembers where
-// you were. Whatever the source, a copy always lands in localStorage so a
-// later offline visit still knows your state.
+// Supabase stores the completion sets and award ids (see lib/learnApi.ts).
+// Dates, first-try scores and the last level are browser metadata, cached
+// alongside the same progress so an offline visit keeps them. No migration is
+// needed: the remote schema is unchanged.
 
 import { supabase } from '../../lib/supabase';
 import { badgeAwardId, loadLearnState, saveLearnState, certificateAwardId } from '../../lib/learnApi';
 
 export interface LearnProgress {
-  sections: string[]; // completed section ids
-  milestones: string[]; // earned milestone ids
-  certifications: string[]; // certified tier ids
-  /** Catalog ids of awards earned - see learnApi for the id format. */
-  awards: string[]; // `badge:stocks`, `certificate:beginner`, ...
+  sections: string[];
+  milestones: string[];
+  certifications: string[];
+  awards: string[];
+  earnedAt: Record<string, string>;
+  firstTry: Record<string, number>;
+  lastLevel: string;
 }
 
-const EMPTY: LearnProgress = { sections: [], milestones: [], certifications: [], awards: [] };
+const EMPTY: LearnProgress = {
+  sections: [],
+  milestones: [],
+  certifications: [],
+  awards: [],
+  earnedAt: {},
+  firstTry: {},
+  lastLevel: 'beginner',
+};
 
-// The cache is namespaced per account id. A single shared key meant signing in
-// as a second account on the same browser could adopt the first account's
-// badges - exactly what must NOT happen, since Supabase is authoritative for
-// each user and the local copy is only a fallback.
 const CACHE_PREFIX = 'sltp_learn_progress.';
 
-/** 'anon' while signed out, so offline work still caches under one key. */
 function cacheKey(userId?: string | null): string {
   return `${CACHE_PREFIX}${userId ?? 'anon'}`;
 }
 
+const stringArray = (value: unknown): string[] =>
+  Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+
+const stringRecord = (value: unknown): Record<string, string> => {
+  if (!value || typeof value !== 'object') return {};
+  return Object.fromEntries(
+    Object.entries(value).filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
+  );
+};
+
+const numberRecord = (value: unknown): Record<string, number> => {
+  if (!value || typeof value !== 'object') return {};
+  return Object.fromEntries(
+    Object.entries(value).filter((entry): entry is [string, number] => typeof entry[1] === 'number'),
+  );
+};
+
 const normalize = (raw: unknown): LearnProgress => {
   if (!raw || typeof raw !== 'object') return { ...EMPTY };
   const r = raw as Partial<Record<keyof LearnProgress, unknown>>;
-  const pick = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
   return {
-    sections: pick(r.sections),
-    milestones: pick(r.milestones),
-    certifications: pick(r.certifications),
-    awards: pick(r.awards),
+    sections: stringArray(r.sections),
+    milestones: stringArray(r.milestones),
+    certifications: stringArray(r.certifications),
+    awards: stringArray(r.awards),
+    earnedAt: stringRecord(r.earnedAt),
+    firstTry: numberRecord(r.firstTry),
+    lastLevel: typeof r.lastLevel === 'string' ? r.lastLevel : 'beginner',
   };
 };
 
-const cache = (p: LearnProgress, userId?: string | null) => {
-  try { localStorage.setItem(cacheKey(userId), JSON.stringify(p)); } catch { /* private mode */ }
+const cache = (progress: LearnProgress, userId?: string | null) => {
+  try {
+    localStorage.setItem(cacheKey(userId), JSON.stringify(progress));
+  } catch {
+    /* private mode */
+  }
 };
 
 const readCache = (userId?: string | null): LearnProgress | null => {
   try {
     const raw = localStorage.getItem(cacheKey(userId));
     return raw ? normalize(JSON.parse(raw)) : null;
-  } catch { /* corrupt/unavailable */ return null; }
+  } catch {
+    return null;
+  }
 };
 
-/**
- * Loads progress: Supabase first (authoritative), then localStorage.
- *
- * Supabase is the source of truth once the tables exist. Awards are merged
- * from both sources rather than preferring one, so a badge earned while
- * offline (and cached locally) is never lost the moment you sign back in.
- */
+/** Loads progress: Supabase first, then the browser copy. */
 export async function loadProgress(): Promise<LearnProgress> {
   let userId: string | null = null;
   try {
     const { data: { user } } = await supabase.auth.getUser();
     userId = user?.id ?? null;
-  } catch { /* offline: treat as signed out */ }
+  } catch {
+    /* offline */
+  }
 
   const local = readCache(userId);
 
@@ -80,13 +100,14 @@ export async function loadProgress(): Promise<LearnProgress> {
     if (user) {
       const remote = await loadLearnState(user.id);
       if (remote) {
-        // RLS hides other users' rows, so an empty remote read is ambiguous:
-        // it means either "brand-new account, nothing done yet" or "no row
-        // yet". If Supabase has no progression at all, the local copy is the
-        // better answer - otherwise signing in would wipe modules finished
-        // while signed out.
         const remoteIsEmpty =
           !remote.sections.length && !remote.milestones.length && !remote.certifications.length;
+
+        const metadata = {
+          earnedAt: local?.earnedAt ?? {},
+          firstTry: local?.firstTry ?? {},
+          lastLevel: local?.lastLevel ?? 'beginner',
+        };
 
         const merged: LearnProgress = remoteIsEmpty && local
           ? { ...local, awards: Array.from(new Set([...remote.awards, ...local.awards])) }
@@ -94,33 +115,28 @@ export async function loadProgress(): Promise<LearnProgress> {
               sections: remote.sections,
               milestones: remote.milestones,
               certifications: remote.certifications,
-              // Union: Supabase's earned set plus anything cached locally but
-              // not yet synced.
               awards: Array.from(new Set([...remote.awards, ...(local?.awards ?? [])])),
+              ...metadata,
             };
         cache(merged, userId);
         return merged;
       }
     }
-  } catch { /* fall through to local */ }
+  } catch {
+    /* fall through to local */
+  }
 
   return local ?? { ...EMPTY };
 }
 
-/**
- * Saves progress: localStorage always, Supabase when signed in (best-effort).
- *
- * `justEarned` lists the award ids won since the last save, so the badge rows
- * created (locked) at signup get stamped with earned_at rather than being
- * inserted twice.
- */
-export async function saveProgress(p: LearnProgress, justEarned: string[] = []): Promise<void> {
-  const clean = normalize(p);
+/** Saves progress: browser always, Supabase when signed in (best effort). */
+export async function saveProgress(progress: LearnProgress, justEarned: string[] = []): Promise<void> {
+  const clean = normalize(progress);
   try {
     const { data: { user } } = await supabase.auth.getUser();
     const userId = user?.id ?? null;
     cache(clean, userId);
-    if (!user) return; // offline / signed out: local copy survives
+    if (!user) return;
     await saveLearnState(
       user.id,
       {
@@ -131,8 +147,9 @@ export async function saveProgress(p: LearnProgress, justEarned: string[] = []):
       },
       justEarned,
     );
-  } catch { /* offline: local copy survives */ }
+  } catch {
+    /* offline: local copy survives */
+  }
 }
 
-/** Award ids, re-exported so callers need one import. */
 export { badgeAwardId, certificateAwardId };

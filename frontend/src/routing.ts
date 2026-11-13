@@ -14,6 +14,8 @@ export type LegalRoute = 'privacy' | 'terms';
 
 export const DOCS_PREFIX = '#/docs/';
 const DOCS_ROOT = '#/docs';
+export const LEARN_PREFIX = '#/learn/';
+export const LEARN_ROOT = '#/learn';
 const LEGAL_PREFIX = '#/legal/';
 const LAB_WORKSPACE_PREFIX = '#/lab/';
 
@@ -29,6 +31,7 @@ const isLegal = (value: string): value is LegalRoute => value === 'privacy' || v
 /** What the address bar is pointing at, with an unknown hash falling back home. */
 export function readLocation(hash: string = window.location.hash): Route {
   if (hash === DOCS_ROOT || hash.startsWith(DOCS_PREFIX)) return { tab: 'docs', legal: null };
+  if (hash === LEARN_ROOT || hash.startsWith(LEARN_PREFIX)) return { tab: 'learn', legal: null };
   if (hash.startsWith(LAB_WORKSPACE_PREFIX)) return { tab: 'lab', legal: null };
 
   if (hash.startsWith(LEGAL_PREFIX)) {
@@ -57,6 +60,7 @@ export const hashForLabWorkspace = (workspaceId: string): string => `${LAB_WORKS
 /** True when the hash names a page we have, so a stray "#/x" gets replaced. */
 export function isKnownHash(hash: string): boolean {
   if (hash === DOCS_ROOT || hash.startsWith(DOCS_PREFIX)) return true;
+  if (hash === LEARN_ROOT || hash.startsWith(LEARN_PREFIX)) return true;
   if (hash.startsWith(LAB_WORKSPACE_PREFIX)) return hash.length > LAB_WORKSPACE_PREFIX.length;
   if (hash.startsWith(LEGAL_PREFIX)) return isLegal(hash.slice(LEGAL_PREFIX.length));
   const match = /^#\/([a-z-]+)$/.exec(hash);
