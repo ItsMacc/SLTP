@@ -1,6 +1,8 @@
 // useViewScroll.ts — The only function that moves the window for Learn.
 // After a view change, the new view starts directly below the sticky level bar.
 // On the first overview, and on reference views, it starts at the very top.
+// Pressing a level tab asks for the badge shelf instead, so the badges for that
+// level are on screen rather than the lesson list below them.
 
 import { useLayoutEffect, useRef } from 'react';
 import type { RefObject } from 'react';
@@ -11,7 +13,7 @@ if (typeof window !== 'undefined' && 'scrollRestoration' in window.history) {
   window.history.scrollRestoration = 'manual';
 }
 
-export type LearnScrollMode = 'overview' | 'top' | 'switcher';
+export type LearnScrollMode = 'overview' | 'top' | 'switcher' | 'shelf';
 
 export function useViewScroll(
   viewKey: string,
@@ -19,6 +21,8 @@ export function useViewScroll(
   switcherRef: RefObject<HTMLDivElement | null>,
   viewRef: RefObject<HTMLDivElement | null>,
   ready = true,
+  shelfRef?: RefObject<HTMLElement | null>,
+  shelfNonce = 0,
 ) {
   const first = useRef(true);
 
@@ -29,6 +33,9 @@ export function useViewScroll(
     const run = () => {
       if (modeAtRun === 'top' || (modeAtRun === 'overview' && firstAtRun)) {
         window.scrollTo(0, 0);
+      } else if (modeAtRun === 'shelf') {
+        // The shelf owns its own scroll-margin-top, which clears the site header.
+        shelfRef?.current?.scrollIntoView({ block: 'start', inline: 'nearest' });
       } else {
         const stickyHeight = switcherRef.current?.offsetHeight ?? 0;
         const viewTop = viewRef.current
@@ -48,5 +55,5 @@ export function useViewScroll(
       first.current = false;
     });
     return () => cancelAnimationFrame(frame);
-  }, [viewKey, mode, switcherRef, viewRef, ready]);
+  }, [viewKey, mode, switcherRef, viewRef, ready, shelfRef, shelfNonce]);
 }

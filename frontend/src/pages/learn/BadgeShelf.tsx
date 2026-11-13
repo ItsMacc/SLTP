@@ -1,6 +1,7 @@
 // BadgeShelf.tsx — Every badge in course order, always at the top.
 
 import { useEffect, useRef } from 'react';
+import type { RefObject } from 'react';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { ChevronLeft, ChevronRight, LockKeyhole } from 'lucide-react';
 import { LEVELS, lessonsOf } from '../../learn/curriculum';
@@ -13,6 +14,8 @@ interface BadgeShelfProps {
   progress: LearnProgress;
   pulseId: string | null;
   currentLessonId: string | null;
+  focusRequest: { levelId: string; nonce: number } | null;
+  shelfRef: RefObject<HTMLElement | null>;
   onOpenAll: () => void;
   onOpenLesson: (lesson: Lesson) => void;
   onOpenLevel: (level: Level) => void;
@@ -22,6 +25,8 @@ export function BadgeShelf({
   progress,
   pulseId,
   currentLessonId,
+  focusRequest,
+  shelfRef,
   onOpenAll,
   onOpenLesson,
   onOpenLevel,
@@ -43,12 +48,35 @@ export function BadgeShelf({
     row.scrollLeft = Math.max(0, target.offsetLeft - row.clientWidth / 2 + target.offsetWidth / 2);
   }, [anchorId]);
 
+  // Pressing a level tab brings that level's badges back into the row.
+  useEffect(() => {
+    if (!focusRequest) return;
+    const row = rowRef.current;
+    if (!row) return;
+    const group = row.querySelector<HTMLElement>(`[data-level-id="${focusRequest.levelId}"]`);
+    if (!group) return;
+    const rowRect = row.getBoundingClientRect();
+    const groupRect = group.getBoundingClientRect();
+    // Every group starts at the row's inset, so the previous level's tail never
+    // shows beside it. The last group clamps at the row's end, which is expected.
+    const target =
+      row.scrollLeft +
+      (groupRect.left - rowRect.left) -
+      parseFloat(getComputedStyle(row).paddingLeft);
+    // The row's smooth scrolling never advances on a masked scroller, so the
+    // jump is made explicit: a tab press must land on the right group.
+    const previous = row.style.scrollBehavior;
+    row.style.scrollBehavior = 'auto';
+    row.scrollLeft = Math.max(0, target);
+    row.style.scrollBehavior = previous;
+  }, [focusRequest]);
+
   const scroll = (direction: -1 | 1) => {
     rowRef.current?.scrollBy({ left: direction * 320, behavior: 'smooth' });
   };
 
   return (
-    <section className="learn-shelf" aria-label="Badges">
+    <section className="learn-shelf" aria-label="Badges" ref={shelfRef}>
       <div className="learn-shelf-head">
         <p className="learn-shelf-title">
           Badges <span>{earned.length} of {LEVELS.flatMap((level) => lessonsOf(level)).length}</span>
@@ -66,7 +94,7 @@ export function BadgeShelf({
             const lessons = lessonsOf(level);
             const certified = progress.certifications.includes(level.id);
             return (
-              <div className="learn-shelf-group" key={level.id}>
+              <div className="learn-shelf-group" key={level.id} data-level-id={level.id}>
                 <span className="learn-shelf-group-name">{level.name}</span>
                 <div className="learn-shelf-medals">
                   {lessons.map((lesson) => {

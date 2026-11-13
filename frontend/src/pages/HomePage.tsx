@@ -140,7 +140,7 @@ const BENTO_MINIS: { title: string; text: string; code?: string }[] = [
   },
   {
     title: 'Optimized for Massive Datasets.',
-    text: 'Our custom storage format handles all the heavy lifting behind the scenes, using 90% less memory and running your simulations over 65% faster so you can focus on building strategies, not managing code bottlenecks.',
+    text: 'Our custom storage format handles all the heavy lifting behind the scenes, using 90% less memory and running your simulations ~65% faster so you can focus on building strategies, not managing code bottlenecks.',
   },
 ];
 

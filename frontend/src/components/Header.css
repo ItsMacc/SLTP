@@ -50,7 +50,7 @@
   width: auto;
   height: 1.875rem;
   flex: 0 0 auto;
-  border-radius: 0.4rem;
+  color: var(--brand-mark);
 }
 
 .brand-title {

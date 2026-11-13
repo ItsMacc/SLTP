@@ -47,6 +47,11 @@
   --accent-muted: rgba(79, 70, 229, 0.12);
   --accent-faint: rgba(79, 70, 229, 0.06);
 
+  /* The mark sits one step off the accent: the dark theme pairs amber with
+     gold (+28deg of hue), so light pairs indigo with this violet, darker so
+     it holds weight on the pale canvas. */
+  --brand-mark: #6a00a9;
+
   --success: #059669;
   --error: #dc2626;
   /* A choice that is allowed but costs something, like a heavier chart. */
@@ -151,6 +156,7 @@
     --accent-hover: #f59e0b;
     --accent-muted: rgba(217, 119, 6, 0.12);
     --accent-faint: rgba(217, 119, 6, 0.08);
+    --brand-mark: #eab308;
 
     --success: #059669;
     --error: #dc2626;
@@ -195,6 +201,7 @@
   --accent-hover: #f59e0b;
   --accent-muted: rgba(217, 119, 6, 0.12);
   --accent-faint: rgba(217, 119, 6, 0.08);
+  --brand-mark: #eab308;
 
   --success: #059669;
   --error: #dc2626;

@@ -68,9 +68,11 @@ export default function LearnPage() {
   const learn = useLearn();
   const [hash, setHash] = useState(() => window.location.hash);
   const [pulseId, setPulseId] = useState<string | null>(null);
+  const [shelfFocus, setShelfFocus] = useState<{ levelId: string; nonce: number } | null>(null);
   const [reward, setReward] = useState<{ badge: EarnedBadge; level: Level } | null>(null);
   const switcherRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<HTMLDivElement>(null);
+  const shelfRef = useRef<HTMLDivElement>(null);
   const pulseTimer = useRef<number | null>(null);
 
   useEffect(() => {
@@ -90,7 +92,16 @@ export default function LearnPage() {
   const activeId = route.kind === 'workshops' ? 'workshops' : currentLevel.id;
   const viewKey = routeKey(route);
 
-  useViewScroll(viewKey, scrollMode(route), switcherRef, viewRef, !learn.loading);
+  const shelfRequested = route.kind === 'level' && shelfFocus?.levelId === route.levelId;
+  useViewScroll(
+    viewKey,
+    shelfRequested ? 'shelf' : scrollMode(route),
+    switcherRef,
+    viewRef,
+    !learn.loading,
+    shelfRef,
+    shelfFocus?.nonce ?? 0,
+  );
 
   const setLastLevel = learn.setLastLevel;
 
@@ -111,6 +122,7 @@ export default function LearnPage() {
 
   const openLevel = useCallback(
     (levelId: string) => {
+      setShelfFocus(null);
       navigate(levelId);
     },
     [navigate],
@@ -280,6 +292,8 @@ export default function LearnPage() {
         progress={learn.progress}
         pulseId={pulseId}
         currentLessonId={learn.nextUnfinished?.lesson.id ?? null}
+        focusRequest={shelfFocus}
+        shelfRef={shelfRef}
         onOpenAll={() => navigate('badges')}
         onOpenLesson={openLesson}
         onOpenLevel={openCertificate}
@@ -290,8 +304,13 @@ export default function LearnPage() {
         progress={learn.progress}
         counts={counts}
         onSelect={(id) => {
-          if (id === 'workshops') navigate('workshops');
-          else openLevel(id);
+          if (id === 'workshops') {
+            navigate('workshops');
+            return;
+          }
+          openLevel(id);
+          // Runs after openLevel clears it, so this press scrolls to the shelf.
+          setShelfFocus((current) => ({ levelId: id, nonce: (current?.nonce ?? 0) + 1 }));
         }}
         onContinue={continueLabel ? handleContinue : undefined}
         continueLabel={continueLabel}

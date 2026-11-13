@@ -270,6 +270,7 @@
 .learn-shelf {
   padding: 1.125rem 0 1.25rem;
   border-bottom: 1px solid var(--border-subtle);
+  scroll-margin-top: 5rem; /* clears the sticky site header, as the rails do */
 }
 
 .learn-shelf-head {
@@ -305,7 +306,9 @@
   gap: 1.5rem;
   min-width: 0;
   flex: 1;
-  padding: 0.25rem 0;
+  /* The mask fades the outer 1.5rem, so the content is inset past the fade —
+     otherwise the first label sits in the gradient and loses its opening letter. */
+  padding: 0.25rem 1.75rem;
   overflow-x: auto;
   scrollbar-width: none;
   scroll-behavior: smooth;
