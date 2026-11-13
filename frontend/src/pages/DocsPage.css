@@ -185,6 +185,11 @@
   color: var(--accent-hover);
 }
 
+.docs-repo-icon {
+  margin-right: 0.35rem;
+  vertical-align: -0.15em;
+}
+
 .docs-body.no-toc .docs-main {
   display: flex;
   justify-content: center;
