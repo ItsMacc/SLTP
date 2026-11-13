@@ -128,12 +128,71 @@ export function setJediFileOpener(
   fileOpener = opener;
 }
 
-/** The edit that adds an import line, after the last existing one. */
-function importEdit(monaco: Monaco, model: TextModel, statement: string) {
+/**
+ * The edit that adds an import. A matching `from x import a, b` line is
+ * extended in place, the way an IDE does, so a file keeps one import per
+ * module instead of growing a new line every time a name is used.
+ */
+function importEdit(
+  monaco: Monaco,
+  model: TextModel,
+  statement: string,
+): MonacoNs.languages.TextEdit | null {
+  const parsed = /^from\s+([\w.]+)\s+import\s+(.+)$/.exec(statement);
+  if (parsed) {
+    const [, moduleName, names] = parsed;
+    const wanted = names.split(',').map((name) => name.trim()).filter(Boolean);
+    const escaped = moduleName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const matches = new RegExp(`^from\\s+${escaped}\\s+import\\s+(.+)$`);
+    const limit = Math.min(model.getLineCount(), 400);
+    for (let index = 1; index <= limit; index += 1) {
+      const line = model.getLineContent(index);
+      const found = matches.exec(line);
+      if (!found) continue;
+      const imported = found[1].trim();
+      // A parenthesised or continued import is not worth rewriting blind.
+      if (imported.startsWith('(')) continue;
+      const beforeComment = imported.replace(/\s*#.*$/, '').replace(/\\$/, '').trim();
+      const present = beforeComment.split(',').map((name) => name.trim().split(/\s+as\s+/)[0]);
+      const missing = wanted.filter((name) => !present.includes(name.split(/\s+as\s+/)[0]));
+      if (!missing.length) return null;
+      // Insert before a trailing comment, not after it, and without leaving
+      // the extra space that was padding it.
+      let column = model.getLineMaxColumn(index);
+      let tail = '';
+      const commentAt = line.indexOf('#');
+      if (commentAt >= 0) {
+        let at = commentAt;
+        while (at > 0 && line[at - 1] === ' ') at -= 1;
+        column = at + 1;
+        tail = ' ';
+      }
+      const separator = beforeComment.endsWith(',') ? ' ' : ', ';
+      return {
+        range: new monaco.Range(index, column, index, column),
+        text: `${separator}${missing.join(', ')}${tail}`,
+      };
+    }
+  }
+
+  // Follow brackets so an import never lands inside a parenthesised one.
   let lastImport = 0;
+  let depth = 0;
+  let continued = false;
   const limit = Math.min(model.getLineCount(), 80);
   for (let index = 1; index <= limit; index += 1) {
-    if (/^\s*(from|import)\s/.test(model.getLineContent(index))) lastImport = index;
+    const line = model.getLineContent(index);
+    const startsImport = /^\s*(from|import)\s/.test(line);
+    if (startsImport && depth === 0) lastImport = index;
+    for (const character of line) {
+      if (character === '(' || character === '[' || character === '{') depth += 1;
+      else if (character === ')' || character === ']' || character === '}') depth = Math.max(0, depth - 1);
+    }
+    if (startsImport && depth > 0) continued = true;
+    else if (continued && depth === 0) {
+      lastImport = index;
+      continued = false;
+    }
   }
   if (lastImport) {
     const column = model.getLineMaxColumn(lastImport);
@@ -214,13 +273,14 @@ function register(monaco: Monaco): void {
           );
           if (alreadyImported) continue;
           known.add(candidate.label);
+          const edit = importEdit(monaco, model, candidate.statement);
           suggestions.push({
             label: candidate.label,
             kind: completionKind(monaco, candidate.kind),
             detail: `import from ${candidate.statement.replace(/^from\s+/, '').split(' import ')[0]}`,
             insertText: candidate.label,
             range,
-            additionalTextEdits: [importEdit(monaco, model, candidate.statement)],
+            additionalTextEdits: edit ? [edit] : [],
             sortText: `z${candidate.label}`,
           });
         }
