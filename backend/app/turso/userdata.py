@@ -588,10 +588,14 @@ def save_project_file(user_id: str, project_id: str, path: str, content: str) ->
     path = _clean_path(path)
     if len(content or "") > FILE_CONTENT_MAX:
         raise LabError("That file is too large to save.", 400)
-    row = execute_one("SELECT locked FROM lab_files WHERE project_id = ? AND path = ?",
+    row = execute_one("SELECT locked, content FROM lab_files WHERE project_id = ? AND path = ?",
                       [project_id, path])
     if row and row["locked"]:
         raise LabError("That file is locked and cannot be edited.", 400)
+    if row and row["content"] == (content or ""):
+        # Turso bills the row write, and saving a file that did not change
+        # writes nothing. This is what makes a repeated save free.
+        return {"name": path, "content": content or "", "locked": False, "unchanged": True}
     now = now_iso()
     if row:
         execute("UPDATE lab_files SET content = ?, updated_at = ? WHERE project_id = ? AND path = ?",
@@ -628,7 +632,7 @@ def save_project_files(user_id: str, project_id: str, files: list[dict[str, Any]
     if len(cleaned) > FILES_PER_PROJECT_MAX:
         raise LabError(f"Projects hold at most {FILES_PER_PROJECT_MAX} files.", 400)
     existing_rows = execute(
-        f"SELECT path, locked FROM lab_files WHERE project_id = ?"
+        f"SELECT path, locked, content FROM lab_files WHERE project_id = ?"
         f" AND path IN ({','.join(['?'] * len(cleaned))})",
         [project_id, *[path for path, _ in cleaned]],
     )
@@ -637,7 +641,14 @@ def save_project_files(user_id: str, project_id: str, files: list[dict[str, Any]
     if _file_count(project_id) + new_only > FILES_PER_PROJECT_MAX:
         raise LabError(f"Projects hold at most {FILES_PER_PROJECT_MAX} files.", 400)
     locked = {row["path"] for row in existing_rows if row["locked"]}
-    writable = [(path, content) for path, content in cleaned if path not in locked]
+    stored = {row["path"]: row["content"] for row in existing_rows}
+    # A flush can resend a file whose text did not change, and Turso charges
+    # per row written. Those rows are simply left alone.
+    unchanged = {path for path, content in cleaned if stored.get(path) == content and path not in locked}
+    writable = [
+        (path, content) for path, content in cleaned
+        if path not in locked and path not in unchanged
+    ]
     if writable:
         now = now_iso()
         values = ", ".join(["(?, ?, ?, 0, ?)"] * len(writable))
@@ -651,7 +662,11 @@ def save_project_files(user_id: str, project_id: str, files: list[dict[str, Any]
             f" content = excluded.content, updated_at = excluded.updated_at",
             args,
         )
-    return {"saved": [path for path, _ in writable], "locked_skipped": sorted(locked)}
+    return {
+        "saved": [path for path, _ in writable],
+        "locked_skipped": sorted(locked),
+        "unchanged": sorted(unchanged),
+    }
 
 
 def import_project_files(
