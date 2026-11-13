@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends
 from app.auth.jwt_auth import get_current_user
 
 # Database imports
+from app.turso import userdata
 from app.users import store
 from app.users.defaults import default_settings
 
@@ -55,7 +56,7 @@ async def provision_user(
 
     # Deliberately NOT creating a portfolio here: its absence is what routes
     # the user into onboarding, so the wizard owns the very first portfolio.
-    portfolio: dict[str, Any] | None = store.get_portfolio(user_id)
+    portfolio: dict[str, Any] | None = userdata.get_portfolio(user_id)
 
     return {
         "provisioned": created,
