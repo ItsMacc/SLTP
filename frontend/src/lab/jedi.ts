@@ -146,14 +146,23 @@ function register(monaco: Monaco): void {
       const reply = await ask('complete', position);
       const items = (reply?.data as { items?: CompletionItem[] } | null)?.items ?? [];
       const range = wordRange(monaco, model, position);
-      const suggestions: MonacoNs.languages.CompletionItem[] = items.map((item) => ({
-        label: item.label,
-        kind: completionKind(monaco, item.kind),
-        detail: item.detail,
-        documentation: item.documentation ? { value: item.documentation } : undefined,
-        insertText: item.insertText || item.label,
-        range,
-      }));
+      const typed = model.getWordUntilPosition(position).word;
+      const showPrivate = typed.startsWith('_');
+      const suggestions: MonacoNs.languages.CompletionItem[] = items
+        // jedi offers private members too; they belong behind a leading
+        // underscore, not in the list a reader scans while typing.
+        .filter((item) => showPrivate || !item.label.startsWith('_'))
+        .map((item) => ({
+          label: item.label,
+          kind: completionKind(monaco, item.kind),
+          detail: item.detail,
+          documentation: item.documentation ? { value: item.documentation } : undefined,
+          // The name, never jedi's `complete` field: that one carries only the
+          // part of the word still missing, so accepting it on top of a typed
+          // prefix ate the first letter ("B" became "acktester").
+          insertText: item.label,
+          range,
+        }));
       // Nothing from jedi means nothing useful to offer; Monaco's own
       // word-based suggestions still fill the gap.
       return { suggestions };
@@ -227,7 +236,11 @@ async function refreshDiagnostics(): Promise<void> {
   const { monaco, model } = target;
   const reply = await ask('diagnostics', { lineNumber: 1, column: 1 } as MonacoNs.Position);
   if (reply?.ok === false) return;
-  const items = (reply?.data as { items?: DiagnosticItem[] } | null)?.items ?? [];
+  const items = ((reply?.data as { items?: DiagnosticItem[] } | null)?.items ?? []).filter(
+    // Tidy-ups are noise while a file is being written; a name that does not
+    // exist and a broken statement are not.
+    (item) => !/imported but unused|assigned to but never used/i.test(item.message),
+  );
   monaco.editor.setModelMarkers(
     model,
     'jedi',

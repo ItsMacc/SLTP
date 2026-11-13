@@ -411,6 +411,62 @@ def _diagnose(code, path):
     return {"items": report.items}
 
 
+def _module_members(code, line, column):
+    """What a module exports, for "from x import" and "x.".
+
+    jedi reads source statically, so a package that resolves its public names
+    lazily looks like it holds nothing but submodules. sltp does exactly that
+    through __getattr__, which is why "from sltp import" offered data and web
+    but not Strategy. Asking the package for its own __all__ is both shorter
+    and always right, and it fixes every lazily-exported module at once.
+    """
+    import re
+
+    lines = code.splitlines()
+    if line - 1 >= len(lines):
+        return []
+    head = lines[line - 1][:column]
+    match = re.search(r"from +([A-Za-z_][A-Za-z0-9_.]*) +import +([A-Za-z_][A-Za-z0-9_]*)?$", head)
+    if match:
+        module_name, typed = match.group(1), match.group(2) or ""
+    else:
+        match = re.search(r"([A-Za-z_][A-Za-z0-9_.]*)[.]([A-Za-z_][A-Za-z0-9_]*)?$", head)
+        if not match:
+            return []
+        module_name, typed = match.group(1), match.group(2) or ""
+
+    import importlib
+
+    try:
+        module = importlib.import_module(module_name)
+    except Exception:  # noqa: BLE001 - not a module, so nothing to add
+        return []
+
+    exported = list(getattr(module, "__all__", None) or [n for n in dir(module) if not n.startswith("_")])
+    items = []
+    for name in exported:
+        if not isinstance(name, str) or not name.startswith(typed):
+            continue
+        try:
+            value = getattr(module, name)
+        except Exception:  # noqa: BLE001 - a broken export costs its own entry only
+            continue
+        if isinstance(value, type):
+            kind = "class"
+        elif callable(value):
+            kind = "function"
+        else:
+            kind = "statement"
+        items.append({
+            "label": name,
+            "insertText": name,
+            "kind": kind,
+            "detail": getattr(value, "__module__", None) or module_name,
+            "documentation": None,
+        })
+    return items
+
+
 def analyze(method, code, path, line, column, files_json=""):
     files = json.loads(files_json) if files_json else {}
     for name, content in files.items():
@@ -441,17 +497,28 @@ def analyze(method, code, path, line, column, files_json=""):
         script = jedi.Script(code=code, path=str(current), project=project)
 
         if method == "complete":
-            items = [
-                {
-                    "label": item.name,
-                    "insertText": item.complete or item.name,
-                    "kind": item.type,
-                    "detail": item.description,
-                    "documentation": item.docstring(),
-                }
-                for item in script.complete(line, column)
-            ]
-            return json.dumps({"ok": True, "data": {"items": items[:200]}})
+            found = []
+            seen = set()
+            for item in script.complete(line, column):
+                # jedi can offer the same name from more than one inference
+                # path; one row per name is what a reader expects.
+                if item.name in seen:
+                    continue
+                seen.add(item.name)
+                found.append(
+                    {
+                        "label": item.name,
+                        "insertText": item.name,
+                        "kind": item.type,
+                        "detail": item.description,
+                        "documentation": item.docstring(),
+                    }
+                )
+            for extra in _module_members(code, line, column):
+                if extra["label"] not in seen:
+                    seen.add(extra["label"])
+                    found.append(extra)
+            return json.dumps({"ok": True, "data": {"items": found[:200]}})
 
         if method == "hover":
             names = script.infer(line, column)
