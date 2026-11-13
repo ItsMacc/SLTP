@@ -59,7 +59,9 @@ export async function numpyStubPack(): Promise<ArrayBuffer | null> {
   if (numpyCache) return numpyCache;
   if (numpyFailed) return null;
   try {
-    const response = await fetch(numpyStubsUrl);
+    // Bounded: a stalled request would otherwise hold up every worker start,
+    // since the stubs are mounted before Pyright is handed the project.
+    const response = await fetch(numpyStubsUrl, { signal: AbortSignal.timeout(10_000) });
     if (!response.ok) throw new Error(`numpy stubs fetch failed: ${response.status}`);
     numpyCache = await response.arrayBuffer();
     return numpyCache;

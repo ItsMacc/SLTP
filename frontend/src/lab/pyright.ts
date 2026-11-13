@@ -86,6 +86,27 @@ const PYTHON_SNIPPETS: { label: string; detail: string; insertText: string }[] =
   { label: 'with', detail: 'Use a context manager', insertText: 'with ${1:expr} as ${2:name}:\n    ${3:pass}' },
 ];
 
+// A worker that never answers leaves the status bar saying "starting" forever,
+// with the editor quietly falling back to hand-written suggestions. Past this
+// point the start is treated as failed so the reader is told the truth.
+const INIT_TIMEOUT_MS = 25_000;
+
+function withTimeout<T>(work: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+    work.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
 function completionRange(monaco: Monaco, model: TextModel, position: MonacoNs.Position) {
   const word = model.getWordUntilPosition(position);
   return new monaco.Range(position.lineNumber, word.startColumn, position.lineNumber, word.endColumn);
@@ -293,7 +314,14 @@ export function loadProject(monaco: Monaco, stubs: Record<string, string>): Prom
       features: NO_LIBRARY_FEATURES,
       typeStubs,
     });
-    await next.init(monaco);
+    try {
+      await withTimeout(next.init(monaco), INIT_TIMEOUT_MS, 'Pyright start');
+    } catch (error) {
+      // A worker that hung or died holds a large amount of memory; it is
+      // dropped before the failure is reported.
+      next.lspClient.worker.terminate();
+      throw error;
+    }
     await next.lspClient.setupDiagnosticsCallback((diagnostics) => {
       const current = target;
       if (!current) return;
