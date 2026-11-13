@@ -263,6 +263,9 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
 
   const [pyright, setPyright] = useState<PyrightState>('starting');
   const [pyrightReason, setPyrightReason] = useState<string | null>(null);
+  // The first start takes a while on a browser that has to unpack typeshed
+  // slowly, so the wait is counted out instead of looking frozen.
+  const [pyrightSeconds, setPyrightSeconds] = useState(0);
   const [editorReady, setEditorReady] = useState(false);
   const [editorTheme, setEditorTheme] = useState<'vs' | 'vs-dark'>(() => {
     const saved = sessionStorage.getItem('st_user_theme')?.toLowerCase();
@@ -429,6 +432,15 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
   useEffect(() => {
     if (pyright === 'active') bindActiveModel();
   }, [active, pyright, bindActiveModel]);
+
+  useEffect(() => {
+    if (pyright !== 'starting') return;
+    const startedAt = Date.now();
+    const timer = window.setInterval(() => {
+      setPyrightSeconds(Math.round((Date.now() - startedAt) / 1000));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [pyright]);
 
   // Each file becomes a stub so `from core.strategy.base_strategy import Strategy`
   // resolves to the project's own package. Stubs are fixed when a worker starts,
@@ -1348,7 +1360,7 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
               className={`lab-statusbar-item is-${pyright}`}
               title={pyright === 'failed' && pyrightReason ? pyrightReason : undefined}
             >
-              {PYRIGHT_LABEL[pyright]}
+              {pyright === 'starting' ? `Pyright starting… ${pyrightSeconds}s` : PYRIGHT_LABEL[pyright]}
               {pyright === 'failed' && pyrightReason ? ` · ${pyrightReason.slice(0, 90)}` : ''}
             </span>
             <button

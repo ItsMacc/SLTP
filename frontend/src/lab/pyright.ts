@@ -89,7 +89,13 @@ const PYTHON_SNIPPETS: { label: string; detail: string; insertText: string }[] =
 // A worker that never answers leaves the status bar saying "starting" forever,
 // with the editor quietly falling back to hand-written suggestions. Past this
 // point the start is treated as failed so the reader is told the truth.
-const INIT_TIMEOUT_MS = 25_000;
+// The first start unpacks the whole of typeshed (about 4500 files) before it
+// answers, and Safari's JavaScriptCore takes far longer over that than V8 does:
+// measured around 4s in Chromium, and still not done at 25s in Safari. Later
+// starts reuse a warm worker and need a fraction of it.
+const FIRST_INIT_TIMEOUT_MS = 120_000;
+const REBUILD_TIMEOUT_MS = 30_000;
+let hasStarted = false;
 
 // Why the last start failed, in the worker's own words when it has any. The
 // status bar shows this, because "unavailable" on its own gives nobody
@@ -315,8 +321,13 @@ export function loadProject(monaco: Monaco, stubs: Record<string, string>): Prom
 
     for (const [name, text] of Object.entries(stubs)) {
       const parts = name.replace(/\.py$/, '.pyi').split('/');
-      const parent = parts.slice(0, -1).join('/');
-      folderNode(parent)[parts[parts.length - 1]] = text;
+      const leaf = parts[parts.length - 1];
+      folderNode(parts.slice(0, -1).join('/'))[leaf] = text;
+      // The edited document lives at the root, so a sibling import spelled the
+      // way a strategy spells it — `from helpers import x`, not
+      // `from workspace.helpers import x` — only resolves if the file also sits
+      // at the root. sltp and numpy already own their top-level names.
+      if (!(leaf in typeStubs)) typeStubs[leaf] = text;
     }
 
     const next = new MonacoPyrightProvider(pyrightWorkerUrl, {
@@ -336,7 +347,12 @@ export function loadProject(monaco: Monaco, stubs: Record<string, string>): Prom
       console.error('[pyright]', workerFailure);
     });
     try {
-      await withTimeout(next.init(monaco), INIT_TIMEOUT_MS, 'Pyright start');
+      await withTimeout(
+        next.init(monaco),
+        hasStarted ? REBUILD_TIMEOUT_MS : FIRST_INIT_TIMEOUT_MS,
+        'Pyright start',
+      );
+      hasStarted = true;
       lastFailure = null;
     } catch (error) {
       // A worker that hung or died holds a large amount of memory; it is
