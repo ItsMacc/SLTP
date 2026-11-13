@@ -1,6 +1,7 @@
 // ErrorToast.tsx — Fixed-position error notification
 
 import { useEffect } from 'react'
+import { X } from 'lucide-react'
 import Button from './Button'
 import './ErrorToast.css'
 
@@ -45,7 +46,7 @@ export default function ErrorToast({
         onClick={onClose}
         aria-label="Dismiss error"
       >
-        &times;
+        <X size={16} aria-hidden="true" />
       </Button>
     </div>
   )

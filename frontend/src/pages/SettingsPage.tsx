@@ -357,26 +357,9 @@ export default function SettingsPage({ userId, userEmail, initialName, onProfile
 
       if (error) throw error;
 
-      // The backend merges these into the portfolio preferences it holds.
-      // Best-effort: Supabase already has the change, so a failed merge
-      // must not surface as a failed save.
-      try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        const token = sessionData.session?.access_token;
-        if (token) {
-          await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/user/sync-settings`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ settings: updatedSettings }),
-          });
-        }
-      } catch {
-        // Ignored on purpose, see above.
-      }
-
+      // That one write is the whole save. Posting the same object to
+      // /api/user/sync-settings afterwards patched the identical row a second
+      // time for every save, which is a write nobody reads.
       setSettingsToast('Settings saved');
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message || 'Failed to save changes.' });

@@ -33,6 +33,8 @@ MAX_DEVICES = 10
 # -------- Request Bodies --------
 class LoginEventIn(BaseModel):
     at: str | None = None
+    # The browser's IANA zone, so the alert reads in the reader's own clock.
+    tz: str | None = None
 
 
 # -------- Helpers --------
@@ -47,6 +49,36 @@ def _client_ip(request: Request) -> str:
     if forwarded:
         return forwarded.split(",")[0].strip()
     return request.client.host if request.client else "unknown"
+
+
+# A readable stamp in the reader's zone ("Nov 13, 2026 at 4:27 AM AEDT").
+# The raw ISO string is what used to land in the email; nobody reads that.
+def _friendly_time(value: str | None, tz_name: str | None) -> str:
+    moment: datetime | None = None
+    if value:
+        try:
+            moment = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            moment = None
+    if moment is None:
+        moment = datetime.now(timezone.utc)
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+
+    zone = timezone.utc
+    if tz_name:
+        try:
+            from zoneinfo import ZoneInfo
+            zone = ZoneInfo(tz_name)
+        except Exception:
+            # An unknown zone must never cost the reader their alert.
+            zone = timezone.utc
+
+    local = moment.astimezone(zone)
+    hour = local.strftime("%I").lstrip("0") or "12"
+    stamp = f"{local:%b} {local.day}, {local.year} at {hour}:{local:%M %p}"
+    label = local.tzname()
+    return f"{stamp} ({label})" if label else stamp
 
 
 # A friendly device label from the User-Agent ("Chrome on macOS").
@@ -99,9 +131,12 @@ async def record_login_event(
     }
 
     devices: list[dict[str, Any]] = [d for d in settings.get("login_devices", []) if isinstance(d, dict)]
+    # A device is the browser, not the network. Home and mobile IPs rotate
+    # several times a day, and matching on the hash as well turned every one of
+    # those into a "new device" email. The IP hash is still recorded; it just no
+    # longer decides whether the sign-in is familiar.
     match = next(
-        (d for d in devices
-         if d.get("ip_hash") == device["ip_hash"] and d.get("ua_hash") == device["ua_hash"]),
+        (d for d in devices if d.get("ua_hash") == device["ua_hash"]),
         None,
     )
     is_new = match is None
@@ -127,7 +162,7 @@ async def record_login_event(
             user.get("name") or user["email"],
             "New device sign-in",
             device=device["label"],
-            when=device["last_seen"],
+            when=_friendly_time(device["last_seen"], body.tz),
         )
         emailed = bool(ok)
 

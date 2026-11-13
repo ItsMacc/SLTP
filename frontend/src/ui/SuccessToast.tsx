@@ -1,6 +1,7 @@
 // SuccessToast.tsx — Fixed-position success notification (mirrors ErrorToast)
 
 import { useEffect } from 'react'
+import { X } from 'lucide-react'
 import Button from './Button'
 import './SuccessToast.css'
 
@@ -44,7 +45,7 @@ export default function SuccessToast({
         onClick={onClose}
         aria-label="Dismiss notification"
       >
-        &times;
+        <X size={16} aria-hidden="true" />
       </Button>
     </div>
   )

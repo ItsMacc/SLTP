@@ -60,8 +60,9 @@
   background: transparent;
   border: none;
   color: var(--text-muted);
-  font-size: 1.25rem;
-  line-height: 1;
+  /* An icon, not a text glyph: "&times;" sits differently in every browser's
+     font, which is what pushed the close mark off centre. */
+  line-height: 0;
   cursor: pointer;
   transition: color 0.15s ease;
 }

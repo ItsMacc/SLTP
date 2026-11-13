@@ -124,23 +124,10 @@ export async function saveUserTheme(theme: 'light' | 'dark', userId?: string | n
     const { data } = await supabase.from('users').select('settings').eq('id', userId).maybeSingle()
     // Merge: a theme change must not drop the chart style or the editor prefs.
     const settings = { ...(data?.settings || {}), theme: stored }
+    // One write, to the row that is the single source of truth. The theme is a
+    // browser preference and nothing else in the system mirrors it.
     const { error } = await supabase.from('users').update({ settings }).eq('id', userId)
     if (error) throw error
-
-    // The backend folds the theme into the portfolio preferences it holds;
-    // best-effort, like Settings.
-    const { data: sessionData } = await supabase.auth.getSession()
-    const token = sessionData.session?.access_token
-    if (token) {
-      await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/user/sync-settings`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ settings }),
-      })
-    }
   } catch {
     // The switch already applied locally. Failing to reach the row must not
     // take the theme back off the page.

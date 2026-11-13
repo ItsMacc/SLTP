@@ -57,8 +57,9 @@
   background: transparent;
   border: none;
   color: var(--text-muted);
-  font-size: 1.25rem;
-  line-height: 1;
+  /* Matches ErrorToast: an icon rather than a text glyph, so the mark is
+     centred identically in every browser. */
+  line-height: 0;
   cursor: pointer;
   transition: color 0.15s ease;
 }

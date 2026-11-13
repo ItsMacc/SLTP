@@ -518,8 +518,11 @@ export async function revokeApiKey(token: string, keyId: string): Promise<void> 
  * catch it themselves.
  */
 export async function recordLoginEvent(token: string): Promise<void> {
+  // The alert is read in the reader's own clock, and the browser is the only
+  // side that knows which zone that is.
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
   await authedFetch('/api/user/login-event', token, {
     method: 'POST',
-    body: JSON.stringify({}),
+    body: JSON.stringify({ tz }),
   });
 }

@@ -52,7 +52,7 @@ const legalEmail = 'legal.sltp@gmail.com';
 //   frontend/lib/*.ts           browser storage keys and the Supabase client
 const privacyDocument: LegalDocument = {
   title: 'Privacy Policy',
-  meta: 'Last updated: November 4, 2026',
+  meta: 'Last updated: November 13, 2026',
   intro:
     'SLTP is an independent quantitative research platform: it replays market history against a trading rule and keeps the research you build around that rule. This policy sets out exactly what the platform stores, why, where it goes, and how to have it removed. It describes the systems we run rather than a template, and it applies to the website, the API and the Lab.',
   sections: [
@@ -265,11 +265,19 @@ const privacyDocument: LegalDocument = {
               lead: 'Interface state:',
               text: 'Whether groups in the documentation sidebar were open, so the panel looks the same when you return.',
             },
+            {
+              lead: 'Saved market history:',
+              text: 'So that charts and backtests open quickly, the platform keeps a copy of the price history it has already fetched in this browser rather than asking for it again on every visit. On a desktop computer that copy can reach roughly 380 MB. On a phone or tablet we save a shorter window — about ten years of history, roughly 200 MB — so the device is not worked hard or filled up. This is market data only; none of your account details or saved work is stored there.',
+            },
           ],
         },
         {
           type: 'paragraph',
-          text: 'You can remove all of it at any time through your browser’s site-data settings. Doing so signs you out and resets those local choices; it does not delete your account, which is handled in section 08.',
+          text: 'The saved market history is the only large item in the list, and clearing it is safe. Your account, your saved work and your results live on our servers, not in your browser. The next chart simply downloads what it needs again.',
+        },
+        {
+          type: 'paragraph',
+          text: 'You can remove all of it at any time through your browser’s site-data settings. Clearing the saved market history costs you nothing beyond the few seconds it takes to download again the next time you open a chart. Clearing everything else signs you out and resets your local choices; none of it deletes your account, which is handled in section 08.',
         },
       ],
     },
