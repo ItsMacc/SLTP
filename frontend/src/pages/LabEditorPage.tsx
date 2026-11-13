@@ -51,11 +51,11 @@ import {
   createLabFile,
   deleteLabFile,
   deleteLabFolder,
+  flushLabFilesOnExit,
   getLabProjectFiles,
   importLabFiles,
   renameLabBacktest,
   renameLabFile,
-  saveLabFile,
   saveLabFiles,
   type LabBacktestSummary,
   type LabProject,
@@ -380,7 +380,7 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
     });
     setActive((previous) => previous && list.some((file) => file.name === previous) ? previous : first);
   // Keep unsaved drafts local; reconcile only when the cache snapshot changes.
-  }, [projectFilesQuery.data]);
+  }, [projectFilesQuery.data, project.id]);
 
   // Insurance for typing: every dirty buffer lands in localStorage on a short
   // debounce, so a crash or a forced quit costs at most those two seconds. The
@@ -438,25 +438,66 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
     );
   }, [project.id, queryClient]);
 
-  const saveFile = async (name: string) => {
-    const file = files.find((f) => f.name === name);
-    if (!file || !isDirty(file)) return;
-    const draft = file.draft;
-    setActionError(null);
-    setSavingFile(name);
-    try {
-      await saveLabFile(project.id, name, draft);
-      dropDraft(project.id, name);
-      setFiles((prev) => prev.map((f) => (f.name === name ? { ...f, saved: draft } : f)));
-      updateProjectCache((current) => ({
-        ...current,
-        files: current.files.map((file) => file.name === name ? { ...file, content: draft } : file),
-      }));
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : `Could not save ${name}.`);
-    } finally {
-      setSavingFile((current) => (current === name ? null : current));
+  const inFlightRef = useRef<Promise<boolean> | null>(null);
+  const flushAgainRef = useRef(false);
+  const flushRef = useRef<() => Promise<boolean>>(async () => true);
+
+  /**
+   * Write every dirty file in one request. Saves are coalesced, not queued: a
+   * call while one is running marks the batch dirty again instead of opening a
+   * second request, and a call with nothing changed never reaches the network.
+   * A hammered Cmd+S therefore costs at most one request, and usually none.
+   */
+  const flush = async (): Promise<boolean> => {
+    if (inFlightRef.current) {
+      flushAgainRef.current = true;
+      return inFlightRef.current;
     }
+    const dirty = latestFilesRef.current.filter(isDirty);
+    if (dirty.length === 0) return true;
+    const batch = dirty.map((file) => ({ path: file.name, content: file.draft }));
+    setActionError(null);
+    setSavingFile(dirty.length === 1 ? dirty[0].name : null);
+    const run = (async () => {
+      try {
+        await saveLabFiles(project.id, batch);
+        const written = new Map(batch.map((file) => [file.path, file.content]));
+        for (const file of batch) dropDraft(project.id, file.path);
+        setFiles((previous) =>
+          previous.map((current) =>
+            written.has(current.name)
+              ? { ...current, saved: written.get(current.name) as string }
+              : current,
+          ),
+        );
+        updateProjectCache((current) => ({
+          ...current,
+          files: current.files.map((saved) =>
+            written.has(saved.name)
+              ? { ...saved, content: written.get(saved.name) as string }
+              : saved,
+          ),
+        }));
+        return true;
+      } catch (err) {
+        setActionError(err instanceof Error ? err.message : 'Could not save your changes.');
+        return false;
+      }
+    })();
+    inFlightRef.current = run;
+    const ok = await run;
+    inFlightRef.current = null;
+    setSavingFile(null);
+    if (flushAgainRef.current) {
+      flushAgainRef.current = false;
+      return flushRef.current();
+    }
+    return ok;
+  };
+
+  // The toolbar names one file, but the write covers every dirty one.
+  const saveFile = async () => {
+    await flush();
   };
 
   // -------- Analysis: jedi, inside the Python worker --------
@@ -741,12 +782,46 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
   // The shortcut handler reads the latest closure through this ref.
   useEffect(() => {
     saveActiveRef.current = () => {
-      if (active) void saveFile(active);
+      void flushRef.current();
     };
     runActiveRef.current = () => {
       void runActive();
     };
   });
+
+  // Deliberately generous: a flush is free when nothing changed, and the
+  // moments that matter are the ones a browser does not warn about.
+  useEffect(() => {
+    flushRef.current = flush;
+  });
+
+  useEffect(() => {
+    const flushDirty = () => {
+      if (latestFilesRef.current.some(isDirty)) void flushRef.current();
+    };
+    const checkpoint = window.setInterval(flushDirty, 60_000);
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') flushDirty();
+    };
+    // Leaving the page cannot be awaited, so the write goes out keepalive and
+    // the local draft covers it if the browser drops it anyway.
+    const onPageHide = () => {
+      const dirty = latestFilesRef.current.filter(isDirty);
+      if (!dirty.length) return;
+      void flushLabFilesOnExit(
+        project.id,
+        dirty.map((file) => ({ path: file.name, content: file.draft })),
+      );
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('pagehide', onPageHide);
+    return () => {
+      window.clearInterval(checkpoint);
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('pagehide', onPageHide);
+      onPageHide();
+    };
+  }, [project.id]);
 
   // -------- Layout --------
 
@@ -995,42 +1070,16 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
   const handleCloseProject = async () => {
     if (closing) return;
     setActionError(null);
-    const dirty = files.filter(isDirty);
-    if (dirty.length === 0) {
+    if (!latestFilesRef.current.some(isDirty)) {
       onBack();
       return;
     }
     setClosing(true);
     try {
-      // One request for the whole close. Writing each dirty file in turn meant
-      // a round trip and a write transaction per file, so a project left with
-      // five unsaved files paid five times for one action.
-      const batch = dirty.map((file) => ({ path: file.name, content: file.draft }));
-      await saveLabFiles(project.id, batch);
-      const written = new Map(batch.map((file) => [file.path, file.content]));
-      for (const file of batch) dropDraft(project.id, file.path);
-      setFiles((previous) =>
-        previous.map((current) =>
-          written.has(current.name)
-            ? { ...current, saved: written.get(current.name) as string }
-            : current,
-        ),
-      );
-      updateProjectCache((current) => ({
-        ...current,
-        files: current.files.map((saved) =>
-          written.has(saved.name)
-            ? { ...saved, content: written.get(saved.name) as string }
-            : saved,
-        ),
-      }));
-      onBack();
-    } catch (err) {
-      setActionError(
-        err instanceof Error
-          ? `Could not save your changes, so the project stayed open. ${err.message}`
-          : 'Could not save your changes, so the project stayed open.',
-      );
+      // The same single batch the autosave uses, awaited, so the page only
+      // leaves once the write is confirmed. A failure keeps the project open
+      // with the error visible instead of dropping work on the way out.
+      if (await flush()) onBack();
     } finally {
       setClosing(false);
     }
@@ -1341,7 +1390,7 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
                   aria-label="Save the open file"
                   title={`Save (${modShortcut('S')})`}
                   disabled={!activeFile || !isDirty(activeFile)}
-                  onClick={() => active && void saveFile(active)}
+                  onClick={() => void saveFile()}
                 >
                   {savingFile ? <LoaderInline size={14} tone="inherit" /> : <Save size={14} aria-hidden="true" />}
                 </Button>

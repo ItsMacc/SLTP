@@ -36,6 +36,7 @@ import {
   renameLabFile as apiRenameLabFile,
   saveLabFile as apiSaveLabFile,
   saveLabFiles as apiSaveLabFiles,
+  saveLabFilesOnExit as apiSaveLabFilesOnExit,
   type LabBacktestRecord,
   type LabBacktestSummary,
   type LabFile,
@@ -218,6 +219,18 @@ export async function saveLabFiles(
   const result = await apiSaveLabFiles(token, projectId, files);
   await dropProject(userId, projectId);
   return result;
+}
+
+// Used when the tab is going away: the request is marked keepalive so the
+// browser finishes it after the document is gone. Nothing here can be awaited,
+// so the snapshot is dropped right after handing the write over.
+export async function flushLabFilesOnExit(
+  projectId: string,
+  files: { path: string; content: string }[],
+): Promise<void> {
+  const { token, userId } = await session();
+  apiSaveLabFilesOnExit(token, projectId, files);
+  await dropProject(userId, projectId);
 }
 
 export async function saveLabFile(projectId: string, name: string, content: string): Promise<void> {

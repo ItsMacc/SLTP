@@ -323,6 +323,33 @@ export async function saveLabFiles(
   });
 }
 
+/**
+ * The same batch write on the way out of the page. `keepalive` lets the
+ * request outlive the document; an ordinary fetch is cancelled when the tab
+ * goes away. Fire and forget, because nothing can await it from there.
+ */
+export function saveLabFilesOnExit(
+  token: string,
+  projectId: string,
+  files: { path: string; content: string }[],
+): void {
+  try {
+    void fetch(`${API_BASE}/api/lab/projects/${projectId}/files`, {
+      method: 'PUT',
+      keepalive: true,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        files: files.map((file) => ({ path: file.path, content: file.content })),
+      }),
+    });
+  } catch {
+    // The browser cache already holds the draft; the next open recovers it.
+  }
+}
+
 export async function renameLabFile(
   token: string,
   projectId: string,
