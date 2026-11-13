@@ -91,11 +91,20 @@ const PYTHON_SNIPPETS: { label: string; detail: string; insertText: string }[] =
 // point the start is treated as failed so the reader is told the truth.
 // The first start unpacks the whole of typeshed (about 4500 files) before it
 // answers, and Safari's JavaScriptCore takes far longer over that than V8 does:
-// measured around 4s in Chromium, and still not done at 25s in Safari. Later
-// starts reuse a warm worker and need a fraction of it.
+// measured around 4s in Chromium, and still not finished after 200s in Safari.
+// Later starts reuse a warm worker and need a fraction of it.
 const FIRST_INIT_TIMEOUT_MS = 120_000;
 const REBUILD_TIMEOUT_MS = 30_000;
 let hasStarted = false;
+
+// Safari expands the typeshed archive at a pace that makes the first start
+// unusable, so it runs without one. The engine, numpy and the project's own
+// files are mounted by us and still resolve; only the standard library loses
+// its types, which costs completions on str/list/os and nothing else.
+const IS_SAFARI = (() => {
+  const agent = typeof navigator === 'undefined' ? '' : navigator.userAgent;
+  return /Safari/.test(agent) && !/Chrome|Chromium|Edg|OPR|Firefox/.test(agent);
+})();
 
 // Why the last start failed, in the worker's own words when it has any. The
 // status bar shows this, because "unavailable" on its own gives nobody
@@ -333,6 +342,7 @@ export function loadProject(monaco: Monaco, stubs: Record<string, string>): Prom
     const next = new MonacoPyrightProvider(pyrightWorkerUrl, {
       features: NO_LIBRARY_FEATURES,
       typeStubs,
+      ...(IS_SAFARI ? { typeshed: false as const } : {}),
     });
     // A worker that dies while parsing leaves no trace: the provider never
     // listens for these, so a crash looked exactly like a slow start.
