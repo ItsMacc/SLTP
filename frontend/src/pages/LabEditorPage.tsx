@@ -429,11 +429,17 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
     if (pyright === 'active') bindActiveModel();
   }, [active, pyright, bindActiveModel]);
 
-  // Each file's saved text becomes a stub, so `from core.strategy.base_strategy import Strategy`
-  // resolves to the project's own core package. Stubs are fixed when a worker starts, so it is
-  // rebuilt when a file is saved, created, renamed or deleted. Unsaved drafts do not trigger
-  // a rebuild.
-  const stubKey = files.map((f) => `${f.name}\u0000${f.saved}`).join('\u0001');
+  // Each file becomes a stub so `from core.strategy.base_strategy import Strategy`
+  // resolves to the project's own package. Stubs are fixed when a worker starts,
+  // so the worker is rebuilt only when the project's shape changes: a file
+  // added, renamed or deleted.
+  //
+  // Saved text deliberately is not part of this key. Autosave rewrites `saved`
+  // after every pause in typing, and keying on it restarted the worker — and its
+  // whole analysis — every couple of seconds while the reader was working. The
+  // text being typed is already live in Pyright's open document, so a restart
+  // bought nothing and threw away correct diagnostics.
+  const stubKey = files.map((f) => f.name).sort().join('\u0001');
   useEffect(() => {
     const monaco = monacoRef.current;
     if (!editorReady || loading || !monaco) return;
