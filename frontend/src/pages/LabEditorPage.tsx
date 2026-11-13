@@ -60,6 +60,7 @@ import {
   type LabBacktestSummary,
   type LabProject,
 } from '../lab/store';
+import { dropDraft, readProjectDrafts, writeDraft } from '../lab/drafts';
 import { getPythonState, loadPython, runPython, subscribePython } from '../lab/pythonRunner';
 import LabResultsWindow from '../lab/LabResultsWindow';
 import LabBacktestsWindow from '../lab/LabBacktestsWindow';
@@ -342,13 +343,30 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
     latestFilesRef.current = files;
   }, [files]);
 
+  // A draft this browser kept from an earlier visit is newer than the server
+  // copy by definition, so it is what opens. Identical drafts are just noise.
+  const restoredDraftsRef = useRef(false);
   useEffect(() => {
     const data = projectFilesQuery.data;
     if (!data) return;
+    const cached = restoredDraftsRef.current ? new Map<string, string>() : readProjectDrafts(project.id);
+    let restored = 0;
     const list: EditorFile[] = data.files.map((file) => {
       const previous = latestFilesRef.current.find((item) => item.name === file.name);
-      return { name: file.name, locked: file.locked, saved: file.content, draft: previous?.draft ?? file.content };
+      const cachedDraft = cached.get(file.name);
+      const fromCache = cachedDraft !== undefined && cachedDraft !== file.content ? cachedDraft : null;
+      if (fromCache !== null) restored += 1;
+      return {
+        name: file.name,
+        locked: file.locked,
+        saved: file.content,
+        draft: previous?.draft ?? fromCache ?? file.content,
+      };
     });
+    if (restored > 0) {
+      setToast(`Restored ${restored} unsaved ${restored === 1 ? 'file' : 'files'} from this browser.`);
+      restoredDraftsRef.current = true;
+    }
     // Every written file opens as a tab, so the whole workspace is visible at
     // once. The read-only core is there to read, not to edit.
     const editable = list.filter((file) => !file.locked).map((file) => file.name);
@@ -363,6 +381,21 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
     setActive((previous) => previous && list.some((file) => file.name === previous) ? previous : first);
   // Keep unsaved drafts local; reconcile only when the cache snapshot changes.
   }, [projectFilesQuery.data]);
+
+  // Insurance for typing: every dirty buffer lands in localStorage on a short
+  // debounce, so a crash or a forced quit costs at most those two seconds. The
+  // write is local and synchronous, which is the one thing a network save
+  // cannot promise on the way out of a page.
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      for (const file of latestFilesRef.current) {
+        if (file.locked) continue;
+        if (isDirty(file)) writeDraft(project.id, file.name, file.draft);
+        else dropDraft(project.id, file.name);
+      }
+    }, 2000);
+    return () => window.clearTimeout(timer);
+  }, [files, project.id]);
 
   useEffect(() => {
     if (newFileOpen) newFileInputRef.current?.focus();
@@ -413,6 +446,7 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
     setSavingFile(name);
     try {
       await saveLabFile(project.id, name, draft);
+      dropDraft(project.id, name);
       setFiles((prev) => prev.map((f) => (f.name === name ? { ...f, saved: draft } : f)));
       updateProjectCache((current) => ({
         ...current,
@@ -974,6 +1008,7 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
       const batch = dirty.map((file) => ({ path: file.name, content: file.draft }));
       await saveLabFiles(project.id, batch);
       const written = new Map(batch.map((file) => [file.path, file.content]));
+      for (const file of batch) dropDraft(project.id, file.path);
       setFiles((previous) =>
         previous.map((current) =>
           written.has(current.name)
