@@ -91,6 +91,15 @@ const PYTHON_SNIPPETS: { label: string; detail: string; insertText: string }[] =
 // point the start is treated as failed so the reader is told the truth.
 const INIT_TIMEOUT_MS = 25_000;
 
+// Why the last start failed, in the worker's own words when it has any. The
+// status bar shows this, because "unavailable" on its own gives nobody
+// anything to act on.
+let lastFailure: string | null = null;
+
+export function getPyrightFailure(): string | null {
+  return lastFailure;
+}
+
 function withTimeout<T>(work: Promise<T>, ms: number, label: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
@@ -314,12 +323,27 @@ export function loadProject(monaco: Monaco, stubs: Record<string, string>): Prom
       features: NO_LIBRARY_FEATURES,
       typeStubs,
     });
+    // A worker that dies while parsing leaves no trace: the provider never
+    // listens for these, so a crash looked exactly like a slow start.
+    const worker = next.lspClient.worker;
+    let workerFailure: string | null = null;
+    worker.addEventListener('error', (event) => {
+      workerFailure = (event as ErrorEvent).message || 'the worker failed to load';
+      console.error('[pyright] worker error:', workerFailure);
+    });
+    worker.addEventListener('messageerror', () => {
+      workerFailure = 'the worker could not read the project files';
+      console.error('[pyright]', workerFailure);
+    });
     try {
       await withTimeout(next.init(monaco), INIT_TIMEOUT_MS, 'Pyright start');
+      lastFailure = null;
     } catch (error) {
       // A worker that hung or died holds a large amount of memory; it is
       // dropped before the failure is reported.
-      next.lspClient.worker.terminate();
+      worker.terminate();
+      const reason = error instanceof Error ? error.message : String(error);
+      lastFailure = workerFailure ? `${reason} (${workerFailure})` : reason;
       throw error;
     }
     await next.lspClient.setupDiagnosticsCallback((diagnostics) => {

@@ -73,7 +73,7 @@ import {
 } from '../lab/runSettings';
 import { isMobileDevice } from '../store/device';
 import { isLabBacktestPayload, type LabBacktestPayload } from '../lab/backtestTypes';
-import { loadProject, setDiagnosticsTarget, syncDocument, type Monaco } from '../lab/pyright';
+import { getPyrightFailure, loadProject, setDiagnosticsTarget, syncDocument, type Monaco } from '../lab/pyright';
 import { applyLabEditorTheme } from '../lab/editorTheme';
 import { pickLocalFolder, type FolderFileMap } from '../lab/fileReader';
 import ImportFolderDialog from '../lab/ImportFolderDialog';
@@ -262,6 +262,7 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
   const mobileDevice = isMobileDevice();
 
   const [pyright, setPyright] = useState<PyrightState>('starting');
+  const [pyrightReason, setPyrightReason] = useState<string | null>(null);
   const [editorReady, setEditorReady] = useState(false);
   const [editorTheme, setEditorTheme] = useState<'vs' | 'vs-dark'>(() => {
     const saved = sessionStorage.getItem('st_user_theme')?.toLowerCase();
@@ -443,18 +444,28 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
   useEffect(() => {
     const monaco = monacoRef.current;
     if (!editorReady || loading || !monaco) return;
+    // Pyright waits for the interpreter to finish booting. The two are the
+    // heaviest things the Lab starts, and parsing a 25MB worker while Pyodide
+    // is still allocating can leave it starved on memory-tight browsers.
+    if (python.status !== 'ready' && python.status !== 'error') return;
     const stubs: Record<string, string> = {};
     for (const f of latestFilesRef.current) stubs[f.name] = f.saved;
     const timer = window.setTimeout(() => {
       loadProject(monaco, stubs)
         .then(() => {
           setPyright('active');
+          setPyrightReason(null);
           bindActiveModel();
         })
-        .catch(() => setPyright('failed'));
+        .catch((error: unknown) => {
+          setPyright('failed');
+          setPyrightReason(
+            getPyrightFailure() ?? (error instanceof Error ? error.message : String(error)),
+          );
+        });
     }, STUB_REBUILD_DELAY_MS);
     return () => window.clearTimeout(timer);
-  }, [stubKey, editorReady, loading, bindActiveModel]);
+  }, [stubKey, editorReady, loading, bindActiveModel, python.status]);
 
   const handleMount: OnMount = (editor, monacoInstance) => {
     const monaco = monacoInstance as Monaco;
@@ -1333,7 +1344,13 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
 
         <footer className="lab-statusbar">
           <div className="lab-statusbar-group">
-            <span className={`lab-statusbar-item is-${pyright}`}>{PYRIGHT_LABEL[pyright]}</span>
+            <span
+              className={`lab-statusbar-item is-${pyright}`}
+              title={pyright === 'failed' && pyrightReason ? pyrightReason : undefined}
+            >
+              {PYRIGHT_LABEL[pyright]}
+              {pyright === 'failed' && pyrightReason ? ` · ${pyrightReason.slice(0, 90)}` : ''}
+            </span>
             <button
               type="button"
               className={`lab-statusbar-item lab-statusbar-button ${markerCounts.errors > 0 ? 'has-errors' : ''}`}
