@@ -1,3 +1,0 @@
-PALETTE: tuple[str, ...]
-
-def color_at(index: int) -> str: ...

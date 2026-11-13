@@ -56,7 +56,17 @@ type Incoming =
       files: { name: string; content: string }[];
       settings?: EngineRunSettings;
     }
-  | { id: number; kind: 'reset' };
+  | { id: number; kind: 'reset' }
+  | {
+      id: number;
+      kind: 'analyze';
+      method: 'complete' | 'hover' | 'signature' | 'define' | 'diagnostics';
+      code: string;
+      path: string;
+      line: number;
+      column: number;
+      files: { name: string; content: string }[];
+    };
 
 let pyodide: PyodideApi | null = null;
 /** The run whose stdout is arriving right now, so chunks find their way home. */
@@ -348,6 +358,158 @@ def reset_project():
     return "cleared"
 `;
 
+// The analyser runs against the same interpreter the code runs on, so what it
+// knows about sltp and numpy is what is actually installed, not a stub of it.
+// Every request writes the project into ANALYZE_ROOT first, which is what makes
+// `from helpers import x` resolve while the file is still being edited.
+const ANALYZER = `
+import json
+import sys
+from pathlib import Path
+
+ANALYZE_ROOT = Path("/home/pyodide/analyze")
+
+
+def _diagnose(code, path):
+    class _Report:
+        def __init__(self):
+            self.items = []
+
+        def flake(self, message):
+            # str(message) leads with the temporary path the code is analysed
+            # under, which means nothing to the reader; the template does not.
+            template = getattr(message, "message", None)
+            args = getattr(message, "message_args", ()) or ()
+            text = template % args if template else str(message)
+            # A name that does not exist is an error; a tidy-up is a warning.
+            kind = type(message).__name__
+            self.items.append({
+                "line": getattr(message, "lineno", 1) or 1,
+                "column": getattr(message, "col_offset", 0) or 0,
+                "message": text,
+                "severity": 1 if kind.startswith("Undefined") else 2,
+            })
+
+        def unexpectedError(self, filename, msg):
+            self.items.append({"line": 1, "column": 0, "message": str(msg), "severity": 1})
+
+        def syntaxError(self, filename, msg, lineno, offset, text):
+            self.items.append({
+                "line": lineno or 1,
+                "column": max((offset or 1) - 1, 0),
+                "message": str(msg),
+                "severity": 1,
+            })
+
+    report = _Report()
+    try:
+        import pyflakes.api as _api
+
+        _api.check(code, path, report)
+    except Exception as exc:  # noqa: BLE001 - the reader gets the reason, not a crash
+        return {"items": [{"line": 1, "column": 0, "message": str(exc), "severity": 1}]}
+    return {"items": report.items}
+
+
+def analyze(method, code, path, line, column, files_json=""):
+    files = json.loads(files_json) if files_json else {}
+    for name, content in files.items():
+        target = ANALYZE_ROOT / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            target.write_text(content, encoding="utf-8")
+        except OSError:
+            pass
+
+    current = ANALYZE_ROOT / path
+    current.parent.mkdir(parents=True, exist_ok=True)
+    current.write_text(code, encoding="utf-8")
+    root = str(ANALYZE_ROOT)
+    if root not in sys.path:
+        sys.path.insert(0, root)
+
+    if method == "diagnostics":
+        return json.dumps({"ok": True, "data": _diagnose(code, str(current))})
+
+    try:
+        import jedi
+    except Exception as exc:  # noqa: BLE001
+        return json.dumps({"ok": False, "error": "jedi is unavailable: " + str(exc)})
+
+    try:
+        project = jedi.Project(root)
+        script = jedi.Script(code=code, path=str(current), project=project)
+
+        if method == "complete":
+            items = [
+                {
+                    "label": item.name,
+                    "insertText": item.complete or item.name,
+                    "kind": item.type,
+                    "detail": item.description,
+                    "documentation": item.docstring(),
+                }
+                for item in script.complete(line, column)
+            ]
+            return json.dumps({"ok": True, "data": {"items": items[:200]}})
+
+        if method == "hover":
+            names = script.infer(line, column)
+            if not names:
+                return json.dumps({"ok": True, "data": None})
+            first = names[0]
+            return json.dumps({
+                "ok": True,
+                "data": {
+                    "name": first.name,
+                    "type": first.type,
+                    "description": first.description,
+                    "doc": first.docstring(),
+                },
+            })
+
+        if method == "signature":
+            found = script.get_signatures(line, column)
+            signatures = []
+            active = 0
+            for index, signature in enumerate(found[:10]):
+                if index == 0:
+                    active = getattr(signature, "index", 0) or 0
+                signatures.append({
+                    "label": signature.name,
+                    "params": [param.to_string() for param in signature.params],
+                    "doc": signature.docstring(),
+                })
+            return json.dumps({"ok": True, "data": {"signatures": signatures, "active": active}})
+
+        if method == "define":
+            found = script.get_definitions(line, column)
+            if not found:
+                return json.dumps({"ok": True, "data": None})
+            first = found[0]
+            relative = None
+            module_path = getattr(first, "module_path", None)
+            if module_path:
+                try:
+                    relative = str(Path(module_path).resolve().relative_to(ANALYZE_ROOT.resolve()))
+                except Exception:  # noqa: BLE001 - installed packages are outside the project
+                    relative = None
+            return json.dumps({
+                "ok": True,
+                "data": {
+                    "path": relative,
+                    "external": module_path is not None and relative is None,
+                    "line": first.line,
+                    "column": first.column + 1,
+                    "name": first.name,
+                },
+            })
+    except Exception as exc:  # noqa: BLE001 - a failed query must not kill the worker
+        return json.dumps({"ok": False, "error": str(exc)})
+
+    return json.dumps({"ok": False, "error": "unknown method " + method})
+`;
+
 // sltp reaches for urllib when it needs a file the cache does not have, and
 // Pyodide's urllib has no TLS. This bridge swaps that download for a
 // synchronous XMLHttpRequest, which a worker is allowed to make: the browser
@@ -493,7 +655,7 @@ async function boot(): Promise<void> {
       post({ type: 'stderr', id: currentRun, text });
     },
   });
-  instance.runPython(BOOTSTRAP);
+  instance.runPython(BOOTSTRAP + ANALYZER);
   pyodide = instance;
 
   // sltp's cache is the Research page's OPFS directory, so the bars and
@@ -526,6 +688,20 @@ async function boot(): Promise<void> {
     engineReady = true;
   } catch (error) {
     engineError = error instanceof Error ? error.message : String(error);
+  }
+
+  // The analyser rides on the interpreter that is already here, so it costs a
+  // pure-Python install rather than a second runtime. A failure only costs
+  // completion and diagnostics, never a run.
+  if (engineReady) {
+    try {
+      post({ type: 'status', text: 'Preparing the analyser…' });
+      const analyzerPip = instance.pyimport('micropip');
+      await analyzerPip.install('jedi');
+      await analyzerPip.install('pyflakes');
+    } catch {
+      /* the editor falls back to plain suggestions */
+    }
   }
 
   if (engineReady) {
@@ -566,6 +742,34 @@ self.onmessage = async (event: MessageEvent<Incoming>) => {
     if (message.kind === 'reset') {
       pyodide.runPython('reset_project()');
       post({ type: 'reset-ok' });
+      return;
+    }
+
+    if (message.kind === 'analyze') {
+      try {
+        const files: Record<string, string> = {};
+        for (const file of message.files) files[file.name] = file.content;
+        const raw = String(
+          await pyodide.runPythonAsync(
+            `analyze(${JSON.stringify(message.method)}, ${JSON.stringify(message.code)}, ${JSON.stringify(message.path)}, ${JSON.stringify(message.line)}, ${JSON.stringify(message.column)}, ${JSON.stringify(JSON.stringify(files))})`,
+          ),
+        );
+        const parsed = JSON.parse(raw) as { ok?: boolean; error?: string; data?: unknown };
+        post({
+          type: 'analyze-result',
+          id: message.id,
+          ok: parsed.ok === true,
+          error: parsed.error,
+          data: parsed.data ?? null,
+        });
+      } catch (error) {
+        post({
+          type: 'analyze-result',
+          id: message.id,
+          ok: false,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
       return;
     }
 

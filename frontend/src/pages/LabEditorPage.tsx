@@ -73,7 +73,7 @@ import {
 } from '../lab/runSettings';
 import { isMobileDevice } from '../store/device';
 import { isLabBacktestPayload, type LabBacktestPayload } from '../lab/backtestTypes';
-import { getPyrightFailure, loadProject, setDiagnosticsTarget, syncDocument, type Monaco } from '../lab/pyright';
+import { setJediProject, setJediStatusListener, setJediTarget, type Monaco } from '../lab/jedi';
 import { applyLabEditorTheme } from '../lab/editorTheme';
 import { pickLocalFolder, type FolderFileMap } from '../lab/fileReader';
 import ImportFolderDialog from '../lab/ImportFolderDialog';
@@ -106,7 +106,6 @@ const folderRank = (path: string) => {
 const SIDEBAR_MIN = 180;
 const SIDEBAR_MAX = 420;
 const SIDEBAR_DEFAULT = 232;
-const STUB_REBUILD_DELAY_MS = 700;
 
 interface EditorFile {
   name: string;
@@ -161,7 +160,7 @@ interface OutputLine {
   text: string;
 }
 
-type PyrightState = 'starting' | 'active' | 'failed';
+type AnalysisState = 'starting' | 'active' | 'failed';
 
 /** The Code editor settings saved on the account (Settings → Code editor). */
 interface EditorSettings {
@@ -203,10 +202,10 @@ function isDirty(file: EditorFile): boolean {
   return !file.locked && file.draft !== file.saved;
 }
 
-const PYRIGHT_LABEL: Record<PyrightState, string> = {
-  starting: 'Pyright starting…',
-  active: 'Pyright active',
-  failed: 'Pyright unavailable',
+const ANALYSIS_LABEL: Record<AnalysisState, string> = {
+  starting: 'Analysis starting…',
+  active: 'Analysis ready',
+  failed: 'Analysis unavailable',
 };
 
 export default function LabEditorPage({ project, workspaceName, onBack }: LabEditorPageProps) {
@@ -261,12 +260,11 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
   const [runSettings, setRunSettings] = useState<LabRunSettings>(readLabRunSettings);
   const mobileDevice = isMobileDevice();
 
-  const [pyright, setPyright] = useState<PyrightState>('starting');
-  const [pyrightReason, setPyrightReason] = useState<string | null>(null);
-  // The first start takes a while on a browser that has to unpack typeshed
-  // slowly, so the wait is counted out instead of looking frozen.
-  const [pyrightSeconds, setPyrightSeconds] = useState(0);
-  const [editorReady, setEditorReady] = useState(false);
+  const [analysis, setAnalysis] = useState<AnalysisState>('starting');
+  const [analysisReason, setAnalysisReason] = useState<string | null>(null);
+  // Until the interpreter answers, the wait is counted out rather than shown
+  // as a frozen label.
+  const [analysisSeconds, setAnalysisSeconds] = useState(0);
   const [editorTheme, setEditorTheme] = useState<'vs' | 'vs-dark'>(() => {
     const saved = sessionStorage.getItem('st_user_theme')?.toLowerCase();
     const theme = document.documentElement.getAttribute('data-theme')?.toLowerCase() ?? saved;
@@ -403,7 +401,7 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
     }
   };
 
-  // -------- Pyright: live diagnostics --------
+  // -------- Analysis: jedi, inside the Python worker --------
 
   const refreshMarkerCounts = useCallback(() => {
     const editor = editorRef.current;
@@ -417,67 +415,49 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
     });
   }, []);
 
-  // Points diagnostics at the shown model and sends its text to Pyright.
+  // Points the analyser at the shown model. Jedi reads the buffer itself, so
+  // there is no second copy of the document to keep in step.
   const bindActiveModel = useCallback(() => {
     const editor = editorRef.current;
     const monaco = monacoRef.current;
     const model = editor?.getModel();
     if (!editor || !monaco || !model) return;
-    setDiagnosticsTarget({ monaco, model });
-    void syncDocument(editor.getValue());
+    setJediTarget({ monaco, model, path: model.uri.path.replace(/^\//, '') });
     refreshMarkerCounts();
   }, [refreshMarkerCounts]);
 
-  // Each switch of the shown file rebinds diagnostics to that file.
+  // The interpreter is the analyser, so binding waits for it to be ready, and
+  // follows every switch of the shown file.
   useEffect(() => {
-    if (pyright === 'active') bindActiveModel();
-  }, [active, pyright, bindActiveModel]);
+    if (python.status === 'ready') bindActiveModel();
+  }, [active, python.status, bindActiveModel]);
+
+  // The project's files are what jedi resolves imports against, so every save
+  // hands it the new text.
+  useEffect(() => {
+    const saved: Record<string, string> = {};
+    for (const file of files) saved[file.name] = file.saved;
+    setJediProject(saved);
+  }, [files]);
+
+  // The first answer flips the status bar to ready; a failure carries its
+  // reason so the bar can say what happened.
+  useEffect(() => {
+    setJediStatusListener((status, reason) => {
+      setAnalysis(status);
+      setAnalysisReason(status === 'failed' ? reason ?? 'no answer from jedi' : null);
+    });
+    return () => setJediStatusListener(null);
+  }, []);
 
   useEffect(() => {
-    if (pyright !== 'starting') return;
+    if (analysis !== 'starting') return;
     const startedAt = Date.now();
     const timer = window.setInterval(() => {
-      setPyrightSeconds(Math.round((Date.now() - startedAt) / 1000));
+      setAnalysisSeconds(Math.round((Date.now() - startedAt) / 1000));
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [pyright]);
-
-  // Each file becomes a stub so `from core.strategy.base_strategy import Strategy`
-  // resolves to the project's own package. Stubs are fixed when a worker starts,
-  // so the worker is rebuilt only when the project's shape changes: a file
-  // added, renamed or deleted.
-  //
-  // Saved text deliberately is not part of this key. Autosave rewrites `saved`
-  // after every pause in typing, and keying on it restarted the worker — and its
-  // whole analysis — every couple of seconds while the reader was working. The
-  // text being typed is already live in Pyright's open document, so a restart
-  // bought nothing and threw away correct diagnostics.
-  const stubKey = files.map((f) => f.name).sort().join('\u0001');
-  useEffect(() => {
-    const monaco = monacoRef.current;
-    if (!editorReady || loading || !monaco) return;
-    // Pyright waits for the interpreter to finish booting. The two are the
-    // heaviest things the Lab starts, and parsing a 25MB worker while Pyodide
-    // is still allocating can leave it starved on memory-tight browsers.
-    if (python.status !== 'ready' && python.status !== 'error') return;
-    const stubs: Record<string, string> = {};
-    for (const f of latestFilesRef.current) stubs[f.name] = f.saved;
-    const timer = window.setTimeout(() => {
-      loadProject(monaco, stubs)
-        .then(() => {
-          setPyright('active');
-          setPyrightReason(null);
-          bindActiveModel();
-        })
-        .catch((error: unknown) => {
-          setPyright('failed');
-          setPyrightReason(
-            getPyrightFailure() ?? (error instanceof Error ? error.message : String(error)),
-          );
-        });
-    }, STUB_REBUILD_DELAY_MS);
-    return () => window.clearTimeout(timer);
-  }, [stubKey, editorReady, loading, bindActiveModel, python.status]);
+  }, [analysis]);
 
   const handleMount: OnMount = (editor, monacoInstance) => {
     const monaco = monacoInstance as Monaco;
@@ -497,10 +477,9 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
     });
     editor.onDidDispose(() => {
       markerSub.dispose();
-      setDiagnosticsTarget(null);
+      setJediTarget(null);
     });
 
-    setEditorReady(true);
   };
 
   useEffect(() => {
@@ -1357,11 +1336,15 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
         <footer className="lab-statusbar">
           <div className="lab-statusbar-group">
             <span
-              className={`lab-statusbar-item is-${pyright}`}
-              title={pyright === 'failed' && pyrightReason ? pyrightReason : undefined}
+              className={`lab-statusbar-item is-${analysis}`}
+              title={analysis === 'failed' && analysisReason ? analysisReason : undefined}
             >
-              {pyright === 'starting' ? `Pyright starting… ${pyrightSeconds}s` : PYRIGHT_LABEL[pyright]}
-              {pyright === 'failed' && pyrightReason ? ` · ${pyrightReason.slice(0, 90)}` : ''}
+              {analysis === 'starting'
+                ? python.status === 'ready'
+                  ? `Analysis starting… ${analysisSeconds}s`
+                  : 'Python starting…'
+                : ANALYSIS_LABEL[analysis]}
+              {analysis === 'failed' && analysisReason ? ` · ${analysisReason.slice(0, 90)}` : ''}
             </span>
             <button
               type="button"

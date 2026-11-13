@@ -51,7 +51,8 @@ type OutMessage =
       durationMs: number;
     }
   | { type: 'boot-error'; message: string }
-  | { type: 'reset-ok' };
+  | { type: 'reset-ok' }
+  | { type: 'analyze-result'; id: number; ok: boolean; error?: string; data?: unknown };
 
 interface ActiveRun {
   id: number;
@@ -69,6 +70,47 @@ let worker: Worker | null = null;
 let bootId = 0;
 let nextId = 1;
 let activeRun: ActiveRun | null = null;
+
+/** Analysis rounds in flight; each one resolves by its own id. */
+const pendingAnalysis = new Map<number, (reply: AnalyzeReply) => void>();
+
+export interface AnalyzeRequest {
+  method: 'complete' | 'hover' | 'signature' | 'define' | 'diagnostics';
+  code: string;
+  path: string;
+  line: number;
+  column: number;
+  files: { name: string; content: string }[];
+}
+
+export interface AnalyzeReply {
+  ok: boolean;
+  error?: string;
+  data?: unknown;
+}
+
+/**
+ * Asks the interpreter that is already running to analyse some code. Nothing
+ * is installed and nothing is started here: jedi is a Python package, so the
+ * answer comes back from the same process a run would use.
+ */
+export function analyze(request: AnalyzeRequest): Promise<AnalyzeReply> {
+  if (!worker) return Promise.resolve({ ok: false, error: 'Python is not ready yet' });
+  if (state.status !== 'ready') return Promise.resolve({ ok: false, error: 'Python is still starting' });
+  const id = nextId++;
+  return new Promise<AnalyzeReply>((resolve) => {
+    const finish = (reply: AnalyzeReply) => {
+      window.clearTimeout(timer);
+      resolve(reply);
+    };
+    const timer = window.setTimeout(() => {
+      pendingAnalysis.delete(id);
+      resolve({ ok: false, error: 'the analysis request timed out' });
+    }, 15_000);
+    pendingAnalysis.set(id, finish);
+    worker?.postMessage({ id, kind: 'analyze', ...request });
+  });
+}
 
 function publish(next: Partial<PythonState>): void {
   state = { ...state, ...next };
@@ -102,6 +144,12 @@ function settle(result: RunResult): void {
 
 function onMessage(event: MessageEvent<OutMessage>): void {
   const message = event.data;
+
+  if (message.type === 'analyze-result') {
+    pendingAnalysis.get(message.id)?.({ ok: message.ok, error: message.error, data: message.data });
+    pendingAnalysis.delete(message.id);
+    return;
+  }
 
   if (message.type === 'ready') {
     publish({
