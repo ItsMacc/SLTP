@@ -1,9 +1,12 @@
-// lessonContent.ts — Level 1 lessons. Each block is plain text so the copy
-// linter and the term ledger can read the course without rendering it.
+// lessonContent.ts — Levels 1 and 2 lessons. Each block is plain text so the
+// copy linter and the term ledger can read the course without rendering it.
 
 import type { LessonContent } from './types';
+import { ADVANCED_LESSON_CONTENT } from './advancedLessonContent';
+import { BACKTEST_LESSON_CONTENT } from './backtestLessonContent';
 
 export const LESSON_CONTENT: Record<string, LessonContent> = {
+  ...BACKTEST_LESSON_CONTENT,
   'what-is-a-stock': {
     objectives: [
       'Explain what a share is and who owns it',
@@ -17,6 +20,9 @@ export const LESSON_CONTENT: Record<string, LessonContent> = {
       { kind: 'p', text: 'Profit is what remains from sales after costs. A company can pay some profit to its shareholders or keep it to grow the business.' },
       { kind: 'p', text: 'A valuation is the value people put on the whole company. Cash in the bank is separate. The valuation is what owners collectively think the business is worth.' },
       { kind: 'p', text: 'A stake is the part of the company a shareholder owns. Ten shares in a company with 1,000 shares is a one-hundredth stake.' },
+      { kind: 'formula', title: 'Stake math', rows: [
+        { label: 'Ownership', expression: 'shares you own / total shares x 100', note: '100 of 2,000 shares is 5%.' },
+      ] },
       { kind: 'callout', tone: 'idea', title: 'Key idea', text: 'A share is ownership, not a loan. The company does not owe the shareholder the money back.' },
       { kind: 'figure', widget: 'company-story', caption: 'Change the amount invested and move through the first years of a small company.' },
       { kind: 'h', text: 'What owners get' },
@@ -80,7 +86,7 @@ export const LESSON_CONTENT: Record<string, LessonContent> = {
       { kind: 'p', text: 'The same works in reverse. When more people want to sell than to buy, the price falls until a buyer appears.' },
       { kind: 'callout', tone: 'example', title: 'Example', text: 'A company reports profit of $2 million. Buyers expected $3 million. The price falls because the result was weaker than expected, even though the company made a profit.' },
       { kind: 'p', text: 'People buy and sell because of expectations. An expectation is a view about future profit. News can change that view, and the price moves before the future arrives.' },
-      { kind: 'figure', widget: 'price-news', caption: 'Choose a piece of news and watch a fixed price path respond.' },
+      { kind: 'figure', widget: 'price-news', caption: 'Step through a random price path and see how news moves it.' },
       { kind: 'callout', tone: 'watch', title: 'Watch out', text: 'Good news does not always raise a price. The news may already be in the price.' },
     ],
     recap: [
@@ -131,6 +137,10 @@ export const LESSON_CONTENT: Record<string, LessonContent> = {
       { kind: 'h', text: 'Two orders' },
       { kind: 'p', text: 'An order is an instruction to buy or sell. A market order buys or sells at the best price available now.' },
       { kind: 'p', text: 'A limit order sets a price limit. A buy limit at $50 waits until someone will sell at $50 or less. It may never complete.' },
+      { kind: 'formula', title: 'Order math', rows: [
+        { label: 'Shares', expression: 'amount to invest / share price', note: 'At $20 a share, $1,000 buys 50 shares.' },
+        { label: 'Total cost', expression: 'shares x price paid + commission', note: '50 shares at $20.10 with no commission costs $1,005.' },
+      ] },
       { kind: 'figure', widget: 'order-costs', caption: 'Compare a market order with a limit order at the same quoted price.' },
       { kind: 'h', text: 'The cost of an order' },
       { kind: 'p', text: 'A commission is a fee the broker charges for the order. Many brokers now charge no commission on shares, but other costs remain.' },
@@ -247,7 +257,7 @@ export const LESSON_CONTENT: Record<string, LessonContent> = {
       { kind: 'p', text: 'A benchmark is the standard you compare a result against. A broad index is the usual benchmark for a portfolio.' },
       { kind: 'p', text: 'A portfolio is the collection of investments a person owns. Diversification means spreading money across many holdings so one failure does less damage.' },
       { kind: 'p', text: 'An index fund is a fund that tries to copy an index. An ETF is a fund that trades on an exchange like a share. Both can give you the whole index in one purchase.' },
-      { kind: 'figure', widget: 'index-compare', caption: 'Compare one company with a broad index over a fixed period.' },
+      { kind: 'figure', widget: 'index-compare', caption: 'Compare one company with a broad index over the same period.' },
       { kind: 'callout', tone: 'watch', title: 'Watch out', text: 'Even an index fund can fall far. Spreading money across many holdings does not remove the danger.' },
     ],
     recap: [
@@ -298,6 +308,11 @@ export const LESSON_CONTENT: Record<string, LessonContent> = {
       { kind: 'h', text: 'Dividends' },
       { kind: 'p', text: 'A dividend is a payment a company makes to its shareholders, usually from profit. It is paid per share.' },
       { kind: 'p', text: 'Total return adds the price change and the dividends. If the share rises from $50 to $60 and pays $2 in dividends, the total return is $12 per share.' },
+      { kind: 'formula', title: 'Return math', rows: [
+        { label: 'Profit', expression: '(sell price - buy price) x shares', note: 'Buy 50 shares at $20 and sell at $24 for a $200 profit.' },
+        { label: 'Percent return', expression: 'gain / buy price x 100', note: 'A $4 gain on a $20 share is 20%.' },
+        { label: 'Total return', expression: 'price gain + dividends', note: 'A $10 gain and a $3 dividend make $13 a share.' },
+      ] },
       { kind: 'p', text: 'A holding period is the time between buying and selling. A longer holding period gives compounding more time to work.' },
       { kind: 'h', text: 'Compounding' },
       { kind: 'p', text: 'Compounding means a return earns a return in the next period. At 7% a year, $1,000 becomes $1,070 after one year. The next year, the 7% applies to $1,070.' },
@@ -351,8 +366,11 @@ export const LESSON_CONTENT: Record<string, LessonContent> = {
       { kind: 'p', text: 'A price can fall for years. Volatility is how much a price swings up and down. A volatile stock can move a lot in a brief time in either direction.' },
       { kind: 'h', text: 'Drawdown' },
       { kind: 'p', text: 'A drawdown is the fall from a high to the next low. If a portfolio reaches $12,000 and later falls to $9,000, the drawdown is $3,000, which is 25% of the high.' },
+      { kind: 'formula', title: 'Drawdown math', rows: [
+        { label: 'Drawdown', expression: '(peak - current) / peak x 100', note: 'A fall from $12,000 to $9,000 is 25%.' },
+      ] },
       { kind: 'p', text: 'A drawdown measures how bad it got. It does not say how many days the fall lasted or how many days recovery took.' },
-      { kind: 'figure', widget: 'drawdown', caption: 'Move along a fixed fall and recovery. The starting point is the peak.' },
+      { kind: 'figure', widget: 'drawdown', caption: 'Move along a fall and recovery. The starting point is the peak.' },
       { kind: 'h', text: 'Company and time risk' },
       { kind: 'p', text: 'A company can fail. Its shares can be delisted, which means they stop changing hands on the exchange. An owner may lose the whole investment.' },
       { kind: 'p', text: 'A time horizon is the number of years before the money is needed. A brief horizon leaves little time to wait for a recovery.' },
@@ -394,4 +412,644 @@ export const LESSON_CONTENT: Record<string, LessonContent> = {
       },
     ],
   },
+
+  /* ---------- Level 2 ---------- */
+
+  'investing-or-trading': {
+    objectives: [
+      'Tell investing from trading',
+      'Name an active and a passive style',
+      'Choose a time horizon that fits the money',
+    ],
+    blocks: [
+      { kind: 'p', text: 'Investing is buying an asset to hold it for years and share in its growth. Trading is buying and selling over days or weeks to profit from price moves.' },
+      { kind: 'p', text: 'Both can make money. They ask different things of the owner.' },
+      { kind: 'p', text: 'An investor needs patience and a plan. A trader needs a repeatable process and tight control of costs.' },
+      { kind: 'h', text: 'Two clocks' },
+      { kind: 'p', text: 'A time horizon is the number of years before the money is needed. A distant horizon gives an investor time to wait through a fall.' },
+      { kind: 'p', text: 'A position is an investment currently held. An active style makes frequent decisions about positions. A passive style holds a broad market position instead of trying to pick winners.' },
+      { kind: 'callout', tone: 'idea', title: 'Key idea', text: 'The market does not pay for activity. It pays for a result after costs.' },
+    ],
+    recap: [
+      'Investing and trading use the same market on different time horizons.',
+      'An active style makes frequent decisions; a passive style holds a broad position.',
+      'A distant horizon gives an owner time to wait through a fall.',
+    ],
+    check: [
+      {
+        id: 'inv1',
+        lessonId: 'investing-or-trading',
+        prompt: 'Which person is investing rather than trading?',
+        options: ['Someone who buys and sells within a week', 'Someone who holds a broad fund for twenty years', 'Someone who checks the price every hour', 'Someone who trades only on news headlines'],
+        correctIndex: 1,
+        explanation: 'Investing holds an asset for years. The other examples react to near-term price moves.',
+        hint: 'Look for the longest holding period.',
+      },
+      {
+        id: 'inv2',
+        lessonId: 'investing-or-trading',
+        prompt: 'What does a passive style try to do?',
+        options: ['Pick the next winning company', 'Trade every price swing', 'Hold a broad market position', 'Avoid every fall'],
+        correctIndex: 2,
+        explanation: 'A passive style holds a broad position instead of trying to pick winners or time each move.',
+        hint: 'Passive does not mean inactive; it means broad.',
+      },
+      {
+        id: 'inv3',
+        lessonId: 'investing-or-trading',
+        prompt: 'What does an active trader need most?',
+        options: ['A guarantee of profit', 'A repeatable process and control of costs', 'A single hot tip', 'A longer holiday'],
+        correctIndex: 1,
+        explanation: 'Frequent decisions only help if the process repeats and the costs do not eat the gain.',
+        hint: 'A trade is a business decision, not a mood.',
+      },
+    ],
+  },
+
+  'why-not-cash': {
+    objectives: [
+      'Explain why cash loses purchasing power',
+      'Calculate a real return',
+      'Say when cash still belongs in a plan',
+    ],
+    blocks: [
+      { kind: 'p', text: 'Cash feels safe because its price does not move. That safety has a cost. Inflation is a general rise in prices over time.' },
+      { kind: 'p', text: 'Purchasing power is what a sum of money can buy. If prices rise 3% and cash earns 1%, the cash buys less next year.' },
+      { kind: 'formula', title: 'Real return', rows: [
+        { label: 'Real return', expression: 'cash return - inflation', note: 'A 1% cash return and 3% inflation is a -2% real return.' },
+      ] },
+      { kind: 'p', text: 'Interest is a payment for lending money or keeping it in a savings account. Interest can protect purchasing power, but only if it beats inflation.' },
+      { kind: 'p', text: 'A real return is a return after inflation. A positive real return means the money buys more. A negative one means it buys less.' },
+      { kind: 'callout', tone: 'watch', title: 'Watch out', text: 'Cash is useful for bills and emergencies. Keeping every dollar in cash for twenty years is a choice with a cost.' },
+    ],
+    recap: [
+      'Inflation raises prices and lowers what cash can buy.',
+      'A real return is the cash return minus inflation.',
+      'Cash is useful for near-term needs, not for every distant goal.',
+    ],
+    check: [
+      {
+        id: 'cash1',
+        lessonId: 'why-not-cash',
+        prompt: 'Cash earns 0% while prices rise 2%. What happens to its purchasing power?',
+        options: ['It rises by 2%', 'It falls by about 2%', 'It stays the same', 'It doubles'],
+        correctIndex: 1,
+        explanation: 'Prices are 2% higher, so the same cash buys about 2% less.',
+        hint: 'Compare the cash return with inflation.',
+      },
+      {
+        id: 'cash2',
+        lessonId: 'why-not-cash',
+        prompt: 'A savings account pays 4% and inflation is 3%. What is the real return?',
+        options: ['-1%', '1%', '3%', '7%'],
+        correctIndex: 1,
+        explanation: 'The real return is 4% minus 3%, which is 1%.',
+        hint: 'Subtract inflation from the cash return.',
+      },
+      {
+        id: 'cash3',
+        lessonId: 'why-not-cash',
+        prompt: 'Why might an investor still hold some cash?',
+        options: ['To guarantee a high return', 'To pay near-term bills and handle emergencies', 'To avoid all taxes', 'To beat inflation every year'],
+        correctIndex: 1,
+        explanation: 'Cash is useful for money that will be needed soon or for an emergency fund.',
+        hint: 'Think about money that cannot wait through a fall.',
+      },
+    ],
+  },
+
+  'stocks-bonds-cash': {
+    objectives: [
+      'Name the three main asset classes',
+      'Explain the job of each one',
+      'See why bond prices react to interest rates',
+    ],
+    blocks: [
+      { kind: 'p', text: 'An asset class is a group of investments with similar behaviour. Stocks, bonds and cash are three common groups.' },
+      { kind: 'p', text: 'A stock is ownership. Its return comes from profit and the change in price.' },
+      { kind: 'p', text: 'A bond is a loan to a government or company. It pays interest and is repaid on a set date.' },
+      { kind: 'h', text: 'Different jobs' },
+      { kind: 'p', text: 'Cash is a deposit or a near-term safe holding. It is the most stable of the three and usually the lowest returning.' },
+      { kind: 'p', text: 'Stocks offer growth and can fall hard. Bonds offer income and can still lose value when interest rates rise. Cash offers stability and loses purchasing power when inflation is high.' },
+      { kind: 'p', text: 'An interest rate is the rate paid on a loan or savings balance. Higher rates make future bond payments less attractive, so bond prices can fall.' },
+      { kind: 'callout', tone: 'idea', title: 'Key idea', text: 'The mix matters more than the label. Each asset class does a different job in a portfolio.' },
+    ],
+    recap: [
+      'Stocks are ownership, bonds are loans, and cash is a stable deposit.',
+      'Stocks offer growth, bonds offer income, and cash offers stability.',
+      'Rising interest rates can push bond prices down.',
+    ],
+    check: [
+      {
+        id: 'asset1',
+        lessonId: 'stocks-bonds-cash',
+        prompt: 'Which asset is a loan to a government or company?',
+        options: ['A stock', 'A bond', 'Cash', 'An index fund'],
+        correctIndex: 1,
+        explanation: 'A bond is a loan that pays interest and is repaid on a set date.',
+        hint: 'One of these is a promise to repay a loan.',
+      },
+      {
+        id: 'asset2',
+        lessonId: 'stocks-bonds-cash',
+        prompt: 'Which asset class is usually the most stable?',
+        options: ['Stocks', 'Bonds', 'Cash', 'Small companies'],
+        correctIndex: 2,
+        explanation: 'Cash moves less than stocks or bonds, though inflation can still reduce what it buys.',
+        hint: 'Stability is not the same as growth.',
+      },
+      {
+        id: 'asset3',
+        lessonId: 'stocks-bonds-cash',
+        prompt: 'Interest rates rise. Why can an older bond fall in price?',
+        options: ['Its interest payment stops', 'New bonds pay more, so buyers pay less for the old one', 'The government cancels it', 'The company must buy it back'],
+        correctIndex: 1,
+        explanation: 'A buyer can get a higher rate from a new bond, so the older bond must trade at a lower price.',
+        hint: 'Compare the old bond with what a new buyer can get today.',
+      },
+    ],
+  },
+
+  'simple-way-to-invest': {
+    objectives: [
+      'Describe a simple patient approach',
+      'Compare regular contributions with a lump sum',
+      'See how fees compound against an investor',
+    ],
+    blocks: [
+      { kind: 'p', text: 'A simple patient approach uses broad funds, regular contributions and low costs. It does not require a view about which company will win.' },
+      { kind: 'p', text: 'Dollar-cost averaging is investing a fixed amount at regular intervals. It divides purchases across prices and removes the need to time the market.' },
+      { kind: 'p', text: 'A lump sum is investing a whole amount at once. It can do better when prices rise, but it puts more money at risk at one price.' },
+      { kind: 'p', text: 'Fees are charges paid to a fund or broker. A fee that looks small each year compounds against you over decades.' },
+      { kind: 'formula', title: 'Fee drag', rows: [
+        { label: 'Yearly fee', expression: 'balance x expense ratio', note: 'A 1% expense ratio on $10,000 costs $100 in the first year.' },
+      ] },
+      { kind: 'p', text: 'An expense ratio is a fund\'s yearly fee, shown as a percentage of the amount invested. A broad index fund usually has a lower expense ratio than an active fund.' },
+      { kind: 'callout', tone: 'example', title: 'Example', text: 'A $10,000 investment at 7% for 30 years grows to about $76,000. A 1% yearly fee can remove a large part of that gain.' },
+      { kind: 'figure', widget: 'compound', caption: 'Change the return and the holding period. The ending value compounds.' },
+    ],
+    recap: [
+      'Regular contributions and broad funds make a simple plan repeatable.',
+      'A lump sum invests once; dollar-cost averaging divides purchases over time.',
+      'A small yearly fee can take a large amount from a many-year holding period.',
+    ],
+    check: [
+      {
+        id: 'simple1',
+        lessonId: 'simple-way-to-invest',
+        prompt: 'What is dollar-cost averaging?',
+        options: ['Investing a whole amount once', 'Investing a fixed amount at regular intervals', 'Buying only when the price falls', 'Selling after every gain'],
+        correctIndex: 1,
+        explanation: 'Dollar-cost averaging uses a fixed contribution at regular intervals.',
+        hint: 'The name points to averaging the price you pay.',
+      },
+      {
+        id: 'simple2',
+        lessonId: 'simple-way-to-invest',
+        prompt: 'What is a lump sum?',
+        options: ['A fee charged by a fund', 'Investing a whole amount at once', 'A regular monthly contribution', 'A type of bond'],
+        correctIndex: 1,
+        explanation: 'A lump sum puts the whole amount into the market at one price.',
+        hint: 'One payment, not many.',
+      },
+      {
+        id: 'simple3',
+        lessonId: 'simple-way-to-invest',
+        prompt: 'Two funds track the same index. One charges 0.1% and one charges 1%. Which leaves more after thirty years?',
+        options: ['The 1% fund', 'The 0.1% fund', 'They are always equal', 'The fund with more trading'],
+        correctIndex: 1,
+        explanation: 'The lower expense ratio keeps more money invested and compounding each year.',
+        hint: 'A yearly fee is charged on the balance.',
+      },
+    ],
+  },
+
+  'fear-and-greed': {
+    objectives: [
+      'Name the stages of a crowd cycle',
+      'Tell a bubble from a durable rise',
+      'See why sentiment can turn before the facts',
+    ],
+    blocks: [
+      { kind: 'p', text: 'Sentiment is the general mood of buyers and sellers. It can change before the facts do.' },
+      { kind: 'p', text: 'A bubble is a price rise driven by expectations of further rises rather than by value. A panic is a rush to sell that pushes prices down quickly.' },
+      { kind: 'h', text: 'A real episode in five stages' },
+      { kind: 'terms', items: [
+        { term: 'Calm', text: 'Prices rise as profit improves.' },
+        { term: 'Excitement', text: 'More buyers arrive and the rise becomes the story.' },
+        { term: 'Euphoria', text: 'Buyers expect the rise to continue and stop asking about value.' },
+        { term: 'Panic', text: 'Sellers rush for the exit and prices fall quickly.' },
+        { term: 'Recovery', text: 'Buyers return slowly and prices stabilise.' },
+      ] },
+      { kind: 'p', text: 'The five stages are a sequence, not a schedule. No one knows how many months a stage will last.' },
+      { kind: 'figure', widget: 'drawdown', caption: 'A fall and recovery. The mood usually turns before the price does.' },
+      { kind: 'callout', tone: 'watch', title: 'Watch out', text: 'A rising price is not evidence that the business is worth more. It can be evidence that more people agree.' },
+    ],
+    recap: [
+      'Sentiment is the mood of buyers and sellers, and it can move before the facts.',
+      'A bubble feeds on expectations of further rises; a panic feeds on the rush to sell.',
+      'A crowd cycle has stages, but no fixed schedule.',
+    ],
+    check: [
+      {
+        id: 'fear1',
+        lessonId: 'fear-and-greed',
+        prompt: 'What is a bubble?',
+        options: ['A price rise driven by expectations of further rises', 'A fall caused by weak profit', 'A fee paid to a broker', 'A bond that pays no interest'],
+        correctIndex: 0,
+        explanation: 'A bubble is a rise that feeds on the expectation of more rises rather than on value.',
+        hint: 'The rise is the story, not the business.',
+      },
+      {
+        id: 'fear2',
+        lessonId: 'fear-and-greed',
+        prompt: 'What is a panic?',
+        options: ['A slow rise in prices', 'A rush to sell that pushes prices down quickly', 'A fee charged by a fund', 'A stable market'],
+        correctIndex: 1,
+        explanation: 'A panic is a rush of sellers trying to exit at the same time.',
+        hint: 'Look for the crowd running one way.',
+      },
+      {
+        id: 'fear3',
+        lessonId: 'fear-and-greed',
+        prompt: 'What does sentiment describe?',
+        options: ['The company\'s sales', 'The general mood of buyers and sellers', 'The interest rate on a bond', 'The number of shares a company has'],
+        correctIndex: 1,
+        explanation: 'Sentiment is the mood around a market or a stock, not a business fact.',
+        hint: 'It is a feeling, not a financial statement.',
+      },
+    ],
+  },
+
+  'following-the-herd': {
+    objectives: [
+      'Explain herding and FOMO',
+      'Tell momentum from overreaction',
+      'See how a crowd can extend a price move',
+    ],
+    blocks: [
+      { kind: 'p', text: 'Herding is following what most other buyers or sellers are doing. It can feel safer than standing apart, even when the crowd is wrong.' },
+      { kind: 'p', text: 'FOMO is the fear of missing out on a rise. It can push buyers to chase a price after the easy gain has gone.' },
+      { kind: 'p', text: 'Momentum is the tendency of a price move to continue for a while. It is not a law. A crowd can keep a move going, then reverse it.' },
+      { kind: 'p', text: 'Overreaction is a price move that goes further than the news justifies. Underreaction is a price move that adjusts slowly to news.' },
+      { kind: 'callout', tone: 'example', title: 'Example', text: 'A stock rises 30% on a product launch. Buyers who only see the rise may buy after the news is already in the price.' },
+      { kind: 'figure', widget: 'crowd-patterns', caption: 'Four shapes worth recognising: the crowd joins, the late buyer chases, the trend continues, and the spike fades.' },
+      { kind: 'callout', tone: 'watch', title: 'Why they can fail', text: 'These behaviours can look persuasive for a while, which is what makes them tempting. They are not evidence of value, though, and the buyers who arrive last carry the most risk when the move turns.' },
+    ],
+    recap: [
+      'Herding follows the crowd, and FOMO chases a rise after it is visible.',
+      'Momentum can continue a move; overreaction can push it too far.',
+      'A large crowd does not make a price correct.',
+    ],
+    check: [
+      {
+        id: 'herd1',
+        lessonId: 'following-the-herd',
+        prompt: 'What is herding?',
+        options: ['Buying a broad index fund', 'Following what most other buyers or sellers do', 'Calculating a company\'s profit', 'Holding cash for emergencies'],
+        correctIndex: 1,
+        explanation: 'Herding is copying the crowd, whether the crowd is buying or selling.',
+        hint: 'It is about the group, not the business.',
+      },
+      {
+        id: 'herd2',
+        lessonId: 'following-the-herd',
+        prompt: 'What does FOMO push a buyer to do?',
+        options: ['Read every financial statement', 'Chase a price after a rise', 'Sell before doing research', 'Ignore the market for a year'],
+        correctIndex: 1,
+        explanation: 'FOMO is the fear of missing a rise, so the buyer chases a price that has already moved.',
+        hint: 'The fear is about missing out.',
+      },
+      {
+        id: 'herd3',
+        lessonId: 'following-the-herd',
+        prompt: 'A price rises more than the news seems to justify. What is that called?',
+        options: ['Underreaction', 'Overreaction', 'A dividend', 'A real return'],
+        correctIndex: 1,
+        explanation: 'An overreaction goes further than the news alone would explain.',
+        hint: 'The move is too large, not too slow.',
+      },
+    ],
+  },
+
+  'why-losses-hurt': {
+    objectives: [
+      'Explain loss aversion',
+      'Spot anchoring in a decision',
+      'Calculate the gain needed to recover a loss',
+    ],
+    blocks: [
+      { kind: 'p', text: 'Loss aversion is the tendency to feel a loss more strongly than an equal gain. A $1,000 loss often hurts more than a $1,000 gain feels good.' },
+      { kind: 'p', text: 'That feeling can make an owner sell a winner too early and hold a loser after the facts have changed. The aim is to avoid pain, not to improve the result.' },
+      { kind: 'p', text: 'Anchoring is sticking to an early price as a reference point after the facts change. A buyer who remembers paying $80 may refuse to sell at $60, even when the business has worsened.' },
+      { kind: 'formula', title: 'Recovery math: from $100 to $50', rows: [
+        { label: 'After the fall', expression: '$100 × (1 - 0.50) = $50', note: 'The stock has lost half its value.' },
+        { label: 'Gain to get back', expression: '($100 - $50) / $50 = 50 / 50 = 100%', note: 'The gain is measured from the current $50, not the original $100.' },
+        { label: 'A 50% gain instead', expression: '$50 × 1.50 = $75', note: 'That adds only $25, so the stock is still 25% below its starting price.' },
+        { label: 'Formula', expression: 'loss / (1 - loss)', note: 'A 20% fall needs a 25% gain. A 50% fall needs 100%.' },
+      ] },
+      { kind: 'p', text: 'A plan can protect against these feelings. It sets the exit before the loss arrives, when the owner can still think clearly.' },
+      { kind: 'callout', tone: 'watch', title: 'Watch out', text: 'The price you paid is not a reason to hold. The business and the plan are.' },
+    ],
+    recap: [
+      'Loss aversion makes an equal loss feel larger than an equal gain.',
+      'Anchoring ties a decision to an old price instead of current facts.',
+      'A large fall needs a larger rise to recover, so avoiding the fall matters.',
+    ],
+    check: [
+      {
+        id: 'loss1',
+        lessonId: 'why-losses-hurt',
+        prompt: 'What is loss aversion?',
+        options: ['A preference for bonds over stocks', 'Feeling a loss more strongly than an equal gain', 'Selling every winner immediately', 'Avoiding all risk'],
+        correctIndex: 1,
+        explanation: 'Loss aversion is the stronger feeling attached to a loss of the same size.',
+        hint: 'The amount is equal; the feeling is not.',
+      },
+      {
+        id: 'loss2',
+        lessonId: 'why-losses-hurt',
+        prompt: 'An owner refuses to sell at $60 because they paid $80. What is this an example of?',
+        options: ['Anchoring', 'Diversification', 'Inflation', 'A dividend'],
+        correctIndex: 0,
+        explanation: 'The old price is being used as an anchor even though the facts may have changed.',
+        hint: 'The decision is tied to an old reference point.',
+      },
+      {
+        id: 'loss3',
+        lessonId: 'why-losses-hurt',
+        prompt: 'A holding falls 50%. What gain does it need to get back to the old price?',
+        options: ['25%', '50%', '75%', '100%'],
+        correctIndex: 3,
+        explanation: 'A 50% fall leaves half the value, so the remaining half must double, which is a 100% gain.',
+        hint: 'The gain is measured from the smaller amount.',
+      },
+    ],
+  },
+
+  'why-rules': {
+    objectives: [
+      'Explain what makes an edge',
+      'Describe the efficient market view',
+      'See why a strategy needs a test after costs',
+    ],
+    blocks: [
+      { kind: 'p', text: 'A strategy is a set of exact instructions for when to buy, when to sell and how much to hold. A behaviour becomes useful only when it is written down and tested.' },
+      { kind: 'p', text: 'An edge is an advantage that gives a strategy a positive expected result after costs. It can come from a repeatable feature in prices, a business fact or a discipline others lack.' },
+      { kind: 'list', items: [
+        'Index addition: when a stock joins the S&P 500, index funds that track the index must buy it, which can lift the price around the change.',
+        'Profit surprise: after profit comes in far above expectations, the first jump can be quick, but the price often keeps drifting for a few days as investors react.',
+      ] },
+      { kind: 'p', text: 'Either one is an edge only if the move is large enough to survive costs.' },
+      { kind: 'p', text: 'An efficient market is the view that prices already reflect available information. If that view is roughly right, a simple shape should not survive for many years.' },
+      { kind: 'p', text: 'Most edges are small and temporary. Costs, competition and crowds can wear them down.' },
+      { kind: 'callout', tone: 'idea', title: 'Key idea', text: 'A behaviour is not an edge until it survives a test after costs.' },
+    ],
+    recap: [
+      'A strategy turns a behaviour into exact instructions.',
+      'An edge is an advantage that remains after costs.',
+      'An efficient market makes simple shapes hard to sustain.',
+    ],
+    check: [
+      {
+        id: 'strat1',
+        lessonId: 'why-rules',
+        prompt: 'What is an edge?',
+        options: ['A guarantee of profit', 'An advantage that survives after costs', 'A large number of trades', 'A popular news story'],
+        correctIndex: 1,
+        explanation: 'An edge is an advantage with a positive expected result after costs.',
+        hint: 'The advantage has to survive the costs of using it.',
+      },
+      {
+        id: 'strat2',
+        lessonId: 'why-rules',
+        prompt: 'What does an efficient market view say?',
+        options: ['Prices already reflect available information', 'Prices never change', 'Only bonds are efficient', 'Every strategy loses money'],
+        correctIndex: 0,
+        explanation: 'The efficient market view says available information is already in the price.',
+        hint: 'Information is the key word.',
+      },
+      {
+        id: 'strat3',
+        lessonId: 'why-rules',
+        prompt: 'Why write a strategy down before testing it?',
+        options: ['To make it look professional', 'To remove the temptation to change it after seeing the result', 'To guarantee it works', 'To avoid paying fees'],
+        correctIndex: 1,
+        explanation: 'A written strategy is harder to adjust after the fact, which keeps the test honest.',
+        hint: 'A test is weaker if the instructions change after the result.',
+      },
+    ],
+  },
+
+  'company-worth': {
+    objectives: [
+      'Read revenue, costs and net income',
+      'Calculate earnings per share',
+      'Calculate a company margin',
+    ],
+    blocks: [
+      { kind: 'p', text: 'Revenue is the money a company receives from sales before costs. Net income is what remains after all costs, interest and tax are paid.' },
+      { kind: 'p', text: 'A company sells $500,000 of coffee and spends $400,000 on costs, interest and tax. Its net income is $100,000.' },
+      { kind: 'formula', title: 'Company math', rows: [
+        { label: 'Net income', expression: 'revenue - costs - interest - tax', note: '$500,000 - $400,000 = $100,000.' },
+        { label: 'Earnings per share', expression: 'net income / shares', note: '$100,000 / 50,000 shares is $2 per share.' },
+        { label: 'Margin', expression: 'net income / revenue x 100', note: '$100,000 / $500,000 is 20%.' },
+      ] },
+      { kind: 'p', text: 'Earnings per share is the company\'s profit divided by the number of shares. It lets an owner compare profit across companies with different share counts.' },
+      { kind: 'p', text: 'A margin is profit as a percentage of revenue. A high margin can mean pricing power, but it can also attract competitors.' },
+      { kind: 'p', text: 'Revenue can grow while net income falls if costs rise faster than sales.' },
+    ],
+    recap: [
+      'Revenue is sales before costs; net income is what remains after them.',
+      'Earnings per share divides net income by the number of shares.',
+      'A margin puts profit in proportion to revenue.',
+    ],
+    check: [
+      {
+        id: 'worth1',
+        lessonId: 'company-worth',
+        prompt: 'Revenue is $800,000 and net income is $120,000. What is the margin?',
+        options: ['12%', '15%', '20%', '68%'],
+        correctIndex: 1,
+        explanation: '$120,000 divided by $800,000 is 15%.',
+        hint: 'Divide profit by revenue, then multiply by 100.',
+      },
+      {
+        id: 'worth2',
+        lessonId: 'company-worth',
+        prompt: 'Net income is $10 million and there are 5 million shares. What is earnings per share?',
+        options: ['$0.50', '$2.00', '$5.00', '$50.00'],
+        correctIndex: 1,
+        explanation: '$10 million divided by 5 million shares is $2 per share.',
+        hint: 'Divide net income by the share count.',
+      },
+      {
+        id: 'worth3',
+        lessonId: 'company-worth',
+        prompt: 'Revenue rises but net income falls. Which explanation fits?',
+        options: ['Costs rose faster than sales', 'The company issued more shares', 'The dividend was cut', 'The share price fell'],
+        correctIndex: 0,
+        explanation: 'Net income is what remains after costs, so faster cost growth can leave less profit.',
+        hint: 'Revenue is the top line; costs sit between it and net income.',
+      },
+    ],
+  },
+
+  'is-it-expensive': {
+    objectives: [
+      'Calculate market capitalisation',
+      'Calculate a P/E ratio',
+      'Tell a growth stock from a value stock',
+    ],
+    blocks: [
+      { kind: 'p', text: 'Market capitalisation is the value of the whole company. It is the share price multiplied by the number of shares.' },
+      { kind: 'formula', title: 'Valuation math', rows: [
+        { label: 'Market capitalisation', expression: 'share price x shares', note: '1 million shares at $20 is $20 million.' },
+        { label: 'P/E ratio', expression: 'share price / earnings per share', note: 'A $50 price and $5 earnings per share give a P/E of 10.' },
+      ] },
+      { kind: 'p', text: 'The P/E ratio divides the share price by earnings per share. A P/E of 10 means buyers pay $10 for each $1 of yearly earnings.' },
+      { kind: 'p', text: 'A growth stock is priced for fast future growth. A value stock looks cheap compared with profit or assets.' },
+      { kind: 'p', text: 'A low P/E can be a bargain or a warning. The market may expect profit to fall.' },
+      { kind: 'callout', tone: 'watch', title: 'Watch out', text: 'Cheap and good are different questions. A low price can reflect a real problem.' },
+    ],
+    recap: [
+      'Market capitalisation is share price times the number of shares.',
+      'The P/E ratio compares the share price with earnings per share.',
+      'A low P/E can be cheap or a warning about future profit.',
+    ],
+    check: [
+      {
+        id: 'pe1',
+        lessonId: 'is-it-expensive',
+        prompt: 'A company has 2 million shares at $15 each. What is its market capitalisation?',
+        options: ['$15 million', '$30 million', '$45 million', '$60 million'],
+        correctIndex: 1,
+        explanation: '2 million shares at $15 is $30 million.',
+        hint: 'Multiply the share price by the number of shares.',
+      },
+      {
+        id: 'pe2',
+        lessonId: 'is-it-expensive',
+        prompt: 'A share costs $60 and earnings per share are $4. What is the P/E ratio?',
+        options: ['4', '15', '24', '60'],
+        correctIndex: 1,
+        explanation: '$60 divided by $4 is 15.',
+        hint: 'Divide the price by earnings per share.',
+      },
+      {
+        id: 'pe3',
+        lessonId: 'is-it-expensive',
+        prompt: 'A stock has a low P/E. What might that mean?',
+        options: ['It is always a bargain', 'The market may expect profit to fall', 'The company has no shares', 'The dividend is guaranteed'],
+        correctIndex: 1,
+        explanation: 'A low P/E can be a bargain, but it can also reflect an expectation of weaker profit.',
+        hint: 'A low price often has a reason.',
+      },
+    ],
+  },
+
+  'spreading-risk': {
+    objectives: [
+      'Explain concentration risk',
+      'Divide a portfolio across sectors',
+      'Calculate an allocation',
+    ],
+    blocks: [
+      { kind: 'p', text: 'Concentration is holding a large share of a portfolio in one investment. A single failure can then hurt the whole portfolio.' },
+      { kind: 'p', text: 'Diversification divides money across many holdings. It does not remove risk, but one bad company does less damage.' },
+      { kind: 'p', text: 'A sector is a group of companies in the same industry. Two banks can fall for the same reason, even if they are separate companies.' },
+      { kind: 'p', text: 'Allocation is how a portfolio is divided across assets or holdings. A broad index fund is one simple allocation.' },
+      { kind: 'formula', title: 'Allocation math', rows: [
+        { label: 'Allocation', expression: 'holding value / portfolio value x 100', note: '$2,000 in a $10,000 portfolio is 20%.' },
+      ] },
+      { kind: 'figure', widget: 'index-compare', caption: 'One company and the broad index over the same period.' },
+      { kind: 'callout', tone: 'idea', title: 'Key idea', text: 'Diversification is not a guarantee. It is a way to make one mistake smaller.' },
+    ],
+    recap: [
+      'Concentration puts too much of the portfolio in one outcome.',
+      'Sectors can move together, so many companies are not always many bets.',
+      'Allocation is the share of the portfolio held in each investment.',
+    ],
+    check: [
+      {
+        id: 'risk1',
+        lessonId: 'spreading-risk',
+        prompt: 'What is concentration?',
+        options: ['Holding a large share of a portfolio in one investment', 'Holding only cash', 'Buying a broad index fund', 'Selling every winner'],
+        correctIndex: 0,
+        explanation: 'Concentration means one holding or one outcome can dominate the portfolio.',
+        hint: 'Too much money in one place.',
+      },
+      {
+        id: 'risk2',
+        lessonId: 'spreading-risk',
+        prompt: 'Why can two banks be a weak form of diversification?',
+        options: ['They are both bonds', 'They are in the same sector and can fail for the same reason', 'They always pay the same dividend', 'They have no share price'],
+        correctIndex: 1,
+        explanation: 'Companies in one sector often face the same risks, so owning two does not divide the bet much.',
+        hint: 'Think about what makes banks fail together.',
+      },
+      {
+        id: 'risk3',
+        lessonId: 'spreading-risk',
+        prompt: 'A $4,000 holding sits in a $20,000 portfolio. What is its allocation?',
+        options: ['5%', '10%', '20%', '40%'],
+        correctIndex: 2,
+        explanation: '$4,000 divided by $20,000 is 20%.',
+        hint: 'Divide the holding by the whole portfolio.',
+      },
+    ],
+  },
+
+  'written-plan': {
+    objectives: [
+      'Write a goal, a horizon and a fall limit',
+      'Explain risk tolerance',
+      'Decide when a plan should change',
+    ],
+    blocks: [
+      { kind: 'p', text: 'An investment plan is a brief written answer about the goal, the time horizon and the fall you can sit through.' },
+      { kind: 'p', text: 'Risk tolerance is the size of a temporary fall you can accept without selling. It is not a score. It is a limit you choose before the fall.' },
+      { kind: 'p', text: 'A plan should name the funds, the amount added, and the reason to change it. Write it down while prices are calm.' },
+      { kind: 'p', text: 'If the plan says sell after a fall, the owner should know that before the fall, not during it.' },
+      { kind: 'figure', widget: 'plan-builder', caption: 'Set a horizon and a fall you can sit through. Write the answer down before the fall.' },
+      { kind: 'callout', tone: 'idea', title: 'Key idea', text: 'A plan is a decision made in calm weather and used in a storm.' },
+    ],
+    recap: [
+      'A plan names the goal, the horizon, the holdings and the reason to change.',
+      'Risk tolerance is the fall you can accept without being forced to sell.',
+      'A plan written before a fall is easier to follow during one.',
+    ],
+    check: [
+      {
+        id: 'plan1',
+        lessonId: 'written-plan',
+        prompt: 'What should a written plan include?',
+        options: ['Only a target return', 'A goal, a horizon, the holdings and a reason to change', 'A promise never to sell', 'A list of hot tips'],
+        correctIndex: 1,
+        explanation: 'A useful plan names what the money is for, when it is needed, what is owned and when to change course.',
+        hint: 'A plan has to answer more than one question.',
+      },
+      {
+        id: 'plan2',
+        lessonId: 'written-plan',
+        prompt: 'What is risk tolerance?',
+        options: ['The return you hope to earn', 'The fall you can accept without selling', 'The number of shares you own', 'The fee charged by a fund'],
+        correctIndex: 1,
+        explanation: 'Risk tolerance is about the fall you can sit through, not the return you want.',
+        hint: 'Think about what would make you sell.',
+      },
+      {
+        id: 'plan3',
+        lessonId: 'written-plan',
+        prompt: 'Why write the plan before a fall?',
+        options: ['Prices are always higher then', 'It is easier to decide clearly before fear takes over', 'It guarantees a recovery', 'It removes the need for cash'],
+        correctIndex: 1,
+        explanation: 'A decision made in calm conditions is easier to follow when prices are falling.',
+        hint: 'Think about how fear changes a decision.',
+      },
+    ],
+  },
 };
+
+Object.assign(LESSON_CONTENT, ADVANCED_LESSON_CONTENT);

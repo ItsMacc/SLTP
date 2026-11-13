@@ -4,15 +4,27 @@ import { GlossaryText } from '../../components/GlossaryText';
 import { LEARN_GLOSSARY } from '../../learn/learnGlossary';
 import type { ContentBlock } from '../../learn/types';
 import { LessonWidget } from './Widgets';
+import { layoutForLesson } from './lessonLayout';
 
 const G = ({ children }: { children: string }) => (
   <GlossaryText text={children} glossary={LEARN_GLOSSARY} />
 );
 
-export function LessonBlocks({ blocks }: { blocks: ContentBlock[] }) {
+export function LessonBlocks({ blocks, lessonId }: { blocks: ContentBlock[]; lessonId: string }) {
+  const layout = layoutForLesson(lessonId);
+  const figureIndex = blocks.findIndex((block) => block.kind === 'figure');
+  const figure = figureIndex >= 0 ? blocks[figureIndex] : undefined;
+  const withoutFigure = blocks.filter((_, index) => index !== figureIndex);
+  const figureAt = layout.figureAfter === undefined
+    ? -1
+    : Math.min(layout.figureAfter, withoutFigure.length);
+  const ordered = figure && figureAt >= 0
+    ? [...withoutFigure.slice(0, figureAt), figure, ...withoutFigure.slice(figureAt)]
+    : blocks;
+
   return (
     <div className="learn-lesson-body">
-      {blocks.map((block, index) => {
+      {ordered.map((block, index) => {
         if (block.kind === 'p') {
           return (
             <p className="learn-prose" key={index}>
@@ -50,8 +62,9 @@ export function LessonBlocks({ blocks }: { blocks: ContentBlock[] }) {
           );
         }
         if (block.kind === 'terms') {
+          if (layout.terms === 'none') return null;
           return (
-            <div className="learn-terms" key={index}>
+            <div className={`learn-terms learn-terms--${layout.terms}`} key={index}>
               {block.items.map((item) => (
                 <div className="learn-term" key={item.term}>
                   <p className="learn-term-name">{item.term}</p>
@@ -63,10 +76,27 @@ export function LessonBlocks({ blocks }: { blocks: ContentBlock[] }) {
             </div>
           );
         }
+        if (block.kind === 'formula') {
+          return (
+            <div className="learn-formula" key={index}>
+              {block.title && <p className="learn-formula-title">{block.title}</p>}
+              <dl className="learn-formula-list">
+                {block.rows.map((row) => (
+                  <div className="learn-formula-row" key={row.label}>
+                    <dt>{row.label}</dt>
+                    <dd>
+                      <code>{row.expression}</code>
+                      {row.note && <span className="learn-formula-note">{row.note}</span>}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          );
+        }
         return (
           <figure className="learn-figure" key={index}>
             <LessonWidget id={block.widget} />
-            <figcaption>{block.caption}</figcaption>
           </figure>
         );
       })}

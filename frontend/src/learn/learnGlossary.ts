@@ -106,6 +106,8 @@ export const LEARN_GLOSSARY: Record<string, GlossaryTerm> = {
   concentration: t('Holding a large share of a portfolio in one investment.', 'spreading-risk'),
   sector: t('A group of companies in the same industry.', 'spreading-risk'),
   allocation: t('How a portfolio is divided across assets or holdings.', 'spreading-risk'),
+  'investment plan': t('A written set of choices about what to own, how much to add and when to change course.', 'written-plan'),
+  'risk tolerance': t('The largest temporary fall an investor can accept without selling.', 'written-plan'),
 
   /* Level 3 */
   'percent change': t('The change in a value divided by its starting value, shown as a percentage.', 'returns'),

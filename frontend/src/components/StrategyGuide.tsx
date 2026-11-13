@@ -117,7 +117,7 @@ const CHAPTERS: GuideTab[] = [
   { id: 'limits', label: 'Costs & caveats' },
 ]
 
-/** An illustrative equity curve: a strategy against its benchmark. */
+/** An equity curve: a strategy against its benchmark. */
 function EquitySketch() {
   const benchmark =
     '24,150 60,146 96,152 132,140 168,143 204,130 240,134 276,124 312,118 340,112'
@@ -133,7 +133,7 @@ function EquitySketch() {
         className="guide-diagram"
         viewBox="0 0 360 200"
         role="img"
-        aria-label="Illustrative equity curve: a strategy and a benchmark, both starting at 100, with the strategy finishing higher"
+        aria-label="Equity curve: a strategy and a benchmark, both starting at 100, with the strategy finishing higher"
       >
         <line
           x1={24}

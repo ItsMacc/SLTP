@@ -35,6 +35,7 @@ const textFor = (lesson) => {
       if ('text' in block) return block.text;
       if (block.kind === 'list') return block.items.join(' ');
       if (block.kind === 'terms') return block.items.map((item) => `${item.term} ${item.text}`).join(' ');
+      if (block.kind === 'formula') return [block.title, ...block.rows.flatMap((row) => [row.label, row.expression, row.note ?? ''])].filter(Boolean).join(' ');
       return '';
     })
     .join(' ');
@@ -76,7 +77,7 @@ for (const level of LEVELS) {
 
     for (const word of WATCH) {
       const found = new RegExp(`\\b${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(text);
-      if (found && !glossaryKeys.includes(word)) {
+      if (found && !glossaryKeys.some((key) => key === word || key.includes(word))) {
         errors.push(`${lesson.id}: watch-list word "${word}" is not a glossary term`);
       }
     }

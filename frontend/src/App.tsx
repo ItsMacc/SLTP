@@ -22,6 +22,7 @@ import { Loader, LoaderOverlay } from './ui/Loader';
 import { supabase } from '../lib/supabase';
 import { bootMarketSync } from './store';
 import { invalidatePortfolio, provisionAccount } from '../lib/api';
+import { seedUserAwards } from '../lib/learnApi';
 import { pageTitleFor, usePageTitle } from './usePageTitle';
 import {
   DOCS_PREFIX,
@@ -175,6 +176,10 @@ export default function App() {
       } catch {
         // Provisioning is best-effort; never block the UI on it
       }
+
+      // Older accounts can predate the current badge catalog. Seeding is
+      // idempotent and only adds locked rows, so it is safe on every sign-in.
+      void seedUserAwards(userId).catch(() => {});
     })();
 
     syncsRef.current.set(userId, run);

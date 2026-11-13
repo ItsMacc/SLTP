@@ -38,6 +38,7 @@ const BANNED_PATTERNS = [
   { name: 'not only X but Y', regex: /\bnot only\b[^.!?]{1,100}\bbut\b/gi },
   { name: "It's not X, it's Y", regex: /\bit(?:'s| is) not\b[^.!?]{1,100}\bit(?:'s| is)\b/gi },
   { name: 'sentence opens with Now, So, Next, Then or Finally', regex: /(?:^|[.!?]\s+)(?:Now|So|Next|Then|Finally),/g },
+  { name: '"price returns" used as a verb phrase', regex: /\bprice\s+returns?\b/gi },
 ];
 
 const wordPatterns = BANNED_WORDS.map((word) => ({
@@ -75,6 +76,7 @@ function blocksText(blocks) {
       if ('text' in block) return block.text;
       if (block.kind === 'list') return block.items.join(' ');
       if (block.kind === 'terms') return block.items.map((item) => `${item.term} ${item.text}`);
+      if (block.kind === 'formula') return [block.title, ...block.rows.flatMap((row) => [row.label, row.expression, row.note ?? ''])].filter(Boolean);
       return '';
     })
     .flat()

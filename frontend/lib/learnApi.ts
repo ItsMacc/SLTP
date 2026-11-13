@@ -15,6 +15,7 @@
 // storage, so callers can decide whether to fall back.
 
 import { supabase } from './supabase'
+import { ALL_LESSONS, LEVELS } from '../src/learn/curriculum'
 
 export type AwardKind = 'badge' | 'trophy'
 
@@ -41,6 +42,13 @@ export const badgeAwardId = (sectionId: string) => `badge:${sectionId}`
 
 /** Catalog id for a level certificate. */
 export const certificateAwardId = (tierId: string) => `certificate:${tierId}`
+
+/** Only the current curriculum belongs in a learner's locked award set. */
+const currentAwardIds = () =>
+  new Set([
+    ...ALL_LESSONS.filter((lesson) => lesson.status === 'live').map((lesson) => badgeAwardId(lesson.id)),
+    ...LEVELS.map((level) => certificateAwardId(level.id)),
+  ])
 
 /**
  * Give a freshly created account its badge set.
@@ -87,8 +95,11 @@ export const seedUserAwards = async (userId: string): Promise<{ ok: boolean; err
   if (existingError) return { ok: false, error: existingError.message }
 
   const held = new Set(((existing ?? []) as { award_id: string }[]).map((r) => r.award_id))
+  const valid = currentAwardIds()
   const catalog = await getAwardCatalog()
-  const missing = catalog.filter((a) => !held.has(a.id)).map((a) => ({ user_id: userId, award_id: a.id }))
+  const missing = catalog
+    .filter((a) => valid.has(a.id) && !held.has(a.id))
+    .map((a) => ({ user_id: userId, award_id: a.id }))
 
   if (!missing.length) return { ok: true }
 

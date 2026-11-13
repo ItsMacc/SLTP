@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Check, RotateCcw, X } from 'lucide-react';
 import type { Level, QuizQuestion } from '../../learn/types';
+import { displayQuestion } from '../../learn/quizDisplay';
 
 const LETTERS = ['A', 'B', 'C', 'D'];
 
@@ -13,7 +14,8 @@ export function CheckYourself({ questions }: { questions: QuizQuestion[] }) {
   const [solved, setSolved] = useState(false);
   const [firstTry, setFirstTry] = useState(0);
   const [finished, setFinished] = useState(false);
-  const question = questions[index];
+  const source = questions[index];
+  const question = source ? displayQuestion(source) : undefined;
 
   if (!question) return null;
 
@@ -167,6 +169,7 @@ export function LevelQuiz({
 }) {
   const [state, setState] = useState<QuizState>(() => readState(level));
   const [message, setMessage] = useState('');
+  const questions = useMemo(() => level.quiz.map(displayQuestion), [level.quiz]);
 
   useEffect(() => {
     try {
@@ -177,10 +180,10 @@ export function LevelQuiz({
   }, [level.id, state]);
 
   const answered = useMemo(
-    () => level.quiz.filter((question) => state.locked.includes(question.id) || state.answers[question.id] != null).length,
-    [level.quiz, state],
+    () => questions.filter((question) => state.locked.includes(question.id) || state.answers[question.id] != null).length,
+    [questions, state],
   );
-  const allAnswered = answered === level.quiz.length;
+  const allAnswered = answered === questions.length;
 
   const choose = (question: QuizQuestion, option: number) => {
     if (state.locked.includes(question.id)) return;
@@ -206,7 +209,7 @@ export function LevelQuiz({
     const results = { ...state.results };
     const answers = { ...state.answers };
 
-    for (const question of level.quiz) {
+    for (const question of questions) {
       if (locked.includes(question.id)) {
         correctCount += 1;
         continue;
@@ -227,7 +230,7 @@ export function LevelQuiz({
     const next: QuizState = { answers, locked, removed, results, firstTry };
     setState(next);
 
-    if (correctCount === level.quiz.length) {
+    if (correctCount === questions.length) {
       try {
         sessionStorage.removeItem(`sltp_learn_quiz.${level.id}`);
       } catch {
@@ -237,7 +240,7 @@ export function LevelQuiz({
       return;
     }
 
-    const left = level.quiz.length - correctCount;
+    const left = questions.length - correctCount;
     setMessage(`${left} ${left === 1 ? 'question' : 'questions'} to try again.`);
   };
 
@@ -252,7 +255,7 @@ export function LevelQuiz({
         Answer every question. If any are wrong, only those come back.
       </p>
       <div className="learn-quiz-list">
-        {level.quiz.map((question, index) => {
+        {questions.map((question, index) => {
           const locked = state.locked.includes(question.id);
           const removed = state.removed[question.id] ?? [];
           const result = state.results[question.id];
@@ -304,7 +307,7 @@ export function LevelQuiz({
       </div>
       <div className="learn-quiz-bar">
         <div>
-          <strong>{answered} of {level.quiz.length} answered</strong>
+          <strong>{answered} of {questions.length} answered</strong>
           {!allAnswered && <span>Answer every question to check.</span>}
           {message && <span role="status">{message}</span>}
         </div>

@@ -2,6 +2,8 @@
 
 import { useId, useState } from 'react';
 import type { WidgetId } from '../../learn/types';
+import { AdvancedLessonWidget } from './AdvancedWidgets';
+import { BacktestLessonWidget } from './BacktestWidgets';
 
 const money = (value: number, cents = false) =>
   new Intl.NumberFormat('en-US', {
@@ -17,6 +19,8 @@ export function LessonWidget({ id }: { id: WidgetId }) {
       return <CompanyStory />;
     case 'price-news':
       return <PriceNews />;
+    case 'crowd-patterns':
+      return <CrowdPatterns />;
     case 'order-costs':
       return <OrderCosts />;
     case 'candle-builder':
@@ -27,8 +31,14 @@ export function LessonWidget({ id }: { id: WidgetId }) {
       return <Compound />;
     case 'drawdown':
       return <Drawdown />;
+    case 'plan-builder':
+      return <PlanBuilder />;
     default:
-      return null;
+      return id.startsWith('backtest')
+        ? <BacktestLessonWidget id={id} />
+        : id === 'first-run' || id === 'equity-curve-detail' || id === 'return-breakdown' || id === 'drawdown-map' || id === 'risk-return' || id === 'trade-stats' || id === 'cost-drag' || id === 'results-tour' || id === 'overfit-sweep' || id === 'bias-check' || id === 'walk-forward-map' || id === 'skeptic-cards'
+          ? <BacktestLessonWidget id={id} />
+          : <AdvancedLessonWidget id={id} />;
   }
 }
 
@@ -41,127 +51,279 @@ function Readout({ label, value }: { label: string; value: string }) {
   );
 }
 
+function randomSeries(count: number, drift = 0, volatility = 0.04): number[] {
+  const values = [100];
+  for (let index = 1; index < count; index += 1) {
+    const move = drift + (Math.random() - 0.5) * volatility;
+    const previous = values[values.length - 1];
+    values.push(Math.max(5, previous * (1 + move)));
+  }
+  return values;
+}
+
+function maxDrawdown(values: number[]): number {
+  let peak = values[0];
+  let worst = 0;
+  for (const value of values) {
+    peak = Math.max(peak, value);
+    worst = Math.max(worst, ((peak - value) / peak) * 100);
+  }
+  return worst;
+}
+
+function percent(value: number): string {
+  const sign = value > 0 ? '+' : '';
+  return `${sign}${value.toFixed(0)}%`;
+}
+
 function CompanyStory() {
   const [invest, setInvest] = useState(1000);
-  const [years, setYears] = useState(0);
-  const [investor, setInvestor] = useState(false);
+  const [stage, setStage] = useState(0);
   const investId = useId();
-  const yearsId = useId();
-  const companyValue = invest + years * 120 + (investor ? 500 : 0);
-  const stake = investor ? 70 : 100;
-  const yourValue = (companyValue * stake) / 100;
+  const sharePrice = 3;
+  const profit = Math.round(invest * 0.12);
+  const companyAfterFirst = invest + profit;
+  const sharesSold = Math.max(1, Math.floor((companyAfterFirst * 0.3) / sharePrice));
+  const sale = sharesSold * sharePrice;
+  const secondProfit = profit * 2;
+  const companyFinal = companyAfterFirst + secondProfit;
+  const yourValue = (stage >= 3 ? companyFinal : companyAfterFirst) * 0.7;
+  const aliceValue = (companyFinal * 0.3) / sharesSold;
+  const stageCopy = [
+    [
+      'You start Northstar Coffee with your own money. You own 100% of the company.',
+      'Use the slider to choose how much you put in.',
+    ],
+    [
+      `A year of sales and costs leaves ${money(profit)} in profit. The company is worth ${money(companyAfterFirst)}.`,
+      `You have already put in ${money(invest)} and do not want to use more savings. You sell 30% of the company to the market so you can raise ${money(sale)} for better equipment.`,
+    ],
+    [
+      `You and the buyers settle on a simple $3 price. The ${money(sale)} stake becomes ${sharesSold} shares (${money(sale)} / $3), and all of them sell.`,
+      `Alice buys one share for $3. You get ${money(sale)} in cash and still own 70% of the company.`,
+      `Your remaining 70% is worth ${money(companyAfterFirst * 0.7)}. The cash and your remaining stake together are still about ${money(companyAfterFirst)}.`,
+    ],
+    [
+      `You spend the ${money(sale)} on better equipment. The next year, profit doubles from ${money(profit)} to ${money(secondProfit)}.`,
+      `The company is worth ${money(companyFinal)}. Your 70% is worth ${money(yourValue)}, and Alice's one share is worth ${money(aliceValue, true)}.`,
+    ],
+  ];
 
   return (
     <div className="learn-widget">
+      {stageCopy[stage].map((line) => (
+        <p className="widget-note" key={line}>{line}</p>
+      ))}
       <div className="widget-readouts">
-        <Readout label="You put in" value={money(invest)} />
-        <Readout label="Company value" value={money(companyValue)} />
-        <Readout label="Your stake" value={`${stake}%`} />
-        <Readout label="Your share is worth" value={money(yourValue)} />
+        {stage === 0 && (
+          <>
+            <Readout label="You put in" value={money(invest)} />
+            <Readout label="You own" value="100%" />
+            <Readout label="Company worth" value={money(invest)} />
+          </>
+        )}
+        {stage === 1 && (
+          <>
+            <Readout label="Profit after a year" value={money(profit)} />
+            <Readout label="Company worth" value={money(companyAfterFirst)} />
+            <Readout label="Your 30% stake" value={money(sale)} />
+            <Readout label="You own" value="100%" />
+          </>
+        )}
+        {stage === 2 && (
+          <>
+            <Readout label="Cash raised" value={money(sale)} />
+            <Readout label="Price per share" value={money(sharePrice, true)} />
+            <Readout label="Shares sold" value={String(sharesSold)} />
+            <Readout label="You own" value="70%" />
+          </>
+        )}
+        {stage === 3 && (
+          <>
+            <Readout label="Profit this year" value={money(secondProfit)} />
+            <Readout label="Company worth" value={money(companyFinal)} />
+            <Readout label="Your 70%" value={money(yourValue)} />
+            <Readout label="Alice's share" value={money(aliceValue, true)} />
+          </>
+        )}
       </div>
-      <label className="widget-label" htmlFor={investId}>
-        Amount invested
-      </label>
-      <input
-        id={investId}
-        className="widget-slider"
-        type="range"
-        min="500"
-        max="5000"
-        step="100"
-        value={invest}
-        onChange={(event) => setInvest(Number(event.target.value))}
-      />
-      <label className="widget-label" htmlFor={yearsId}>
-        Years the company trades
-      </label>
-      <input
-        id={yearsId}
-        className="widget-slider"
-        type="range"
-        min="0"
-        max="5"
-        step="1"
-        value={years}
-        onChange={(event) => setYears(Number(event.target.value))}
-      />
+      {stage === 0 && (
+        <>
+          <label className="widget-label" htmlFor={investId}>
+            Amount invested: {money(invest)}
+          </label>
+          <input
+            id={investId}
+            className="widget-slider"
+            type="range"
+            min="500"
+            max="5000"
+            step="100"
+            value={invest}
+            onChange={(event) => setInvest(Number(event.target.value))}
+          />
+        </>
+      )}
       <div className="widget-controls">
-        <button
-          type="button"
-          className="widget-btn"
-          onClick={() => setInvestor(true)}
-          disabled={investor}
-        >
-          {investor ? 'Outside investor owns 30%' : 'An outside investor buys 30%'}
-        </button>
-        <button
-          type="button"
-          className="widget-btn widget-btn--quiet"
-          onClick={() => {
-            setInvest(1000);
-            setYears(0);
-            setInvestor(false);
-          }}
-        >
-          Reset
-        </button>
+        {stage < 3 && (
+          <button type="button" className="widget-btn" onClick={() => setStage(stage + 1)}>
+            {stage === 0 ? 'Run it for a year' : stage === 1 ? 'Sell 30% to the market' : 'Buy better equipment'}
+          </button>
+        )}
+        {stage > 0 && (
+          <button
+            type="button"
+            className="widget-btn widget-btn--quiet"
+            onClick={() => {
+              setInvest(1000);
+              setStage(0);
+            }}
+          >
+            Start over
+          </button>
+        )}
       </div>
     </div>
   );
 }
 
 function PriceNews() {
-  const [history, setHistory] = useState([100]);
-  const [label, setLabel] = useState('Start');
-  const apply = (delta: number, nextLabel: string) => {
-    setHistory((current) => [...current, current[current.length - 1] + delta]);
+  const [history, setHistory] = useState(() => randomSeries(18, 0.001, 0.035));
+  const [label, setLabel] = useState('No news yet');
+  const apply = (shock: number, nextLabel: string) => {
+    setHistory((current) => {
+      const previous = current[current.length - 1];
+      const noise = (Math.random() - 0.5) * 0.025;
+      return [...current, Math.max(5, previous * (1 + shock + noise))].slice(-30);
+    });
     setLabel(nextLabel);
   };
-  const points = history
-    .map((value, index) => {
-      const x = history.length === 1 ? 10 : 10 + (index / (history.length - 1)) * 300;
-      const y = 110 - ((value - 90) / 25) * 100;
-      return `${x},${y}`;
-    })
-    .join(' ');
   const current = history[history.length - 1];
+  const first = history[0];
+  const points = autoChartPoints(history);
+  const pointList = points.split(' ');
+  const lastY = pointList[pointList.length - 1]?.split(',')[1] ?? '60';
 
   return (
     <div className="learn-widget">
       <div className="widget-readouts">
         <Readout label="Share price" value={money(current, true)} />
+        <Readout label="Since start" value={percent(((current - first) / first) * 100)} />
         <Readout label="Last news" value={label} />
       </div>
-      <svg className="widget-chart-svg" viewBox="0 0 320 120" role="img" aria-label="A fixed price path responding to news">
+      <svg className="widget-chart-svg" viewBox="0 0 320 120" role="img" aria-label="A random price path responding to news">
         <line x1="10" y1="110" x2="310" y2="110" className="widget-axis" />
         <polyline points={points} className="widget-line" />
-        <circle
-          cx={history.length === 1 ? 10 : 310}
-          cy={110 - ((current - 90) / 25) * 100}
-          r="4"
-          className="widget-dot"
-        />
+        <circle cx="310" cy={lastY} r="4" className="widget-dot" />
       </svg>
       <div className="widget-controls">
-        <button type="button" className="widget-btn" onClick={() => apply(6, 'Strong sales')}>
+        <button type="button" className="widget-btn" onClick={() => apply(0.001, 'A normal day')}>
+          Next day
+        </button>
+        <button type="button" className="widget-btn" onClick={() => apply(0.06, 'Strong sales')}>
           Strong sales
         </button>
-        <button type="button" className="widget-btn" onClick={() => apply(-5, 'Weak profit')}>
+        <button type="button" className="widget-btn" onClick={() => apply(-0.06, 'Weak profit')}>
           Weak profit
-        </button>
-        <button type="button" className="widget-btn" onClick={() => apply(0, 'No news')}>
-          No news
         </button>
         <button
           type="button"
           className="widget-btn widget-btn--quiet"
           onClick={() => {
-            setHistory([100]);
-            setLabel('Start');
+            setHistory(randomSeries(18, 0.001, 0.035));
+            setLabel('No news yet');
           }}
         >
-          Reset
+          New path
         </button>
+      </div>
+      <p className="widget-note">
+        Most daily moves are noise. News can shift expectations, and the price can move before the news is fully known.
+      </p>
+    </div>
+  );
+}
+
+interface CrowdPattern {
+  title: string;
+  copy: string;
+  aria: string;
+  values: number[];
+  newsLevel?: number;
+}
+
+const CROWD_PATTERNS: CrowdPattern[] = [
+  {
+    title: 'Herding',
+    copy: 'Buyers join because the crowd is buying.',
+    aria: 'A price curve accelerating upward as more buyers join',
+    values: [100, 101, 101.5, 102.5, 104, 107, 111, 117, 125],
+  },
+  {
+    title: 'FOMO',
+    copy: 'The rise itself becomes the reason to buy.',
+    aria: 'A flat price followed by a sharp late rise',
+    values: [100, 101, 100.5, 101.5, 102, 101.5, 103, 105, 119, 136],
+  },
+  {
+    title: 'Momentum',
+    copy: 'A move that keeps going, for a while.',
+    aria: 'A steady upward price trend with small pullbacks',
+    values: [100, 102, 101, 104, 106, 105, 108, 111, 114],
+  },
+  {
+    title: 'Overreaction',
+    copy: 'The price overshoots the news, then pulls back.',
+    aria: 'A price spike above the news level followed by a pullback',
+    values: [100, 102, 104, 106, 108, 124, 132, 126, 120],
+    newsLevel: 108,
+  },
+];
+
+const CROWD_CHART_WIDTH = 160;
+const CROWD_CHART_HEIGHT = 64;
+const CROWD_CHART_PAD = 6;
+
+function crowdGeometry(values: number[]) {
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const span = max - min || 1;
+  const xFor = (index: number) =>
+    CROWD_CHART_PAD + (index / (values.length - 1)) * (CROWD_CHART_WIDTH - CROWD_CHART_PAD * 2);
+  const yFor = (value: number) =>
+    CROWD_CHART_HEIGHT - CROWD_CHART_PAD - ((value - min) / span) * (CROWD_CHART_HEIGHT - CROWD_CHART_PAD * 2);
+  const points = values.map((value, index) => `${xFor(index)},${yFor(value)}`);
+  return { points: points.join(' '), last: points[points.length - 1] ?? '154,32', yFor };
+}
+
+function CrowdPatterns() {
+  return (
+    <div className="learn-widget">
+      <div className="widget-crowd-grid">
+        {CROWD_PATTERNS.map((pattern) => {
+          const chart = crowdGeometry(pattern.values);
+          const [lastX = '154', lastY = '32'] = chart.last.split(',');
+
+          return (
+            <div className="widget-crowd-card" key={pattern.title}>
+              <p className="widget-crowd-title">{pattern.title}</p>
+              <svg className="widget-crowd-chart" viewBox="0 0 160 64" role="img" aria-label={pattern.aria}>
+                {pattern.newsLevel !== undefined && (
+                  <line
+                    x1={CROWD_CHART_PAD}
+                    x2={CROWD_CHART_WIDTH - CROWD_CHART_PAD}
+                    y1={chart.yFor(pattern.newsLevel)}
+                    y2={chart.yFor(pattern.newsLevel)}
+                    className="widget-crowd-news"
+                  />
+                )}
+                <polyline points={chart.points} className="widget-crowd-line" />
+                <circle cx={lastX} cy={lastY} r="2.5" className="widget-crowd-dot" />
+              </svg>
+              <p className="widget-crowd-copy">{pattern.copy}</p>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -329,40 +491,57 @@ function chartPoints(values: number[], min: number, max: number) {
     .join(' ');
 }
 
+function autoChartPoints(values: number[]) {
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const padding = Math.max(2, (max - min) * 0.12);
+  return chartPoints(values, min - padding, max + padding);
+}
+
 function IndexCompare() {
-  const stock = [100, 112, 108, 126, 118, 142, 136, 154, 148, 166, 160, 184];
-  const index = [100, 105, 102, 110, 107, 116, 113, 122, 119, 128, 125, 138];
-  const [guess, setGuess] = useState<'stock' | 'index' | null>(null);
-  const stockFinal = stock[stock.length - 1];
-  const indexFinal = index[index.length - 1];
+  const [paths, setPaths] = useState(() => ({
+    company: randomSeries(24, 0.003, 0.06),
+    index: randomSeries(24, 0.002, 0.02),
+  }));
+  const { company, index } = paths;
+  const companyReturn = ((company[company.length - 1] - 100) / 100) * 100;
+  const indexReturn = ((index[index.length - 1] - 100) / 100) * 100;
+  const companyFall = maxDrawdown(company);
+  const indexFall = maxDrawdown(index);
+  const allValues = [...company, ...index];
+  const chartMin = Math.min(...allValues);
+  const chartMax = Math.max(...allValues);
+  const chartPadding = Math.max(2, (chartMax - chartMin) * 0.12);
 
   return (
     <div className="learn-widget">
-      <p className="widget-note">Which holding ended higher over this fixed period?</p>
-      <div className="widget-controls" role="group" aria-label="Your guess">
-        <button type="button" className={`widget-btn ${guess === 'stock' ? 'is-selected' : ''}`} onClick={() => setGuess('stock')}>
-          The single stock
-        </button>
-        <button type="button" className={`widget-btn ${guess === 'index' ? 'is-selected' : ''}`} onClick={() => setGuess('index')}>
-          The index
-        </button>
+      <div className="widget-readouts">
+        <Readout label="Company return" value={percent(companyReturn)} />
+        <Readout label="Index return" value={percent(indexReturn)} />
+        <Readout label="Company worst fall" value={`${companyFall.toFixed(0)}%`} />
+        <Readout label="Index worst fall" value={`${indexFall.toFixed(0)}%`} />
       </div>
-      <svg className="widget-chart-svg" viewBox="0 0 320 120" role="img" aria-label="A single stock and a broad index over the same period">
+      <svg className="widget-chart-svg" viewBox="0 0 320 120" role="img" aria-label="A company and a broad index over the same period">
         <line x1="10" y1="110" x2="310" y2="110" className="widget-axis" />
-        <polyline points={chartPoints(stock, 90, 190)} className="widget-line" />
-        <polyline points={chartPoints(index, 90, 190)} className="widget-line widget-line--second" />
+        <polyline points={chartPoints(company, chartMin - chartPadding, chartMax + chartPadding)} className="widget-line" />
+        <polyline points={chartPoints(index, chartMin - chartPadding, chartMax + chartPadding)} className="widget-line widget-line--second" />
       </svg>
       <div className="widget-legend">
-        <span className="widget-key widget-key--first">Single stock</span>
+        <span className="widget-key widget-key--first">Northstar Coffee</span>
         <span className="widget-key widget-key--second">Broad index</span>
       </div>
-      {guess && (
-        <p className="widget-result">
-          {guess === 'stock' ? 'The single stock' : 'The index'} finished at{' '}
-          {money(guess === 'stock' ? stockFinal : indexFinal)}. The stock finished at {money(stockFinal)} and the index at {money(indexFinal)}.
-        </p>
-      )}
-      <p className="widget-note">Illustrative values. This is not a recommendation.</p>
+      <div className="widget-controls">
+        <button
+          type="button"
+          className="widget-btn"
+          onClick={() => setPaths({ company: randomSeries(24, 0.003, 0.06), index: randomSeries(24, 0.002, 0.02) })}
+        >
+          Draw another company
+        </button>
+      </div>
+      <p className="widget-note">
+        A single company can beat the index. It can also fall much further. The index spreads one period across many companies.
+      </p>
     </div>
   );
 }
@@ -428,19 +607,68 @@ function Compound() {
           </div>
         ))}
       </div>
-      <p className="widget-note">The return is an assumption, not a forecast.</p>
     </div>
   );
 }
 
 const DRAWDOWN_PATH = [100, 105, 112, 108, 95, 82, 70, 58, 55, 60, 68, 75, 83, 91, 100];
 
+function PlanBuilder() {
+  const [years, setYears] = useState(20);
+  const [fall, setFall] = useState(25);
+  const yearsId = useId();
+  const fallId = useId();
+  const cash = fall >= 40 ? 'more cash' : fall >= 25 ? 'some cash' : 'less cash';
+  const horizon = years >= 15 ? 'long' : years >= 7 ? 'medium' : 'short';
+
+  return (
+    <div className="learn-widget">
+      <div className="widget-readouts">
+        <Readout label="Time horizon" value={`${years} years`} />
+        <Readout label="Fall you can sit through" value={`${fall}%`} />
+      </div>
+      <label className="widget-label" htmlFor={yearsId}>
+        Years before you need the money: {years}
+      </label>
+      <input
+        id={yearsId}
+        className="widget-slider"
+        type="range"
+        min="1"
+        max="40"
+        value={years}
+        onChange={(event) => setYears(Number(event.target.value))}
+      />
+      <label className="widget-label" htmlFor={fallId}>
+        Temporary fall you can accept: {fall}%
+      </label>
+      <input
+        id={fallId}
+        className="widget-slider"
+        type="range"
+        min="10"
+        max="50"
+        step="5"
+        value={fall}
+        onChange={(event) => setFall(Number(event.target.value))}
+      />
+      <p className="widget-result">
+        My plan: invest for {years} years, use broad funds, and keep {cash} so I can sit through a {fall}% fall.
+      </p>
+      <p className="widget-note">
+        A {horizon} horizon can carry more risk, but only if the fall does not force a sale.
+      </p>
+    </div>
+  );
+}
+
 function Drawdown() {
   const [time, setTime] = useState(7);
   const sliderId = useId();
   const current = DRAWDOWN_PATH[time];
+  const peak = Math.max(...DRAWDOWN_PATH.slice(0, time + 1));
   const value = 1000 * (current / 100);
-  const fall = ((current - 100) / 100) * 100;
+  const fall = ((current - peak) / peak) * 100;
   const points = chartPoints(DRAWDOWN_PATH, 50, 115);
   const markerX = 10 + (time / (DRAWDOWN_PATH.length - 1)) * 300;
   const markerY = 110 - ((current - 50) / 65) * 100;
@@ -452,7 +680,7 @@ function Drawdown() {
         <Readout label="Holding now" value={money(value)} />
         <Readout label="From the peak" value={`${fall.toFixed(0)}%`} />
       </div>
-      <svg className="widget-chart-svg" viewBox="0 0 320 120" role="img" aria-label="A fixed fall and recovery path">
+      <svg className="widget-chart-svg" viewBox="0 0 320 120" role="img" aria-label="A fall and recovery path">
         <line x1="10" y1="110" x2="310" y2="110" className="widget-axis" />
         <polyline points={points} className="widget-line" />
         <circle cx={markerX} cy={markerY} r="5" className="widget-dot" />
@@ -469,7 +697,7 @@ function Drawdown() {
         value={time}
         onChange={(event) => setTime(Number(event.target.value))}
       />
-      <p className="widget-note">Illustrative path. A real fall can last longer than this one.</p>
+      <p className="widget-note">The fall is measured from the peak, not from the starting value.</p>
     </div>
   );
 }

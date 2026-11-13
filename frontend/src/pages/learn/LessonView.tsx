@@ -186,7 +186,7 @@ export function LessonView({
             </p>
           )}
 
-          <LessonBlocks blocks={lesson.content.blocks} />
+          <LessonBlocks blocks={lesson.content.blocks} lessonId={lesson.id} />
 
           <section className="learn-end-section">
             <h2 className="learn-section-title">What to remember</h2>

@@ -16,6 +16,7 @@ export interface EarnedBadge {
 
 export function useLearn() {
   const [progress, setProgress] = useState<LearnProgress>({
+    version: 2,
     sections: [],
     milestones: [],
     certifications: [],

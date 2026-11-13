@@ -8,8 +8,10 @@
 
 import { supabase } from '../../lib/supabase';
 import { badgeAwardId, loadLearnState, saveLearnState, certificateAwardId } from '../../lib/learnApi';
+import { ALL_LESSONS, LEVELS } from './curriculum';
 
 export interface LearnProgress {
+  version: number;
   sections: string[];
   milestones: string[];
   certifications: string[];
@@ -19,7 +21,16 @@ export interface LearnProgress {
   lastLevel: string;
 }
 
+const CACHE_VERSION = 2;
+const LIVE_LESSON_IDS = new Set(ALL_LESSONS.filter((lesson) => lesson.status === 'live').map((lesson) => lesson.id));
+const LEVEL_IDS = new Set(LEVELS.map((level) => level.id));
+const VALID_AWARD_IDS = new Set([
+  ...ALL_LESSONS.filter((lesson) => lesson.status === 'live').map((lesson) => badgeAwardId(lesson.id)),
+  ...LEVELS.map((level) => certificateAwardId(level.id)),
+]);
+
 const EMPTY: LearnProgress = {
+  version: CACHE_VERSION,
   sections: [],
   milestones: [],
   certifications: [],
@@ -56,6 +67,7 @@ const normalize = (raw: unknown): LearnProgress => {
   if (!raw || typeof raw !== 'object') return { ...EMPTY };
   const r = raw as Partial<Record<keyof LearnProgress, unknown>>;
   return {
+    version: typeof r.version === 'number' ? r.version : 0,
     sections: stringArray(r.sections),
     milestones: stringArray(r.milestones),
     certifications: stringArray(r.certifications),
@@ -66,9 +78,17 @@ const normalize = (raw: unknown): LearnProgress => {
   };
 };
 
+const sanitize = (progress: LearnProgress): LearnProgress => ({
+  ...progress,
+  sections: progress.sections.filter((id) => LIVE_LESSON_IDS.has(id)),
+  milestones: [],
+  certifications: progress.certifications.filter((id) => LEVEL_IDS.has(id)),
+  awards: progress.awards.filter((id) => VALID_AWARD_IDS.has(id)),
+});
+
 const cache = (progress: LearnProgress, userId?: string | null) => {
   try {
-    localStorage.setItem(cacheKey(userId), JSON.stringify(progress));
+    localStorage.setItem(cacheKey(userId), JSON.stringify({ ...progress, version: CACHE_VERSION }));
   } catch {
     /* private mode */
   }
@@ -93,29 +113,41 @@ export async function loadProgress(): Promise<LearnProgress> {
     /* offline */
   }
 
-  const local = readCache(userId);
+  const cached = readCache(userId);
+  // A cache written before this version can belong to the retired curriculum.
+  // Ignoring it lets a remote reset actually clear the first visit.
+  const local = cached?.version === CACHE_VERSION ? sanitize(cached) : null;
 
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       const remote = await loadLearnState(user.id);
       if (remote) {
+        const cleanRemote = sanitize({
+          version: CACHE_VERSION,
+          sections: remote.sections,
+          milestones: remote.milestones,
+          certifications: remote.certifications,
+          awards: remote.awards,
+          earnedAt: {},
+          firstTry: {},
+          lastLevel: 'beginner',
+        });
         const remoteIsEmpty =
-          !remote.sections.length && !remote.milestones.length && !remote.certifications.length;
+          !cleanRemote.sections.length && !cleanRemote.milestones.length && !cleanRemote.certifications.length;
 
         const metadata = {
+          version: CACHE_VERSION,
           earnedAt: local?.earnedAt ?? {},
           firstTry: local?.firstTry ?? {},
           lastLevel: local?.lastLevel ?? 'beginner',
         };
 
         const merged: LearnProgress = remoteIsEmpty && local
-          ? { ...local, awards: Array.from(new Set([...remote.awards, ...local.awards])) }
+          ? { ...local, awards: Array.from(new Set([...cleanRemote.awards, ...local.awards])) }
           : {
-              sections: remote.sections,
-              milestones: remote.milestones,
-              certifications: remote.certifications,
-              awards: Array.from(new Set([...remote.awards, ...(local?.awards ?? [])])),
+              ...cleanRemote,
+              awards: Array.from(new Set([...cleanRemote.awards, ...(local?.awards ?? [])])),
               ...metadata,
             };
         cache(merged, userId);
@@ -131,7 +163,7 @@ export async function loadProgress(): Promise<LearnProgress> {
 
 /** Saves progress: browser always, Supabase when signed in (best effort). */
 export async function saveProgress(progress: LearnProgress, justEarned: string[] = []): Promise<void> {
-  const clean = normalize(progress);
+  const clean = { ...normalize(progress), version: CACHE_VERSION };
   try {
     const { data: { user } } = await supabase.auth.getUser();
     const userId = user?.id ?? null;

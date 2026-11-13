@@ -2,7 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { type GlossaryTerm } from '../types/strategy';
-import { glossaryRegex, resolveGlossaryKey } from '../learn/termMatch';
+import { glossaryRegex, isFalsePositiveLink, resolveGlossaryKey } from '../learn/termMatch';
 import { lessonTitleById } from '../learn/curriculum';
 import './GlossaryText.css';
 
@@ -32,7 +32,10 @@ export const GlossaryText: React.FC<GlossaryTextProps> = ({ text, glossary, clas
 
       const originalKey = resolveGlossaryKey(matchedText, keys);
       const termData = originalKey ? glossary[originalKey] : undefined;
-      if (!originalKey || !termData) {
+      const falsePositive = originalKey
+        ? isFalsePositiveLink(originalKey, matchedText, text, matchIndex)
+        : false;
+      if (!originalKey || !termData || falsePositive) {
         parts.push(matchedText);
         lastIndex = matchIndex + matchedText.length;
         continue;

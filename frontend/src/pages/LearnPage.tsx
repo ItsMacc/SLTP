@@ -95,9 +95,10 @@ export default function LearnPage() {
   const setLastLevel = learn.setLastLevel;
 
   useEffect(() => {
+    if (learn.loading) return;
     if (route.kind === 'badges' || route.kind === 'glossary' || route.kind === 'workshops') return;
     setLastLevel(currentLevel.id);
-  }, [currentLevel.id, route.kind, setLastLevel]);
+  }, [currentLevel.id, learn.loading, route.kind, setLastLevel]);
 
   const navigate = useCallback((path: string) => {
     const target = path ? `${LEARN_ROOT}/${path}` : LEARN_ROOT;
