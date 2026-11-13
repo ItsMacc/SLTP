@@ -1,6 +1,7 @@
 // Header.tsx — Top nav: brand, links, auth actions, mobile drawer
 import { useEffect, useState } from 'react';
 import Button from '../ui/Button';
+import Logo from './Logo';
 import UserMenu from './UserMenu';
 import './Header.css';
 
@@ -76,6 +77,7 @@ export default function Header({
       }}
     >
       <div className="header-brand" onClick={() => handleTabClick('home')}>
+        <Logo height={30} />
         <span className="brand-title">SLTP</span>
       </div>
 

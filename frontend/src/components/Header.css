@@ -40,8 +40,17 @@
 .header-brand {
   display: flex;
   align-items: center;
+  gap: var(--space-sm);
   cursor: pointer;
   user-select: none;
+}
+
+.brand-logo {
+  display: block;
+  width: auto;
+  height: 1.875rem;
+  flex: 0 0 auto;
+  border-radius: 0.4rem;
 }
 
 .brand-title {
