@@ -180,6 +180,18 @@ def _default_start():
 
 
 def _status(text):
+    # The callback is registered as a JS module. It used to be read with a
+    # from-js import, but pyodide.globals is not the JS module
+    # namespace, so that import always failed and the error was swallowed:
+    # every stage message was lost and the page stayed on its first label for
+    # the whole run.
+    try:
+        from lab_bridge import status
+
+        status(text)
+        return
+    except Exception:
+        pass
     try:
         from js import lab_status
 
@@ -844,6 +856,16 @@ async function boot(): Promise<void> {
     }
   }
 
+  // Python reports what a run is doing through this module. Registered once,
+  // it routes by the run in flight rather than by a callback per run.
+  const bridge = {
+    status: (text: unknown) => {
+      if (currentRun) post({ type: 'run-status', id: currentRun, text: String(text) });
+    },
+  };
+  (instance as unknown as { registerJsModule: (name: string, module: unknown) => void })
+    .registerJsModule('lab_bridge', bridge);
+
   // Only surface a market warning when the engine itself installed: a broken
   // sltp is the more useful error, and "market unavailable" would hide it.
   post({
@@ -904,6 +926,10 @@ self.onmessage = async (event: MessageEvent<Incoming>) => {
     if (message.kind === 'run') {
       currentRun = message.id;
       currentLogs = [];
+      // Acknowledge before touching the filesystem. Until this arrives the run
+      // was queued behind whatever the interpreter was doing, which is not the
+      // same thing as preparing, and the page now says so.
+      post({ type: 'run-status', id: message.id, text: 'Preparing the workspace…' });
       // Python calls this between stages, so the progress window says what is
       // happening during a run that can take a minute on a cold cache.
       pyodide.globals.set('lab_status', (text: unknown) => {

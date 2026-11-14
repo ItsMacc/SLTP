@@ -76,6 +76,7 @@ import {
 import { isMobileDevice } from '../store/device';
 import { isLabBacktestPayload, type LabBacktestPayload } from '../lab/backtestTypes';
 import {
+  setJediBusy,
   setJediFileOpener,
   setJediProject,
   setJediStatusListener,
@@ -722,8 +723,10 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
     }
 
     setRunning(true);
+    // Completions would queue in front of the run and delay its first byte.
+    setJediBusy(true);
     setOutput([]);
-    setRunStage('Preparing the workspace…');
+    setRunStage('Waiting for Python…');
     setRunElapsed(0);
     const startedAt = Date.now();
     // A plain script (print(10), a helper import) is still a useful run, but it
@@ -789,6 +792,7 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
       // The spinner must not outlive the run, whatever went wrong.
       setRunning(false);
       setRunStage(null);
+      setJediBusy(false);
     }
   };
 

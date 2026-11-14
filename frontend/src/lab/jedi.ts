@@ -100,11 +100,21 @@ function filesForAnalysis(): { name: string; content: string }[] {
   }));
 }
 
+let busy = false;
+
+/**
+ * Silences analysis while a run owns the interpreter. Every request would
+ * otherwise queue behind it and delay the run's first output.
+ */
+export function setJediBusy(next: boolean): void {
+  busy = next;
+}
+
 function ask(
   method: 'complete' | 'hover' | 'signature' | 'define' | 'diagnostics' | 'imports',
   position: MonacoNs.Position,
 ) {
-  if (!target) return null;
+  if (busy || !target) return null;
   return analyze({
     method,
     code: target.model.getValue(),
