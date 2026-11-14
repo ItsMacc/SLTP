@@ -17,6 +17,7 @@ import {
   type LabBacktestSummary,
 } from './store';
 import { isLabBacktestPayload, type LabBacktestPayload } from './backtestTypes';
+import { readCachedBacktest, writeCachedBacktest } from './backtestCache';
 import LabResultsWindow from './LabResultsWindow';
 import './LabBacktestsWindow.css';
 
@@ -166,11 +167,20 @@ export default function LabBacktestsWindow({
     setOpening(summary.id);
     setError(null);
     try {
+      // The report is immutable, so the cached copy is the whole answer. The
+      // list is the authority on name and headline numbers, so it wins on
+      // those fields.
+      const cached = await readCachedBacktest(summary.id);
+      if (cached) {
+        setSelected({ ...cached, ...summary });
+        return;
+      }
       const record = await getLabBacktest(summary.id);
       if (!isLabBacktestPayload(record.payload)) {
         throw new Error('That saved backtest has no readable result.');
       }
       setSelected(record);
+      void writeCachedBacktest(record);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not open that backtest.');
     } finally {

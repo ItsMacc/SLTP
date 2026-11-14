@@ -35,6 +35,7 @@ import {
   opfsSupported,
   putFile,
   readVersion,
+  requestPersistentStorage,
   writeVersion,
 } from './opfs';
 
@@ -376,11 +377,7 @@ async function runBoot(): Promise<void> {
   // Storage pressure is the only thing that can silently take the cache:
   // ask to be excluded from automatic eviction before downloading hundreds
   // of megabytes the visitor would otherwise fetch again.
-  try {
-    await navigator.storage.persist();
-  } catch {
-    /* best-effort; the sequence works without it */
-  }
+  await requestPersistentStorage();
 
   const mobile = isMobileDevice();
   const plan: SyncPlan = mobile ? 'recent' : 'full';

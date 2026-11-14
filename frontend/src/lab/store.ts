@@ -16,6 +16,7 @@
 // invalidates, which is what keeps the copy honest.
 
 import { supabase } from '../../lib/supabase';
+import { dropCachedBacktest, renameCachedBacktest } from './backtestCache';
 import {
   createLabBacktest as apiCreateLabBacktest,
   createLabFile as apiCreateLabFile,
@@ -301,11 +302,14 @@ export async function renameLabBacktest(
   backtestId: string,
   name: string,
 ): Promise<LabBacktestSummary> {
-  return apiRenameLabBacktest(await token(), backtestId, name);
+  const renamed = await apiRenameLabBacktest(await token(), backtestId, name);
+  await renameCachedBacktest(backtestId, renamed.name);
+  return renamed;
 }
 
 export async function deleteLabBacktest(backtestId: string): Promise<void> {
   await apiDeleteLabBacktest(await token(), backtestId);
+  await dropCachedBacktest(backtestId);
 }
 
 // Backtests are read once and rendered from memory, so they keep the plain

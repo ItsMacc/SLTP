@@ -31,6 +31,26 @@ const CHART_W = 1000;
 const CHART_H = 340;
 const CHART = { top: 20, right: 24, bottom: 34, left: 62 };
 const TRADES_PER_PAGE = 20;
+/** Phones get five trades a page, so the blotter stays a short scroll. */
+const TRADES_PER_PAGE_SMALL = 5;
+const SMALL_VIEWPORT = '(max-width: 48rem)';
+
+function useTradesPerPage(): number {
+  const [perPage, setPerPage] = useState(() =>
+    typeof window === 'undefined' || !window.matchMedia(SMALL_VIEWPORT).matches
+      ? TRADES_PER_PAGE
+      : TRADES_PER_PAGE_SMALL,
+  );
+
+  useEffect(() => {
+    const query = window.matchMedia(SMALL_VIEWPORT);
+    const onChange = () => setPerPage(query.matches ? TRADES_PER_PAGE_SMALL : TRADES_PER_PAGE);
+    query.addEventListener('change', onChange);
+    return () => query.removeEventListener('change', onChange);
+  }, []);
+
+  return perPage;
+}
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
@@ -448,12 +468,16 @@ export default function LabResultsWindow({
     return [...ordered, ...extras];
   }, [result.stats]);
 
+  const perPage = useTradesPerPage();
   const orderedTrades = useMemo(
     () => [...result.trades].sort((a, b) => a.entry_date.localeCompare(b.entry_date) || a.id - b.id),
     [result.trades],
   );
-  const pageCount = Math.max(1, Math.ceil(orderedTrades.length / TRADES_PER_PAGE));
-  const visibleTrades = orderedTrades.slice((page - 1) * TRADES_PER_PAGE, page * TRADES_PER_PAGE);
+  const pageCount = Math.max(1, Math.ceil(orderedTrades.length / perPage));
+  // A viewport change re-flows the blotter, so clamp instead of resetting: the
+  // reader keeps their place unless the new page count no longer has it.
+  const currentPage = Math.min(page, pageCount);
+  const visibleTrades = orderedTrades.slice((currentPage - 1) * perPage, currentPage * perPage);
   const closedTrades = orderedTrades.filter((trade) => trade.exit !== null);
 
   const strategyReturn = totalReturn(result.equity);
@@ -482,7 +506,11 @@ export default function LabResultsWindow({
   };
 
   const logs = result.logs ?? [];
-  const logText = logs.map((entry) => entry.text).join('');
+  // Streamed chunks do not always carry their newline, so join on lines rather
+  // than gluing the entries together into one unreadable paragraph.
+  const logText = logs
+    .map((entry) => entry.text.replace(/\r?\n$/, ''))
+    .join('\n');
   const savedAt = formatSavedAt(createdAt);
 
   const downloadLogs = () => {
@@ -733,20 +761,20 @@ export default function LabResultsWindow({
                     <Button
                       variant="secondary"
                       size="sm"
-                      onClick={() => setPage((current) => Math.max(1, current - 1))}
-                      disabled={page === 1}
+                      onClick={() => setPage(Math.max(1, currentPage - 1))}
+                      disabled={currentPage === 1}
                       aria-label="Previous trades"
                     >
                       Prev
                     </Button>
                     <span>
-                      Page {page} of {pageCount}
+                      Page {currentPage} of {pageCount}
                     </span>
                     <Button
                       variant="secondary"
                       size="sm"
-                      onClick={() => setPage((current) => Math.min(pageCount, current + 1))}
-                      disabled={page === pageCount}
+                      onClick={() => setPage(Math.min(pageCount, currentPage + 1))}
+                      disabled={currentPage === pageCount}
                       aria-label="Next trades"
                     >
                       Next

@@ -14,9 +14,10 @@ interface LabRunProgressProps {
   startedAt: number;
   error?: string | null;
   onClose: () => void;
+  onCancel: () => void;
 }
 
-export default function LabRunProgress({ stage, startedAt, error, onClose }: LabRunProgressProps) {
+export default function LabRunProgress({ stage, startedAt, error, onClose, onCancel }: LabRunProgressProps) {
   const [seconds, setSeconds] = useState(() => Math.max(0, (Date.now() - startedAt) / 1000));
 
   useEffect(() => {
@@ -70,6 +71,9 @@ export default function LabRunProgress({ stage, startedAt, error, onClose }: Lab
                 The first run can take longer while market data warms up. The report opens here
                 when the strategy finishes.
               </p>
+              <Button variant="secondary" size="sm" onClick={onCancel}>
+                Cancel run
+              </Button>
             </>
           )}
         </div>

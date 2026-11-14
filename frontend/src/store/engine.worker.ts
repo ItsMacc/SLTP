@@ -19,12 +19,12 @@
 // downloads the pinned builds from PyPI once, later visits install them
 // from disk with no network at all.
 
-import { getFile, hasFile, putFile } from './opfs';
+import { getFile, hasFile, pruneWheels, putFile } from './opfs';
 
 /** Pinned runtime: the full build serves loadPyodide plus every wheel. */
 const PYODIDE_INDEX_URL = 'https://cdn.jsdelivr.net/pyodide/v314.0.7/full/';
 /** Engine pin: matches backend/requirements.txt. */
-const SLTP_VERSION = '0.1.32';
+const SLTP_VERSION = '0.1.351';
 /** Pure-Python date library the strategy base imports. */
 const DATEUTIL_VERSION = '2.9.0';
 
@@ -161,7 +161,7 @@ async function installWheel(
   micropip: { install: (requirement: string) => Promise<unknown> },
   name: string,
   version: string,
-): Promise<boolean> {
+): Promise<{ cached: boolean; filename: string }> {
   const { filename, url } = await pypiWheelUrl(name, version);
   const key = `WHEELS/${filename}`;
   let cached = true;
@@ -175,7 +175,7 @@ async function installWheel(
   if (!file) throw new Error(`Wheel vanished after download: ${filename}`);
   pyodide.FS.writeFile(`/tmp/${filename}`, new Uint8Array(await file.arrayBuffer()));
   await micropip.install(`emfs:/tmp/${filename}`);
-  return cached;
+  return { cached, filename };
 }
 
 /** Sync downloads through the browser's own network stack. open_url decodes
@@ -245,10 +245,13 @@ async function boot(strategies: StrategyInit[]): Promise<boolean> {
     /* memory cache only */
   }
   const micropip = instance.pyimport('micropip');
-  const cached = await Promise.all([
+  const wheels = await Promise.all([
     installWheel(instance, micropip, 'sltp', SLTP_VERSION),
     installWheel(instance, micropip, 'python-dateutil', DATEUTIL_VERSION),
   ]);
+  // WHEELS/ is shared with the Lab; keep it to the builds this worker pins so
+  // superseded sltp releases do not sit there for good.
+  await pruneWheels(wheels.map((wheel) => wheel.filename));
   await instance.runPythonAsync(BOOTSTRAP + FETCH_BRIDGE);
   const enableFetch = instance.globals.get('enable_browser_fetch');
   enableFetch();
@@ -260,7 +263,7 @@ async function boot(strategies: StrategyInit[]): Promise<boolean> {
   for (const entry of strategies) {
     register(entry.key, entry.className, entry.source);
   }
-  bootCached = cached.every(Boolean);
+  bootCached = wheels.every((wheel) => wheel.cached);
   booted = true;
   return bootCached;
 }

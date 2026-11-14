@@ -265,8 +265,12 @@
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   line-height: 1.65;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
+  /* A wrapped log line loses the column alignment that makes it readable, so
+     the block scrolls sideways instead of breaking inside a number. */
+  white-space: pre;
+  overflow-wrap: normal;
+  word-break: normal;
+  tab-size: 2;
 }
 
 .lab-results-chart-axis-note {
@@ -573,8 +577,37 @@
     padding: var(--space-sm);
   }
 
+  .lab-results-kicker,
+  .lab-results-subtitle {
+    overflow-wrap: anywhere;
+  }
+
   .lab-results-subtitle {
     font-size: 0.6875rem;
+    line-height: 1.55;
+  }
+
+  .lab-results-logs {
+    max-height: 18rem;
+    padding: var(--space-sm) var(--space-md);
+    font-size: 0.6875rem;
+    line-height: 1.7;
+  }
+
+  .lab-results-card-head {
+    align-items: flex-start;
+  }
+
+  .lab-results-card-head span {
+    overflow-wrap: anywhere;
+  }
+
+  .lab-results-table td {
+    overflow-wrap: anywhere;
+  }
+
+  .lab-results-pagination {
+    margin-top: var(--space-sm);
   }
 
   .lab-results-head-actions .btn-secondary {
@@ -693,7 +726,7 @@
   }
 }
 
-@media (max-width: 26rem) {
+@media (max-width: 22rem) {
   .lab-results-summary,
   .lab-results-metrics {
     grid-template-columns: minmax(0, 1fr);

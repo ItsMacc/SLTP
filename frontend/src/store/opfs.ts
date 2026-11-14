@@ -17,6 +17,41 @@ export function opfsSupported(): boolean {
 }
 
 /**
+ * Asks the browser to keep this origin's storage out of automatic eviction.
+ * Whether the request is honoured is a browser heuristic (bookmarks, installs,
+ * visits), so false is a normal answer: the cache works either way and simply
+ * downloads again if the browser ever clears it. Called at startup and before
+ * a sync, because a grant can land on a later visit than the request.
+ */
+export async function requestPersistentStorage(): Promise<boolean> {
+  try {
+    if (!navigator.storage?.persist) return false;
+    if (await navigator.storage.persisted?.()) return true;
+    return await navigator.storage.persist();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Deletes every cached wheel a pinned build does not name, keeping WHEELS/
+ * equal to the wheels the app actually installs. Both engine workers pin the
+ * same releases, so one prune pass cannot strand the other.
+ */
+export async function pruneWheels(keep: readonly string[]): Promise<string[]> {
+  try {
+    const wanted = new Set(keep);
+    const stale = (await listFiles('WHEELS')).filter(
+      (name) => name.endsWith('.whl') && !wanted.has(name),
+    );
+    await Promise.all(stale.map((name) => deleteFile(`WHEELS/${name}`)));
+    return stale;
+  } catch {
+    return [];
+  }
+}
+
+/**
  * The raw handle for the cache directory. The engine worker mounts this
  * into the Emscripten filesystem, so sltp reads the same parquet files the
  * sync downloads — no bytes are ever copied between the two.

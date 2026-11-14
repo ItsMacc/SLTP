@@ -13,13 +13,13 @@
 // and if that fails too the Lab still runs plain Python, with the reason shown
 // in the status bar.
 
-import { getFile, hasFile, putFile } from '../store/opfs';
+import { getFile, hasFile, pruneWheels, putFile } from '../store/opfs';
 import type { EngineRunSettings } from './runSettings';
 
 /** Pinned Pyodide build: the same distribution the engine worker uses. */
 const PYODIDE_INDEX_URL = 'https://cdn.jsdelivr.net/pyodide/v314.0.7/full/';
 /** Engine pin: matches backend/requirements.txt. */
-const SLTP_VERSION = '0.1.34';
+const SLTP_VERSION = '0.1.351';
 /** Pure-Python date library the strategy base imports. */
 const DATEUTIL_VERSION = '2.9.0';
 
@@ -85,6 +85,7 @@ const BOOTSTRAP = `
 import builtins
 import json
 import linecache
+import os
 import platform
 import inspect
 import shutil
@@ -94,6 +95,10 @@ from pathlib import Path
 
 python_version = platform.python_version()
 PROJECT_ROOT = Path("/home/pyodide/project")
+# Reads come from a plain data dir whose files link into the mounted cache.
+# Left on the cache root, sltp treats it as a remote cache and re-checks R2
+# inside a run, which is what made a two-year backtest crawl.
+os.environ["SLTP_DATA_DIR"] = "/data"
 
 
 def _format_error(exc):
@@ -684,8 +689,26 @@ def enable_browser_fetch():
 // through the bridge above when a run asks for them.
 const PRIME_CACHE = `
 def prime_market_cache():
+    import os
     import shutil
     from pathlib import Path
+
+    # Mirror the mounted chunks as links under an ordinary data dir first, so
+    # the engine resolves every bar locally and never asks the network for a
+    # file it already has.
+    cache_root = Path("/home/pyodide/.sltp/cache")
+    for source, target in (
+        (cache_root / "MARKET_DAILY", Path("/data/market")),
+        (cache_root / "SYMBOL_DATA", Path("/data/symbol_data")),
+    ):
+        target.mkdir(parents=True, exist_ok=True)
+        if source.is_dir():
+            for cached in source.glob("*.parquet"):
+                link = target / cached.name
+                if not link.exists():
+                    os.symlink(cached, link)
+    os.environ["SLTP_DATA_DIR"] = "/data"
+
     from sltp.data import market_data_service as _mds
     from sltp.data import remote as _remote
 
@@ -750,7 +773,7 @@ async function installWheel(
   micropip: { install: (requirement: string) => Promise<unknown> },
   name: string,
   version: string,
-): Promise<boolean> {
+): Promise<{ cached: boolean; filename: string | null }> {
   try {
     const { filename, url } = await pypiWheelUrl(name, version);
     const key = `WHEELS/${filename}`;
@@ -765,10 +788,10 @@ async function installWheel(
     if (!file) throw new Error(`Wheel vanished after download: ${filename}`);
     pyodide.FS.writeFile(`/tmp/${filename}`, new Uint8Array(await file.arrayBuffer()));
     await micropip.install(`emfs:/tmp/${filename}`);
-    return cached;
+    return { cached, filename };
   } catch {
     await micropip.install(`${name}==${version}`);
-    return false;
+    return { cached: false, filename: null };
   }
 }
 
@@ -821,8 +844,13 @@ async function boot(): Promise<void> {
     await instance.loadPackage(['micropip', 'numpy']);
     post({ type: 'status', text: 'Installing the trading engine…' });
     const micropip = instance.pyimport('micropip');
-    await installWheel(instance, micropip, 'sltp', SLTP_VERSION);
-    await installWheel(instance, micropip, 'python-dateutil', DATEUTIL_VERSION);
+    const sltpWheel = await installWheel(instance, micropip, 'sltp', SLTP_VERSION);
+    const dateutilWheel = await installWheel(instance, micropip, 'python-dateutil', DATEUTIL_VERSION);
+    // WHEELS/ is shared with the Research worker; keep only the builds this
+    // Lab pins so old sltp releases do not sit in the cache forever.
+    await pruneWheels(
+      [sltpWheel.filename, dateutilWheel.filename].filter((name): name is string => name !== null),
+    );
     engineReady = true;
   } catch (error) {
     engineError = error instanceof Error ? error.message : String(error);

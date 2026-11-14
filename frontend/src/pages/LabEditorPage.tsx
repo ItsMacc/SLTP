@@ -62,6 +62,7 @@ import {
   type LabProject,
 } from '../lab/store';
 import { dropDraft, readProjectDrafts, writeDraft } from '../lab/drafts';
+import { writeCachedBacktest } from '../lab/backtestCache';
 import { getPythonState, loadPython, runPython, stopRun, subscribePython } from '../lab/pythonRunner';
 import LabResultsWindow from '../lab/LabResultsWindow';
 import LabBacktestsWindow from '../lab/LabBacktestsWindow';
@@ -713,6 +714,13 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
   const runActive = async () => {
     if (!activeFile || running) return;
     setTerminalOpen(true);
+    // Cancelling a run leaves the interpreter torn down on purpose, so the
+    // first click after a cancel starts it again instead of doing nothing.
+    if (getPythonState().status === 'idle') {
+      loadPython();
+      appendLine('info', 'Python is starting. Run again when it is ready.');
+      return;
+    }
     if (getPythonState().status !== 'ready') {
       appendLine('info', 'Python is still starting. Run turns on when it is ready.');
       return;
@@ -769,6 +777,9 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
         let saveError: string | null = null;
         try {
           saved = await createLabBacktest(project.id, payload);
+          // Keep the report on this machine too, so history opens without a
+          // round trip and the result survives an offline visit.
+          void writeCachedBacktest({ ...saved, payload });
         } catch (err) {
           saveError = err instanceof Error ? err.message : 'Could not save the backtest.';
         }
@@ -1440,7 +1451,13 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
                       ? `Run the strategy (${modShortcut('Enter')})`
                       : 'Run turns on when Python and sltp finish loading'
                   }
-                  disabled={!activeFile || loading || running || python.status !== 'ready' || python.engine !== true}
+                  disabled={
+                    !activeFile
+                    || loading
+                    || running
+                    || (python.status !== 'ready' && python.status !== 'idle')
+                    || (python.status === 'ready' && python.engine !== true)
+                  }
                   onClick={() => { void runActive(); }}
                 >
                   {running ? <LoaderInline size={14} tone="inherit" /> : <Play size={14} aria-hidden="true" />}
@@ -1630,6 +1647,10 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
           startedAt={run.startedAt}
           error={run.error}
           onClose={() => setRun(null)}
+          onCancel={() => {
+            stopRun();
+            setRun(null);
+          }}
         />
       )}
 

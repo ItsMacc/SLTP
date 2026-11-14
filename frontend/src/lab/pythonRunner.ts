@@ -293,20 +293,18 @@ export function runPython(
 
 /**
  * Ends a run. Python cannot be interrupted inside a call, so stopping means
- * throwing the interpreter away and booting a clean one: the next run starts
- * from the files on screen rather than from whatever the stopped run left in
- * memory.
+ * throwing the worker away. Nothing is booted here: the cancel is immediate,
+ * and the next run starts the interpreter again from the files on screen.
  */
 export function stopRun(): void {
   if (!activeRun) return;
   settle({
     ok: false,
-    error: 'Stopped. Python restarted and the files from this session were cleared.',
+    error: 'Cancelled. The next run starts a fresh interpreter.',
     durationMs: 0,
   });
   disposeWorker();
   publish({ status: 'idle', version: null, error: null, detail: null });
-  startWorker();
 }
 
 /** Clears the files and modules of the last run, keeping Python warm. */
