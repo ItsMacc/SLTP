@@ -41,6 +41,7 @@ import {
   Plus,
   Save,
   Settings2,
+  Square,
   Terminal as TerminalIcon,
   Trash2,
   X,
@@ -61,7 +62,7 @@ import {
   type LabProject,
 } from '../lab/store';
 import { dropDraft, readProjectDrafts, writeDraft } from '../lab/drafts';
-import { getPythonState, loadPython, runPython, subscribePython } from '../lab/pythonRunner';
+import { getPythonState, loadPython, runPython, stopRun, subscribePython } from '../lab/pythonRunner';
 import LabResultsWindow from '../lab/LabResultsWindow';
 import LabBacktestsWindow from '../lab/LabBacktestsWindow';
 import LabRunProgress from '../lab/LabRunProgress';
@@ -254,6 +255,10 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
   // The run window, then the report it hands over to. A saved report keeps
   // its Turso summary so the title can be renamed and the date shown.
   const [run, setRun] = useState<{ startedAt: number; stage: string; error?: string } | null>(null);
+  // What the running interpreter is doing right now, and for how long. Shown in
+  // the logs pane, so a run that prints nothing for a minute never looks stuck.
+  const [runStage, setRunStage] = useState<string | null>(null);
+  const [runElapsed, setRunElapsed] = useState(0);
   const [backtest, setBacktest] = useState<{
     payload: LabBacktestPayload;
     fileName: string;
@@ -718,6 +723,8 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
 
     setRunning(true);
     setOutput([]);
+    setRunStage('Preparing the workspace…');
+    setRunElapsed(0);
     const startedAt = Date.now();
     // A plain script (print(10), a helper import) is still a useful run, but it
     // is not a backtest: no progress window, no report, just LOGS.
@@ -734,6 +741,7 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
       files.map((file) => ({ name: file.name, content: file.draft })),
       {
         onProgress: (text) => {
+          setRunStage(text);
           if (showsBacktest) setRun((current) => (current ? { ...current, stage: text } : current));
         },
         // Chunks arrive on line boundaries with their newline still attached.
@@ -780,8 +788,18 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
     } finally {
       // The spinner must not outlive the run, whatever went wrong.
       setRunning(false);
+      setRunStage(null);
     }
   };
+
+  // Ticks once a second while a run is in flight, for the elapsed marker in the
+  // logs pane. Nothing here touches Python.
+  useEffect(() => {
+    if (!running) return;
+    const started = Date.now();
+    const timer = window.setInterval(() => setRunElapsed(Date.now() - started), 1000);
+    return () => window.clearInterval(timer);
+  }, [running]);
 
   // The shortcut handler reads the latest closure through this ref.
   useEffect(() => {
@@ -1423,6 +1441,21 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
                 >
                   {running ? <LoaderInline size={14} tone="inherit" /> : <Play size={14} aria-hidden="true" />}
                 </Button>
+                {running && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="lab-tab-action is-stop"
+                    aria-label="Stop the run"
+                    title="Stop and restart Python"
+                    onClick={() => {
+                      stopRun();
+                      setRun(null);
+                    }}
+                  >
+                    <Square size={12} aria-hidden="true" />
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
                   size="icon"
@@ -1530,6 +1563,9 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
                 lines={output}
                 status={runnerLabel}
                 runnerTitle={python.warning ?? undefined}
+                running={running}
+                stage={runStage}
+                elapsedMs={runElapsed}
                 onClear={clearOutput}
                 onClose={closeTerminal}
               />
@@ -1671,21 +1707,40 @@ interface TerminalPanelProps {
   status: string;
   /** The reason the engine is missing, when it is. */
   runnerTitle?: string;
+  /** A run is in flight: what it is doing and how long it has been doing it. */
+  running: boolean;
+  stage: string | null;
+  elapsedMs: number;
   onClear: () => void;
   onClose: () => void;
+}
+
+/** "0:07", so a long run reads as a clock rather than a number of seconds. */
+function formatElapsed(ms: number): string {
+  const seconds = Math.max(0, Math.floor(ms / 1000));
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 }
 
 // Output of the run: the command, its output and the exit line.
 // Memoized, so typing in the editor does not re-render a long output log.
 const TerminalPanel = memo(TerminalPanelView);
 
-function TerminalPanelView({ lines, status, runnerTitle, onClear, onClose }: TerminalPanelProps) {
+function TerminalPanelView({
+  lines,
+  status,
+  runnerTitle,
+  running,
+  stage,
+  elapsedMs,
+  onClear,
+  onClose,
+}: TerminalPanelProps) {
   const bodyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const el = bodyRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [lines]);
+  }, [lines, running, stage]);
 
   return (
     <section className="lab-terminal" aria-label="Logs">
@@ -1701,17 +1756,23 @@ function TerminalPanelView({ lines, status, runnerTitle, onClear, onClose }: Ter
         </Button>
       </header>
       <div className="lab-terminal-body" ref={bodyRef} role="log" aria-live="polite">
-        {lines.length === 0 ? (
+        {lines.length === 0 && !running && (
           <p className="lab-terminal-empty">
             Press Run (or {modShortcut('Enter')}) to run your strategy. Anything your code prints
             appears here; the backtest report opens in its own window.
           </p>
-        ) : (
-          lines.map((line) => (
-            <div key={line.id} className={`lab-terminal-line is-${line.kind}`}>
-              {line.text}
-            </div>
-          ))
+        )}
+        {lines.map((line) => (
+          <div key={line.id} className={`lab-terminal-line is-${line.kind}`}>
+            {line.text}
+          </div>
+        ))}
+        {running && (
+          <div className="lab-terminal-line is-progress" role="status">
+            <span className="lab-terminal-spinner" aria-hidden="true" />
+            <span className="lab-terminal-stage">{stage ?? 'Running…'}</span>
+            <span className="lab-terminal-elapsed">{formatElapsed(elapsedMs)}</span>
+          </div>
         )}
       </div>
     </section>

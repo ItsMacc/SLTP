@@ -632,6 +632,10 @@
   color: var(--ide-ok);
 }
 
+.lab-tab-action.is-stop {
+  color: var(--ide-error);
+}
+
 .lab-tab-action:disabled {
   color: var(--ide-muted);
   opacity: 0.45;
@@ -842,6 +846,55 @@
   color: var(--ide-muted);
   font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
   font-size: 0.85rem;
+}
+
+/* The run in progress: stage on the left, elapsed clock on the right. */
+.lab-terminal-line.is-progress {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  color: var(--ide-warn);
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: 0.85rem;
+}
+
+.lab-terminal-spinner {
+  flex: 0 0 auto;
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  background: currentColor;
+  animation: lab-run-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes lab-run-pulse {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.lab-terminal-stage {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lab-terminal-elapsed {
+  margin-left: auto;
+  color: var(--ide-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lab-terminal-spinner {
+    animation: none;
+    opacity: 0.75;
+  }
 }
 
 /* ---------- Status bar ---------- */
