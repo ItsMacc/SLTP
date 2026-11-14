@@ -98,6 +98,10 @@ export default function Chart({
 
   const [end, setEnd] = useState(bars.length)
   const [hover, setHover] = useState<{ index: number; x: number; y: number } | null>(null)
+  // A tapped candle stays on screen until another tap or a tap outside. It is
+  // stored by date, so panning or zooming keeps the same day under the
+  // crosshair rather than the same slot.
+  const [pinned, setPinned] = useState<{ ticker: string; date: string } | null>(null)
 
   useEffect(() => {
     if (bars.length === 0) return
@@ -260,11 +264,10 @@ export default function Chart({
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     dragRef.current = { x: event.clientX, end: safeEnd }
     setDragging(true)
-    try {
-      event.currentTarget.setPointerCapture(event.pointerId)
-    } catch {
-      // A pointer already released (or synthetic in a test) cannot be captured.
-    }
+    // Deliberately no setPointerCapture: in iOS Safari a captured pointer
+    // keeps the gesture away from the page, which is why a vertical swipe
+    // over the chart did nothing. Without it the browser can claim the swipe
+    // and scroll, while horizontal drags still reach these handlers.
     if (event.pointerType === 'touch') {
       touchRef.current = { x: event.clientX, y: event.clientY, moved: false }
       setHover(null)
@@ -309,7 +312,7 @@ export default function Chart({
     setDragging(false)
   }
 
-  // Lifting a finger that never travelled is the tap: show that candle.
+  // Lifting a finger that never travelled is the tap: pin that candle.
   const handlePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
     const touch = touchRef.current
     touchRef.current = null
@@ -318,7 +321,7 @@ export default function Chart({
       const px = event.clientX - rect.left
       if (px <= plotWidth) {
         const index = clamp(Math.floor(px / slot), 0, windowData.length - 1)
-        setHover({ index, x: index * slot + slot / 2, y: event.clientY - rect.top })
+        setPinned({ ticker, date: windowData[index]!.date })
       }
     }
     endDrag()
@@ -329,7 +332,31 @@ export default function Chart({
     endDrag()
   }
 
-  const hovered = hover ? windowData[hover.index] : undefined
+  // A pin outside the current window simply hides the tooltip; sliding back
+  // to it brings the same day back under the crosshair. The ticker is part of
+  // the pin, so a new symbol never inherits the old symbol's date.
+  const pinnedIndex =
+    pinned && pinned.ticker === ticker
+      ? windowData.findIndex((bar) => bar.date === pinned.date)
+      : -1
+  const hoverIndex = hover && hover.index < windowData.length ? hover.index : null
+  const activeIndex = hoverIndex ?? (pinnedIndex >= 0 ? pinnedIndex : null)
+  const activeBar = activeIndex !== null ? windowData[activeIndex] : undefined
+  const isTouch = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches
+  const activeX = activeIndex !== null ? activeIndex * slot + slot / 2 : 0
+  const activeY = activeBar ? yPrice(activeBar.close) : 0
+
+  // A tap anywhere outside the plot (the toolbar, the page, another card)
+  // closes the pinned candle, which is the gesture readers expect.
+  useEffect(() => {
+    const onPointerDown = (event: PointerEvent) => {
+      const plot = containerRef.current
+      if (plot && !plot.contains(event.target as Node)) setPinned(null)
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    return () => document.removeEventListener('pointerdown', onPointerDown)
+  }, [])
+
   const atLatest = safeEnd >= bars.length
   const first = bars[0]
   const last = bars[bars.length - 1]
@@ -421,40 +448,44 @@ export default function Chart({
             </text>
           ))}
 
-          {hover && hovered && (
+          {activeBar && (
             <g pointerEvents="none">
-              <line x1={hover.x} x2={hover.x} y1={PADDING_TOP} y2={height - PADDING_BOTTOM} className="chart-crosshair" />
-              <line x1={0} x2={plotWidth} y1={hover.y} y2={hover.y} className="chart-crosshair" />
+              <line x1={activeX} x2={activeX} y1={PADDING_TOP} y2={height - PADDING_BOTTOM} className="chart-crosshair" />
+              <line x1={0} x2={plotWidth} y1={activeY} y2={activeY} className="chart-crosshair" />
             </g>
           )}
         </svg>
 
-        {hover && hovered && (
+        {activeBar && (
           <div
             className="chart-tooltip"
             style={{
-              left: clamp(hover.x + 12, 8, Math.max(8, plotWidth - 160)),
-              top: clamp(hover.y - 10, 8, height - 140),
+              left: clamp(activeX + 12, 8, Math.max(8, plotWidth - 160)),
+              top: clamp(activeY - 10, 8, height - 140),
             }}
           >
-            <p className="chart-tooltip-date">{hovered.date}</p>
+            <p className="chart-tooltip-date">{activeBar.date}</p>
             <dl className="chart-tooltip-grid">
               <dt>Open</dt>
-              <dd>${priceLabel(hovered.open)}</dd>
+              <dd>${priceLabel(activeBar.open)}</dd>
               <dt>High</dt>
-              <dd className="is-up">${priceLabel(hovered.high)}</dd>
+              <dd className="is-up">${priceLabel(activeBar.high)}</dd>
               <dt>Low</dt>
-              <dd className="is-down">${priceLabel(hovered.low)}</dd>
+              <dd className="is-down">${priceLabel(activeBar.low)}</dd>
               <dt>Close</dt>
-              <dd className={hovered.close >= hovered.open ? 'is-up' : 'is-down'}>${priceLabel(hovered.close)}</dd>
+              <dd className={activeBar.close >= activeBar.open ? 'is-up' : 'is-down'}>${priceLabel(activeBar.close)}</dd>
               <dt>Volume</dt>
-              <dd>{volumeLabel(hovered.volume)}</dd>
+              <dd>{volumeLabel(activeBar.volume)}</dd>
             </dl>
           </div>
         )}
       </div>
 
-      <p className="chart-hint">Scroll to zoom, drag to pan, hover for detail.</p>
+      <p className="chart-hint">
+        {isTouch ?
+          'Tap a candle for detail. Drag to pan; swipe up or down to scroll the page.' :
+          'Scroll to zoom, drag to pan, hover for detail.'}
+      </p>
     </div>
   )
 }

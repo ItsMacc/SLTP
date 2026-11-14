@@ -199,6 +199,11 @@
   background-color: var(--bg-surface-hover);
 }
 
+.cal-day-btn:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
 .cal-day-btn.outside-month {
   color: var(--text-muted);
   opacity: 0.4;

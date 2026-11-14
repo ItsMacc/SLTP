@@ -315,12 +315,17 @@ export default function DatePicker({
               <div className="calendar-grid">
                 {calendarDays.map(({ day, month, year, isCurrentMonth }, idx) => {
                   const dateStr = toDateString(year, month, day)
-                  const isSelected = value === clampToMin(dateStr)
+                  // Compare the day itself, not its clamp: clamping first made
+                  // every day before the floor (1–14 Nov 2021) match the
+                  // selected date and light up as one solid block.
+                  const isSelected = value === dateStr
+                  const belowFloor = dateStr < floor
 
                   return (
                     <button
                       key={idx}
                       type="button"
+                      disabled={belowFloor}
                       className={`cal-day-btn ${!isCurrentMonth ? 'outside-month' : ''} ${isSelected ? 'selected' : ''}`}
                       onClick={() => handleSelectDate(day, month, year)}
                     >

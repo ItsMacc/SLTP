@@ -41,6 +41,16 @@ export interface EngineStatus {
 
 const INITIAL: EngineStatus = { phase: 'idle', detail: null, cachedWheels: false };
 
+/** What each worker boot stage means to a reader. */
+const WARM_STAGE: Record<string, string> = {
+  python: 'Loading the Python runtime…',
+  numpy: 'Loading numpy…',
+  cache: 'Mounting the market cache…',
+  wheels: 'Installing the engine…',
+  engine: 'Registering strategies…',
+  data: 'Reading market files…',
+};
+
 let status: EngineStatus = { ...INITIAL };
 const listeners = new Set<() => void>();
 
@@ -120,12 +130,25 @@ export const ENGINE_STRATEGIES: EngineStrategy[] = [
 ];
 
 /** One run's payload, straight from sltp.web.run. */
+export interface EngineTimings {
+  /** Seconds this run waited for the engine to boot (first run of a visit). */
+  warm_seconds?: number;
+  run_seconds: number;
+  io_seconds: number;
+  io_calls: number;
+  bridge_seconds: number;
+  bridge_bytes: number;
+  bridge_files: number;
+}
+
 export interface EngineRun {
   key: string;
   name: string;
   stats: Record<string, number>;
   equity: { date: string; value: number }[];
   trades: Record<string, unknown>[];
+  /** Where the run's wall clock went, measured inside the worker. */
+  timings?: EngineTimings;
 }
 
 /**
@@ -181,7 +204,14 @@ function ensureWorker(): Worker {
       data?: unknown;
       error?: string;
       wheelsCached?: boolean;
+      stage?: string;
     }>) => {
+      // Stage messages have no id and are not replies to anything: they only
+      // move the loading line along while the first engine boot runs.
+      if (event.data.kind === 'progress') {
+        setStatus({ phase: 'loading', detail: WARM_STAGE[event.data.stage ?? ''] ?? 'Loading engine…' });
+        return;
+      }
       const entry = pending.get(event.data.id);
       if (!entry) return;
       pending.delete(event.data.id);
@@ -268,7 +298,11 @@ export async function runStrategy(
   start: string,
   end?: string,
 ): Promise<EngineRun> {
+  // The first run of a visit also pays for the boot; time that separately so
+  // the result can say how much was setup and how much was the backtest.
+  const warmStart = performance.now();
   const warmed = await warmEngine();
+  const warmSeconds = (performance.now() - warmStart) / 1000;
   if (warmed.phase !== 'ready') {
     throw new Error(warmed.detail || 'The strategy engine did not start.');
   }
@@ -278,6 +312,17 @@ export async function runStrategy(
   try {
     const parsed = JSON.parse(text) as EngineRun;
     const trades = (parsed.trades ?? []).map(toTradeRecord);
+    parsed.timings = {
+      ...(parsed.timings ?? {
+        run_seconds: 0,
+        io_seconds: 0,
+        io_calls: 0,
+        bridge_seconds: 0,
+        bridge_bytes: 0,
+        bridge_files: 0,
+      }),
+      warm_seconds: Math.round(warmSeconds * 100) / 100,
+    };
     return { ...parsed, trades, key: id, name: entry.name };
   } catch {
     throw new Error('engine returned unreadable data');
@@ -285,7 +330,40 @@ export async function runStrategy(
 }
 
 /** For tests and sign-out cleanup: forget the warm so the next call reruns. */
+/**
+ * One tiny silent run right after the engine is ready.
+ *
+ * The first real backtest was slow because it paid for two things that are
+ * not the strategy: Python's import/compile paths for pandas and pyarrow, and
+ * the year file's first read from OPFS. A seven-day benchmark run warms both,
+ * costs a few seconds once, and nobody sees it. Best effort: a failure here
+ * must never surface anywhere.
+ */
+let primed = false;
+
+export function primeEngine(): Promise<void> {
+  if (primed) return Promise.resolve();
+  primed = true;
+  return warmEngine()
+    .then(async (warmed) => {
+      if (warmed.phase !== 'ready') return;
+      const end = new Date();
+      const start = new Date(end.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const iso = (date: Date) => date.toISOString().slice(0, 10);
+      await callWorker('run', {
+        key: ENGINE_STRATEGIES[0]!.id,
+        start: iso(start),
+        end: iso(end),
+      });
+    })
+    .catch(() => {
+      /* warming is an optimisation, not a feature */
+    });
+}
+
+/** For tests and sign-out cleanup: forget the warm so the next call reruns. */
 export function resetEngineForTests(): void {
+  primed = false;
   warmPromise = null;
   if (worker) {
     try {

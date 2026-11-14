@@ -27,7 +27,7 @@ import {
   isMobileDevice,
   queryMarketData,
   queryQuotes,
-  warmEngine,
+  primeEngine,
   type Quote,
   type TickerInfo,
 } from '../store'
@@ -297,7 +297,7 @@ export default function ResearchPage({ initialSettings, initialStrategyId }: Res
   // A phone waits until the Strategies tab is actually opened: booting
   // Pyodide beside a stock chart only costs it bandwidth and memory.
   useEffect(() => {
-    if (!isMobileDevice() || mode === 'strategies') void warmEngine()
+    if (!isMobileDevice() || mode === 'strategies') void primeEngine()
   }, [mode])
 
   // On phones the list is a sheet over the chart, opened from the search bar.

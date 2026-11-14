@@ -798,7 +798,20 @@ export default function LegalPage({ page, onBack }: LegalPageProps) {
           <ol className="st-legal-toc-list">
             {doc.sections.map((section) => (
               <li key={section.step}>
-                <a className="st-legal-toc-link" href={`#${page}-${section.step}`}>
+                <a
+                  className="st-legal-toc-link"
+                  href={`#${page}-${section.step}`}
+                  // The app routes on the hash, so letting the browser write
+                  // "#privacy-3" made readLocation fall back home and threw the
+                  // reader onto the landing page. Scroll by hand instead and
+                  // leave the address on the legal route.
+                  onClick={(event) => {
+                    event.preventDefault()
+                    document
+                      .getElementById(`${page}-${section.step}`)
+                      ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                  }}
+                >
                   <span className="st-legal-toc-step">{section.step}</span>
                   <span>{section.title}</span>
                 </a>

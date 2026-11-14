@@ -306,10 +306,34 @@ function priorityKeys(plan: string[]): string[] {
   return priority.length > 0 ? priority : plan.slice(0, 1);
 }
 
+/** Two downloads at a time. The plan used to fetch one file after another,
+    which left the link idle while each 28MB chunk was written to OPFS; a
+    second lane closes that gap without holding two whole files in memory
+    (each is streamed straight to disk). Phones benefit most: the five-year
+    plan arrives in two parallel streams, and the priority pair no longer
+    waits for the tail to finish before starting the year file. */
+const DOWNLOAD_LANES = 2;
+let activeDownloads = 0;
+const downloadWaiters: (() => void)[] = [];
+
+async function withDownloadLane<T>(job: () => Promise<T>): Promise<T> {
+  if (activeDownloads >= DOWNLOAD_LANES) {
+    await new Promise<void>((resolve) => downloadWaiters.push(resolve));
+  }
+  activeDownloads += 1;
+  try {
+    return await job();
+  } finally {
+    activeDownloads -= 1;
+    downloadWaiters.shift()?.();
+  }
+}
+
 /**
  * Downloads one file into OPFS, streaming progress into the status.
  * Concurrent callers (background prefetch + an open chart) share the same
- * download instead of fetching the same bytes twice.
+ * download instead of fetching the same bytes twice, and at most two
+ * different files are in flight at once.
  */
 async function downloadFile(file: ManifestFile, track = true): Promise<void> {
   const existing = inflight.get(file.key);
@@ -317,7 +341,7 @@ async function downloadFile(file: ManifestFile, track = true): Promise<void> {
     await existing;
     return;
   }
-  const run = storeFile(file, track).finally(() => {
+  const run = withDownloadLane(() => storeFile(file, track)).finally(() => {
     inflight.delete(file.key);
   });
   inflight.set(file.key, run);
@@ -559,25 +583,29 @@ export async function prefetchOlder(): Promise<void> {
 }
 
 async function prefetchKeys(manifest: Manifest, keys: string[]): Promise<void> {
-  for (const key of keys) {
-    if (await hasFile(key)) {
-      markLoaded(key);
-      continue;
-    }
-    const entry = manifest.files.find((f) => f.key === key);
-    if (!entry) continue;
-    countBytes(entry);
-    try {
-      await downloadFile(entry);
-    } catch (err) {
-      // One failed era must not trap the rest behind it: keep walking
-      // backwards, and the chart fetches the gap on demand if asked.
-      setStatus({
-        error: err instanceof Error ? err.message : `Could not fetch ${key}`,
-      });
-    }
-    if (status.phase === 'priority') setStatus({ phase: 'prefetch' });
-  }
+  // The lane limiter in downloadFile keeps this two-wide; queueing every key
+  // here is what lets the second lane start while the first is still writing.
+  await Promise.all(
+    keys.map(async (key) => {
+      if (await hasFile(key)) {
+        markLoaded(key);
+        return;
+      }
+      const entry = manifest.files.find((f) => f.key === key);
+      if (!entry) return;
+      countBytes(entry);
+      try {
+        await downloadFile(entry);
+      } catch (err) {
+        // One failed era must not trap the rest behind it: keep walking
+        // backwards, and the chart fetches the gap on demand if asked.
+        setStatus({
+          error: err instanceof Error ? err.message : `Could not fetch ${key}`,
+        });
+      }
+      if (status.phase === 'priority') setStatus({ phase: 'prefetch' });
+    }),
+  );
 }
 
 /** For tests and sign-out cleanup: forget the boot so the next call reruns. */

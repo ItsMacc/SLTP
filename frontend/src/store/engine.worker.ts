@@ -60,8 +60,14 @@ type Incoming =
 // JSON strings so the only thing crossing the worker boundary is text.
 const BOOTSTRAP = `
 import json
+import time
 
 _STRATEGIES = {}
+
+# Timings for one run: how much of it was reading bars, and how much was the
+# day loop itself. Printed in the UI, so a slow phone names its bottleneck
+# instead of leaving the reader staring at a spinner.
+_IO_STATS = {"io_seconds": 0.0, "io_calls": 0}
 
 
 def register_strategy(key, classname, source):
@@ -72,10 +78,41 @@ def register_strategy(key, classname, source):
 
 def run_strategy(key, start, end):
     from sltp.backtesting import Backtester
+    from sltp.backtesting import backtester as _backtester
+    from sltp.data import market_data_service as _market
     from sltp.web import to_jsonable
 
+    # Time the bar reads. The backtester imported _get_histories by name, so
+    # both module globals are patched; the timer is restored afterwards so a
+    # failed run cannot leave the engine instrumented.
+    _IO_STATS["io_seconds"] = 0.0
+    _IO_STATS["io_calls"] = 0
+    _original_backtester = _backtester._get_histories
+    _original_market = getattr(_market, "_get_histories", None)
+
+    def _timed(fn):
+        def wrapper(*args, **kwargs):
+            started = time.perf_counter()
+            try:
+                return fn(*args, **kwargs)
+            finally:
+                _IO_STATS["io_seconds"] += time.perf_counter() - started
+                _IO_STATS["io_calls"] += 1
+        return wrapper
+
+    _backtester._get_histories = _timed(_original_backtester)
+    if _original_market is not None:
+        _market._get_histories = _timed(_original_market)
+
     cls = _STRATEGIES[key]
-    result = Backtester(cls(), start, end or None).run()
+    _started = time.perf_counter()
+    try:
+        result = Backtester(cls(), start, end or None).run()
+    finally:
+        _run_seconds = time.perf_counter() - _started
+        _backtester._get_histories = _original_backtester
+        if _original_market is not None:
+            _market._get_histories = _original_market
     # sltp's curve points carry portfolio_value; accept a bare value too so
     # a point never dies inside to_jsonable with a bare KeyError. Anything
     # else fails loud, naming the keys, the range and the engine version.
@@ -94,7 +131,23 @@ def run_strategy(key, start, end):
         equity.append({"date": str(point["date"]), "value": float(value)})
     payload = to_jsonable(result)
     payload["equity"] = equity
-    return json.dumps(payload)
+    payload["timings"] = {
+        "run_seconds": round(_run_seconds, 2),
+        "io_seconds": round(_IO_STATS["io_seconds"], 2),
+        "io_calls": _IO_STATS["io_calls"],
+        "bridge_seconds": round(_BRIDGE_STATS["seconds"], 2),
+        "bridge_bytes": _BRIDGE_STATS["bytes"],
+        "bridge_files": _BRIDGE_STATS["files"],
+    }
+    # Hand back the text and let the tray of equity/trade objects go: Safari
+    # kills a tab that keeps a finished five-year result resident, which is
+    # what a reader sees as the page reloading itself.
+    text = json.dumps(payload)
+    payload = None
+    result = None
+    import gc as _gc
+    _gc.collect()
+    return text
 
 
 def prime_remote_cache():
@@ -184,6 +237,9 @@ async function installWheel(
     through here lands in the mounted OPFS files, where the main-thread
     sync counts it like any download of its own. */
 const FETCH_BRIDGE = `
+_BRIDGE_STATS = {"seconds": 0.0, "bytes": 0, "files": 0}
+
+
 def enable_browser_fetch():
     from pyodide.http import open_url
     from sltp.data.remote import set_fetch
@@ -198,6 +254,7 @@ def enable_browser_fetch():
         from pathlib import Path
         from js import Uint8Array, XMLHttpRequest
 
+        started = time.perf_counter()
         request = XMLHttpRequest.new()
         request.open("GET", str(url), False)
         request.responseType = "arraybuffer"
@@ -205,6 +262,9 @@ def enable_browser_fetch():
         if request.status != 200:
             raise IOError(f"download {url} failed with status {request.status}")
         data = Uint8Array.new(request.response).to_py().tobytes()
+        _BRIDGE_STATS["seconds"] += time.perf_counter() - started
+        _BRIDGE_STATS["bytes"] += len(data)
+        _BRIDGE_STATS["files"] += 1
         path = Path(str(dest))
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(bytes(data))
@@ -232,12 +292,22 @@ function reply(
 
 async function boot(strategies: StrategyInit[]): Promise<boolean> {
   if (booted) return bootCached;
+  // One stage message per step, so the page can say what the first run is
+  // waiting on instead of a blank "Loading engine…".
+  let last = performance.now();
+  const step = (stage: string) => {
+    const now = performance.now();
+    self.postMessage({ kind: 'progress', stage, ms: Math.round(now - last) });
+    last = now;
+  };
   const instance = await loadPyodideAtPin();
   pyodide = instance;
+  step('python');
   // Binary wheels come from the Pyodide distribution, not PyPI: a WASM
   // runtime cannot consume CPython wheels, so numpy loads here and micropip
   // then only fetches what is still missing (the pinned wheels below).
   await instance.loadPackage(['micropip', 'numpy']);
+  step('numpy');
   // The market cache, mounted where sltp looks for it. Best-effort: a
   // denial falls back to memory downloads, which still run and simply
   // refetch next visit.
@@ -250,6 +320,7 @@ async function boot(strategies: StrategyInit[]): Promise<boolean> {
   } catch {
     /* memory cache only */
   }
+  step('cache');
   const micropip = instance.pyimport('micropip');
   const wheels = await Promise.all([
     installWheel(instance, micropip, 'sltp', SLTP_VERSION),
@@ -258,13 +329,16 @@ async function boot(strategies: StrategyInit[]): Promise<boolean> {
   // WHEELS/ is shared with the Lab; keep it to the builds this worker pins so
   // superseded sltp releases do not sit there for good.
   await pruneWheels(wheels.map((wheel) => wheel.filename));
+  step('wheels');
   await instance.runPythonAsync(BOOTSTRAP + FETCH_BRIDGE);
+  step('engine');
   const enableFetch = instance.globals.get('enable_browser_fetch');
   enableFetch();
   // Mirror the uppercase bucket layout to the lowercase paths sltp opens
   // (SYMBOL_DATA/ -> symbol_data/), fetching anything still missing.
   const prime = instance.globals.get('prime_remote_cache');
   await prime();
+  step('data');
   const register = instance.globals.get('register_strategy');
   for (const entry of strategies) {
     register(entry.key, entry.className, entry.source);

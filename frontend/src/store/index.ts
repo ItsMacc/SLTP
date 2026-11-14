@@ -29,6 +29,7 @@ export type { Quote, TickerInfo } from './query';
 export { isMobileDevice, MOBILE_HISTORY_START } from './device';
 export {
   warmEngine,
+  primeEngine,
   useEngineStatus,
   getEngineStatus,
   runStrategy,

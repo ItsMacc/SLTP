@@ -20,8 +20,21 @@ export function mobileHistoryStart(today: Date = new Date()): string {
 
 export const MOBILE_HISTORY_START = mobileHistoryStart();
 
+/** `?phone=1` runs the phone plan on any browser and `?phone=0` runs the
+    desktop one, so mobile behaviour can be tested without a device (or a UA
+    switcher). Nothing else sets these. */
+function phoneOverride(): boolean | null {
+  if (typeof window === 'undefined') return null;
+  const value = new URLSearchParams(window.location.search).get('phone');
+  if (value === '1') return true;
+  if (value === '0') return false;
+  return null;
+}
+
 /** True on phones (and phone-sized emulation). Tablets stay desktop. */
 export function isMobileDevice(): boolean {
+  const forced = phoneOverride();
+  if (forced !== null) return forced;
   if (typeof navigator === 'undefined') return false;
   const ua = navigator.userAgent || '';
   if (/Android|iPhone|iPod|Mobile/i.test(ua)) return true;
