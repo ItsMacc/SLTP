@@ -168,12 +168,12 @@
 /* No background: the pillows are painted straight onto the card, so the seams
    and the stars between them take whatever surface the card has, light or dark.
 
-   The height is set inline to exactly one scaled tile (the component measures
-   the card and fits the grid), so every pillow on the band is whole. This
-   rule is only the pre-measurement fallback. */
+   The height is set inline to one scaled tile plus a half (the component
+   measures the card and fits the grid across), so the band closes on a
+   deliberate half layer. This rule is only the pre-measurement fallback. */
 .bento__pattern {
   position: relative;
-  height: 85.5px;
+  height: 128.25px;
 }
 
 .bento__pattern svg {

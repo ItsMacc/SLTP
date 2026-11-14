@@ -146,9 +146,12 @@ function BentoPattern() {
   const ref = useRef<HTMLDivElement>(null);
   // Painted tile width at the default 0.5 scale: four 120px cells.
   const baseTile = 240;
+  // One whole tile plus a half: the extra layer always fits, and its lower
+  // half is the deliberate cut-off at the bottom of the band.
+  const LAYERS = 1.5;
   const [fit, setFit] = useState<{ scale: number; height: number }>({
     scale: 0.5,
-    height: 171 * 0.5,
+    height: 171 * 0.5 * LAYERS,
   });
 
   useLayoutEffect(() => {
@@ -160,8 +163,7 @@ function BentoPattern() {
       // Whole tiles across, nearest in size to the intended artwork.
       const tiles = Math.max(1, Math.round(width / baseTile));
       const scale = width / (480 * tiles);
-      // One whole tile tall: two rows of pillows, none of them sliced.
-      setFit({ scale, height: 171 * scale });
+      setFit({ scale, height: 171 * scale * LAYERS });
     };
     const observer = new ResizeObserver(update);
     observer.observe(element);
