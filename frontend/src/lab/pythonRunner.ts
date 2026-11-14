@@ -206,10 +206,20 @@ function startWorker(): void {
   const created = new Worker(new URL('./python.worker.ts', import.meta.url), { type: 'module' });
   worker = created;
   created.onmessage = onMessage;
-  created.onerror = (event: ErrorEvent) => {
+  // A dead worker used to leave a run pending until the five minute timeout,
+  // with the page insisting it was still working and no clue why. Ending the
+  // run here turns that into a sentence the reader can act on.
+  const fail = (message: string) => {
     if (worker !== created) return;
     disposeWorker();
-    publish({ status: 'error', error: event.message || 'Python could not start' });
+    settle({ ok: false, error: message, durationMs: 0 });
+    publish({ status: 'error', error: message });
+  };
+  created.onerror = (event: ErrorEvent) => {
+    fail(event.message || 'Python stopped unexpectedly. Start the run again.');
+  };
+  created.onmessageerror = () => {
+    fail('Python stopped unexpectedly. Start the run again.');
   };
   bootId = nextId++;
   created.postMessage({ id: bootId, kind: 'init' });

@@ -113,7 +113,10 @@ function ask(
     column: position.column - 1,
     files: filesForAnalysis(),
   }).then((reply) => {
-    if (!reply.ok) report('failed', reply.error);
+    // A timeout means the interpreter was busy, usually with a run of your own.
+    // Reporting that as a failure is what made the status bar announce broken
+    // analysis in the middle of a perfectly normal long backtest.
+    if (!reply.ok && !(reply.error ?? '').includes('timed out')) report('failed', reply.error);
     else report('active');
     return reply;
   });

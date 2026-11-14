@@ -725,6 +725,7 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
       && (STRATEGY_CLASS_RE.test(activeFile.draft) || BACKTESTER_RE.test(activeFile.draft));
     setRun(showsBacktest ? { startedAt, stage: 'Preparing the workspace…' } : null);
     appendLine('command', `$ run ${activeFile.name}`);
+    try {
     const result = await runPython(
       activeFile.name,
       activeFile.draft,
@@ -776,7 +777,10 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
         );
       }
     }
-    setRunning(false);
+    } finally {
+      // The spinner must not outlive the run, whatever went wrong.
+      setRunning(false);
+    }
   };
 
   // The shortcut handler reads the latest closure through this ref.
