@@ -79,7 +79,15 @@ def run_strategy(key, start, end):
         "bridge_bytes": _BRIDGE_STATS["bytes"],
         "bridge_files": _BRIDGE_STATS["files"],
     }
-    return json.dumps(payload)
+    # Hand back the text and let the tray of equity/trade objects go: Safari
+    # kills a tab that keeps a finished five-year result resident, which is
+    # what a reader sees as the page reloading itself.
+    text = json.dumps(payload)
+    payload = None
+    result = None
+    import gc as _gc
+    _gc.collect()
+    return text
 
 
 def prime_remote_cache():
