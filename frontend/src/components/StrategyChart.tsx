@@ -6,8 +6,14 @@ import TradeResults, { type TradeRecord } from './TradeResults'
 import DatePicker from '../ui/DatePicker'
 import ErrorToast from '../ui/ErrorToast'
 import StrategyGuide from './StrategyGuide'
-import { ENGINE_STRATEGIES, runStrategy, useEngineStatus } from '../store'
-import { LoaderRow, LoaderScreen } from '../ui/Loader'
+import {
+  ENGINE_STRATEGIES,
+  MOBILE_HISTORY_START,
+  isMobileDevice,
+  runStrategy,
+  useEngineStatus,
+} from '../store'
+import { LoaderRow } from '../ui/Loader'
 import Button from '../ui/Button'
 
 
@@ -44,6 +50,22 @@ export interface PortfolioCandle {
 const AXIS_WIDTH = 65
 const PADDING_TOP = 20
 const PADDING_BOTTOM = 30
+
+/** The last finished run, kept outside React so leaving Research and coming
+    back restores the chart, the metrics and the date range instead of an
+    empty form. Session-lived on purpose: a reload starts clean. */
+interface SavedRun {
+  strategyId: string
+  startDate: string
+  endDate: string
+  result: BacktestApiResponse | null
+}
+
+let savedRun: SavedRun | null = null
+
+// A phone only holds the last five years of bars, so a run cannot start
+// before that day; the field, the submit and the note below all agree.
+const MOBILE = isMobileDevice()
 
 const formatNumber = (val: number) =>
   val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -87,15 +109,37 @@ export default function StrategyChart({
   const [strategiesLoading, setStrategiesLoading] = useState(true)
   // The registry could not be read, which is not the same as it being empty.
   const [strategiesUnavailable, setStrategiesUnavailable] = useState(false)
-  const [selectedStrategy, setSelectedStrategy] = useState<string>('')
-  const [startDate, setStartDate] = useState<string>('')
-  const [endDate, setEndDate] = useState<string>('')
+  const [selectedStrategy, setSelectedStrategy] = useState<string>(savedRun?.strategyId ?? '')
+  const [startDate, setStartDate] = useState<string>(savedRun?.startDate ?? '')
+  const [endDate, setEndDate] = useState<string>(savedRun?.endDate ?? '')
 
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
   const [inputError, setInputError] = useState<string | null>(null)
+  // Wall-clock seconds since the run started. A run has no engine-reported
+  // percentage yet, so the timer is what tells the reader it is moving.
+  const runStartRef = useRef<number | null>(null)
+  const [elapsed, setElapsed] = useState(0)
 
-  const [backtestResult, setBacktestResult] = useState<BacktestApiResponse | null>(null)
+  useEffect(() => {
+    if (!loading) return
+    const tick = setInterval(() => {
+      if (runStartRef.current !== null) {
+        setElapsed(Math.floor((Date.now() - runStartRef.current) / 1000))
+      }
+    }, 1000)
+    return () => clearInterval(tick)
+  }, [loading])
+
+  const [backtestResult, setBacktestResult] = useState<BacktestApiResponse | null>(
+    savedRun?.result ?? null,
+  )
+
+  // Remembers the run for the next mount of this page, after a trip to
+  // another tab or the lab.
+  useEffect(() => {
+    savedRun = { strategyId: selectedStrategy, startDate, endDate, result: backtestResult }
+  }, [selectedStrategy, startDate, endDate, backtestResult])
 
   const containerRef = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -118,10 +162,11 @@ export default function StrategyChart({
           setStrategies(data)
           // Open on the strategy the library handed over, then on the first
           // published one, so a run is one click away either way.
-          setSelectedStrategy(
-            (current) =>
-              current || data.find((entry) => entry.id === initialStrategyId)?.id || data[0]!.id
-          )
+          const handed = data.find((entry) => entry.id === initialStrategyId)?.id
+          setSelectedStrategy((current) => handed ?? (current || data[0]!.id))
+          // A handoff from the strategy library is a new question; the saved
+          // chart belongs to the strategy that was on screen before it.
+          if (handed && handed !== savedRun?.strategyId) setBacktestResult(null)
         }
       })
       .catch(() => {
@@ -175,18 +220,25 @@ export default function StrategyChart({
       return
     }
 
+    // A phone's cache starts five years back. A run asked to start earlier
+    // begins at the earliest day it can actually read, not with an error.
+    const start = MOBILE && startDate < MOBILE_HISTORY_START ? MOBILE_HISTORY_START : startDate
+    if (start !== startDate) setStartDate(start)
+
     setInputError(null)
     setError(null)
 
     // Clear out the previous results/trades immediately when a new run starts
     setBacktestResult(null)
 
+    runStartRef.current = Date.now()
+    setElapsed(0)
     setLoading(true)
 
     try {
       // The run happens in the engine worker: same strategies, same math,
       // no backend. The response keeps the old shape so nothing below changes.
-      const run = await runStrategy(selectedStrategy, startDate, endDate || undefined)
+      const run = await runStrategy(selectedStrategy, start, endDate || undefined)
       const data: BacktestApiResponse = {
         strategy_id: run.key,
         strategy_name: run.name,
@@ -425,11 +477,11 @@ export default function StrategyChart({
         <div className="strategy-detail">
           {engineUnsupported ? (
             <div className="empty-state">
-              <p className="empty-state-title">Runs need a desktop browser</p>
+              <p className="empty-state-title">The engine could not start here</p>
               <p className="empty-state-body">
-                Backtests run in this browser's engine against the market cache, and
-                strategy runs need a desktop browser. The library reads the same on
-                a phone — the numbers wait until you run them on a computer.
+                Backtests run in this browser against the market cache, and this
+                browser did not start the engine. The library still reads; reload
+                to try the numbers again.
               </p>
             </div>
           ) : (
@@ -445,6 +497,7 @@ export default function StrategyChart({
                   if (inputError) setInputError(null)
                 }}
                 placeholder="2020-01-01"
+                min={MOBILE ? MOBILE_HISTORY_START : undefined}
               />
 
               <DatePicker
@@ -461,11 +514,32 @@ export default function StrategyChart({
             </form>
           </div>
 
+          {MOBILE && (
+            <p className="strategy-mobile-note">
+              * Backtests on mobiles can only run up to 5 years of data. Switch to
+              desktop to get full access to all data.
+            </p>
+          )}
+
           {loading && (
-            <LoaderScreen
-              label={`Running ${strategies.find((s) => s.id === selectedStrategy)?.name || 'strategy'}…`}
-              sub="Replaying the engine over your date range. This can take a moment."
-            />
+            <div className="run-progress" role="status" aria-live="polite">
+              <div className="run-progress-head">
+                <span className="run-progress-title">
+                  Running {strategies.find((s) => s.id === selectedStrategy)?.name || 'strategy'}…
+                </span>
+                <span className="run-progress-clock">
+                  {Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, '0')}
+                </span>
+              </div>
+              <div className="run-progress-track" aria-hidden="true">
+                <span className="run-progress-fill" />
+              </div>
+              <p className="run-progress-note">
+                {engine.phase === 'loading'
+                  ? 'Loading the engine. The first run of a visit takes a few extra seconds.'
+                  : 'Replaying every trading day in the range. A full five-year run can take a few minutes on a phone; you can leave this tab and come back.'}
+              </p>
+            </div>
           )}
 
           {!loading && !error && !backtestResult && !strategiesLoading && (

@@ -17,7 +17,6 @@
 // later, through their own gate.
 
 import { useSyncExternalStore } from 'react';
-import { isMobileDevice } from './device';
 
 import benchmarkSource from './strategies/benchmark.py?raw';
 import adaptiveMomentumSource from './strategies/adaptive_momentum.py?raw';
@@ -233,9 +232,9 @@ function callWorker(
 let warmPromise: Promise<EngineStatus> | null = null;
 
 /**
- * Boots the engine worker and registers the five strategies. Desktop only —
- * on a phone this resolves `unsupported` immediately, before a single byte
- * is fetched. Safe to call from every page mount; runs once per page load.
+ * Boots the engine worker and registers the five strategies. Phones run it
+ * too, over their five-year cache. Safe to call from every page mount; runs
+ * once per page load.
  */
 export function warmEngine(): Promise<EngineStatus> {
   if (!warmPromise) warmPromise = runWarm().catch(handleWarmError);
@@ -250,10 +249,6 @@ function handleWarmError(err: unknown): EngineStatus {
 }
 
 async function runWarm(): Promise<EngineStatus> {
-  if (isMobileDevice()) {
-    setStatus({ phase: 'unsupported', detail: 'Strategy runs need a desktop browser' });
-    return { ...status };
-  }
   if (status.phase === 'ready') return { ...status };
   setStatus({ phase: 'loading', detail: 'Loading engine…', cachedWheels: false });
   const { wheelsCached } = await callWorker('init', {
@@ -265,8 +260,8 @@ async function runWarm(): Promise<EngineStatus> {
 
 /**
  * Runs one prebuilt strategy over [start, end] in the worker. Warms the
- * engine first when the page never did. Anything but a desktop browser
- * rejects immediately — the caller shows the unsupported note instead.
+ * engine first when the page never did. The caller clamps a phone's start
+ * date to the decade its cache covers.
  */
 export async function runStrategy(
   id: string,
@@ -275,7 +270,7 @@ export async function runStrategy(
 ): Promise<EngineRun> {
   const warmed = await warmEngine();
   if (warmed.phase !== 'ready') {
-    throw new Error(warmed.detail || 'Strategy runs need a desktop browser');
+    throw new Error(warmed.detail || 'The strategy engine did not start.');
   }
   const entry = ENGINE_STRATEGIES.find((strategy) => strategy.id === id);
   if (!entry) throw new Error(`Unknown strategy: ${id}`);

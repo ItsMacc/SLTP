@@ -662,6 +662,12 @@ const FETCH_BRIDGE = `
 def enable_browser_fetch():
     from sltp.data.remote import set_fetch
 
+    # The package's default r2.dev base is private now; send its downloads
+    # through the gate instead (the bars themselves come from the mounted
+    # OPFS cache, so this only matters for metadata and a cold chunk).
+    import sltp.data.remote as _remote
+    _remote.REMOTE_BASE_URL = "https://sltp-data.magicaltitan7.workers.dev/v/live"
+
     def _bridge(url, dest):
         from pathlib import Path
         from js import Uint8Array, XMLHttpRequest

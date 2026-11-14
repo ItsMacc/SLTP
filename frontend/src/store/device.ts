@@ -1,18 +1,20 @@
 // device.ts — what kind of browser this is, decided once per session.
 //
-// Phones get a smaller market plan (the ten newest files, not 29 years)
-// and no Pyodide engine: strategy runs stay a desktop feature. Detection is
-// UA plus a small touch screen; tablets keep the desktop plan. A device
-// does not change class mid-visit, so callers can read the module consts.
+// Phones get a smaller market plan (the six newest files, not 29 years) and
+// can run strategies only from the five years those files cover. The window
+// is deliberately short: ten years of bars was enough for iOS Safari to kill
+// the tab while drawing a chart. Detection is UA plus a small touch screen;
+// tablets keep the desktop plan. A device does not change class mid-visit, so
+// callers can read the module consts.
 
-/** How many of the newest bar files a phone keeps: the tail + nine years. */
-export const MOBILE_PLAN_CHUNKS = 10;
+/** How many of the newest bar files a phone keeps: the tail + five years. */
+export const MOBILE_PLAN_CHUNKS = 6;
 
-/** Earliest day a phone will ever query (ten years back). The future date
-    picker uses this as its min date; queries clamp to the cached chunks. */
+/** Earliest day a phone will ever query (five years back). The date picker
+    uses this as its min date; queries clamp to the cached chunks. */
 export function mobileHistoryStart(today: Date = new Date()): string {
   const cutoff = new Date(today);
-  cutoff.setFullYear(cutoff.getFullYear() - 10);
+  cutoff.setFullYear(cutoff.getFullYear() - 5);
   return cutoff.toISOString().slice(0, 10);
 }
 

@@ -267,7 +267,7 @@ const privacyDocument: LegalDocument = {
             },
             {
               lead: 'Saved market history:',
-              text: 'So that charts and backtests open quickly, the platform keeps a copy of the price history it has already fetched in this browser rather than asking for it again on every visit. On a desktop computer that copy can reach roughly 380 MB. On a phone or tablet we save a shorter window — about ten years of history, roughly 200 MB — so the device is not worked hard or filled up. This is market data only; none of your account details or saved work is stored there.',
+              text: 'So that charts and backtests open quickly, the platform keeps a copy of the price history it has already fetched in this browser rather than asking for it again on every visit. On a desktop computer that copy can reach roughly 380 MB. On a phone or tablet we save a shorter window — about five years of history, roughly 120 MB — so the device is not worked hard or filled up. This is market data only; none of your account details or saved work is stored there.',
             },
           ],
         },

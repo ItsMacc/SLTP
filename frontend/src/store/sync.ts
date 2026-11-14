@@ -1,7 +1,7 @@
 // sync.ts — the background download sequence plus where files come from.
 //
 // First visit: check the manifest and fetch the plan (desktop: all 29 year
-// files; phone: the ten newest), then on desktop keep going backwards one
+// files; phone: the six newest), then on desktop keep going backwards one
 // year at a time. Every later boot reconciles the plan against the manifest
 // by byte count and fetches only what's missing or changed — usually just
 // the `recent` tail after a daily update, never a wholesale re-download.
@@ -10,22 +10,25 @@
 //
 // The plan is why "N of M files" always reads true: totalFiles counts the
 // plan's bars, and loadedFiles can only ever hold plan keys (plus nothing
-// else — sidecars ride along but are never counted). A phone shows 10 of 10,
+// else — sidecars ride along but are never counted). A phone shows 6 of 6,
 // a desktop 30 of 30 (29 years plus the tail), and neither can drift apart
 // again.
 //
 // Cost model, measured Nov 2026: the desktop priority pair (tail + current
 // year) is ~28MB (~a couple of seconds on a fast link) and the full set
-// ~389MB; the phone plan (tail + 2018-2026) is ~196MB. Reads
-// stay inside the bucket's free Class B allowance because every file
-// downloads once per version and is read from disk afterwards. The R2
-// bucket is public today, so files download with a plain GET and no
-// credentials exist anywhere in this bundle; if it ever goes private, only
-// resolveFileUrl changes (it will ask our server to mint a short-lived
-// URL per file) and nothing that reads, caches or queries data changes.
+// ~389MB; the phone plan (tail + 2022-2026) is ~118MB. Reads stay inside the
+// bucket's free Class B allowance because every file downloads once per
+// version and is read from disk afterwards.
+//
+// The bucket is private: every byte comes through the gate Worker in
+// gateway/, which counts one R2 read per file and closes the month at
+// 9.95M. A device with no cache marks its requests `?new=1` so it may spend
+// the reserve above 9M; everything else stops at 9M. Nothing else in this
+// file knows about that.
 
 import { useSyncExternalStore } from 'react';
 import { MOBILE_PLAN_CHUNKS, isMobileDevice } from './device';
+import { writeWithSyncAccess } from './opfsWrite';
 import {
   deleteFile,
   fileSize,
@@ -33,7 +36,7 @@ import {
   hasFile,
   listFiles,
   opfsSupported,
-  putFile,
+  putFileStream,
   readVersion,
   requestPersistentStorage,
   writeVersion,
@@ -104,12 +107,16 @@ export function useMarketSyncStatus(): SyncStatus {
   return useSyncExternalStore(subscribeSyncStatus, getSyncStatus, getSyncStatus);
 }
 
-/** Public reader for the sltp-market-data bucket (mirrors sltp.data.remote). */
-export const R2_BASE_URL =
-  'https://pub-8fe125f9d291408d9a41fa5228a663e2.r2.dev';
+/** The gate in front of the private sltp-market-data bucket. */
+export const GATEWAY_BASE_URL =
+  'https://sltp-data.magicaltitan7.workers.dev';
 
 /** Small file naming which chunks exist and what data version they belong to. */
 export const MANIFEST_KEY = 'META/manifest.json';
+
+/** True until this device holds a downloaded dataset. A first sync is the one
+    kind of request the gate still serves once the month passes 9M reads. */
+let firstSync = true;
 
 export interface ManifestFile {
   key: string;
@@ -127,7 +134,9 @@ export interface Manifest {
 
 /** The published dataset version, e.g. "2026-11-11". A few bytes. */
 export async function fetchManifest(): Promise<Manifest> {
-  const res = await fetch(`${R2_BASE_URL}/${MANIFEST_KEY}`, { cache: 'no-store' });
+  const res = await fetch(`${GATEWAY_BASE_URL}/manifest.json${firstSync ? '?new=1' : ''}`, {
+    cache: 'no-store',
+  });
   if (!res.ok) throw new Error(`Manifest fetch failed (${res.status})`);
   const manifest = (await res.json()) as Manifest;
   if (!manifest?.version || !Array.isArray(manifest.files)) {
@@ -137,13 +146,15 @@ export async function fetchManifest(): Promise<Manifest> {
 }
 
 /**
- * The URL the browser downloads one file from. Public bucket: the file's own
- * address. Private bucket (future): ask our server for a short-lived signed
- * URL for this key — the R2 credentials never leave the server, and the
- * caller below keeps working unchanged.
+ * The URL the browser downloads one file from: the gate's versioned path, so
+ * a data version is immutable in the edge cache. `?new=1` only rides on a
+ * device's first download; it never changes the cached URL, because the gate
+ * keys its cache on the path alone.
  */
 export async function resolveFileUrl(key: string): Promise<string> {
-  return `${R2_BASE_URL}/${key}`;
+  const version = manifestCache?.version;
+  const base = version ? `${GATEWAY_BASE_URL}/v/${version}` : GATEWAY_BASE_URL;
+  return `${base}/${key}${firstSync ? '?new=1' : ''}`;
 }
 
 /**
@@ -178,7 +189,7 @@ const CATALOG_KEY = 'SYMBOL_DATA/symbol_catalog.parquet';
 
 /**
  * The chunk keys this browser plans to hold, newest first. Phones keep the
- * ten newest (tail + nine years, ~2018 on); desktops everything.
+ * six newest (tail + five years, ~2022 on); desktops everything.
  * Sidecars are outside the plan — they always download with the priority pair.
  */
 export function planKeys(files: ManifestFile[]): string[] {
@@ -320,20 +331,28 @@ async function downloadFile(file: ManifestFile, track = true): Promise<void> {
  */
 async function storeFile(file: ManifestFile, track = true): Promise<void> {
   const url = await resolveFileUrl(file.key);
-  const res = await fetch(url, { cache: 'no-store' });
-  if (!res.ok || !res.body) throw new Error(`Download failed (${res.status}): ${file.key}`);
-
-  const reader = res.body.getReader();
-  const parts: BlobPart[] = [];
   let received = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    parts.push(value);
-    received += value.byteLength;
-    setStatus({ bytesLoaded: status.bytesLoaded + value.byteLength });
+  const count = (bytes: number): void => {
+    received += bytes;
+    setStatus({ bytesLoaded: status.bytesLoaded + bytes });
+  };
+
+  try {
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok || !res.body) throw new Error(`Download failed (${res.status}): ${file.key}`);
+    // Written straight from the response into OPFS: buffering a 28MB chunk as
+    // a Blob is what iOS Safari reports as an out-of-memory `UnknownError`.
+    await putFileStream(file.key, res.body, count);
+  } catch (error) {
+    // A DOMException means the file system refused the write, not the network:
+    // Safari's createWritable() gives up on large files with a generic
+    // `UnknownError`. Retry once through a worker's synchronous handle, the
+    // OPFS path WebKit is reliable about. A 401 or an aborted fetch is real.
+    if (!(error instanceof DOMException)) throw error;
+    setStatus({ bytesLoaded: Math.max(0, status.bytesLoaded - received) });
+    received = 0;
+    await writeWithSyncAccess(file.key, url, count);
   }
-  await putFile(file.key, new Blob(parts));
   // Streams rarely report the manifest's exact byte count; reconcile so the
   // bar lands on 100% instead of hovering near it.
   setStatus({
@@ -383,13 +402,17 @@ async function runBoot(): Promise<void> {
   const plan: SyncPlan = mobile ? 'recent' : 'full';
   setStatus({ ...INITIAL, phase: 'checking', plan });
 
+  // No version on disk means no bytes on disk: this device needs the reserve
+  // the gate keeps above its 9M line, so even the manifest is flagged.
+  const stored = await readVersion();
+  firstSync = stored === null;
+
   const manifest = await fetchManifest();
   manifestCache = manifest;
   const planList = planKeys(manifest.files);
   activePlan = planList;
   setStatus({ version: manifest.version, totalFiles: planList.length });
 
-  const stored = await readVersion();
   counted.clear();
   if (stored !== manifest.version) {
     // A rollover can strand files the new plan no longer holds: a phone
@@ -561,6 +584,7 @@ async function prefetchKeys(manifest: Manifest, keys: string[]): Promise<void> {
 export function resetMarketSyncForTests(): void {
   bootPromise = null;
   manifestCache = null;
+  firstSync = true;
   activePlan = null;
   counted.clear();
   inflight.clear();

@@ -2,7 +2,7 @@
 //
 // Chunk choice mirrors the engine's bar_files_for (filename year overlap, so
 // a 5-year chart never touches the 1998 file), then intersects the active
-// sync plan — a phone only ever holds its ten newest files, so a wide
+// sync plan — a phone only ever holds its six newest files, so a wide
 // range resolves from what is on disk instead of fetching the archive.
 // Every missing chunk is fetched on demand: a chart with a cold cache still
 // resolves, it just takes the download first. All of the range's chunks

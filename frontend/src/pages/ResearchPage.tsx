@@ -33,10 +33,11 @@ import {
 } from '../store'
 
 // Phones hold the recent pair of chunks, not 28 years: their longest view
-// is the 10 years those files cover, and 'all history' is not offered.
+// is the 5 years those files cover, and neither '10Y' nor 'all history' is
+// offered. Ten years of bars crashed the tab on iOS Safari.
 const MOBILE_VIEW = isMobileDevice()
 
-const TIMEFRAMES: ResearchTimeframe[] = MOBILE_VIEW ? ['1y', '2y', '5y', '10y'] : ['1y', '2y', '5y', 'all']
+const TIMEFRAMES: ResearchTimeframe[] = MOBILE_VIEW ? ['1y', '2y', '5y'] : ['1y', '2y', '5y', 'all']
 
 const TIMEFRAME_LABEL: Record<ResearchTimeframe, string> = {
   '1y': '1Y',
@@ -293,10 +294,11 @@ export default function ResearchPage({ initialSettings, initialStrategyId }: Res
   // The engine warms only here (and the future Lab): never on page load, so
   // a visit that never runs a strategy never downloads Python. Silent on
   // purpose — stocks read parquet, not Pyodide, and must never wait on it.
-  // On a phone this resolves immediately with nothing fetched.
+  // A phone waits until the Strategies tab is actually opened: booting
+  // Pyodide beside a stock chart only costs it bandwidth and memory.
   useEffect(() => {
-    void warmEngine()
-  }, [])
+    if (!isMobileDevice() || mode === 'strategies') void warmEngine()
+  }, [mode])
 
   // On phones the list is a sheet over the chart, opened from the search bar.
   const [listOpen, setListOpen] = useState(false)

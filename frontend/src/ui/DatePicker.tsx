@@ -1,6 +1,7 @@
 // DatePicker.tsx — Date input with calendar popup
 
 import { useState, useRef, useEffect, useLayoutEffect } from 'react'
+import { createPortal } from 'react-dom'
 import Button from './Button'
 import './DatePicker.css'
 
@@ -11,6 +12,8 @@ interface DatePickerProps {
   onChange: (dateStr: string) => void
   error?: string
   placeholder?: string
+  /** Earliest selectable day (ISO). Phones pass their five-year floor. */
+  min?: string
 }
 
 // days: day grid, months: twelve months of one year, years: one page of years.
@@ -25,7 +28,6 @@ const DAYS_OF_WEEK = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
 
 // The price history starts in 1998, so a date before it is reported as its first day.
 const MIN_DATE = '1998-01-01'
-const MIN_YEAR = 1998
 const YEARS_PER_PAGE = 12
 
 const DROPDOWN_WIDTH = 300
@@ -36,9 +38,6 @@ const pad2 = (n: number) => String(n).padStart(2, '0')
 const toDateString = (year: number, month: number, day: number) =>
   `${year}-${pad2(month + 1)}-${pad2(day)}`
 
-// Zero-padded ISO strings compare correctly as text, so the floor is one line.
-const clampToMin = (dateStr: string) => (dateStr < MIN_DATE ? MIN_DATE : dateStr)
-
 export default function DatePicker({
   id,
   label,
@@ -46,13 +45,20 @@ export default function DatePicker({
   onChange,
   error,
   placeholder = 'YYYY-MM-DD',
+  min = MIN_DATE,
 }: DatePickerProps) {
+  // Zero-padded ISO strings compare correctly as text, so the floor is one line.
+  const floor = min
+  const floorYear = Number(floor.slice(0, 4))
+  const floorMonth = Number(floor.slice(5, 7)) - 1
+  const clampToMin = (dateStr: string) => (dateStr < floor ? floor : dateStr)
   const [isOpen, setIsOpen] = useState(false)
   const [view, setView] = useState<CalendarView>('days')
   const [yearPage, setYearPage] = useState<number>(0)
   const [inputValue, setInputValue] = useState(value || '')
   const containerRef = useRef<HTMLDivElement>(null)
   const inputContainerRef = useRef<HTMLDivElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
   const [dropdownPos, setDropdownPos] = useState<{ left: number; top: number } | null>(null)
 
   const initialDate = value ? new Date(value + 'T00:00:00') : new Date()
@@ -72,9 +78,12 @@ export default function DatePicker({
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setIsOpen(false)
-      }
+      const target = e.target as Node
+      // The calendar lives in a body portal, so it is outside the field's
+      // container by design; a click inside it must not count as outside.
+      if (containerRef.current?.contains(target)) return
+      if (dropdownRef.current?.contains(target)) return
+      setIsOpen(false)
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
@@ -90,7 +99,12 @@ export default function DatePicker({
     const el = inputContainerRef.current
     if (!el) return
     const rect = el.getBoundingClientRect()
-    const left = Math.min(rect.left, Math.max(8, window.innerWidth - DROPDOWN_WIDTH - 8))
+    // Phones centre the popup on the screen: tucked under the field's left
+    // edge it overhangs the right side of a 390px screen and reads as off.
+    const centered = window.innerWidth < 480
+    const left = centered
+      ? Math.max(8, Math.round((window.innerWidth - DROPDOWN_WIDTH) / 2))
+      : Math.min(rect.left, Math.max(8, window.innerWidth - DROPDOWN_WIDTH - 8))
     const spaceBelow = window.innerHeight - rect.bottom
     const top =
       spaceBelow >= DROPDOWN_EST_HEIGHT + 12
@@ -119,7 +133,7 @@ export default function DatePicker({
     setIsOpen((prev) => {
       if (!prev) {
         setView('days')
-        setYearPage(Math.floor((currentYear - MIN_YEAR) / YEARS_PER_PAGE))
+        setYearPage(Math.floor((currentYear - floorYear) / YEARS_PER_PAGE))
       }
       return !prev
     })
@@ -142,6 +156,7 @@ export default function DatePicker({
 
   const handlePrevMonth = (e: React.MouseEvent) => {
     e.stopPropagation()
+    if (atFirstMonth) return
     if (currentMonth === 0) {
       setCurrentMonth(11)
       setCurrentYear((y) => y - 1)
@@ -161,7 +176,7 @@ export default function DatePicker({
   }
 
   const openYears = () => {
-    setYearPage(Math.floor((currentYear - MIN_YEAR) / YEARS_PER_PAGE))
+    setYearPage(Math.floor((currentYear - floorYear) / YEARS_PER_PAGE))
     setView('years')
   }
 
@@ -171,7 +186,9 @@ export default function DatePicker({
   }
 
   const handleSelectYear = (year: number) => {
-    setCurrentYear(year)
+    const next = Math.max(floorYear, year)
+    setCurrentYear(next)
+    if (next === floorYear) setCurrentMonth(floorMonth)
     setView('months')
   }
 
@@ -206,9 +223,9 @@ export default function DatePicker({
     setIsOpen(false)
   }
 
-  const yearPageStart = MIN_YEAR + yearPage * YEARS_PER_PAGE
+  const yearPageStart = floorYear + yearPage * YEARS_PER_PAGE
   const pageYears = Array.from({ length: YEARS_PER_PAGE }, (_, i) => yearPageStart + i)
-  const atFirstMonth = currentYear === MIN_YEAR && currentMonth === 0
+  const atFirstMonth = currentYear === floorYear && currentMonth === floorMonth
 
   return (
     <div className="custom-datepicker-wrapper" ref={containerRef}>
@@ -242,8 +259,9 @@ export default function DatePicker({
 
       {error && <span className="custom-datepicker-error">{error}</span>}
 
-      {isOpen && dropdownPos && (
+      {isOpen && dropdownPos && createPortal(
         <div
+          ref={dropdownRef}
           className="custom-calendar-dropdown"
           style={{
             position: 'fixed',
@@ -321,8 +339,8 @@ export default function DatePicker({
                   type="button"
                   variant="ghost"
                   size="icon"
-                  onClick={() => setCurrentYear((y) => Math.max(MIN_YEAR, y - 1))}
-                  disabled={currentYear === MIN_YEAR}
+                  onClick={() => setCurrentYear((y) => Math.max(floorYear, y - 1))}
+                  disabled={currentYear <= floorYear}
                   aria-label="Previous year"
                 >
                   &lt;
@@ -397,7 +415,8 @@ export default function DatePicker({
               </div>
             </>
           )}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   )

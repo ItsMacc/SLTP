@@ -143,6 +143,42 @@ export async function putFile(path: string, data: Blob): Promise<void> {
   }
 }
 
+/**
+ * Stores one file as it streams in, one chunk at a time.
+ *
+ * A market chunk is tens of megabytes. Buffering the whole response into a
+ * Blob and handing that to OPFS needs roughly twice the file in memory at
+ * once, and iOS Safari answers that with a generic `UnknownError` instead of
+ * a quota error. Writing each received chunk keeps peak memory at one chunk,
+ * and the file only appears when close() succeeds.
+ */
+export async function putFileStream(
+  path: string,
+  body: ReadableStream<Uint8Array>,
+  onChunk?: (bytes: number) => void,
+): Promise<void> {
+  const { dir, name } = await parentFor(path, true);
+  const handle = await dir.getFileHandle(name, { create: true });
+  const writable = await handle.createWritable();
+  const reader = body.getReader();
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      // The file API only takes ArrayBuffer-backed views, and a stream chunk
+      // may be backed by a SharedArrayBuffer; one chunk-sized copy is cheap.
+      const bytes = new Uint8Array(value.byteLength);
+      bytes.set(value);
+      await writable.write(bytes);
+      onChunk?.(bytes.byteLength);
+    }
+    await writable.close();
+  } catch (error) {
+    await writable.abort().catch(() => {});
+    throw error;
+  }
+}
+
 /** Removes one file. A miss is fine — sync treats it as "fetch again". */
 export async function deleteFile(path: string): Promise<void> {
   try {

@@ -27,7 +27,9 @@ export function useViewScroll(
   const first = useRef(true);
 
   useLayoutEffect(() => {
-    if (!ready) return;
+    // Run even while progress is still loading: the view under the old scroll
+    // offset is exactly the flash a reader sees when a link lands at the
+    // bottom. The effect re-runs when ready flips and anchors properly then.
     const modeAtRun = mode;
     const firstAtRun = first.current;
     const run = () => {

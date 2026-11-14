@@ -120,7 +120,8 @@
 .chart-plot-area {
   position: relative;
   width: 100%;
-  touch-action: none;
+  /* Vertical swipes scroll the page; horizontal ones pan the chart. */
+  touch-action: pan-y;
   user-select: none;
 }
 

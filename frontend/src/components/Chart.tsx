@@ -252,23 +252,49 @@ export default function Chart({
 
   const dragRef = useRef<{ x: number; end: number } | null>(null)
   const [dragging, setDragging] = useState(false)
+  // A finger that has not travelled yet is a tap; once it moves it is a pan.
+  // Showing the candle on contact is what used to freeze the chart under a
+  // thumb, so the tooltip waits for the finger to lift.
+  const touchRef = useRef<{ x: number; y: number; moved: boolean } | null>(null)
 
-  const handlePointerDown = (event: React.PointerEvent) => {
+  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     dragRef.current = { x: event.clientX, end: safeEnd }
     setDragging(true)
-    event.currentTarget.setPointerCapture(event.pointerId)
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId)
+    } catch {
+      // A pointer already released (or synthetic in a test) cannot be captured.
+    }
+    if (event.pointerType === 'touch') {
+      touchRef.current = { x: event.clientX, y: event.clientY, moved: false }
+      setHover(null)
+    }
   }
 
   const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
     const rect = event.currentTarget.getBoundingClientRect()
     const px = event.clientX - rect.left
     const drag = dragRef.current
+    const touch = touchRef.current
+
+    if (touch && !touch.moved) {
+      if (Math.abs(event.clientX - touch.x) > 6 || Math.abs(event.clientY - touch.y) > 6) {
+        touch.moved = true
+      }
+    }
 
     if (drag) {
+      // The first few pixels of a touch stay still, so a swipe pans cleanly
+      // instead of nudging the window before it is recognised as a drag.
+      if (touch && !touch.moved) return
       const moved = (drag.x - event.clientX) / Math.max(1, slot)
       setEnd(clamp(Math.round(drag.end + moved), count, bars.length))
+      if (touch) setHover(null)
       return
     }
+
+    // Touch never inspects while moving: that gesture belongs to the pan.
+    if (event.pointerType === 'touch') return
 
     if (px > plotWidth || windowData.length === 0) {
       setHover(null)
@@ -281,6 +307,26 @@ export default function Chart({
   const endDrag = () => {
     dragRef.current = null
     setDragging(false)
+  }
+
+  // Lifting a finger that never travelled is the tap: show that candle.
+  const handlePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+    const touch = touchRef.current
+    touchRef.current = null
+    if (touch && !touch.moved && windowData.length > 0) {
+      const rect = event.currentTarget.getBoundingClientRect()
+      const px = event.clientX - rect.left
+      if (px <= plotWidth) {
+        const index = clamp(Math.floor(px / slot), 0, windowData.length - 1)
+        setHover({ index, x: index * slot + slot / 2, y: event.clientY - rect.top })
+      }
+    }
+    endDrag()
+  }
+
+  const cancelPoint = () => {
+    touchRef.current = null
+    endDrag()
   }
 
   const hovered = hover ? windowData[hover.index] : undefined
@@ -337,9 +383,10 @@ export default function Chart({
         ref={containerRef}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
-        onPointerUp={endDrag}
-        onPointerCancel={endDrag}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={cancelPoint}
         onPointerLeave={() => {
+          touchRef.current = null
           endDrag()
           setHover(null)
         }}

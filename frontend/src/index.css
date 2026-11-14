@@ -246,6 +246,8 @@ html,
 body {
   overflow-x: clip;
   max-width: 100%;
+  /* A sideways drag at the edge of a shelf must not pan the page itself. */
+  overscroll-behavior-x: none;
 }
 
 body {
@@ -257,6 +259,18 @@ body {
   min-height: 100vh;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+}
+
+/* iOS Safari zooms the whole page when a field under 16px takes focus, and the
+   page stays panned sideways afterwards. On phone widths the fields grow to
+   16px so focusing one never changes the zoom. */
+@media (max-width: 48rem) {
+  input,
+  select,
+  textarea {
+    /* 16px exactly: the zoom trigger is absolute, and this page's rem is 95%. */
+    font-size: 16px !important;
+  }
 }
 
 h1, h2, h3, h4, h5, h6 {

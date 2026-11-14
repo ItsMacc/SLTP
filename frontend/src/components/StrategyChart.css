@@ -348,7 +348,9 @@
 
 .strategy-metrics-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); /* ≈152px cells */
+  /* Two columns: the old auto-fit pack gave a different width per row, which
+     made the figures read as ragged noise. */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-md) var(--space-lg);
 }
 
@@ -416,6 +418,84 @@
   color: var(--error);
 }
 
+/* The one-line disclosure under the run form on a phone. */
+.strategy-mobile-note {
+  margin-top: var(--space-sm);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* ---------- A run in flight ----------
+   The engine reports nothing until it is done, so this shows motion (an
+   indeterminate sweep) and the wall clock instead of a percentage it would
+   have to invent. */
+
+.run-progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-md);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-surface);
+}
+
+.run-progress-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.run-progress-title {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.run-progress-clock {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.run-progress-track {
+  position: relative;
+  height: 0.375rem; /* 6px */
+  border-radius: 999px;
+  background-color: var(--bg-surface-hover);
+  overflow: hidden;
+}
+
+.run-progress-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 40%;
+  border-radius: inherit;
+  background-color: var(--accent);
+  animation: run-progress-slide 1.4s ease-in-out infinite;
+}
+
+@keyframes run-progress-slide {
+  0% { left: -40%; }
+  100% { left: 100%; }
+}
+
+.run-progress-note {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .run-progress-fill {
+    left: 0;
+    width: 100%;
+    opacity: 0.45;
+    animation: none;
+  }
+}
+
 /* ---------- Wide: the list is a rail that stays in view ----------
    It is as tall as its rows and no taller, so a long run never leaves an
    empty bordered box beside the chart. Past the viewport it scrolls itself. */
@@ -448,9 +528,11 @@
     gap: var(--space-sm);
   }
 
-  .strategy-date-form .custom-datepicker-wrapper,
-  .strategy-date-form .custom-datepicker-input-container,
-  .strategy-date-form .btn {
+  /* Direct children only: the calendar popup lives inside the datepicker, so
+     a bare `.btn` here stretched its prev/next arrows to the full width and
+     pushed the month title out of the popup. */
+  .strategy-date-form > .custom-datepicker-wrapper,
+  .strategy-date-form > .btn {
     width: 100%;
   }
 

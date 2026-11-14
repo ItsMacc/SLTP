@@ -188,6 +188,12 @@ def enable_browser_fetch():
     from pyodide.http import open_url
     from sltp.data.remote import set_fetch
 
+    # sltp ships the public r2.dev URL, which is closed now. Every remote read
+    # goes through the gate instead: the unversioned alias serves the small
+    # metadata files, and the cache mounted from OPFS serves the bars.
+    import sltp.data.remote as _remote
+    _remote.REMOTE_BASE_URL = "https://sltp-data.magicaltitan7.workers.dev/v/live"
+
     def _bridge(url, dest):
         from pathlib import Path
         from js import Uint8Array, XMLHttpRequest
