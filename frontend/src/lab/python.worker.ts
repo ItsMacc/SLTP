@@ -19,7 +19,7 @@ import type { EngineRunSettings } from './runSettings';
 /** Pinned Pyodide build: the same distribution the engine worker uses. */
 const PYODIDE_INDEX_URL = 'https://cdn.jsdelivr.net/pyodide/v314.0.7/full/';
 /** Engine pin: matches backend/requirements.txt. */
-const SLTP_VERSION = '0.1.32';
+const SLTP_VERSION = '0.1.34';
 /** Pure-Python date library the strategy base imports. */
 const DATEUTIL_VERSION = '2.9.0';
 
@@ -410,32 +410,6 @@ def _diagnose(code, path):
         return {"items": [{"line": 1, "column": 0, "message": str(exc), "severity": 1}]}
     return {"items": report.items}
 
-
-def write_export_stubs():
-    """Give static analysis the names sltp resolves through __getattr__.
-
-    The package deliberately binds nothing at import time, so an import of
-    Backtester looks like an unknown name to jedi, and members of an instance
-    of it can never be inferred. A stub file beside the package lists the same
-    re-exports in the form static analysis reads; Python ignores .pyi files, so
-    the runtime is untouched.
-    """
-    try:
-        import sltp
-        from pathlib import Path
-
-        lazy = getattr(sltp, "_LAZY_EXPORTS", None) or {}
-        exported = getattr(sltp, "__all__", None) or []
-        lines = [f"from {lazy[name]} import {name} as {name}" for name in exported if name in lazy]
-        if not lines:
-            return False
-        stub = Path(sltp.__file__).parent / "__init__.pyi"
-        # chr(10) rather than an escape: this Python lives inside a JS template
-        # literal, where a backslash-n would become a real newline.
-        stub.write_text(chr(10).join(lines) + chr(10), encoding="utf-8")
-        return True
-    except Exception:  # noqa: BLE001 - inference stays worse, nothing breaks
-        return False
 
 
 def _import_candidates(code, line, column, files_json):
@@ -851,7 +825,8 @@ async function boot(): Promise<void> {
       const analyzerPip = instance.pyimport('micropip');
       await analyzerPip.install('jedi');
       await analyzerPip.install('pyflakes');
-      instance.globals.get('write_export_stubs')();
+      // No stub is written any more: sltp ships a TYPE_CHECKING mirror of its
+      // lazy re-exports, which is exactly the shape jedi resolves.
     } catch {
       /* the editor falls back to plain suggestions */
     }
