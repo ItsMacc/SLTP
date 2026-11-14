@@ -7,6 +7,7 @@ import { GETTING_STARTED } from './pages/gettingStarted';
 import { UTILS } from './pages/utils';
 import { STRATEGY } from './pages/strategy';
 import { ENGINE } from './pages/engine';
+import { DATA } from './pages/data';
 import { FILLS } from './pages/fills';
 import { RESULTS } from './pages/results';
 import { EXAMPLES } from './pages/examples';
@@ -19,6 +20,7 @@ export const DOCS_GROUPS: DocGroup[] = [
   UTILS,
   STRATEGY,
   ENGINE,
+  DATA,
   FILLS,
   RESULTS,
   EXAMPLES,
