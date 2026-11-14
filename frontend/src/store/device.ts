@@ -44,3 +44,6 @@ export function isMobileDevice(): boolean {
   const shortest = Math.min(window.screen?.width ?? 9999, window.screen?.height ?? 9999);
   return coarse && shortest < 500;
 }
+
+/** The answer for this session, so callers do not each re-parse the UA. */
+export const IS_MOBILE = isMobileDevice();

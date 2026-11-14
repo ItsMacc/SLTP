@@ -1,0 +1,26 @@
+// wrangler.jsonc — the market-data gateway.
+//
+// The bucket binding is the only way bytes leave; there is no public URL in
+// this config on purpose. `workers.dev` stays on for a smoke test; add a route
+// on your own domain before shipping, so the URL the browser uses is capped
+// and cacheable:
+//
+//   "routes": [{ "pattern": "data.yourdomain.com/*", "zone_name": "yourdomain.com" }]
+//
+// Deploy: npx wrangler deploy --config gateway/wrangler.jsonc
+{
+  "name": "sltp-data",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-01",
+  "workers_dev": true,
+  "observability": { "enabled": true },
+  "r2_buckets": [
+    { "binding": "BUCKET", "bucket_name": "sltp-market-data" }
+  ],
+  "durable_objects": {
+    "bindings": [{ "name": "BUDGET", "class_name": "Budget" }]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["Budget"] }
+  ]
+}

@@ -27,7 +27,7 @@
 // file knows about that.
 
 import { useSyncExternalStore } from 'react';
-import { MOBILE_PLAN_CHUNKS, isMobileDevice } from './device';
+import { IS_MOBILE, MOBILE_PLAN_CHUNKS } from './device';
 import { writeWithSyncAccess } from './opfsWrite';
 import {
   deleteFile,
@@ -194,7 +194,7 @@ const CATALOG_KEY = 'SYMBOL_DATA/symbol_catalog.parquet';
  */
 export function planKeys(files: ManifestFile[]): string[] {
   const ordered = newestFirst(barKeys(files));
-  return isMobileDevice() ? ordered.slice(0, MOBILE_PLAN_CHUNKS) : ordered;
+  return IS_MOBILE ? ordered.slice(0, MOBILE_PLAN_CHUNKS) : ordered;
 }
 
 /** The active plan's keys (null until the first manifest lands). Queries
@@ -422,7 +422,7 @@ async function runBoot(): Promise<void> {
   // of megabytes the visitor would otherwise fetch again.
   await requestPersistentStorage();
 
-  const mobile = isMobileDevice();
+  const mobile = IS_MOBILE;
   const plan: SyncPlan = mobile ? 'recent' : 'full';
   setStatus({ ...INITIAL, phase: 'checking', plan });
 

@@ -17,7 +17,7 @@ import StrategyGuide from './StrategyGuide'
 import {
   ENGINE_STRATEGIES,
   MOBILE_HISTORY_START,
-  isMobileDevice,
+  IS_MOBILE,
   runStrategy,
   useEngineStatus,
 } from '../store'
@@ -136,7 +136,7 @@ function startRunJob(strategyId: string, start: string, end: string): void {
 
 // A phone only holds the last five years of bars, so a run cannot start
 // before that day; the field, the submit and the note below all agree.
-const MOBILE = isMobileDevice()
+const MOBILE = IS_MOBILE
 
 const formatNumber = (val: number) =>
   val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })

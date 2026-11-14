@@ -168,13 +168,12 @@
 /* No background: the pillows are painted straight onto the card, so the seams
    and the stars between them take whatever surface the card has, light or dark.
 
-   The panel is a whole number of tile rows tall — the artwork is halved, so a
-   row is 85.5 px — because nothing is painted behind the last row any more and
-   a fraction of one would be sliced off against the card. */
+   The height is set inline to exactly one scaled tile (the component measures
+   the card and fits the grid), so every pillow on the band is whole. This
+   rule is only the pre-measurement fallback. */
 .bento__pattern {
   position: relative;
-  /* Half the old three-row band, now pinned to the top of the card. */
-  height: calc(85.5px * 1.5);
+  height: 85.5px;
 }
 
 .bento__pattern svg {
@@ -426,9 +425,6 @@
     order: 5;
   }
 
-  .bento__pattern {
-    height: calc(85.5px * 1);
-  }
 }
 
 @media (max-width: 30rem) {

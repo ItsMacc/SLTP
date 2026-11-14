@@ -1,5 +1,3 @@
-// TODO(copy): wording needs rework on all pages — headlines, ledes and card
-// text were written at different times and do not share one voice yet.
 // App.tsx — Root shell: auth session, tab routing, legal pages
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Header from './components/Header';

@@ -4,7 +4,7 @@
 // Those four pages have addresses but no content yet, so the cards land on a
 // shared placeholder. The pre-trim five-card version (with Watchlist and
 // Docs) lives on the backup-before-trim branch.
-import { type ComponentType } from 'react';
+import { type ComponentType, useLayoutEffect, useRef, useState } from 'react';
 import { ArrowRight, FlaskConical, GraduationCap, Layers, LineChart, Radar } from 'lucide-react';
 
 function GithubIcon({ size = 18, className }: { size?: number; className?: string }) {
@@ -132,6 +132,67 @@ const BENTO_TILE = Array.from({ length: 8 }, (_, index) => {
   };
 });
 
+/**
+ * The pillow field, sized so the tile grid lands exactly on every edge.
+ *
+ * A fixed pattern size lands wherever the card's width happens to fall, which
+ * sliced the first and last pillows at random fractions. Here the card is
+ * measured, the nearest whole number of tiles is chosen, and the tile is
+ * scaled by the few percent needed to make the width an exact multiple of it.
+ * The band is then one whole tile tall, so nothing is cut at the bottom
+ * either. No overlay, no clipping: the artwork simply fits.
+ */
+function BentoPattern() {
+  const ref = useRef<HTMLDivElement>(null);
+  // Painted tile width at the default 0.5 scale: four 120px cells.
+  const baseTile = 240;
+  const [fit, setFit] = useState<{ scale: number; height: number }>({
+    scale: 0.5,
+    height: 171 * 0.5,
+  });
+
+  useLayoutEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    const update = () => {
+      const width = element.clientWidth;
+      if (!width) return;
+      // Whole tiles across, nearest in size to the intended artwork.
+      const tiles = Math.max(1, Math.round(width / baseTile));
+      const scale = width / (480 * tiles);
+      // One whole tile tall: two rows of pillows, none of them sliced.
+      setFit({ scale, height: 171 * scale });
+    };
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+    update();
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div className="bento__pattern" aria-hidden="true" ref={ref} style={{ height: fit.height }}>
+      <svg width="100%" height="100%" focusable="false">
+        <defs>
+          <pattern
+            id="bento-tile"
+            width="480"
+            height="171"
+            patternUnits="userSpaceOnUse"
+            patternTransform={`scale(${fit.scale})`}
+          >
+            <g strokeLinejoin="round">
+              {BENTO_TILE.map((pillow) => (
+                <path key={pillow.d} d={pillow.d} fill={pillow.fill} />
+              ))}
+            </g>
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#bento-tile)" />
+      </svg>
+    </div>
+  );
+}
+
 const BENTO_MINIS: { title: string; text: string; code?: string }[] = [
   {
     title: 'Local Development and Cloud Backtesting.',
@@ -181,26 +242,7 @@ export default function HomePage({ onNavigate, onOpenGuide }: HomePageProps) {
 
       <section className="bento" aria-labelledby="bento-title">
         <article className="bento__feature">
-          <div className="bento__pattern" aria-hidden="true">
-            <svg width="100%" height="100%" focusable="false">
-              <defs>
-                <pattern
-                  id="bento-tile"
-                  width="480"
-                  height="171"
-                  patternUnits="userSpaceOnUse"
-                  patternTransform="scale(0.5)"
-                >
-                  <g strokeLinejoin="round">
-                    {BENTO_TILE.map((pillow) => (
-                      <path key={pillow.d} d={pillow.d} fill={pillow.fill} />
-                    ))}
-                  </g>
-                </pattern>
-              </defs>
-              <rect width="100%" height="100%" fill="url(#bento-tile)" />
-            </svg>
-          </div>
+          <BentoPattern />
 
           <div className="bento__body">
             <h2 id="bento-title" className="bento__title">

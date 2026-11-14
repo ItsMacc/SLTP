@@ -74,7 +74,7 @@ import {
   toEngineSettings,
   type LabRunSettings,
 } from '../lab/runSettings';
-import { isMobileDevice } from '../store/device';
+import { IS_MOBILE } from '../store/device';
 import { isLabBacktestPayload, type LabBacktestPayload } from '../lab/backtestTypes';
 import {
   setJediBusy,
@@ -272,7 +272,7 @@ export default function LabEditorPage({ project, workspaceName, onBack }: LabEdi
   // defaults, so a first run needs no setup.
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [runSettings, setRunSettings] = useState<LabRunSettings>(readLabRunSettings);
-  const mobileDevice = isMobileDevice();
+  const mobileDevice = IS_MOBILE;
 
   // Monaco sizes itself from its container, and in the stacked layout that box
   // is still zero when it mounts. An explicit pixel height from React means it

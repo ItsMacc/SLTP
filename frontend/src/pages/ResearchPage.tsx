@@ -24,7 +24,7 @@ import './ResearchPage.css'
 import { chartMaxBarsToNumber, readChartMaxBars, type ResearchTimeframe } from '../../lib/settings'
 import {
   getTickerDirectory,
-  isMobileDevice,
+  IS_MOBILE,
   queryMarketData,
   queryQuotes,
   primeEngine,
@@ -35,7 +35,7 @@ import {
 // Phones hold the recent pair of chunks, not 28 years: their longest view
 // is the 5 years those files cover, and neither '10Y' nor 'all history' is
 // offered. Ten years of bars crashed the tab on iOS Safari.
-const MOBILE_VIEW = isMobileDevice()
+const MOBILE_VIEW = IS_MOBILE
 
 const TIMEFRAMES: ResearchTimeframe[] = MOBILE_VIEW ? ['1y', '2y', '5y'] : ['1y', '2y', '5y', 'all']
 
@@ -297,7 +297,7 @@ export default function ResearchPage({ initialSettings, initialStrategyId }: Res
   // A phone waits until the Strategies tab is actually opened: booting
   // Pyodide beside a stock chart only costs it bandwidth and memory.
   useEffect(() => {
-    if (!isMobileDevice() || mode === 'strategies') void primeEngine()
+    if (!IS_MOBILE || mode === 'strategies') void primeEngine()
   }, [mode])
 
   // On phones the list is a sheet over the chart, opened from the search bar.
